@@ -28,6 +28,19 @@ claude --plugin-dir /path/to/ono-mobile-dev-plugin
 
 The shared layer keeps its `mobile-*` naming (`mobile-repo-analysis`, `mobile-security-review`, `/prepare-mobile-release`, etc.) even though React (web) isn't literally mobile — Ono Apps is a mobile division that also owns a React web app, so the umbrella name stayed put rather than triggering a broader rename.
 
+## Project Planning
+
+The implementation roadmap for building out the plugin is maintained as an interactive dashboard at:
+
+```
+docs/planning/PLUGIN_COMPLETION_PLAN.html
+```
+
+- **Download the HTML file and open it locally in a browser** — it is fully self-contained.
+- The dashboard contains editable tables, implementation tracking, per-owner workload planning, and delivery timelines.
+- Changes you make are stored **locally in your browser** (localStorage); they are **not** automatically committed to Git. Use **Export HTML** (or edit the file directly) and commit the file back to the repository to share updates.
+- This dashboard is a **planning tool only** — it is not used by the plugin during execution.
+
 ## How platform detection works
 
 Every command starts by inspecting the repo (via the `repo-analyst` agent) before doing anything platform-specific:
