@@ -14,7 +14,7 @@ It is an Android specialist and executor. The **implementation methodology it fo
 Follow `skills/android-feature-implementation/SKILL.md` end to end. In brief, that skill has this agent:
 
 1. Read and verify the approved Feature Analysis, Detailed Design, Dev Plan, and Task Breakdown, then resolve the selected task row by id — never implementing from the original request when approved downstream documents exist.
-2. Confirm readiness (DD and plan approved for real implementation, `depends-on` complete, no blocker/open question, task is Android, Figma link present for UI work) and stop-and-report if any check fails.
+2. Confirm readiness (DD and plan approved for real implementation, `depends-on` complete, no blocker/open question, task is Android, a design reference present for UI work — `figma_link` or `design_reference`) and stop-and-report if any check fails.
 3. Ground in the actual repo — detect Compose vs. XML vs. mixed, the architecture/state/DI/networking/persistence/navigation conventions, and Gradle/module structure — and follow what is detected rather than imposing a default.
 4. Implement only the selected task against every applicable standard for the surface being touched (`AND-*` Android standards plus the shared `A11Y-*`/`I18N-*`/`SEC-*`), incrementally, validating as it goes.
 5. Self-check against the task's acceptance criteria before reporting done, and report which standard IDs were actually applied.
@@ -30,5 +30,5 @@ Follow `skills/android-feature-implementation/SKILL.md` end to end. In brief, th
 - Don't expand scope beyond the task's acceptance criteria — flag out-of-scope findings for a follow-up task rather than fixing them inline.
 - If two applicable standards conflict for a given change, flag the conflict explicitly rather than silently picking one.
 - Don't restate a standard's text in code comments — cite the `AND-*` (or shared) ID if a non-obvious constraint needs explaining.
-- Gate UI implementation on a Figma link, same as the other platform feature-developer agents — don't implement UI from a screenshot or description alone when no Figma link is on file.
+- Gate UI implementation on a design reference, same as the other platform feature-developer agents — don't implement UI from a description alone when no design reference is on file. Any supported reference type satisfies this (Figma is not required specifically), and a task that changes no user-facing UI needs none.
 - Follow the detected repository conventions; do not impose Compose, XML, MVVM, Clean Architecture, Hilt, Retrofit, or Room where the repo does otherwise.

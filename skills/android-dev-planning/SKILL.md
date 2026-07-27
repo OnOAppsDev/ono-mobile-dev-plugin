@@ -13,4 +13,4 @@ Until this is authored, Android-specific dev plans will not cite grounded `stand
 
 1. Use `android-architect`'s technical approach and `repo-analyst`'s detected Android conventions as the basis for the approach.
 2. Cite the relevant `standards/android/*` standard IDs the approach follows.
-3. Write the approach in Android vocabulary (screens, state & data, navigation, module/folder placement) — the flat Technical Approach section for an Android-only feature, or the `### Android` subsection for a mixed-platform feature.
+3. Write the approach in Android vocabulary (screens, state & data, navigation, module/folder placement) — the flat Technical Approach section. This skill only runs when `android` is the feature's single confirmed platform, so the section is always flat, never a per-platform subsection.

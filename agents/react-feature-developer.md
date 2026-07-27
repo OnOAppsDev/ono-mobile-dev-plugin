@@ -12,6 +12,6 @@ Until authored, invoking this agent for real React (web) implementation will not
 ## Intended role (once authored)
 
 - Implement against every applicable `standards/react/*` standard for the surface being touched (coding conventions, routing, state management, architecture, performance).
-- Gate UI implementation on a Figma link, same as `rn-feature-developer`.
+- Gate UI implementation on a design reference (any supported type — Figma is not required specifically), and never ask for one for a task that changes no user-facing UI, same as `rn-feature-developer`.
 - Self-check against the task's acceptance criteria; report applied standard IDs.
 - Also used by `/fix-review-comments` (applying the fix for React-attributed findings, diagnosed by the shared `mobile-debugging` skill) and by `/create-dev-qa-notes` (summarizing what was built for React-attributed work).

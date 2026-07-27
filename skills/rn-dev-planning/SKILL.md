@@ -11,4 +11,4 @@ The shared `dev-design-start` and `dev-feature-start` skills own the overall mec
 
 2. **Cite the relevant standard IDs** (`ARCH-*` from `standards/react-native/rn-architecture.md`, `API-*` from `standards/react-native/rn-api-service-layer.md`, `STATE-*` from `standards/react-native/rn-state-management.md`, `NAV-*` from `standards/react-native/react-navigation.md`) the approach follows.
 
-3. **Write the approach in RN vocabulary** (screens, state/data slices or equivalents, navigation routes/params, feature-folder placement) — this becomes the flat Technical Implementation Approach section for a react-native-only feature, or the `### React Native` subsection for a mixed-platform feature.
+3. **Write the approach in RN vocabulary** (screens, state/data slices or equivalents, navigation routes/params, feature-folder placement) — this becomes the flat Technical Implementation Approach section. This skill only runs when `react-native` is the feature's single confirmed platform, so the section is always flat, never a per-platform subsection.

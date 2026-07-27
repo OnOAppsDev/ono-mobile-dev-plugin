@@ -5,7 +5,7 @@ description: Shared methodology for writing QA handoff notes for a completed fea
 
 ## Methodology
 
-1. **Gather the source material.** Pull the feature summary from the relevant platform feature-developer agent's report for `[feature-name]`: what was built, which screens/flows it touches, and which standard IDs were applied. For a mixed-platform feature, gather from every platform feature-developer agent that appears in the feature's task breakdown (`rn-feature-developer`/`ios-feature-developer`/`android-feature-developer`/`react-feature-developer`), not just one.
+1. **Gather the source material.** Pull the feature summary from the relevant platform feature-developer agent's report for `[feature-name]`: what was built, which screens/flows it touches, and which standard IDs were applied. The feature's task breakdown carries exactly one confirmed platform, so gather from that platform's feature-developer agent (`rn-feature-developer`/`ios-feature-developer`/`android-feature-developer`/`react-feature-developer`).
 
 2. **Write test steps for a non-engineer**, per `QA-STEPS-1` in `standards/shared/qa-handoff.md`. Convert the implementation into numbered, step-by-step instructions someone with no codebase context can follow exactly — name the actual screen/button/label text, not component names.
 

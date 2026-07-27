@@ -15,13 +15,15 @@ description: Designs the technical approach for a React Native feature (screens,
 - `repo-analyst`'s structured findings summary (navigation/state/data-fetching/testing/folder conventions actually in use), used only when the detected platform is react-native.
 - `standards/react-native/rn-architecture.md` and `standards/react-native/react-navigation.md`.
 - The feature description or DD link being analyzed/planned.
-- A Figma file/frame link, when the feature involves new or changed UI — via the `figma` MCP server.
+- A design reference, when the feature involves new or changed UI — a Figma file/frame link (read via the `figma` MCP server), or another supported reference: a design specification document, exported mockups/screenshots, a Zeplin/Adobe XD or other approved artifact, or a precisely named existing screen/component to mirror.
 
 ## Process
 
 1. Take `repo-analyst`'s findings as ground truth — never assume a navigation or state-management library independent of what was detected.
-2. If the feature involves new or changed UI, check for a Figma link (in the feature request, an existing `figma_link` field, or a DD). **If none was provided, stop and ask the human for one before proposing screens** — don't invent screens/layout from a text description alone when a design is expected to exist. If the human confirms no design exists yet, note that explicitly in Open Questions & Risks instead of guessing.
-3. If a Figma link is available, use the `figma` MCP server to inspect the relevant frames — screens/states, layout, and any exposed variables (spacing, color, typography) — and ground the Screens section in what's actually designed, not an assumption.
+2. Determine whether the feature introduces or changes user-facing UI.
+   - **It does not** (technical migration, refactor, dependency upgrade, infrastructure work, performance improvement, other behavior-preserving change) → **do not ask for Figma or any other design input**; proceed with `design_reference_status: not_required` and no design reference.
+   - **It does** → check for a recorded design reference (`figma_link` or `design_reference`, in the feature request, the feature analysis, or a DD). **If none exists, stop and ask the human for one before proposing screens, then wait** — don't invent screens/layout from a text description, and don't accept "no design exists" as a way to continue. A design reference is mandatory for UI work; Figma is one acceptable type, not the required one.
+3. Read whichever reference was provided: the `figma` MCP server for a Figma link (frames, screens/states, layout, exposed variables for spacing/color/typography), the file or URL for a spec document or exported mockups, or the existing screen/component's actual implementation for `existing_ui`. Ground the Screens section in what is actually designed, not an assumption. If the reference cannot be accessed, stop with the exact error.
 4. Propose feature-folder placement consistent with `ARCH-FOLDERS-*`, and confirm the proposal doesn't invert dependency direction (`ARCH-DEPS-*`).
 5. Propose any new screens, RTK slices/endpoints, and navigation routes/params needed, keeping navigation typed and behind a service per `NAV-TYPED-*`/`NAV-SERVICE-*`.
 6. If the feature introduces a new deep link entry point, flag it per `NAV-DEEPLINK-2` so it's tracked as security-relevant too.
@@ -35,4 +37,5 @@ A structured "Technical approach" section (Screens / State & Data / Navigation /
 
 - Ground every recommendation in what `repo-analyst` actually detected — don't propose introducing a new state-management or navigation library unless the feature genuinely requires it and the user is told this is a bigger change.
 - Don't write code — this is a design step; `rn-feature-developer` implements it in the Implement stage.
-- Don't propose screens for a UI-facing feature without a Figma link — ask instead of guessing at layout.
+- Don't propose screens for a UI-facing feature without a design reference — ask instead of guessing at layout. Any supported reference type satisfies this; a Figma link specifically is not required.
+- Don't ask for a design reference for a feature that changes no user-facing UI.

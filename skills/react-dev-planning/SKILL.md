@@ -13,4 +13,4 @@ Until this is authored, React (web)-specific dev plans will not cite grounded `s
 
 1. Use `react-architect`'s technical approach and `repo-analyst`'s detected React (web) conventions as the basis for the approach.
 2. Cite the relevant `standards/react/*` standard IDs the approach follows.
-3. Write the approach in web vocabulary (views, state & data, routing, folder placement) — the flat Technical Approach section for a React-only feature, or the `### React` subsection for a mixed-platform feature.
+3. Write the approach in web vocabulary (views, state & data, routing, folder placement) — the flat Technical Approach section. This skill only runs when `react` is the feature's single confirmed platform, so the section is always flat, never a per-platform subsection.

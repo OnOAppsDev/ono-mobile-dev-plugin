@@ -3,8 +3,11 @@
 ```yaml
 feature: # feature name
 feature_analysis_link: # path to the approved templates/feature-analysis-template.md this DD was built from
-figma_link: # carried over from the feature analysis — required before designing screens for a UI-facing feature
-platform: # react-native | ios | android | react | mixed — carried over from the feature analysis, not re-detected
+design_reference_status: # provided | not_required — carried over from the feature analysis. `provided` is mandatory for a feature with new or changed user-facing UI; `not_required` is valid only when there is no UI change.
+design_reference_type: # figma | document | screenshots | existing_ui | other | none — carried over from the feature analysis
+design_reference: # the non-Figma design reference (URL, file path, document location, or precise existing-screen/component reference) — carried over from the feature analysis. null when the type is `figma` or `none`.
+figma_link: # the Figma URL when design_reference_type is `figma`, otherwise null — carried over from the feature analysis. Figma is one supported reference type, not a requirement.
+platform: # react-native | ios | android | react — exactly one confirmed platform, carried over from the feature analysis, not re-detected. Never mixed.
 device_type: # mobile | tv — carried over from the feature analysis, not re-detected. No "mixed".
 author: # the relevant platform architect / human author
 status: draft # draft | approved
@@ -105,7 +108,7 @@ In comprehensive detail_level, expand each section with rationale, tradeoffs, an
 ## 19. Technical Implementation Approach
 <!--
 How this should be built, grounded strictly in the conventions detected in the feature analysis (not assumed defaults). Supplied by the matching platform architect + companion dev-planning skill (rn-/ios-/android-/react-dev-planning) — cite the standard IDs each part follows (ARCH-*/API-*/STATE-*/NAV-* for react-native, the equivalents for other platforms). Flag any new patterns being introduced.
-For platform: mixed, use subheadings — ### React Native / ### iOS / ### Android / ### React / ### Cross-Platform Coordination — one per platform actually touched.
+Exactly one confirmed platform applies, carried over from the feature analysis — write this as a single flat section from that one platform's architect, never split into per-platform subsections.
 -->
 
 ## 20. Impacted Modules

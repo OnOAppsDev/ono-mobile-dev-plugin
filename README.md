@@ -50,7 +50,7 @@ Every command starts by inspecting the repo (via the `repo-analyst` agent) befor
 3. **Monorepo workspace scoping** — if monorepo tooling (Nx, Turborepo, Yarn/PNPM workspaces) is detected, the whole procedure runs per touched workspace/package rather than once for the whole repo. This is what lets a monorepo pairing `apps/web` (React) with `apps/mobile` (RN) resolve correctly.
 4. **If detection isn't confident, the plugin asks.** A single-marker tie, no verdict at all, or an inconclusive linkage check stops the command and asks you to pick the platform explicitly — it never guesses a default.
 
-The `platform` value (`react-native` / `ios` / `android` / `react` / `mixed`) is recorded in `templates/feature-analysis-template.md`'s frontmatter by `/analyze-feature` and carried forward through every later stage — `/dev-design-start`, `/dev-feature-start`, `/implement-task`, and the rest read it rather than re-detecting.
+The `platform` value — exactly one of `react-native` / `ios` / `android` / `react`, never `mixed` — is recorded in `templates/feature-analysis-template.md`'s frontmatter by `/analyze-feature` (detection may surface several candidates, but the user confirms one) and carried forward through every later stage — `/dev-design-start`, `/dev-feature-start`, `/implement-task`, and the rest read it rather than re-detecting.
 
 ## How shared vs. platform-specific context loads
 
@@ -65,7 +65,7 @@ The `platform` value (`react-native` / `ios` / `android` / `react` / `mixed`) is
 - **Native iOS only**: a repo with `MyApp.xcodeproj`, a `Podfile` with no RN pod, and Swift sources detects `platform: ios`, routing to `ios-architect`/`ios-feature-developer`/etc.
 - **Native Android only**: a repo with `settings.gradle.kts`, `app/src/main`, and Kotlin sources detects `platform: android`, routing to the `android-*` agents.
 - **React (web) only**: a repo with `react`/`react-dom` in `package.json`, a `vite.config.ts`, and no `react-native` dependency detects `platform: react`, routing to the `react-*` agents.
-- **Mixed (RN + native)**: an RN repo where a feature touches both `ios/` and `android/` native modules detects `platform: mixed`, invokes `rn-architect`, `ios-architect`, and `android-architect` independently, and merges their output into platform-tagged subsections of the feature analysis.
+- **Multi-platform repo (RN + native)**: an RN repo whose feature could touch `ios/` and/or `android/` native modules detects several *candidate* platforms — `/analyze-feature` then requires the user to select the **single** active platform for this feature, and routes to that one architect. There is no `mixed` authoritative platform; a piece of work that genuinely spans platforms is run as one feature per platform.
 - **Mixed (monorepo, web + mobile)**: a monorepo with `apps/web` (React) and `apps/mobile` (RN) — a diff touching only `apps/web` loads shared + react; a diff touching only `apps/mobile` loads shared + react-native (+ native platforms if RN's own shells are touched).
 
 ## Quick start
@@ -74,7 +74,9 @@ Taking a feature from idea to release (this example is React Native; the flow is
 
 ```
 # 1. Analyze the feature against the repo's actual conventions and detected platform
-#    (optionally include a Figma link — required if the feature has new UI)
+#    (include a design reference if the feature has new or changed UI — a Figma link,
+#     spec document, mockups/screenshots, or an existing screen to mirror. Non-UI work
+#     such as a migration or refactor needs none and won't be asked for one.)
 /analyze-feature Add biometric login to the auth flow — design: https://figma.com/file/...
 
 #    → produces a feature analysis with status: proposed, platform: react-native
@@ -114,9 +116,9 @@ The pipeline is deliberately gated: `/dev-design-start` refuses to run on a feat
 
 | Command | Arguments | What it does |
 |---|---|---|
-| `/analyze-feature` | feature description or DD link (± Figma link) | Detects the platform and the repo's actual stack/conventions, then proposes a technical approach via the matching platform architect(s); output starts as `status: proposed` and records the detected `platform` |
+| `/analyze-feature` | feature description (± a design reference) | Detects the platform and the repo's actual stack/conventions, has the user confirm a single platform, then proposes a technical approach via that platform's architect; requires a design reference only for UI-changing work; output starts as `status: proposed` |
 | `/dev-design-start` | feature name | Turns an **approved** feature analysis into a Detailed Design (DD), reading `platform` rather than re-detecting; output starts as `status: draft` |
-| `/dev-feature-start` | feature name | Turns an **approved** DD into a task breakdown + thin feature plan, carrying `platform` and `figma_link` forward |
+| `/dev-feature-start` | feature name | Turns an **approved** DD into a task breakdown + thin feature plan, carrying `platform` and the design-reference fields forward |
 | `/implement-task` | task id | Implements a single task from the approved breakdown, using the task's own `platform` value; gated by the `require-approval-before-code` hook |
 | `/review-code` | scope (optional) | Detects touched platform(s) from the diff; reviews for correctness, style, standards-adherence, and performance using shared + platform-specific standards; defaults to the current diff against the base branch |
 | `/review-security` | scope (optional) | Always uses the shared mobile security standards; adds platform-specific concerns/examples only when relevant |
@@ -168,7 +170,7 @@ All three hooks are already platform-agnostic and required no changes for iOS/An
 
 ## MCP servers
 
-- **`figma`** (`https://mcp.figma.com/mcp`) — the hosted Figma MCP server, used by `/analyze-feature` and `/implement-task` to pull design context, screenshots, and variables from a Figma file, regardless of platform. Each developer authenticates once via OAuth on first use (`/mcp` to check connection status).
+- **`figma`** (`https://mcp.figma.com/mcp`) — the hosted Figma MCP server, used by `/analyze-feature` and `/implement-task` to pull design context, screenshots, and variables from a Figma file, regardless of platform. Figma is one supported design-reference type, not a requirement — a spec document, mockups/screenshots, or an existing screen to mirror works too, and non-UI work needs no design reference at all. Each developer authenticates once via OAuth on first use (`/mcp` to check connection status).
 
 ## Plugin internals
 
