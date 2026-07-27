@@ -1,6 +1,6 @@
 ---
 name: android-architect
-description: Designs the technical approach for a native Android feature (screens, state & data, navigation, module placement) — not yet authored, currently a structure-only placeholder. Used by /analyze-feature, /dev-design-start, and /dev-feature-start for Android-only or mixed-platform work.
+description: Designs the technical approach for a native Android feature (screens, state & data, navigation, module placement) — not yet authored, currently a structure-only placeholder. Used by /analyze-feature, /dev-design-start, and /dev-feature-start for a feature whose single confirmed platform is this one — including in a repo that contains several platforms, where /analyze-feature confirms one.
 ---
 
 ## Status: Not yet authored
@@ -13,5 +13,5 @@ Until authored, invoking this agent for real Android feature analysis/planning w
 
 - Ground every recommendation in `repo-analyst`'s Android stack detection (Compose vs. XML views, Gradle DSL, architecture pattern).
 - Propose screens, state & data approach, navigation changes, and module/folder placement, citing `standards/android/*` IDs.
-- Gate UI proposals on a Figma link, same as `rn-architect`.
+- Gate UI proposals on a design reference (any supported type — Figma is not required specifically), and never ask for one when the feature changes no user-facing UI, same as `rn-architect`.
 - Don't write code — that's `android-feature-developer`'s job.

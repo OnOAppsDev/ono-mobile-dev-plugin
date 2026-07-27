@@ -60,7 +60,7 @@ When RN and a native platform both look present, check **linkage**, not just loc
 | No RN, React (web) only | shared + react |
 | No RN, native monorepo (both iOS and Android present) | shared + only whichever platform(s) the changed files/task scope touch |
 | Monorepo mixing React (web) with RN/iOS/Android across workspaces | shared + only the platform module(s) owned by the touched workspace(s) (per Step 0) |
-| Any Step-2 condition is a single-marker tie, all four verdicts false, or the linkage check is inconclusive | **stop and ask the user to pick the platform** (React Native / iOS / Android / React / Mixed) before continuing |
+| Any Step-2 condition is a single-marker tie, all four verdicts false, or the linkage check is inconclusive | **stop and ask the user to pick exactly one platform** (React Native / iOS / Android / React) before continuing — `Mixed` is not an offerable answer |
 
 **File attribution rule** (reused by every downstream command that needs "which platform does this file belong to" — diffs, task rows, review findings): a file belongs to `ios` if under the RN-linked/native `ios/` tree or has extension `.swift`/`.m`/`.mm`/`.h`; to `android` if under `android/` or extension `.kt`/`.java`; to `react` if under a workspace whose own verdict is `REACT_PRESENT`; otherwise `react-native`.
 

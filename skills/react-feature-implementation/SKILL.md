@@ -11,6 +11,6 @@ Until this is authored, React (web) implementation guidance will not cite ground
 
 ## Intended methodology (once authored)
 
-1. Resolve the task from `templates/task-breakdown-template.md`, check dependencies, resolve a Figma link for UI-touching tasks — same process shape as `rn-feature-implementation`.
+1. Resolve the task from `templates/task-breakdown-template.md`, check dependencies, resolve a design reference for UI-touching tasks (any supported type — Figma is not required specifically; none is needed when the task changes no user-facing UI) — same process shape as `rn-feature-implementation`.
 2. Identify applicable `standards/react/*` standards for the surface touched (coding conventions, routing, state management, architecture, performance).
 3. Implement, self-check against acceptance criteria, and record applied standard IDs in the output summary.

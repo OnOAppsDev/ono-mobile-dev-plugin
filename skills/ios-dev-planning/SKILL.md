@@ -13,4 +13,4 @@ Until this is authored, iOS-specific dev plans will not cite grounded `standards
 
 1. Use `ios-architect`'s technical approach and `repo-analyst`'s detected iOS conventions as the basis for the approach.
 2. Cite the relevant `standards/ios/*` standard IDs the approach follows.
-3. Write the approach in iOS vocabulary (views/screens, state & data, navigation, module/folder placement) — the flat Technical Approach section for an iOS-only feature, or the `### iOS` subsection for a mixed-platform feature.
+3. Write the approach in iOS vocabulary (views/screens, state & data, navigation, module/folder placement) — the flat Technical Approach section. This skill only runs when `ios` is the feature's single confirmed platform, so the section is always flat, never a per-platform subsection.

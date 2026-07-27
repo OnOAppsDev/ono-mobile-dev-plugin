@@ -66,7 +66,7 @@ Confirm **all** of the following before editing. If any fails, **stop and report
 - [ ] No blocking open question remains for this task.
 - [ ] The task's `platform` is `android` or explicitly includes Android.
 - [ ] The task is small enough for one implementation run (if not, report it should be split).
-- [ ] For UI work, the required Figma link exists (Dev Plan / DD `figma_link`). If empty, stop and ask — do not guess spacing/color/typography.
+- [ ] For UI work, the required design reference exists (Dev Plan / DD `figma_link` or `design_reference` — any supported type; Figma is not required specifically). If neither is set, stop and ask — do not guess spacing/color/typography. A task that changes no user-facing UI (`design_reference_status: not_required`) needs none.
 - [ ] The repository and target module are known.
 - [ ] The current branch and approval hooks allow code changes (not on `main`/`master`).
 
@@ -235,7 +235,7 @@ Do not use React Native's generically-named `ARCH-*`/`API-*`/`STATE-*`/`NAV-*` I
 - The task needs to violate or expand the DD, or change an approved API contract/business rule.
 - A `depends-on` task is not verifiably complete, or a blocker/open question remains.
 - The task depends on an unconfirmed backend contract.
-- A UI task has no Figma link.
+- A UI task has no design reference of any supported type.
 - Completing the task requires touching files outside its approved scope.
 - You are about to claim a build/test/manual check passed that you did not actually run.
 - A cited `standards/android/*` file is a placeholder (see [§0](#0-standards-readiness-gate)).
