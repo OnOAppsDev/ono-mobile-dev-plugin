@@ -9,11 +9,21 @@ design_reference: # the non-Figma design reference (URL, file path, document loc
 figma_link: # the Figma URL when design_reference_type is `figma`, otherwise null — carried over from the feature analysis. Figma is one supported reference type, not a requirement.
 platform: # react-native | ios | android | react — exactly one confirmed platform, carried over from the feature analysis, not re-detected. Never mixed.
 device_type: # mobile | tv — carried over from the feature analysis, not re-detected. No "mixed".
+# repo_knowledge_* fields: exact values and encoding are defined by the repo-knowledge-consumer skill's Step 6 (skills/repo-knowledge-consumer/SKILL.md) — do not guess from the prose below. In particular: absent values are the bare YAML keyword `null` (never the string "null", never empty), and repo_knowledge_reused/repo_knowledge_derived mirror the reader's usableCategories/deriveLive verbatim — no summarizing, reordering, or abbreviating.
+repo_knowledge_status: # available | unavailable — resolved when this DD was written, not copied from the feature analysis
+repo_knowledge_schema: # the repository-knowledge contract schema version, or null when unavailable
+repo_knowledge_fingerprint: # fingerprint.gitHead at DD authoring time, or null — lets a later reader tell whether the cited knowledge has moved
+repo_knowledge_freshness: # fresh | stale-head | stale-artifacts | unknown | null
+repo_knowledge_reused: # categories reused from canonical knowledge, or none
+repo_knowledge_derived: # categories derived live for this feature, or none
 author: # the relevant platform architect / human author
 status: draft # draft | approved
 detail_level: standard # standard | comprehensive
 date: # YYYY-MM-DD
 ```
+
+<!-- Produced by the repo-knowledge-consumer skill. Records which repository knowledge this design was built on, so a reviewer can resolve the same sources and tell whether they have moved since. When canonical knowledge was unavailable, says so — and everything repository-wide below is then a point-in-time observation rather than a citation. -->
+## 0. Repo Knowledge Reference
 
 <!--
 Produced by /dev-design-start from an APPROVED feature analysis. This is the design artifact, not a task list — /dev-feature-start turns an approved DD into a task breakdown.
@@ -109,10 +119,11 @@ In comprehensive detail_level, expand each section with rationale, tradeoffs, an
 <!--
 How this should be built, grounded strictly in the conventions detected in the feature analysis (not assumed defaults). Supplied by the matching platform architect + companion dev-planning skill (rn-/ios-/android-/react-dev-planning) — cite the standard IDs each part follows (ARCH-*/API-*/STATE-*/NAV-* for react-native, the equivalents for other platforms). Flag any new patterns being introduced.
 Exactly one confirmed platform applies, carried over from the feature analysis — write this as a single flat section from that one platform's architect, never split into per-platform subsections.
+Cite canonical repository knowledge for repository-wide facts (`docs/project/patterns.md#<anchor>` for conventions, `docs/project/components.md#<anchor>` for existing components to reuse) instead of restating them. Describe inline only the feature-specific detail read from source.
 -->
 
 ## 20. Impacted Modules
-<!-- Every file, module, component, or service that will need to change, with a brief note on what changes. Feeds /dev-feature-start's task decomposition. -->
+<!-- Every file, module, component, or service that will need to change, with a brief note on what changes. Feeds /dev-feature-start's task decomposition. Build on the module map via the CLAUDE.md structure pointers rather than re-deriving it, and name reused components from docs/project/components.md by path — a "new" component that already exists is the most common failure this section can prevent. -->
 
 ## 21. Impacted Services
 <!-- Any backend services, databases, queues, or infrastructure this feature touches. -->

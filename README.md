@@ -28,18 +28,30 @@ claude --plugin-dir /path/to/ono-mobile-dev-plugin
 
 The shared layer keeps its `mobile-*` naming (`mobile-repo-analysis`, `mobile-security-review`, `/prepare-mobile-release`, etc.) even though React (web) isn't literally mobile — Ono Apps is a mobile division that also owns a React web app, so the umbrella name stayed put rather than triggering a broader rename.
 
-## Project Planning
+## Documentation
 
-The implementation roadmap for building out the plugin is maintained as an interactive dashboard at:
+Architecture documentation for the whole plugin ecosystem lives in the **marketplace repository**, [`OnOAppsDev/ono-plugin-marketplace`](https://github.com/OnOAppsDev/ono-plugin-marketplace), which is the single source of truth for it:
 
-```
-docs/planning/PLUGIN_COMPLETION_PLAN.html
-```
+| Document | Answers |
+|---|---|
+| [`docs/architecture/ecosystem-overview.html`](https://github.com/OnOAppsDev/ono-plugin-marketplace/blob/main/docs/architecture/ecosystem-overview.html) | **Start here.** How this plugin cooperates with the Project Inspector, what Repository Knowledge is, the complete command chain from inspection to merge, and how information flows between commands. |
 
-- **Download the HTML file and open it locally in a browser** — it is fully self-contained.
-- The dashboard contains editable tables, implementation tracking, per-owner workload planning, and delivery timelines.
-- Changes you make are stored **locally in your browser** (localStorage); they are **not** automatically committed to Git. Use **Export HTML** (or edit the file directly) and commit the file back to the repository to share updates.
-- This dashboard is a **planning tool only** — it is not used by the plugin during execution.
+The one document that stays here is [`docs/repo-knowledge-contract.md`](docs/repo-knowledge-contract.md) — the schema this plugin consumes and the obligations it accepts. It ships with the plugin because `scripts/read-repo-knowledge.ts` and the `repo-knowledge-consumer` skill both cite it. Read it before changing anything that touches `.ono/repo-knowledge.json`.
+
+The eight-stage pipeline, platform detection and routing, standards and templates are documented in the sections below — they are operational documentation for building and contributing to this plugin, so they stay in this repository.
+
+## Repository knowledge comes from the inspector, not from re-analysis
+
+When a repository has been inspected by [`ono-project-inspector`](https://github.com/OnOAppsDev/ono-plugin-project-inspector), it carries approved repository knowledge at `.ono/repo-knowledge.json` — a deterministic, versioned index over `CLAUDE.md`, `AUDIT.md`, and `docs/project/*.md`. `/analyze-feature` and `/dev-design-start` **read that instead of re-deriving it**: the stack, build/test commands, module map, component inventory, and coding conventions are consumed rather than re-scanned, and generated documents *cite* those sources by path and anchor instead of pasting a copy that goes stale.
+
+Two properties matter:
+
+- **It is optional.** A repository with no manifest is designed to behave exactly as it always has — full live detection, no prompt, no warning beyond one informational line. The reader and both commands' fallback path are covered by automated tests and a fixture check against a never-inspected repository; end-to-end confirmation via a live command run is tracked as a required manual verification step (see `CHANGELOG.md`). Most repositories start here.
+- **It never overrides a decision.** The manifest's `platformHints` is advisory corroboration only. Platform detection and the human confirmation gate run in full on every feature, and `device_type` is resolved live every time — the manifest carries no device information.
+
+What is still derived live on every run, regardless of the manifest: platform detection, device type, folder-structure conformance against the platform's `ARCH-*` standards, per-diff file attribution, and any knowledge category the manifest reports as `unknown` — for example `structure`, whose coverage is `unknown` (not merely "populated because `CLAUDE.md` exists") unless `CLAUDE.md` carries all three of its `Repository Structure`, `Key Modules`, and `Entry Points` headings.
+
+See `docs/repo-knowledge-contract.md` for the schema and the obligations this plugin accepts as a consumer.
 
 ## How platform detection works
 
@@ -188,6 +200,7 @@ commands/                          (flat, platform-aware — one per lifecycle s
 skills/                             (flat, one level — prefix = scope)
   mobile-repo-analysis/             mobile-security-review/
   mobile-debugging/                 mobile-testing-and-qa-handoff/ mobile-release-readiness/
+  repo-knowledge-consumer/          (resolves canonical repository knowledge; the only reader of the contract)
   dev-design-start/  dev-feature-start/    (shared design + task-generation stages)
   rn-dev-planning/  rn-feature-implementation/  rn-code-review/
   ios-dev-planning/ ios-feature-implementation/ ios-code-review/      (placeholders)
