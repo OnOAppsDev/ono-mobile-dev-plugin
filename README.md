@@ -36,9 +36,22 @@ Architecture documentation for the whole plugin ecosystem lives in the **marketp
 |---|---|
 | [`docs/architecture/ecosystem-overview.html`](https://github.com/OnOAppsDev/ono-plugin-marketplace/blob/main/docs/architecture/ecosystem-overview.html) | **Start here.** How this plugin cooperates with the Project Inspector, what Repository Knowledge is, the complete command chain from inspection to merge, and how information flows between commands. |
 
-The one document that stays here is [`docs/repo-knowledge-contract.md`](docs/repo-knowledge-contract.md) — the schema this plugin consumes and the obligations it accepts. It ships with the plugin because `scripts/read-repo-knowledge.ts` and the `repo-knowledge-consumer` skill both cite it. Read it before changing anything that touches `.ono/repo-knowledge.json`.
+Two documents stay here. The first is [`docs/repo-knowledge-contract.md`](docs/repo-knowledge-contract.md) — the schema this plugin consumes and the obligations it accepts. It ships with the plugin because `scripts/read-repo-knowledge.ts` and the `repo-knowledge-consumer` skill both cite it. Read it before changing anything that touches `.ono/repo-knowledge.json`. The second is the planning dashboard described under [Project Planning](#project-planning) below.
 
 The eight-stage pipeline, platform detection and routing, standards and templates are documented in the sections below — they are operational documentation for building and contributing to this plugin, so they stay in this repository.
+
+## Project Planning
+
+The implementation roadmap for building out the plugin is maintained as an interactive dashboard at:
+
+```
+docs/planning/PLUGIN_COMPLETION_PLAN.html
+```
+
+- **Download the HTML file and open it locally in a browser** — it is fully self-contained.
+- The dashboard contains editable tables, implementation tracking, per-owner workload planning, and delivery timelines.
+- Changes you make are stored **locally in your browser** (localStorage); they are **not** automatically committed to Git. Use **Export HTML** (or edit the file directly) and commit the file back to the repository to share updates.
+- This dashboard is a **planning tool only** — it is not used by the plugin during execution.
 
 ## Repository knowledge comes from the inspector, not from re-analysis
 
