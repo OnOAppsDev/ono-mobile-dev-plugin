@@ -12,7 +12,8 @@ description: Designs the technical approach for a React Native feature (screens,
 
 ## Inputs
 
-- `repo-analyst`'s structured findings summary (navigation/state/data-fetching/testing/folder conventions actually in use), used only when the detected platform is react-native.
+- `repo-analyst`'s structured findings summary (navigation/state/data-fetching/testing/folder conventions actually in use, each entry labelled `[reused: <path>#<anchor>]` or `[derived live]`), used only when the detected platform is react-native.
+- The existing **component inventory** — `docs/project/components.md` — when canonical repository knowledge reports it reusable. Read it before proposing any new screen, component, or hook.
 - `standards/react-native/rn-architecture.md` and `standards/react-native/react-navigation.md`.
 - The feature description or DD link being analyzed/planned.
 - A design reference, when the feature involves new or changed UI — a Figma file/frame link (read via the `figma` MCP server), or another supported reference: a design specification document, exported mockups/screenshots, a Zeplin/Adobe XD or other approved artifact, or a precisely named existing screen/component to mirror.
@@ -24,10 +25,11 @@ description: Designs the technical approach for a React Native feature (screens,
    - **It does not** (technical migration, refactor, dependency upgrade, infrastructure work, performance improvement, other behavior-preserving change) → **do not ask for Figma or any other design input**; proceed with `design_reference_status: not_required` and no design reference.
    - **It does** → check for a recorded design reference (`figma_link` or `design_reference`, in the feature request, the feature analysis, or a DD). **If none exists, stop and ask the human for one before proposing screens, then wait** — don't invent screens/layout from a text description, and don't accept "no design exists" as a way to continue. A design reference is mandatory for UI work; Figma is one acceptable type, not the required one.
 3. Read whichever reference was provided: the `figma` MCP server for a Figma link (frames, screens/states, layout, exposed variables for spacing/color/typography), the file or URL for a spec document or exported mockups, or the existing screen/component's actual implementation for `existing_ui`. Ground the Screens section in what is actually designed, not an assumption. If the reference cannot be accessed, stop with the exact error.
-4. Propose feature-folder placement consistent with `ARCH-FOLDERS-*`, and confirm the proposal doesn't invert dependency direction (`ARCH-DEPS-*`).
-5. Propose any new screens, RTK slices/endpoints, and navigation routes/params needed, keeping navigation typed and behind a service per `NAV-TYPED-*`/`NAV-SERVICE-*`.
-6. If the feature introduces a new deep link entry point, flag it per `NAV-DEEPLINK-2` so it's tracked as security-relevant too.
-7. Write the approach as a short structured section (Screens / State & Data / Navigation / Folder Placement), citing the standard IDs the approach follows — this section is consumed verbatim as `/analyze-feature`'s "Proposed Technical Approach" in `templates/feature-analysis-template.md`, or as `/dev-design-start`'s "Technical Implementation Approach" in `templates/dd-template.md`.
+4. **Check what already exists before proposing anything new.** When the component inventory is available, consult it for screens, reusable components, shared hooks, the navigation map, and the known-duplicates list. For each element the feature needs, state explicitly whether you are reusing an existing one (name it by path) or introducing a new one (say why nothing existing fits). Proposing a component that already exists is the failure this step prevents — that document exists specifically to be read before speccing a feature. When the inventory is unavailable, say so and proceed from `repo-analyst`'s findings as before.
+5. Propose feature-folder placement consistent with `ARCH-FOLDERS-*`, and confirm the proposal doesn't invert dependency direction (`ARCH-DEPS-*`).
+6. Propose any new screens, RTK slices/endpoints, and navigation routes/params needed, keeping navigation typed and behind a service per `NAV-TYPED-*`/`NAV-SERVICE-*`.
+7. If the feature introduces a new deep link entry point, flag it per `NAV-DEEPLINK-2` so it's tracked as security-relevant too.
+8. Write the approach as a short structured section (Screens / State & Data / Navigation / Folder Placement), citing the standard IDs the approach follows — this section is consumed verbatim as `/analyze-feature`'s "Proposed Technical Approach" in `templates/feature-analysis-template.md`, or as `/dev-design-start`'s "Technical Implementation Approach" in `templates/dd-template.md`.
 
 ## Output format
 

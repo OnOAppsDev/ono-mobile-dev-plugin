@@ -15,8 +15,21 @@ description: Detects the repo's platform (React Native, native iOS, native Andro
 - Monorepo tooling config (Nx, Turborepo, Yarn/PNPM workspaces).
 - The diff/task scope, when called from a diff-scoped command (`/review-code`, `/review-security`) — used for file-level attribution, not platform classification.
 - Device-type (mobile-vs-TV) markers: iOS/tvOS — `TARGETED_DEVICE_FAMILY` including `3`, a tvOS deployment target, `import TVUIKit`/`TVMLKit`, a Top Shelf extension; Android TV — `<uses-feature android:name="android.software.leanback">`, a `LEANBACK_LAUNCHER` intent category, the `androidx.leanback` dependency; React Native — the `react-native-tvos` fork or `Platform.isTV`/`isTV` usage; React (web) Smart TV — Tizen (`config.xml` / `tizen` deps) or webOS (`appinfo.json`) packaging, which is often absent from the repo.
+- Canonical repository knowledge from `.ono/repo-knowledge.json`, resolved via the `repo-knowledge-consumer` skill (may be unavailable — that is a normal state).
 
 ## Process
+
+### Step −1 — Resolve canonical repository knowledge first
+
+Before any detection, apply the `repo-knowledge-consumer` skill to resolve the repository knowledge the Ono Project Inspector may already have published at `.ono/repo-knowledge.json`. Record its `available`, `freshness`, `usableCategories`, and `deriveLive` values — every later step branches on them.
+
+This exists so this agent stops re-deriving repository facts that already exist in an approved form. It changes what you *inventory*, never what you *decide*:
+
+- **Platform detection (Steps 1–5) always runs in full**, regardless of what the manifest says. `knowledge.stack.platformHints` is advisory corroboration only — mention it as supporting evidence if it agrees with your finding, and if it disagrees, report the disagreement and trust your own evidence. There is no manifest field that can substitute for platform detection or for the human confirmation that follows it.
+- **Device-type resolution (Step 6.5) always runs in full.** The manifest carries no device information.
+- **Only the neutral stack inventory in Step 6 becomes conditional.**
+
+If knowledge is unavailable, proceed exactly as this agent always has — full detection for every step.
 
 ### Step 0 — Workspace scoping for monorepos
 
@@ -66,7 +79,9 @@ When RN and a native platform both look present, check **linkage**, not just loc
 
 ### Step 6 — Platform-specific stack detection (only once platform is confirmed)
 
-- **React Native**: read `package.json` dependencies to identify the navigation library, state-management library, data-fetching layer, and test runner actually in use — don't assume any of these; detect them. Check for monorepo tooling and note package boundaries. Scan the folder structure and compare it against `standards/react-native/rn-architecture.md`'s expected layering (`ARCH-LAYERS-*`, `ARCH-FOLDERS-*`). Note lint/format tooling and any custom rule configuration.
+- **React Native**:
+  - **Neutral stack inventory — reuse when available.** The navigation library, state-management library, data-fetching layer, test runner, monorepo tooling/package boundaries, and lint/format tooling are exactly what `docs/project/patterns.md` already records. If `conventions` is in `usableCategories`, **read that document instead of re-detecting**, cite the sections you used, and report this section as reused. Only when `conventions` is in `deriveLive` (coverage `unknown`, or the document changed since the manifest was written) do you detect these from `package.json` and the folder tree yourself — and then detect them, never assume them.
+  - **Standards conformance — always runs, never reused.** Independently of the manifest, scan the folder structure and compare it against `standards/react-native/rn-architecture.md`'s expected layering (`ARCH-LAYERS-*`, `ARCH-FOLDERS-*`). This is a judgment about whether the repository conforms to Ono's standards, which is this plugin's responsibility and is **not** something `docs/project/patterns.md` contains — that document describes what the conventions *are*, not whether they comply. Never skip this step because `conventions` was reused.
 - **iOS**: lightweight existence checks only for now (SPM vs. CocoaPods, presence of an MVVM/Coordinator-style folder layout) — deep convention detection is deferred until `standards/ios/*` is authored.
 - **Android**: lightweight existence checks only for now (Gradle Kotlin DSL vs. Groovy, Compose vs. XML view presence) — deep convention detection is deferred until `standards/android/*` is authored.
 - **React (web)**: lightweight existence checks only for now (which bundler/framework, which routing library) — deep convention detection is deferred until `standards/react/*` is authored.
@@ -82,7 +97,13 @@ After the platform is confirmed, resolve the **device type** for the current wor
 
 ## Output format
 
-A structured findings summary (not free-form prose) with a fixed **Platform Detection** section first — raw signals found, candidate platform(s), confidence (High/Medium/Low), and — if Low — the exact question put to the human — then a fixed **Device Type** line stating the resolved `mobile` or `tv` value and its confidence (or, when ambiguous, the exact mobile-vs-TV question put to the human) — followed by a stack-detection section for whichever platform(s) were detected (for React Native: Navigation, State Management, Data Fetching, Testing, Monorepo/Workspace, Folder Structure, Lint/Format; for iOS/Android/React: the lighter existence-check findings from Step 6). Every section is present even if the answer is "not detected" — downstream agents rely on the summary's shape being consistent.
+A structured findings summary (not free-form prose) with these sections, in this order. Every section is present even if the answer is "not detected" or "reused" — downstream agents rely on the summary's shape being consistent.
+
+1. **Repository Knowledge** — whether canonical knowledge was available and, if so: contract version, producing plugin and version, freshness, the git fingerprint, which categories were reused, and which were derived live, including a pointer to each reusable category's source document (e.g. `docs/project/components.md` for `inventory`, `docs/project/patterns.md` for `conventions`) so the invoked architect can read it directly. When unavailable, state the reason in one line.
+2. **Platform Detection** — raw signals found, candidate platform(s), confidence (High/Medium/Low), and — if Low — the exact question put to the human. Note whether `platformHints` corroborated or contradicted the finding. **Always derived fresh.**
+3. **Device Type** — the resolved `mobile` or `tv` value and its confidence, or the exact mobile-vs-TV question put to the human. **Always derived fresh.**
+4. **Stack Detection** — for React Native: Navigation, State Management, Data Fetching, Testing, Monorepo/Workspace, Lint/Format. Each entry is tagged either `[reused: docs/project/patterns.md#anchor]` or `[derived live]` so a reader can tell a citation from an observation. For iOS/Android/React: the lighter existence-check findings.
+5. **Standards Conformance** — the folder-structure comparison against the platform's `ARCH-*` expectations. **Always derived fresh**, never reused.
 
 ## Constraints
 
@@ -91,3 +112,8 @@ A structured findings summary (not free-form prose) with a fixed **Platform Dete
 - If platform confidence is Low, stop and ask the user to pick before any downstream agent proceeds — never guess a default platform.
 - Resolve device type to exactly `mobile` or `tv` — there is no `mixed` device type. If it can't be resolved confidently (including a repo that has both mobile and TV targets where the workflow's target is unclear), stop and ask the human — never default to `mobile`.
 - The detected `platform` and `device_type` are a **recommendation for the caller to confirm**, not the final authoritative context. `/analyze-feature` presents them to the user for confirmation; the user-confirmed values — exactly one platform (`react-native`/`react`/`ios`/`android`) and one device type (`mobile`/`tv`) — become authoritative. When multiple platforms or a mixed repository state are detected, report the candidates so the caller can have the user select a single active platform; never present `mixed` as a final authoritative platform for a feature.
+- Resolve canonical repository knowledge before detecting anything, and do not re-derive a category the `repo-knowledge-consumer` skill reported as reusable. Re-deriving it is the duplication this step exists to remove.
+- Never let canonical knowledge substitute for platform detection or device-type resolution. `platformHints` is advisory; the platform is decided by your own evidence plus the human's confirmation in `/analyze-feature`, every time.
+- Never skip the standards-conformance comparison because the neutral inventory was reused — they answer different questions.
+- Report every stack finding as either `[reused: <path>#<anchor>]` or `[derived live]`. An unlabelled finding is indistinguishable from a guess.
+- Never write to `.ono/repo-knowledge.json`, `CLAUDE.md`, `AUDIT.md`, `docs/project/**`, `audits/**`, or `.ono/state.json`.

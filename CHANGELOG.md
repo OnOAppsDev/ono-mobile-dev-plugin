@@ -7,6 +7,62 @@ and this plugin adheres to [Semantic Versioning](https://semver.org/). The
 version below is the plugin's own `version` in
 [`plugin.json`](.claude-plugin/plugin.json).
 
+## [0.4.0] - 2026-07-28
+
+### Added
+- `scripts/read-repo-knowledge.ts` — deterministic reader for the repository-knowledge
+  manifest `ono-project-inspector` publishes at `.ono/repo-knowledge.json`. Computes
+  freshness (git HEAD plus per-document SHA-256) and applies the degradation matrix,
+  reporting which knowledge categories may be reused and which must still be derived
+  live. **Always exits 0 with valid JSON**, including when the manifest is absent,
+  malformed, or written by a newer contract version — so a missing manifest can never
+  fail a command. Canonical invocation is `node --no-warnings scripts/read-repo-knowledge.ts`;
+  the flag suppresses Node's experimental-type-stripping warning so a caller that
+  merges stderr into stdout still gets valid JSON.
+- `skills/repo-knowledge-consumer` — the single component in this plugin that
+  understands the manifest format. Defines the resolution procedure and the
+  `Repo Knowledge Reference` block that generated documents record.
+- `docs/repo-knowledge-contract.md` — the contract schema and this plugin's obligations
+  as a consumer, pinned to schema v1 and duplicated verbatim in the producer.
+- `scripts/read-repo-knowledge.test.ts` — a test per degradation-matrix row.
+
+### Changed
+- `repo-analyst` resolves canonical repository knowledge before detecting anything, and
+  no longer re-derives the neutral stack inventory (navigation, state management, data
+  fetching, test runner, monorepo tooling, lint/format) when `docs/project/patterns.md`
+  already records it. Its findings summary now leads with a Repository Knowledge section
+  and labels every stack finding `[reused: <path>#<anchor>]` or `[derived live]`.
+- `/analyze-feature` resolves repository knowledge as its first step, and the feature
+  analysis **cites** repository knowledge instead of embedding `repo-analyst`'s findings
+  verbatim. `templates/feature-analysis-template.md`'s `## Repo Conventions Detected`
+  section becomes `## Repo Knowledge Reference` plus `## Repo Context`, with six new
+  `repo_knowledge_*` frontmatter fields. Repository facts pasted into an approved
+  document went stale the moment the repository changed, while three downstream stages
+  were instructed to trust them.
+- `/dev-design-start` re-resolves current knowledge and reads the approved documents
+  first; `dev-design-start`'s Step 3.4 source inspection is now confined to gaps and to
+  the feature-specific detail no repository-wide document can contain. The DD carries the
+  same six frontmatter fields plus a `## 0. Repo Knowledge Reference` section.
+- `rn-architect` consults `docs/project/components.md` before proposing new screens,
+  components, or hooks, and states for each element whether it is reusing an existing one
+  (by path) or introducing a new one (and why nothing existing fits).
+
+### Unchanged (deliberately)
+- **Behavior with no `.ono/repo-knowledge.json` is designed to be identical to 0.3.0** —
+  the reader always exits 0 with `available: false`, and both changed commands fall back
+  to full live derivation, adding only one informational line. The deterministic layer is
+  covered by tests and by a fixture check against a never-inspected repository.
+  End-to-end confirmation requires a live `/analyze-feature` run, which is tracked as a
+  required manual verification step and has not yet been performed.
+- Platform detection, the single-platform confirmation gate, and `device_type` resolution
+  run in full on every feature. `platformHints` is advisory only and never authoritative.
+- Folder-structure conformance against the platform's `ARCH-*` standards is still derived
+  live on every run — `docs/project/patterns.md` describes what the conventions are, not
+  whether they comply with Ono's standards.
+- The eight-stage pipeline, every approval gate, all three safety hooks, all templates
+  outside the two above, all `standards/**`, and the seven commands outside
+  `/analyze-feature` and `/dev-design-start`.
+
 ## [0.3.0] - 2026-07-07
 
 ### Added
