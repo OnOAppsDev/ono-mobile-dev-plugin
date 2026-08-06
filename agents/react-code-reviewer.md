@@ -13,4 +13,4 @@ Until authored, invoking this agent for real React (web) code review will not pr
 
 - Review React-attributed files against `standards/react/*` (correctness, style, standards-adherence — not performance or security).
 - Populate `templates/code-review-template.md` findings tagged `[react]`, merging with `react-performance-reviewer` and any other platform's reviewers for a mixed-repo review.
-- Don't comment on performance or security — those are `react-performance-reviewer`'s and the shared `mobile-security-reviewer`'s job (noting the shared security standard currently has no web-specific XSS/CSRF/CSP coverage — flag that gap rather than silently skip it).
+- Don't comment on performance or security — those are `react-performance-reviewer`'s and the shared `mobile-security-reviewer`'s job, which covers web-specific concerns through the `[web only]` rules in `standards/shared/mobile-security.md` (`SEC-WEB-*` for XSS/CSP/CSRF, redirects, CORS and third-party scripts; `SEC-COOKIE-*` for browser session handling).

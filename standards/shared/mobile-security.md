@@ -2,7 +2,11 @@
 
 ## Purpose & Scope
 
-These standards apply to app code reviewed by the shared `mobile-security-reviewer` agent via `/review-security`. Each rule states a **platform-neutral requirement** (the normative rule); where a platform's concrete API, library, or tooling adds real value, it appears as a labelled example (React Native / iOS / Android / React). Web-specific concerns for the React platform (XSS/CSRF/CSP) are not yet covered here — see the `standards/react/` stub and the planned shared web-security extension. Categories loosely follow the OWASP Mobile Application Security Verification Standard (MASVS); see [References](#references). Each bullet carries a stable ID so review findings can cite the exact rule they violate. This list is a baseline, not exhaustive — reviewers should use judgment for app-specific risk.
+These standards apply to app code reviewed by the shared `mobile-security-reviewer` agent via `/review-security`. Each rule states a **platform-neutral requirement** (the normative rule); where a platform's concrete API, library, or tooling adds real value, it appears as a labelled example (React Native / iOS / Android / React). Categories loosely follow the OWASP Mobile Application Security Verification Standard (MASVS) and, for browser-delivered surfaces, the OWASP Application Security Verification Standard (ASVS); see [References](#references). Each bullet carries a stable ID so review findings can cite the exact rule they violate. This list is a baseline, not exhaustive — reviewers should use judgment for app-specific risk.
+
+**Applicability.** Rules added for the web and native extensions carry an explicit tag — `[web only]`, `[native only]`, or `[all platforms]`. **A rule with no tag applies to all supported platforms unless its own text says otherwise.** `[web only]` means a browser-delivered surface: the React (web) platform, and any embedded web content a native or React Native app hosts. `[native only]` means an installed application binary: React Native, iOS, and Android.
+
+**Review checks.** Rules in the tagged sections carry a `Review check:` line describing what a reviewer actually inspects or searches for. It is an aid to applying the rule, not an additional requirement, and never a mandate to adopt a particular framework or API.
 
 ## Secrets & Credentials Management
 
@@ -29,6 +33,24 @@ These standards apply to app code reviewed by the shared `mobile-security-review
   - Android: DataStore / Room caches.
 - `SEC-STORAGE-4` Temp files/caches created from sensitive downloads (documents, images with PII) are cleaned up after use.
 
+## On-Device Data Exposure
+
+Ways sensitive data leaves the app without any network call. Storage-at-rest requirements stay in [Secure Local Storage](#secure-local-storage) — these rules cover the OS surfaces that copy, capture, or transfer that data.
+
+- `SEC-EXPOSURE-1` **[native only]** Sensitive data is excluded from OS backup and device-migration flows, so a restore onto another device does not carry credentials or PII with it. Data already held in the platform's secure store per `SEC-STORAGE-1` generally inherits the correct behavior; anything stored outside it must be excluded deliberately.
+  - iOS: files marked with the "do not back up" resource attribute; Keychain items scoped so they do not migrate.
+  - Android: the app's backup/data-extraction rules narrowed to exclude sensitive files and preference stores.
+  - React Native: whichever of the above applies to the file or store the JS layer writes through.
+  - *Review check:* for each new persisted file, database, or preference store, ask whether it would appear in a device backup, and confirm the answer is intentional.
+- `SEC-EXPOSURE-2` **[native only]** Screens displaying credentials, payment details, or regulated data are protected from screenshots and from the OS app-switcher snapshot where the app's risk tier warrants it — not blanket-applied to every screen.
+  - iOS: obscuring the window when the app resigns active; screen-capture notifications where relevant.
+  - Android: the window-level secure flag on the affected screen only.
+  - *Review check:* identify screens rendering sensitive values; confirm a deliberate decision exists for each, and that protection is scoped to those screens rather than applied globally.
+- `SEC-EXPOSURE-3` **[native only]** Sensitive values are not written to the system clipboard except in response to an explicit user action, and are marked sensitive or cleared afterwards where the platform supports it. This is the outbound counterpart to `SEC-BRIDGE-1`, which governs clipboard content arriving as untrusted input.
+  - iOS: pasteboard items with an expiry, or a local-only pasteboard.
+  - Android: clip data flagged as sensitive so it is excluded from clipboard previews.
+  - *Review check:* search the diff for clipboard writes; for each, confirm a user initiated it and that the value is not a token, password, or full account identifier.
+
 ## Network & Transport Security
 
 - `SEC-NET-1` All network calls use HTTPS/TLS; no cleartext traffic exceptions (`android:usesCleartextTraffic`, `NSAppTransportSecurity` ATS exceptions) except for a documented, reviewed reason.
@@ -45,6 +67,17 @@ These standards apply to app code reviewed by the shared `mobile-security-review
 - `SEC-AUTH-2` Token refresh handles expiry and failure without silently retrying indefinitely or falling back to an unauthenticated state that looks authenticated.
 - `SEC-AUTH-3` Biometric auth (Face ID / Touch ID / BiometricPrompt) gates local access to an already-issued credential — it is not used as a substitute for server-side authentication.
 - `SEC-AUTH-4` Logout clears all cached credentials, tokens, and sensitive in-memory/persisted state, not just navigation to a login screen.
+
+## Browser Session & Cookie Handling
+
+Browser-delivered surfaces have no OS-backed secure store, so session handling itself carries the protection. These rules make normative what `SEC-STORAGE-1`'s React example already recommends; they do not replace it.
+
+- `SEC-COOKIE-1` **[web only]** Cookies carrying a session or authentication token are set `httpOnly` (unreadable from script), `Secure` (sent only over TLS, per `SEC-NET-1`), and with an explicit `SameSite` value chosen for the flow rather than left to the browser default.
+  - *Review check:* inspect every `Set-Cookie` the app relies on; a session cookie missing `httpOnly` or `Secure` is a finding regardless of environment.
+- `SEC-COOKIE-2` **[web only]** Access and refresh tokens are not persisted in `localStorage`, `sessionStorage`, `IndexedDB`, or any other script-readable store — a successful XSS (see `SEC-WEB-1`) reads all of them. Prefer an `httpOnly` cookie; where a token must reach script, keep it in memory only and re-acquire it after reload.
+  - *Review check:* search the diff for writes to `localStorage`/`sessionStorage`; for each, confirm the value is neither a credential nor PII.
+- `SEC-COOKIE-3` **[web only]** Cookie `Domain` and `Path` are scoped as narrowly as the feature allows, so a cookie is not broadcast to unrelated subdomains or paths that do not need it.
+  - *Review check:* confirm a widened `Domain` (for example a parent domain covering several apps) is justified by an actual cross-app need.
 
 ## Deep Link & URL Scheme Validation
 
@@ -74,6 +107,25 @@ These standards apply to app code reviewed by the shared `mobile-security-review
   - iOS: `WKScriptMessageHandler` methods.
   - Android: `@JavascriptInterface`-annotated methods.
   - React: `postMessage` handlers, with strict origin checks.
+
+## Web Content Security
+
+These apply to any browser-delivered surface — the React (web) platform, and embedded web content a native or React Native app hosts. [WebView Hardening](#webview-hardening) governs the *container* a native app provides; these rules govern the *page* rendered inside any browser context.
+
+- `SEC-WEB-1` **[web only]** Untrusted data — user input, URL parameters, API responses, third-party content — is never rendered as HTML without sanitization. Prefer rendering as text; where markup is genuinely required, sanitize with a maintained library against an allowlist, never a hand-rolled regex or blocklist.
+  - React: `dangerouslySetInnerHTML`.
+  - Other browser surfaces: `innerHTML`, `outerHTML`, `document.write`, framework raw-HTML directives.
+  - *Review check:* search the diff for every raw-HTML sink; for each, trace the value to its source and confirm it is either developer-authored or passed through a sanitizer.
+- `SEC-WEB-2` **[web only]** The application is served with a Content-Security-Policy that constrains `script-src` to known origins and avoids `unsafe-inline` and `unsafe-eval`. CSP is defense-in-depth for `SEC-WEB-1`, not a substitute for it.
+  - *Review check:* confirm a policy is actually served (header or meta tag) and that a change has not loosened it — adding `unsafe-inline` to make a library work is a finding, not a fix.
+- `SEC-WEB-3` **[web only]** State-changing requests are protected against cross-site request forgery — an anti-CSRF token, `SameSite` cookies per `SEC-COOKIE-1`, or an equivalent the backend enforces. Requests using safe methods (`GET`, `HEAD`) do not change state, so they never rely on this protection.
+  - *Review check:* for each new state-changing endpoint the client calls, confirm which mechanism protects it; confirm no new `GET` endpoint mutates data.
+- `SEC-WEB-4` **[web only]** Third-party scripts loaded at runtime come from known origins, are pinned to a specific version rather than a floating tag, and carry subresource integrity where the origin supports it. A third-party script executes with full page privileges — it can read anything the app can, including the DOM and any script-readable token.
+  - *Review check:* review every added `<script src>` or tag-manager injection for origin, version pinning, and what data the vendor can reach. Package-level dependency vetting stays with `SEC-DEPS-1`/`SEC-DEPS-2`.
+- `SEC-WEB-5` **[web only]** Redirect and navigation targets derived from user-controllable input are validated against an allowlist before use — no navigating or redirecting to an absolute URL taken from a query parameter, path segment, or referrer. This is the browser-navigation counterpart to `SEC-DEEPLINK-1`.
+  - *Review check:* find assignments to `location`/`location.href`, router navigations, and server redirects whose target originates in request data; confirm each validates against an allowlist rather than checking a prefix.
+- `SEC-WEB-6` **[web only]** CORS is treated as a browser-enforced read boundary, not an authorization mechanism. Every endpoint enforces authentication and authorization server-side regardless of origin, and `Access-Control-Allow-Origin` is not set to `*` on any endpoint returning user data or accepting credentials.
+  - *Review check:* confirm a permissive CORS configuration is not standing in for missing server-side authorization, and that a wildcard origin is never paired with credentialed requests.
 
 ## Input Validation at Trust Boundaries
 
@@ -126,4 +178,5 @@ These standards apply to app code reviewed by the shared `mobile-security-review
 ## References
 
 - OWASP Mobile Application Security Verification Standard (MASVS) and the Mobile Application Security Testing Guide (MASTG) — the category groupings above map loosely to MASVS's storage, network, auth, and platform-interaction domains.
+- OWASP Application Security Verification Standard (ASVS) and the OWASP Top Ten — the `[web only]` sections map loosely to ASVS's session-management, validation/encoding, and configuration domains.
 - This document is a living baseline; reviewers should flag standards gaps found during review rather than working around them silently.
