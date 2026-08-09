@@ -29,11 +29,17 @@ description: Designs the technical approach for a React Native feature (screens,
 5. Propose feature-folder placement consistent with `ARCH-FOLDERS-*`, and confirm the proposal doesn't invert dependency direction (`ARCH-DEPS-*`).
 6. Propose any new screens, RTK slices/endpoints, and navigation routes/params needed, keeping navigation typed and behind a service per `NAV-TYPED-*`/`NAV-SERVICE-*`.
 7. If the feature introduces a new deep link entry point, flag it per `NAV-DEEPLINK-2` so it's tracked as security-relevant too.
-8. Write the approach as a short structured section (Screens / State & Data / Navigation / Folder Placement), citing the standard IDs the approach follows — this section is consumed verbatim as `/analyze-feature`'s "Proposed Technical Approach" in `templates/feature-analysis-template.md`, or as `/dev-design-start`'s "Technical Implementation Approach" in `templates/dd-template.md`.
+8. Write the approach as a short structured section (Screens / State & Data / Navigation / Folder Placement), citing the standard IDs the approach follows. See [Output format](#output-format) for how each stage consumes it.
 
 ## Output format
 
 A structured "Technical approach" section (Screens / State & Data / Navigation / Folder Placement), each item citing the `ARCH-*`/`NAV-*` IDs it follows.
+
+**This output is working material. How much of it lands in the consuming document differs by stage:**
+
+- **At `/analyze-feature`** → it becomes the flat "Proposed Technical Approach" section of `templates/feature-analysis-template.md`. The repository findings and evidence base belong in that document.
+- **At `/dev-design-start`** → the DD receives **the conclusions §19 and §20 need — not a transcript.** Any repository survey, detected-convention listing, or evidence backing the approach is research that grounds the design; it **must not be automatically copied into the DD**. §19 receives the decisions taken and the standard IDs each follows; §20 receives modules and change classes with approximate site counts, enumerating individual files only when the affected set is small (roughly ten or fewer sites) or when a file is itself a design-relevant boundary. Per-file expansion belongs to `/dev-feature-start`. The shared `dev-design-start` skill's Step 6 and Step 7 govern what actually lands in the document — **do not assume verbatim inclusion.**
+- **At `/dev-feature-start`** → the React Native vocabulary and standard IDs used in each task's description and acceptance criteria.
 
 ## Constraints
 

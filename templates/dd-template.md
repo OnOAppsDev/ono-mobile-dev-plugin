@@ -26,16 +26,43 @@ date: # YYYY-MM-DD
 ## 0. Repo Knowledge Reference
 
 <!--
-Produced by /dev-design-start from an APPROVED feature analysis. This is the design artifact, not a task list — /dev-feature-start turns an approved DD into a task breakdown.
-Populate every section. For sections that genuinely do not apply, write `N/A — [reason]` rather than leaving them blank.
-In comprehensive detail_level, expand each section with rationale, tradeoffs, and decision notes (deeper, not longer for its own sake).
+Produced by /dev-design-start from an APPROVED feature analysis. This is the DECISION RECORD, not a task list — /dev-feature-start turns an approved DD into a task breakdown.
+
+THE INCLUSION TEST — apply to every line before writing it:
+  If this line were deleted, could two competent developers implement the feature in mutually
+  incompatible ways, or could a reviewer be unable to tell whether the result is correct?
+  If neither: it does not belong here. Volume is not thoroughness.
+
+DOES NOT BELONG IN THIS DOCUMENT — and who owns it instead:
+  - Repository evidence transcripts, stack surveys, [evidence: <path>] sweeps  -> Feature Analysis + architect working notes
+  - Restated feature request, business context, detected repo conventions      -> Feature Analysis (link it, never copy it)
+  - Per-file change inventories, sequencing, ordering, effort sizing           -> Task Breakdown (/dev-feature-start)
+  - Rollback plan                                                              -> Dev Plan (templates/dev-plan-template.md)
+  - Code, signatures, pseudocode, config snippets, migration mechanics         -> Implementation (/implement-task)
+  - Test cases, QA steps, verification procedures                              -> Verification / QA handoff
+  - Framework tutorials, general best practice, restated standards prose       -> Standards (cite the ID)
+  - Exhaustively enumerated behavior the change PRESERVES                      -> The existing codebase — it already is that spec
+
+Give every section its content or an explicit `N/A — [reason]`. "Filled" means the decision is recorded,
+NOT that the section is long — one accurate line beats a page of elaboration.
+
+detail_level changes DEPTH ON CONTESTED DECISIONS, never breadth across sections:
+  standard      — each decision with the chosen option and a one-line rationale        (~250-450 lines)
+  comprehensive — plus, ONLY where an alternative was genuinely viable, the alternatives
+                  considered and why the rejected one was rejected, and deeper risk analysis (~400-700 lines)
+  Comprehensive never means "deep-dive every section", and never adds implementation detail.
+  These figures are REVIEW TRIGGERS, not caps. Above ~800 lines, the /dev-design-start skill's Step 7
+  contraction review is mandatory. Never remove a real design decision to satisfy a budget.
+
+Section numbering is FIXED — /dev-feature-start and the platform architects cross-reference §19, §20, §25, §26
+by number. Collapse a section's CONTENT where the rules say so; never renumber, merge, or delete a heading.
 -->
 
 ## 1. Feature Overview
-<!-- One paragraph. What is this feature? What problem does it solve? -->
+<!-- One paragraph. What is this feature? What problem does it solve? Summarise — the approved feature analysis is linked in `feature_analysis_link` and is not copied into this document. -->
 
 ## 2. Business Goal
-<!-- Why does this feature exist? What metric or outcome does it support? -->
+<!-- Why does this feature exist? What metric or outcome does it support? A few sentences; cite the feature analysis rather than restating it. -->
 
 ## 3. Scope
 <!-- What is explicitly included in this implementation. -->
@@ -45,8 +72,36 @@ In comprehensive detail_level, expand each section with rationale, tradeoffs, an
 
 ---
 
+<!--
+=== SCOPE RULE GOVERNING §5–§18 (behavior sections) ===
+
+Decide SEMANTICALLY whether this feature changes user-facing behavior — from what the feature actually
+does to the user-facing surface, NOT from a frontmatter field alone.
+
+WHEN IT DOES NOT change user-facing behavior (technical migrations, refactors, dependency upgrades,
+infrastructure work, performance improvements, other behavior-preserving changes):
+PRESERVED BEHAVIOR MUST NEVER BE EXHAUSTIVELY RE-DOCUMENTED. The existing codebase already is that
+specification, and restating it is the single largest source of DD bloat. Collapse §5–§18 into concise
+behavior-impact coverage with exactly three parts:
+  1. Preserved behavior      — stated by REFERENCE, not enumeration. One or two lines naming the
+                               unchanged surfaces. Never a flow-by-flow, screen-by-screen, or
+                               control-by-control inventory.
+  2. Behavior plausibly at risk — the ONLY part that gets enumerated. What this change could realistically
+                               break, and what must therefore still hold afterwards.
+  3. Intentional visible changes — anything a user will actually notice, if any. Often "none."
+Keep the headings below in place, route this coverage through the sections it genuinely touches (usually
+§17 and §18), and mark the rest `N/A — behavior preserved; see §18`.
+
+WHEN IT DOES change user-facing behavior: §5–§18 are load-bearing — fill them for the CHANGED surface.
+Even then, scope them to what changes; an unchanged adjacent flow is referenced, never re-specified.
+
+`design_reference_status` is a STRONG DEFAULT SIGNAL, NOT THE DECISION. `not_required` strongly indicates
+preserved behavior and `provided` strongly indicates changed behavior, but the semantic judgement above
+governs. Where signal and semantics disagree, follow the semantics and note it in §23 Assumptions.
+-->
+
 ## 5. User Flows
-<!-- For each distinct user journey, describe the steps from entry point to completion. Include both happy path and all failure/edge paths. -->
+<!-- For each distinct user journey, describe the steps from entry point to completion. Include both happy path and all failure/edge paths. Subject to the scope rule above. -->
 
 ### 5.1 [Flow Name]
 **Actor:** [who performs this flow]
@@ -117,13 +172,23 @@ In comprehensive detail_level, expand each section with rationale, tradeoffs, an
 
 ## 19. Technical Implementation Approach
 <!--
-How this should be built, grounded strictly in the conventions detected in the feature analysis (not assumed defaults). Supplied by the matching platform architect + companion dev-planning skill (rn-/ios-/android-/react-dev-planning) — cite the standard IDs each part follows (ARCH-*/API-*/STATE-*/NAV-* for react-native, the equivalents for other platforms). Flag any new patterns being introduced.
+DECISIONS, NOT EVIDENCE. How this should be built, grounded strictly in the conventions detected in the feature analysis (not assumed defaults). Supplied by the matching platform architect + companion dev-planning skill (rn-/ios-/android-/react-dev-planning) — cite the standard IDs each part follows (ARCH-*/API-*/STATE-*/NAV-* for react-native, the equivalents for other platforms). Flag any new patterns being introduced.
+
+The architect's repository evidence sweep is RESEARCH THAT INFORMS THIS SECTION — it is not this section's content. The dimension-by-dimension survey, the [evidence: <path>] / [reused: …] / [inference] / [unknown] labelling, and any device_type discovery pass are working notes. This section receives their CONCLUSIONS: the decisions taken and the standard IDs each follows, with a path citation only where a decision genuinely rests on a specific one. Do not paste the survey — a reader who needs the full evidence base finds it in the feature analysis's Repo Context.
+
+Record what this design decides BEYOND the analysis's Proposed Technical Approach; do not re-derive it.
 Exactly one confirmed platform applies, carried over from the feature analysis — write this as a single flat section from that one platform's architect, never split into per-platform subsections.
 Cite canonical repository knowledge for repository-wide facts (`docs/project/patterns.md#<anchor>` for conventions, `docs/project/components.md#<anchor>` for existing components to reuse) instead of restating them. Describe inline only the feature-specific detail read from source.
 -->
 
 ## 20. Impacted Modules
-<!-- Every file, module, component, or service that will need to change, with a brief note on what changes. Feeds /dev-feature-start's task decomposition. Build on the module map via the CLAUDE.md structure pointers rather than re-deriving it, and name reused components from docs/project/components.md by path — a "new" component that already exists is the most common failure this section can prevent. -->
+<!--
+MODULES AND CHANGE CLASSES, NOT FILES × EDITS. Name the modules, packages, components, and services the feature touches; for each, state the CLASS of change and, where the same change repeats, an approximate site count — e.g. "`:player` — all `SimpleExoPlayer` construction sites move to `ExoPlayer.Builder`, ~40 sites". Enumerate individual files only when a change class has roughly TEN OR FEWER sites, or when a specific file carries a design decision of its own.
+
+A per-file inventory is a task breakdown, and /dev-feature-start owns it — it expands change classes into per-file tasks and re-reads the repository to do so. A note on what changes stays at the level of WHAT changes, never HOW to change it.
+
+Build on the module map via the CLAUDE.md structure pointers rather than re-deriving it, and name reused components from docs/project/components.md by path — a "new" component that already exists is the most common failure this section can prevent. Mark a genuinely undetermined location explicitly (`[unknown — target module not determined]`) rather than inventing a plausible path.
+-->
 
 ## 21. Impacted Services
 <!-- Any backend services, databases, queues, or infrastructure this feature touches. -->
@@ -131,13 +196,13 @@ Cite canonical repository knowledge for repository-wide facts (`docs/project/pat
 ---
 
 ## 22. Risks
-<!-- Technical, design, or delivery risks. Include likelihood and mitigation strategy for each. -->
+<!-- Technical, design, or delivery risks that would change the plan. Include likelihood and mitigation strategy for each. Carry forward only what is STILL open from the feature analysis — not its full list. -->
 
 ## 23. Assumptions
-<!-- Facts assumed true that have not been explicitly confirmed. Each assumption is a potential risk. -->
+<!-- Facts assumed true that have not been explicitly confirmed, and that would invalidate a design decision if wrong. Also record here: a §5–§18 scope call that disagrees with `design_reference_status`, and any deliberate overage past the ~800-line contraction trigger. -->
 
 ## 24. Open Questions
-<!-- Unresolved questions that need answers before or during implementation. /dev-feature-start refuses to generate tasks while blocking questions remain open. -->
+<!-- Unresolved questions that BLOCK — a question whose answer would not change a design decision does not belong here. /dev-feature-start refuses to generate tasks while blocking questions remain open. -->
 
 ---
 
