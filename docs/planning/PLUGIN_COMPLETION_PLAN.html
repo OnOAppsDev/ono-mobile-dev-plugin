@@ -407,7 +407,7 @@
           <tr><td contenteditable="">read-repo-knowledge.ts (+ test)</td><td contenteditable="" class="tint t-done">Complete</td><td contenteditable="">330 lines + 296-line test (one case per degradation-matrix row); executed 2026-08-02, passes</td></tr>
           <tr><td contenteditable="">Shared skills (8) + shared agents (3)</td><td contenteditable="" class="tint t-done">Complete</td><td contenteditable="">Detection, security/release/QA/debug/design/feature-start, repo-knowledge-consumer</td></tr>
           <tr><td contenteditable="">Shared standards: release-readiness, qa-handoff</td><td contenteditable="" class="tint t-done">Complete</td><td contenteditable="">Platform-neutral (REL-*, QA-*)</td></tr>
-          <tr><td contenteditable="">Shared standards: mobile-security, accessibility, i18n-rtl</td><td contenteditable="" class="tint t-partial">Partial</td><td contenteditable="">SHARED-002 ✓ — now platform-neutral requirements with labelled RN/iOS/Android/React examples; TV form-factor differences noted inside each platform example (A11Y-TOUCH-1/2). Remaining gap: web security (XSS/CSRF/CSP) — see SHARED-003</td></tr>
+          <tr><td contenteditable="">Shared standards: mobile-security, accessibility, i18n-rtl</td><td contenteditable="" class="tint t-done">Complete</td><td contenteditable="">SHARED-002 ✓ — platform-neutral requirements with labelled RN/iOS/Android/React examples; TV form-factor differences noted inside each platform example (A11Y-TOUCH-1/2). SHARED-003 ✓ — mobile-security.md extended to 48 IDs with web (SEC-WEB-*, SEC-COOKIE-*) and native (SEC-EXPOSURE-*) coverage, tagged [web only] / [native only]</td></tr>
           <tr><td contenteditable="">React Native module (6 standards, 3 skills, 4 agents)</td><td contenteditable="" class="tint t-done">Complete</td><td contenteditable="">Reference implementation (Pavel Tarnopolski)</td></tr>
           <tr><td contenteditable="">Android standards (10, AND-*)</td><td contenteditable="" class="tint t-done">Complete</td><td contenteditable="">High quality; mobile-oriented (no TV)</td></tr>
           <tr><td contenteditable="">Android feature-implementation skill + feature-developer agent</td><td contenteditable="" class="tint t-done">Complete</td><td contenteditable="">Authored (252-line skill)</td></tr>
@@ -457,12 +457,12 @@
             <td contenteditable="">Implemented 2026-07-22. The three shared standards were converted to platform-neutral normative requirements; React Native-specific guidance was moved into optional platform examples covering React Native, iOS, Android, and React. TV-specific guidance is expressed only inside the relevant platform example (no separate TV sections). All existing rule IDs were preserved; no platform-specific standards were created; no Commands, Skills, Agents, routing, or templates were modified.</td>
             <td contenteditable="">—</td><td contenteditable="">4</td><td contenteditable="">Week 1</td><td contenteditable="">Week 2 ✓</td>
           </tr>
-          <tr data-priority="high">
-            <td contenteditable="">SHARED-003<span class="pflag">High</span></td><td contenteditable="" class="tint o-plugin">Plugin Owner</td><td contenteditable="">Shared</td><td contenteditable="">Standard</td>
+          <tr data-priority="done">
+            <td contenteditable="">SHARED-003<span class="pflag">Done</span></td><td contenteditable="" class="tint o-plugin">Plugin Owner</td><td contenteditable="">Shared</td><td contenteditable="">Standard</td>
             <td contenteditable="">mobile-security.md (shared) — web + native extensions</td>
-            <td contenteditable="" class="tint t-partial">Exists but partial</td><td contenteditable="">Extend existing</td>
-            <td contenteditable="">Extend shared security standards for web (XSS/CSRF/CSP) and native-specific concerns. Support: Boris Molotsky, Tom Zion, Guy Gur Arie.</td>
-            <td contenteditable="">SHARED-002 ✓ (done)</td><td contenteditable="">2</td><td contenteditable="">Week 3</td><td contenteditable="">Week 3</td>
+            <td contenteditable="" class="tint t-done">Completed</td><td contenteditable="">Implemented</td>
+            <td contenteditable="">Implemented 2026-08-06. mobile-security.md extended from 36 to 48 stable IDs — all 36 existing IDs preserved unchanged, 12 added across three new sections. Web (9 IDs, tagged [web only]): SEC-WEB-1..6 covering XSS and safe HTML rendering, Content-Security-Policy, CSRF, third-party scripts and SRI, open redirects and unsafe navigation, and CORS as a browser boundary rather than authorization; SEC-COOKIE-1..3 covering httpOnly/Secure/SameSite session cookies, no tokens in script-readable browser storage, and narrow cookie scope. Native (3 IDs, tagged [native only]): SEC-EXPOSURE-1..3 covering OS backup and device-migration exclusion, screenshot and app-switcher protection, and clipboard exposure — the remaining native concerns were already covered by existing SEC-STORAGE/AUTH/NET/DEEPLINK/WEBVIEW/SECRETS/HARDEN/PERMS/LOG rules and are cross-referenced rather than duplicated. Every new rule states a platform-neutral outcome with framework and OS detail only as labelled examples, and carries a practical review check. Purpose &amp; Scope now defines the applicability tags and states that untagged rules apply to all platforms. Four reviewer instructions and two orchestration files were repointed at the new rules, closing every stale "web security not yet covered" statement repo-wide. Support: Boris Molotsky, Tom Zion, Guy Gur Arie.</td>
+            <td contenteditable="">SHARED-002 ✓ (done)</td><td contenteditable="">2</td><td contenteditable="">Week 3</td><td contenteditable="">Week 3 ✓</td>
           </tr>
           <tr data-priority="high">
             <td contenteditable="">SHARED-004<span class="pflag">High</span></td><td contenteditable="" class="tint o-plugin">Plugin Owner</td><td contenteditable="">Shared</td><td contenteditable="">Infrastructure</td>
@@ -602,7 +602,7 @@
             <td contenteditable="">react-coding, react-routing, react-state-management, react-performance, react-architecture, react-api-service-layer (REACT-* IDs)</td>
             <td contenteditable="" class="tint t-placeholder">Exists as placeholder</td><td contenteditable="">Complete placeholder</td>
             <td contenteditable="">Author the 6 React (web) standards. Critical-path start for the React chain.</td>
-            <td contenteditable="">SHARED-002 ✓, SHARED-003</td><td contenteditable="">4</td><td contenteditable="">Week 1</td><td contenteditable="">Week 1</td>
+            <td contenteditable="">SHARED-002 ✓, SHARED-003 ✓</td><td contenteditable="">4</td><td contenteditable="">Week 1</td><td contenteditable="">Week 1</td>
           </tr>
           <tr data-priority="blocker" class="">
             <td contenteditable="">REACT-002<span class="pflag">Blocker</span></td><td contenteditable="" class="tint o-boris">Boris Molotsky</td><td contenteditable="">React</td><td contenteditable="">Agent + Skill</td>
@@ -674,7 +674,7 @@ SHARED-004 (task-status)  … independent, parallel</pre>
         <tbody>
           <tr><td contenteditable="">SHARED-001 ✓</td><td contenteditable="">—</td><td contenteditable="">ATV-001, ATV-002, ANDROID-003, REACT-003, SHARED-005 (all unblocked)</td><td contenteditable="">✓ Complete (2026-07-21) — no longer blocking; dependents unblocked</td></tr>
           <tr><td contenteditable="">SHARED-002 ✓</td><td contenteditable="">—</td><td contenteditable="">IOS-001 (soft), REACT-001 (all unblocked)</td><td contenteditable="">✓ Complete (2026-07-22) — no longer blocking; dependents unblocked</td></tr>
-          <tr><td contenteditable="">SHARED-003</td><td contenteditable="">SHARED-002 ✓ (done)</td><td contenteditable="">REACT-001</td><td contenteditable="">Web security</td></tr>
+          <tr><td contenteditable="">SHARED-003 ✓</td><td contenteditable="">SHARED-002 ✓ (done)</td><td contenteditable="">REACT-001</td><td contenteditable="">✓ Complete (2026-08-06) — web + native security extensions authored; no longer blocking, REACT-001 unblocked</td></tr>
           <tr><td contenteditable="">SHARED-004</td><td contenteditable="">—</td><td contenteditable="">—</td><td contenteditable="">Independent, parallel</td></tr>
           <tr><td contenteditable="">SHARED-005</td><td contenteditable="">SHARED-001 ✓, SHARED-009 ✓</td><td contenteditable="">DOC-001</td><td contenteditable="">End-to-end validation; fixtures also cover manifest fresh/stale/absent</td></tr>
           <tr><td contenteditable="">SHARED-008 ✓</td><td contenteditable="">—</td><td contenteditable="">DOC-001</td><td contenteditable="">✓ Complete (2026-07-27) — design-reference gate; no longer blocking</td></tr>

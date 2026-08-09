@@ -120,7 +120,18 @@ Rules:
 
 ## 6. Module and dependency impact
 
-Enumerate every module, package, and file the feature touches, and for each state whether it is created, modified, or only read. Confirm no new circular dependency, no inverted layer dependency, and no new module without justification. New third-party dependencies are an unresolved decision, never a silent addition → `AND-REL-DEP-1`, `AND-REL-DEP-2`, `AND-REL-DEP-3`. Build-config changes follow the repo's existing variant/flavor structure → `AND-REL-VARIANT-1`, `AND-REL-VARIANT-3`; `minSdk`/`targetSdk`/`compileSdk` are never changed as a side effect of a feature → `AND-REL-VARIANT-2`.
+**Inspect broadly; report at module and change-class resolution.** Analysis may — and for a wide-reaching change should — read every relevant file to understand the true blast radius. What the *design* records is the conclusion of that reading, not its transcript.
+
+Enumerate every **module and package** the feature touches, and for each state:
+
+- the **class of change** it undergoes, and whether it is created, modified, or only read;
+- an **approximate site count** where the same change repeats across many files (e.g. "`:player` — all `SimpleExoPlayer` construction sites move to `ExoPlayer.Builder`, ~40 sites").
+
+**Enumerate individual files only when** the affected set is small — roughly **ten or fewer sites** for a given change class — or when a specific file is itself a **design-relevant boundary**: it defines a public surface, carries a decision of its own, or is the seam the design turns on. A file that is simply one more instance of an already-stated change class is not enumerated.
+
+**Per-file expansion belongs to `/dev-feature-start` and the Task Breakdown**, which turns each change class into per-file tasks and re-reads the repository to do so. A DD that lists every touched file has written the task breakdown in the wrong document. Keep each note at the level of *what* changes, never *how* to change it.
+
+Confirm no new circular dependency, no inverted layer dependency, and no new module without justification. New third-party dependencies are an unresolved decision, never a silent addition → `AND-REL-DEP-1`, `AND-REL-DEP-2`, `AND-REL-DEP-3`. Build-config changes follow the repo's existing variant/flavor structure → `AND-REL-VARIANT-1`, `AND-REL-VARIANT-3`; `minSdk`/`targetSdk`/`compileSdk` are never changed as a side effect of a feature → `AND-REL-VARIANT-2`.
 
 ## 7. State and data-flow analysis
 
@@ -248,8 +259,8 @@ Never cite an ID that does not exist, and never cite one that is merely adjacent
 
 Output shape, consumed by the shared skills:
 
-- **At Analyze** → the flat "Proposed Technical Approach" section of `templates/feature-analysis-template.md`.
-- **At Design** → the DD's §19 Technical Implementation Approach and §20 Impacted Modules.
+- **At Analyze** → the flat "Proposed Technical Approach" section of `templates/feature-analysis-template.md`. The evidence base belongs in that document.
+- **At Design** → the DD's §19 Technical Implementation Approach and §20 Impacted Modules, **as conclusions rather than as a transcript.** The evidence sweep from [§3](#3-repository-evidence-collection), the `[evidence: <path>]` / `[reused: …]` / `[inference]` / `[unknown]` labelling, and the [§14](#14-device_type-handling) TV discovery pass are research that grounds the design — they are not DD content, and are never pasted into it. §19 receives the decisions taken and the standard IDs each follows; §20 receives modules and change classes per [§6](#6-module-and-dependency-impact). The shared `dev-design-start` skill's Step 6 and Step 7 govern what actually lands in the document.
 - **At Feature-start** → the Android vocabulary and standard IDs used in each task's description and acceptance criteria.
 
 Exactly one confirmed platform always applies, so these sections are **always flat** — never split into per-platform subsections.

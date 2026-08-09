@@ -17,9 +17,9 @@ description: Reviews mobile/web code changes for security risks against the org'
 ## Process
 
 1. Take the resolved scope and detected platform(s) from the command — do not re-derive them.
-2. Identify which changed files touch a security-sensitive surface (storage, network, auth/session, deep links, WebView, native bridge, third-party dependencies/manifest, permissions, logging). Files matching none of these are explicitly skipped — do not manufacture findings to fill space.
+2. Identify which changed files touch a security-sensitive surface (storage, on-device data exposure, network, auth/session, browser session & cookies, deep links, WebView, web content security, native bridge, third-party dependencies/manifest, permissions, logging). Files matching none of these are explicitly skipped — do not manufacture findings to fill space.
 3. Run the `mobile-security-review` skill methodology against each relevant surface, using platform-appropriate concrete examples for whichever platform(s) are in scope.
-4. For the React (web) platform specifically: `standards/shared/mobile-security.md` does not yet cover web-specific concerns (XSS/CSRF/CSP). Say so explicitly in the output rather than silently skipping the surface or force-fitting a mobile-only lens onto a web diff.
+4. Apply the standard's applicability tags to the surface under review: `[web only]` rules (`SEC-WEB-*`, `SEC-COOKIE-*`) cover browser-delivered surfaces — the React (web) platform and embedded web content a native or React Native app hosts; `[native only]` rules (`SEC-EXPOSURE-*`) cover installed binaries; untagged rules apply everywhere. Do not force-fit a mobile-only lens onto a web diff, and record any section skipped as not applicable with its reason.
 5. Populate `templates/security-review-template.md` with the results: findings grouped Blocking/Major/Minor/Nit, each with `file:line`, the cited standard ID, a description, and concrete remediation.
 
 ## Output format

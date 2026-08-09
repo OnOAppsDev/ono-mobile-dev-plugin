@@ -15,4 +15,4 @@ This skill runs only against files the command has attributed to the React (web)
 
 1. Triage changed files into `standards/react/*`-relevant buckets; `react-code-reviewer` walks correctness/style/standards-adherence, `react-performance-reviewer` independently audits performance.
 2. Merge both agents' findings, tagged `[react]`, into the shared `templates/code-review-template.md`.
-3. Exclude security findings — defer to `mobile-security-review`'s methodology (noting it does not yet cover web-specific XSS/CSRF/CSP concerns).
+3. Exclude security findings — defer to `mobile-security-review`'s methodology, which covers web-specific concerns through the `[web only]` rules in `standards/shared/mobile-security.md` (`SEC-WEB-*` for XSS/CSP/CSRF/redirects/CORS/third-party scripts, `SEC-COOKIE-*` for browser session handling).
