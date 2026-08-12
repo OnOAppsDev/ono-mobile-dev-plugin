@@ -7,7 +7,7 @@ description: Methodology for reviewing native iOS code changes against org stand
 
 This skill is a structure-only placeholder, scaffolded as part of the mobile-division plugin migration. It mirrors `skills/rn-code-review/SKILL.md`'s role for React Native.
 
-Until this is authored, iOS-attributed files in a review will not be checked against grounded `standards/ios/*` IDs — those standards are also placeholder-only right now. Author both together before relying on `/review-code` for real iOS review coverage.
+Until this is authored, iOS-attributed files in a review will not be checked against grounded `standards/ios/*` IDs. Those standards **are** authored (IOS-001) and the IDs exist — this skill is the remaining placeholder. Author it (IOS-004) before relying on `/review-code` for real iOS review coverage.
 
 ## Intended methodology (once authored)
 

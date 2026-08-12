@@ -7,7 +7,7 @@ description: Reviews native iOS code changes against the org's standards — not
 
 This agent is a structure-only placeholder, scaffolded as part of the mobile-division plugin migration so routing resolves to a real file for iOS work. It mirrors `agents/rn-code-reviewer.md`'s role for React Native.
 
-Until authored, invoking this agent for real iOS code review will not produce standards-grounded findings — `standards/ios/*` is also placeholder-only right now. Author both together before relying on `/review-code` for real iOS review coverage.
+Until authored, invoking this agent for real iOS code review will not produce standards-grounded findings. The five `standards/ios/*` documents **are** authored (IOS-001); this agent owns the `IOS-SWIFT-*`, `IOS-UI-*`, `IOS-ARCH-*`, `A11Y-*` and `I18N-*` lanes defined in `standards/ios/swift-standards.md` — it is the remaining placeholder. Author it (IOS-004) before relying on `/review-code` for real iOS review coverage.
 
 ## Intended role (once authored)
 

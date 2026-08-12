@@ -7,7 +7,7 @@ description: Audits native iOS performance (main-thread blocking, view recycling
 
 This agent is a structure-only placeholder, scaffolded as part of the mobile-division plugin migration so routing resolves to a real file for iOS work. It mirrors `agents/rn-performance-reviewer.md`'s role for React Native.
 
-Until authored, invoking this agent for real iOS performance review will not produce standards-grounded findings — `standards/ios/ios-performance.md` is also placeholder-only right now. Author both together before relying on `/review-code`/`/prepare-mobile-release` for real iOS performance sign-off.
+Until authored, invoking this agent for real iOS performance review will not produce standards-grounded findings. `standards/ios/ios-performance.md` **is** authored (IOS-001) and carries the citable `IOS-PERF-*` IDs this agent owns exclusively — this agent is the remaining placeholder. Author it (IOS-004) before relying on `/review-code`/`/prepare-mobile-release` for real iOS performance sign-off.
 
 ## Intended role (once authored)
 
