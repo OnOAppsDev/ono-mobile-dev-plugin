@@ -22,7 +22,8 @@ claude --plugin-dir /path/to/ono-mobile-dev-plugin
 ## What this plugin supports
 
 - **React Native** — the plugin's original, most fully-built-out platform. Full standards, skills, and agents.
-- **Native iOS** and **Native Android** — routing, platform detection, and folder structure are fully wired up; the standards/skills/agents themselves are currently structure-only placeholders (see [Plugin internals](#plugin-internals)) waiting to be authored.
+- **Native iOS** — routing, platform detection, and folder structure are fully wired up. The five iOS **standards are authored** (IOS-001) with citable `IOS-*` IDs; the iOS skills and agents are still structure-only placeholders (see [Plugin internals](#plugin-internals)) pending IOS-002/003/004.
+- **Native Android** — routing, platform detection, and folder structure are fully wired up; the standards/skills/agents themselves are currently structure-only placeholders (see [Plugin internals](#plugin-internals)) waiting to be authored.
 - **React (web)** — a plain browser SPA (Vite/CRA/Next.js), not React Native for Web. Also structure-only placeholders today. Kept as a fully separate module from React Native despite overlapping JS/TS/React fundamentals, since the two target genuinely different runtimes (browser vs. native shell).
 - **Mixed repos** — a React Native repo with native iOS and/or Android changes, or a native monorepo containing both an iOS and an Android project, or a monorepo pairing a React web app with an RN/native app.
 
@@ -234,7 +235,7 @@ standards/
   react-native/ react-native-coding-standards.md, react-navigation.md, rn-state-management.md,
                 rn-performance.md, rn-architecture.md, rn-api-service-layer.md
   ios/          swift-standards.md, swiftui-uikit-standards.md, ios-architecture.md,
-                xcode-build-signing.md, ios-performance.md               (placeholders)
+                xcode-build-signing.md, ios-performance.md               (authored, IOS-* IDs)
   android/      kotlin-standards.md, compose-xml-standards.md, android-architecture.md,
                 gradle-build-signing.md, android-performance.md          (placeholders)
   react/        react-coding-standards.md, react-routing.md, react-state-management.md,
