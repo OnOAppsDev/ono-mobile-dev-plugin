@@ -9,6 +9,7 @@ Both context values are carried over from the DD, never re-derived here:
 -->
 
 ```yaml
+doc_schema_version: 1 # the frontmatter contract version this document was written against. Set by /dev-feature-start at generation; upgraded only by scripts/migrate-planning-doc.ts. See docs/planning-doc-contract.md — never edit by hand.
 feature: # feature name
 dd_link: # path to the approved templates/dd-template.md this plan was built from
 design_reference_status: # provided | not_required — carried over from the DD. /implement-task reads this before implementing UI tasks.

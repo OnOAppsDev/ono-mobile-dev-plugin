@@ -1,6 +1,7 @@
 # Feature Analysis Template
 
 ```yaml
+doc_schema_version: 3 # the frontmatter contract version this document was written against. Set by /analyze-feature at generation; upgraded only by scripts/migrate-planning-doc.ts. See docs/planning-doc-contract.md — never edit by hand.
 feature: # feature name
 dd_link: # link to the Detailed Design doc, if one exists
 design_reference_status: pending # pending | provided | not_required — `provided` = a design reference exists (MANDATORY for any feature with new or changed user-facing UI); `not_required` = valid ONLY when the feature introduces no new or changed user-facing UI. /analyze-feature must resolve this away from `pending`.

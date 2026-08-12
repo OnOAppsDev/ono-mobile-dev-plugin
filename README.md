@@ -36,7 +36,7 @@ Architecture documentation for the whole plugin ecosystem lives in the **marketp
 |---|---|
 | [`docs/architecture/ecosystem-overview.html`](https://github.com/OnOAppsDev/ono-plugin-marketplace/blob/main/docs/architecture/ecosystem-overview.html) | **Start here.** How this plugin cooperates with the Project Inspector, what Repository Knowledge is, the complete command chain from inspection to merge, and how information flows between commands. |
 
-Two documents stay here. The first is [`docs/repo-knowledge-contract.md`](docs/repo-knowledge-contract.md) — the schema this plugin consumes and the obligations it accepts. It ships with the plugin because `scripts/read-repo-knowledge.ts` and the `repo-knowledge-consumer` skill both cite it. Read it before changing anything that touches `.ono/repo-knowledge.json`. The second is the planning dashboard described under [Project Planning](#project-planning) below.
+Three documents stay here. The first is [`docs/repo-knowledge-contract.md`](docs/repo-knowledge-contract.md) — the schema this plugin consumes and the obligations it accepts. It ships with the plugin because `scripts/read-repo-knowledge.ts` and the `repo-knowledge-consumer` skill both cite it. Read it before changing anything that touches `.ono/repo-knowledge.json`. The second is [`docs/planning-doc-contract.md`](docs/planning-doc-contract.md) — the frontmatter contract for the planning documents this plugin generates, their version history, and the rules a migration obeys; `scripts/migrate-planning-doc.ts` and the `planning-doc-migration` skill both cite it, and a test asserts the two cannot drift. Read it before changing any template's frontmatter. The third is the planning dashboard described under [Project Planning](#project-planning) below.
 
 The eight-stage pipeline, platform detection and routing, standards and templates are documented in the sections below — they are operational documentation for building and contributing to this plugin, so they stay in this repository.
 
@@ -215,6 +215,7 @@ skills/                             (flat, one level — prefix = scope)
   mobile-repo-analysis/             mobile-security-review/
   mobile-debugging/                 mobile-testing-and-qa-handoff/ mobile-release-readiness/
   repo-knowledge-consumer/          (resolves canonical repository knowledge; the only reader of the contract)
+  planning-doc-migration/           (loads a planning document through the migration framework; the single frontmatter compatibility layer)
   dev-design-start/  dev-feature-start/    (shared design + task-generation stages)
   rn-dev-planning/  rn-feature-implementation/  rn-code-review/
   ios-dev-planning/ ios-feature-implementation/ ios-code-review/      (placeholders)

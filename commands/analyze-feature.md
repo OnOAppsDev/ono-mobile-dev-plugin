@@ -66,6 +66,7 @@ Analyze the feature described in `$ARGUMENTS` (a feature description, product re
 6. The architect agent proposes screens/views from whatever reference step 5 resolved — reading Figma via the `figma` MCP server when the type is `figma`, otherwise reading the recorded reference through the appropriate available mechanism. The architect does not raise its own Figma request and does not gate on Figma specifically.
 7. Populate `templates/feature-analysis-template.md` in full:
 
+   - `doc_schema_version`, set to the feature-analysis kind's current version per `docs/planning-doc-contract.md`. This makes the document self-describing so a later stage can tell an older contract from a malformed one; it is stamped here at generation and upgraded only by `scripts/migrate-planning-doc.ts`. Do not run the migration framework here — migration happens on **load**, never during generation.
    - The feature request.
    - The **confirmed** `platform` (a single value — never `mixed`) and the **confirmed** `device_type` (`mobile` or `tv`) frontmatter fields.
    - The six `repo_knowledge_*` frontmatter fields and the `## Repo Knowledge Reference` section, per the `repo-knowledge-consumer` skill's Step 6 block shape.
