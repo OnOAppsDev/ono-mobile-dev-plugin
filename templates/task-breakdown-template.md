@@ -1,6 +1,7 @@
 # Task Breakdown Template
 
 ```yaml
+doc_schema_version: 1 # the frontmatter contract version this document was written against. Set by /dev-feature-start at generation; upgraded only by scripts/migrate-planning-doc.ts. See docs/planning-doc-contract.md — never edit by hand.
 feature: # feature name/slug — must match the DD and Dev Plan for this feature
 feature_analysis_link: # path to the approved feature analysis (the generated feature file, NOT templates/feature-analysis-template.md)
 dd_link: # path to the approved DD (the generated {FEATURE-NAME}-DD.md, NOT templates/dd-template.md)

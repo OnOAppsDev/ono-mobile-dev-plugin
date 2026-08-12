@@ -7,6 +7,71 @@ and this plugin adheres to [Semantic Versioning](https://semver.org/). The
 version below is the plugin's own `version` in
 [`plugin.json`](.claude-plugin/plugin.json).
 
+## [0.5.0] - 2026-08-12
+
+SHARED-011 — the legacy planning-document migration framework. Implements
+[`docs/planning/SHARED-011-legacy-document-migration-design.md`](docs/planning/SHARED-011-legacy-document-migration-design.md).
+
+### Added
+- `scripts/migrate-planning-doc.ts` — detects which frontmatter contract version a
+  planning document was written against and applies the sequential chain of migrations
+  up to the current version, rewriting **only** the frontmatter. The body is held as an
+  opaque byte slice and asserted byte-identical before writing; `feature`, `status`,
+  `author`, and `date` are structurally unwritable, so **approval survives migration by
+  construction**. Ambiguous values are never guessed — they return `needs-input` with
+  every question batched into one result and the file left byte-untouched. **Always
+  exits 0 with valid JSON**; callers branch on `status`. Canonical invocation is
+  `node --no-warnings scripts/migrate-planning-doc.ts <path> --kind <kind>`.
+- `skills/planning-doc-migration` — the loader, and the single compatibility layer for
+  planning-document frontmatter. Commands load a document through it and then read
+  exactly one shape; no command carries its own legacy-tolerance rules any more.
+- `docs/planning-doc-contract.md` — the versioned frontmatter contract per document
+  kind, the Feature Analysis version history recovered from this repository's own git
+  history (`c77c75d` → `6c56ec5` → `c90c78c` → `2cadba7`), the operation rules, and the
+  frozen-step discipline for adding a version later.
+- `scripts/migrate-planning-doc.test.ts` + `scripts/fixtures/planning-docs/` — 174
+  assertions over on-disk golden fixtures, covering every migration path, both
+  frontmatter encodings, CRLF, body-byte preservation, idempotency, the true no-op, all
+  refusal paths, and drift between the script, the contract document, and
+  `repo-knowledge-consumer`'s canonical values.
+- `doc_schema_version` in all four planning templates, so every document generated from
+  0.5.0 onward is self-describing. Stamped at generation; upgraded only by the framework.
+
+### Changed
+- `/dev-design-start` loads the feature analysis through `planning-doc-migration` before
+  reading any field, and **its hand-written "accept a feature analysis written before
+  these fields existed" paragraph is deleted** — that tolerance covered exactly one of
+  the three historical transitions and was invisible to every other consumer. A
+  migration is now reported in one line and the workflow continues automatically.
+- `/analyze-feature`, `/dev-feature-start`, and their skills stamp `doc_schema_version`
+  at generation.
+
+### Deviations from the approved design (both recorded in the contract document)
+- **No `migrated_at` field and no `--now` flag.** The design's §8.11 metadata block
+  listed a migration timestamp; it had no consumer, was fully redundant with git and
+  with `migration_inputs`, and was the only reason the framework would need a clock. It
+  was dropped so the framework is deterministic and clock-free — a property a test now
+  enforces. The merged design document is left unamended as the historical record.
+- **A `fill` operation** was added to the design's operation set: giving a value to an
+  existing key that has none. The templates ship keys as `field: # explanation`, so an
+  `add`-only framework would reject documents that retained them. No human decision is
+  overwritten, because there is no value.
+
+### Unchanged (deliberately)
+- **A current document takes a true no-op path** — stamped at the current version, the
+  framework returns before any chain logic runs: no parse, no write, no message.
+- **Migration never runs during generation**, only on load, so there are never two
+  writers on one document.
+- `/dev-feature-start` and `/implement-task` are **not** wired to the loader yet. Their
+  document kinds have no authored migration chain, so wiring would call a no-op;
+  `/implement-task`'s existing gates already stop loudly on a missing `device_type`.
+  Tracked in the contract document's Consumers table.
+- End-to-end confirmation against a real legacy feature analysis requires a live
+  `/dev-design-start` run and **has not yet been performed** — same posture as 0.4.0's
+  manual-verification note.
+- The eight-stage pipeline, every approval gate, all three safety hooks, all
+  `standards/**`, and the six commands outside the four touched above.
+
 ## [0.4.0] - 2026-07-28
 
 ### Added

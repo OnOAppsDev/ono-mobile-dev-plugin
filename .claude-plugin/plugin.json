@@ -1,7 +1,7 @@
 {
   "name": "ono-mobile-dev-plugin",
   "description": "Mobile-division SDLC workflow for Ono Apps: feature analysis, detailed design, task breakdown, implementation, code review, debugging, QA handoff, and release readiness across React Native, native iOS, native Android, and React web, with shared process and platform-aware routing.",
-  "version": "0.4.0",
+  "version": "0.5.0",
   "author": {
     "name": "Ono Apps",
     "email": "magen@onoapps.com"
