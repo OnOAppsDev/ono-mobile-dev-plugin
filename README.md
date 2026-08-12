@@ -22,7 +22,8 @@ claude --plugin-dir /path/to/ono-mobile-dev-plugin
 ## What this plugin supports
 
 - **React Native** — the plugin's original, most fully-built-out platform. Full standards, skills, and agents.
-- **Native iOS** and **Native Android** — routing, platform detection, and folder structure are fully wired up; the standards/skills/agents themselves are currently structure-only placeholders (see [Plugin internals](#plugin-internals)) waiting to be authored.
+- **Native iOS** — routing, platform detection, and folder structure are fully wired up. The five iOS **standards are authored** (IOS-001) with citable `IOS-*` IDs; the iOS skills and agents are still structure-only placeholders (see [Plugin internals](#plugin-internals)) pending IOS-002/003/004.
+- **Native Android** — routing, platform detection, and folder structure are fully wired up; the standards/skills/agents themselves are currently structure-only placeholders (see [Plugin internals](#plugin-internals)) waiting to be authored.
 - **React (web)** — a plain browser SPA (Vite/CRA/Next.js), not React Native for Web. Also structure-only placeholders today. Kept as a fully separate module from React Native despite overlapping JS/TS/React fundamentals, since the two target genuinely different runtimes (browser vs. native shell).
 - **Mixed repos** — a React Native repo with native iOS and/or Android changes, or a native monorepo containing both an iOS and an Android project, or a monorepo pairing a React web app with an RN/native app.
 
@@ -176,7 +177,8 @@ Every agent works against the org's written standards rather than assumed defaul
 
 - **`standards/shared/`** — mobile security, accessibility, i18n/RTL, release readiness, and QA handoff. Loaded on every task regardless of platform. Today's rule text in `mobile-security.md`, `accessibility.md`, and `i18n-rtl.md` is written from React Native experience (prop names, library names); iOS/Android/React-native equivalents are noted as not-yet-authored gaps rather than silently assumed equivalent.
 - **`standards/react-native/`** — React Native/TypeScript coding standards, navigation, state management, API service layer, architecture, and performance. The most fully authored module.
-- **`standards/ios/`**, **`standards/android/`**, **`standards/react/`** — structure-only placeholders (Swift/Kotlin/React coding standards, UI-framework conventions, architecture, build/signing or bundler config, and performance) mirroring the react-native set, ready to be authored.
+- **`standards/ios/`** — Swift language and style, SwiftUI/UIKit conventions, architecture, performance, and Xcode build/signing. Authored (IOS-001); every rule carries a citable `IOS-SWIFT-*`, `IOS-UI-*`, `IOS-ARCH-*`, `IOS-PERF-*`, or `IOS-BUILD-*` ID, and `swift-standards.md` defines the lane table that routes each root to exactly one reviewer.
+- **`standards/android/`**, **`standards/react/`** — structure-only placeholders (Kotlin/React coding standards, UI-framework conventions, architecture, build/signing or bundler config, and performance) mirroring the react-native set, ready to be authored.
 - **`templates/`** — one structured template per pipeline artifact: feature analysis, detailed design (DD), feature plan, task breakdown, code review, security review, QA handoff, and release checklist. Stages communicate exclusively through these filled-in templates. Every template that needs to know the platform carries a `platform` field (frontmatter or a per-row column), and the code-review/release-checklist templates support platform-tagged findings/subsections for mixed-platform work.
 
 Reviews cite standard IDs in their findings.
@@ -233,7 +235,7 @@ standards/
   react-native/ react-native-coding-standards.md, react-navigation.md, rn-state-management.md,
                 rn-performance.md, rn-architecture.md, rn-api-service-layer.md
   ios/          swift-standards.md, swiftui-uikit-standards.md, ios-architecture.md,
-                xcode-build-signing.md, ios-performance.md               (placeholders)
+                xcode-build-signing.md, ios-performance.md               (authored, IOS-* IDs)
   android/      kotlin-standards.md, compose-xml-standards.md, android-architecture.md,
                 gradle-build-signing.md, android-performance.md          (placeholders)
   react/        react-coding-standards.md, react-routing.md, react-state-management.md,

@@ -7,7 +7,7 @@ description: Implements Swift/SwiftUI/UIKit code per the org's standards — not
 
 This agent is a structure-only placeholder, scaffolded as part of the mobile-division plugin migration so routing resolves to a real file for iOS work. It mirrors `agents/rn-feature-developer.md`'s role for React Native.
 
-Until authored, invoking this agent for real iOS implementation will not produce standards-grounded output — `standards/ios/*` is also placeholder-only right now. Author both together before relying on `/implement-task`/`/fix-review-comments` for real iOS work.
+Until authored, invoking this agent for real iOS implementation will not produce standards-grounded output. The five `standards/ios/*` documents **are** authored (IOS-001) and carry citable `IOS-*` IDs — this agent is the remaining placeholder. Author it (IOS-003) before relying on `/implement-task`/`/fix-review-comments` for real iOS work.
 
 ## Intended role (once authored)
 

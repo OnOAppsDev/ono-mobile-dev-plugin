@@ -7,7 +7,7 @@ description: Designs the technical approach for a native iOS feature (views/scre
 
 This agent is a structure-only placeholder, scaffolded as part of the mobile-division plugin migration so routing resolves to a real file for iOS work. It mirrors `agents/rn-architect.md`'s role for React Native.
 
-Until authored, invoking this agent for real iOS feature analysis/planning will not produce grounded, standards-cited output — `standards/ios/*` is also placeholder-only right now. Author both together before relying on `/analyze-feature`/`/dev-design-start`/`/dev-feature-start` for real iOS work.
+Until authored, invoking this agent for real iOS feature analysis/planning will not produce grounded, standards-cited output. The five `standards/ios/*` documents **are** authored (IOS-001) and carry citable `IOS-*` IDs — this agent is the remaining placeholder. Author it (IOS-002) before relying on `/analyze-feature`/`/dev-design-start`/`/dev-feature-start` for real iOS work.
 
 ## Intended role (once authored)
 
