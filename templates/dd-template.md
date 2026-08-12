@@ -1,7 +1,7 @@
 # Detailed Design (DD) Template
 
 ```yaml
-doc_schema_version: 1 # the frontmatter contract version this document was written against. Set by /dev-design-start at generation; upgraded only by scripts/migrate-planning-doc.ts. See docs/planning-doc-contract.md — never edit by hand.
+doc_schema_version: 2 # the frontmatter contract version this document was written against. Set by /dev-design-start at generation; upgraded only by scripts/migrate-planning-doc.ts. See docs/planning-doc-contract.md — never edit by hand.
 feature: # feature name
 feature_analysis_link: # path to the approved templates/feature-analysis-template.md this DD was built from
 design_reference_status: # provided | not_required — carried over from the feature analysis. `provided` is mandatory for a feature with new or changed user-facing UI; `not_required` is valid only when there is no UI change.
@@ -20,6 +20,8 @@ repo_knowledge_derived: # categories derived live for this feature, or none
 author: # the relevant platform architect / human author
 status: draft # draft | approved
 detail_level: standard # standard | comprehensive
+dd_generation: single # single | partitioned — how this DD was produced. Always `single` today; `partitioned` is reserved for partitioned generation, which is not implemented. Never branch on this field.
+dd_complexity_band: unassessed # low | medium | high | unassessed — what the complexity assessment computed. ADVISORY ONLY: it records a measurement and never routes generation. Every feature takes the single-DD path regardless of the band.
 date: # YYYY-MM-DD
 ```
 

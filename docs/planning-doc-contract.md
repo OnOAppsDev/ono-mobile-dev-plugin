@@ -20,7 +20,7 @@ version is brought forward, and the rules for adding a version later.
 | Document kind | Current version |
 |---|---|
 | `feature-analysis` | 3 |
-| `dd` | 1 |
+| `dd` | 2 |
 | `dev-plan` | 1 |
 | `task-breakdown` | 1 |
 
@@ -28,10 +28,10 @@ Every generated planning document carries `doc_schema_version` in its
 frontmatter. Generating commands stamp it at creation; the migration framework
 stamps it at the end of a successful chain. Nothing else writes it.
 
-`dd`, `dev-plan`, and `task-breakdown` are declared **v1 = "the shape as of
-plugin 0.5.0"**. No migration chain is authored for them, so an unstamped
-document of those kinds is *assumed* current — exactly the behavior that existed
-before SHARED-011. See [Known limitations](#known-limitations).
+`dev-plan` and `task-breakdown` are declared **v1 = "the shape as of plugin
+0.5.0"**. No migration chain is authored for them, so an unstamped document of
+those kinds is *assumed* current — exactly the behavior that existed before
+SHARED-011. See [Known limitations](#known-limitations).
 
 ## Feature Analysis version history
 
@@ -45,6 +45,42 @@ change that shipped.
 | 2 | `c90c78c` | Replaces figma-only design input with `design_reference_status`, `design_reference_type`, `design_reference`, `figma_link`. Forbids `platform: mixed`. | all three `design_reference_*` |
 | 3 | `2cadba7` | Adds the six `repo_knowledge_*` fields. Body section splits into `## Repo Knowledge Reference` + `## Repo Context`. | `repo_knowledge_status` |
 
+## Detailed Design version history
+
+| v | Introduced | What changed | Marker |
+|---|---|---|---|
+| 1 | plugin 0.5.0 | The DD shape as of SHARED-011: `§1–§26` plus the frontmatter carried from the feature analysis. Stamped, but no chain existed. | none — the fallback |
+| 2 | plugin 0.6.0 | Adds `dd_generation` and `dd_complexity_band`, the DD Package contract's frontmatter half (Adaptive Multi-Stage DD, Slice A). | `dd_generation` |
+
+### What v2 adds, and what it deliberately does not
+
+```yaml
+dd_generation: single          # single | partitioned — how this DD was produced
+dd_complexity_band: unassessed # low | medium | high | unassessed
+```
+
+**A DD Package is one canonical DD file that is the sole authoritative
+interface.** There is no manifest file and no package directory: the canonical
+DD *is* the entry point, exactly as before, and the package metadata rides in
+its existing frontmatter. That is deliberate — discovery and versioning already
+belong to this contract, and a manifest would be a second mechanism for both.
+
+`dd_generation: partitioned` is **reserved and currently unreachable.** Nothing
+writes it, because partitioned generation (the orchestrator and consolidator)
+is not implemented. Every DD this plugin produces today is `single`. A reader
+must therefore treat `single` as the only value it will encounter, and must not
+branch on the field.
+
+`dd_complexity_band` is written by the complexity assessment and is **advisory
+only** — it records what the assessment computed, and **never routes anything.**
+Generation always takes the single-DD path regardless of the band. The scoring
+model is an initial hypothesis being calibrated against real features; it is not
+allowed to control behavior until that calibration is done.
+
+A field for the partition inventory is intentionally **not** part of v2. It has
+no producer and no consumer until partitioned generation exists, and a field
+nothing writes is scaffolding, not a contract.
+
 ## Version detection
 
 A `doc_schema_version` stamp always wins. An unstamped document is resolved by
@@ -53,10 +89,33 @@ marker set is fully present and non-blank.** Unknown and extra fields never
 participate, which is what gives forward tolerance. A stamp above the current
 version is refused (`schema-too-new`), never downgraded.
 
-**Invariant to preserve when adding a version:** a version's marker set is
-exactly the condition its migration step treats as "already done." That is what
-lets a partially hand-edited document self-heal — it detects one version lower,
-and the step completes it rather than skipping it.
+**Rule when adding a version:** choose a marker set that approximates the
+condition that version's migration step treats as "already done" — ideally a
+field the step always writes. That is what lets an **unstamped** document
+written against an older contract be detected one version lower and completed
+by the chain.
+
+### What self-healing does and does not cover
+
+The guarantee is real but bounded, and the bounds are deliberate rather than
+oversights:
+
+| Situation | Behavior |
+|---|---|
+| **Unstamped**, marker set for version N not satisfied | Detected below N; the chain runs and completes the document. **This is the self-heal case.** |
+| **Stamped** at N, some of N's fields missing or blank | Reports `current`. The stamp short-circuits before detection, so **the document is not repaired.** |
+| **Unstamped**, satisfies N's marker but lacks other fields N's step writes | Detected at N and skipped, so those fields stay missing. |
+
+Neither uncovered case is reachable from anything this plugin produces: every
+generator writes a version's fields together, and the migration step writes them
+in one operation. They are hand-edit states.
+
+**Do not widen a marker to chase them.** Widening cannot fix the stamped case at
+all — which is the more likely partial state — and it would desynchronise the
+chains: `feature-analysis` v3 has exactly the same shape (one marker field,
+`repo_knowledge_status`; six fields written). A marker's job is to *discriminate
+between versions*, not to validate a document. If a document ever needs
+validating, that is a separate mechanism, not a marker.
 
 Framework metadata (`doc_schema_version`, `migrated_from_version`,
 `migrated_by`, `migration_inputs`) never participates in detection. **Adding the
@@ -81,6 +140,16 @@ supplied *after* the document was approved rather than before it.
 Only the most recent run is recorded. These documents are committed to git, so
 full history already exists somewhere better, and an unbounded array inside a
 reviewed document is noise.
+
+**One consequence to know about.** `migration_inputs` is written only when a
+human answered something, so it is not cleared by a later fully-deterministic
+migration. A document migrated once with human input and again without it keeps
+the earlier `migration_inputs` while `migrated_from_version` describes the newer
+run — the two fields then describe different migrations. Unreachable today
+(only the `feature-analysis` chain asks anything), and it becomes reachable the
+first time a second chained version ships for a kind whose chain asks. Read
+`migration_inputs` as "a human supplied these values at some migration", not as
+"…during the migration `migrated_from_version` names."
 
 ### Clock-free by construction
 
@@ -117,12 +186,13 @@ The reasoning:
 A step declares typed operations; the runner validates every one before applying
 any. A rejected operation aborts the **whole** migration and writes nothing.
 
-| Op | Meaning | Precondition |
-|---|---|---|
-| `set` → `add` | Introduce a field | The field is absent |
-| `set` → `fill` | Give a value to an existing empty field | The field exists with **no value** |
-| `rename` | Carry a value to a new key | Source exists; target absent or empty |
-| `resolve` | Replace a value the new version forbids | Field is in the step's `resolvable` map **and** its current value is in that field's declared `invalidValues` |
+| Op | Declared by | Meaning | Precondition |
+|---|---|---|---|
+| `set` → `add` | step or runner | Introduce a field | The field is absent |
+| `set` → `fill` | step or runner | Give a value to an existing empty field | The field exists with **no value** |
+| `set` → `stamp` | **runner only** | Advance a framework-metadata field the runner owns | `fromStep` is false **and** the field is in `FRAMEWORK_METADATA_KEYS` |
+| `rename` | step | Carry a value to a new key | Source exists; target absent or empty |
+| `resolve` | step | Replace a value the new version forbids | Field is in the step's `resolvable` map **and** its current value is in that field's declared `invalidValues` |
 
 `fill` exists because the templates ship keys with explanations and no value
 (`figma_link: # optional — the Figma URL …`), and a generated document may
@@ -130,17 +200,48 @@ retain them. Filling an empty slot is add-only semantics — no human decision i
 being overwritten, because there is no value. Position and trailing comment are
 preserved.
 
-A `set` whose value already matches is a silent no-op. A `set` against a field
-that already holds a *different* value is rejected: **a migration may never
-overwrite an existing value except through a declared `resolve`.**
+`stamp` exists because advancing an already-stamped document necessarily
+overwrites `doc_schema_version` — migrating a DD from v1 to v2 must rewrite
+`1` to `2` — and a document migrated a second time must likewise rewrite
+`migrated_from_version` and `migrated_by`. Before `stamp` existed the runner
+attempted this through `fill`, which rejected, so **any stamped document could
+not be migrated forward at all.** That was unreachable while `feature-analysis`
+was the only kind with a chain (its legacy documents predate stamping, so the
+stamp was always an `add`), and it surfaced the moment `dd` gained one.
+
+### The two overwrite paths
+
+**A migration may never overwrite an existing value except through one of
+exactly two declared paths.** Everything else is rejected, and a `set` whose
+value already matches is a silent no-op.
+
+| Path | Who | What it may overwrite | Guard |
+|---|---|---|---|
+| `resolve` | a migration **step** | A document field whose current value the new version forbids | The field must be pre-declared in that step's `resolvable` map, and its current value must be in that field's declared `invalidValues` set. In practice: `platform: mixed`. |
+| `stamp` | the **runner** only | Only `doc_schema_version`, `migrated_from_version`, `migrated_by`, `migration_inputs` | `fromStep` must be false **and** the field must be in `FRAMEWORK_METADATA_KEYS`. Both conditions, always. |
+
+The two paths cannot reach each other's territory. A step fails `stamp`'s
+`fromStep` condition, so it can never advance framework metadata. The runner
+fails `resolve`'s declaration requirement and, for any non-framework field,
+`stamp`'s membership condition — so it can never rewrite document content. And
+`PROTECTED_KEYS` (`feature`, `status`, `author`, `date`) is checked *above* both
+paths, unconditionally, so neither party can touch approval or identity.
+
+The stamped field name is always a literal in the source; nothing derives it
+from the document, so document content cannot select what gets overwritten.
+`migrate-planning-doc.test.ts` pins all of this: the runner may advance the
+stamp and `migrated_by`; a step attempting the same is rejected; the runner
+writing `status` is rejected; and the runner overwriting a populated
+non-framework field is rejected.
 
 ### Protected keys
 
 `feature`, `status`, `author`, `date` can never be written by any operation.
 This is a runtime check in the runner, not a convention, and
 `migrate-planning-doc.test.ts` feeds it a deliberately misbehaving step to prove
-it. Framework metadata keys are equally unwritable *by a step* — only the runner
-sets those.
+it — and the same check rejects the **runner**, so protected keys are unwritable
+by either party. Framework metadata keys are unwritable *by a step*; only the
+runner sets them, and only it may advance them, via `stamp`.
 
 **Approval therefore survives by construction.** A migrated document keeps its
 `status` byte-for-byte, migration never confers or revokes approval, and no
@@ -166,12 +267,16 @@ The body *is* read — read-only — for one narrowly scoped inference; see belo
 
 ## Inference rules
 
+These rules govern **document fields** — the ones a migration step fills.
+Framework metadata is not inferred and is covered by
+[The two overwrite paths](#the-two-overwrite-paths) instead.
+
 Every field resolves to exactly one of three outcomes. There is no fourth
 "best guess."
 
 | Outcome | Meaning |
 |---|---|
-| **carry** | A value is already present. Never overwritten. |
+| **carry** | A value is already present. Never overwritten by a step — only `resolve` may, under its declared guard. |
 | **derive** | Document-internal evidence is conclusive. |
 | **ask** | `needs-input`. Nothing is written until answered. |
 
@@ -277,7 +382,7 @@ nine outcomes.
 | `unsupported` | No recognizable frontmatter, or no version detectable. | No |
 | `schema-too-new` | Stamped above the current version. | No |
 | `kind-mismatch` | The document carries a marker exclusive to another kind. | No |
-| `rejected` | A step violated an operation rule, or the body-hash assertion failed. | No |
+| `rejected` | A step **or the runner** violated an operation rule, or the body-hash assertion failed. | No |
 | `unreadable` | Missing file, unreadable path, bad `--answers`, or a failed write. | No |
 
 Nothing is written until every check passes, and the write itself is atomic
@@ -313,18 +418,30 @@ still single.
 | Consumer | Document kind | Wired? |
 |---|---|---|
 | `/dev-design-start` | `feature-analysis` | Yes |
-| `/dev-feature-start` | `dd` | Deferred — no chain exists for `dd` |
-| `/implement-task` | all four | Deferred — no chain exists for those kinds |
+| `/dev-feature-start` | `dd` | **Yes** — wired when `dd` gained a chain at v2 |
+| `/implement-task` | all four | Deferred — see below |
 
 ## Known limitations
 
 Recorded so a later author does not discover them the hard way.
 
-- **Only Feature Analysis has an authored chain.** The other three kinds stamp
-  v1 and are assumed current. When one of those contracts next changes, its
-  detector markers must be recovered retroactively from git history the way the
-  Feature Analysis table above was, and the pre-0.5.0 variants in the wild must
-  be tolerated by its v1→v2 step.
+- **`dev-plan` and `task-breakdown` still have no authored chain.** They stamp v1
+  and are assumed current. When one of those contracts next changes, its detector
+  markers must be recovered retroactively from git history the way the Feature
+  Analysis table above was, and the pre-0.5.0 variants in the wild must be
+  tolerated by its v1→v2 step.
+- **`/implement-task` is still not wired to the loader**, even though `dd` now has
+  a chain. It resolves the DD, the dev plan, the task breakdown and the feature
+  analysis from frontmatter links and reads fields that exist in every version;
+  `dd` v2 is purely additive, so an unmigrated v1 DD reaching `/implement-task`
+  behaves exactly as before. Wiring it is worthwhile but is not required for
+  correctness, and it would pull three unchained kinds into the loader for no
+  present benefit.
+- **A v1 DD is migrated the first time `/dev-feature-start` loads it**, which
+  writes to a document a human already approved. That is the framework's normal
+  behavior — frontmatter only, body byte-identical, `status` untouched — but it
+  is the first time it happens to a DD rather than a feature analysis, so expect
+  a two-line frontmatter diff on older features.
 - **`feature-analysis` and `dev-plan` are not distinguishable from each other**
   by frontmatter alone — both carry `dd_link` and neither carries a field the
   other lacks. Kind-mismatch detection is therefore a *negative* check only: it

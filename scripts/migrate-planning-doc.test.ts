@@ -268,6 +268,36 @@ try {
       applyOp(entries, kind, { op: "set", field: "platform", value: "android", provenance: "x" }, {}, true, applied);
       check("6 `set` matching the existing value is a no-op", applied.length === 0);
     }
+
+    // --- the `stamp` path: the runner may ADVANCE its own metadata -----------
+    // Needed because migrating an already-stamped document from v1 to v2
+    // necessarily overwrites doc_schema_version. It must stay narrow.
+    const stampable = () => parseEntries(["doc_schema_version: 1", "feature: x", "status: approved", "migrated_by: old"]);
+    {
+      const entries = stampable();
+      const applied: any[] = [];
+      applyOp(entries, kind, { op: "set", field: "doc_schema_version", value: "2", provenance: "framework" }, {}, false, applied);
+      check(
+        "6 runner may advance doc_schema_version (stamp)",
+        applied[0]?.op === "stamp" && applied[0]?.from === "1" && applied[0]?.value === "2",
+        JSON.stringify(applied)
+      );
+    }
+    {
+      const entries = stampable();
+      const applied: any[] = [];
+      applyOp(entries, kind, { op: "set", field: "migrated_by", value: "new", provenance: "framework" }, {}, false, applied);
+      check("6 runner may advance migrated_by on a re-migration", applied[0]?.op === "stamp");
+    }
+    rejects("a STEP still cannot advance doc_schema_version", () =>
+      applyOp(stampable(), kind, { op: "set", field: "doc_schema_version", value: "2", provenance: "x" }, {}, true, [])
+    );
+    rejects("the runner still cannot write a protected key", () =>
+      applyOp(stampable(), kind, { op: "set", field: "status", value: "draft", provenance: "framework" }, {}, false, [])
+    );
+    rejects("the runner cannot overwrite a NON-framework populated field", () =>
+      applyOp(stampable(), kind, { op: "set", field: "feature", value: "y", provenance: "framework" }, {}, false, [])
+    );
   }
 
   // --- 7. Both encodings -----------------------------------------------------
@@ -538,20 +568,104 @@ try {
   }
 
   // --- 19. Kinds with no authored chain are assumed current ------------------
+  //
+  // `dd` gained a chain at v2, so this case is now carried by dev-plan and
+  // task-breakdown — the two kinds that still stamp v1 with no migrations.
   {
-    const path = scratch("dd-v1-stamped.md", "dd-kind");
-    const before = bytes(path);
-    const r = run(path, ["--kind", "dd"]);
-    check("19 a stamped DD read as --kind dd is current", r.json?.status === "current", String(r.json?.status));
-    check("19 DD untouched", bytes(path).equals(before));
+    const planBody = [
+      "# Feature Plan — No Chain",
+      "",
+      "```yaml",
+      "doc_schema_version: 1",
+      "feature: no-chain",
+      "dd_link: docs/no-chain-DD.md",
+      "platform: react-native",
+      "device_type: mobile",
+      "author: rn-architect",
+      "status: approved",
+      "date: 2026-08-12",
+      "```",
+      "",
+      "## Overview",
+      "",
+      "A dev plan. No migration chain exists for this kind.",
+      "",
+    ].join("\n");
 
-    // An unstamped DD-shaped document is stamp-only: no chain exists for it.
-    const unstamped = join(root, "dd-unstamped.md");
-    mkdirSync(dirname(unstamped), { recursive: true });
-    writeFileSync(unstamped, readFileSync(join(FIXTURES, "dd-v1-stamped.md"), "utf-8").replace(/^doc_schema_version: 1\n/m, ""));
-    const r2 = run(unstamped, ["--kind", "dd"]);
-    check("19 an unstamped DD migrates (stamp only)", r2.json?.status === "migrated", String(r2.json?.status));
-    check("19 stamp-only DD records no migrated_from", !/^migrated_from_version:/m.test(readFileSync(unstamped, "utf-8")));
+    const stamped = join(root, "plan-stamped.md");
+    writeFileSync(stamped, planBody);
+    const before = bytes(stamped);
+    const r = run(stamped, ["--kind", "dev-plan"]);
+    check("19 a stamped dev-plan is current", r.json?.status === "current", String(r.json?.status));
+    check("19 stamped dev-plan untouched", bytes(stamped).equals(before));
+
+    // An unstamped document of a chainless kind is stamp-only.
+    const unstamped = join(root, "plan-unstamped.md");
+    writeFileSync(unstamped, planBody.replace(/^doc_schema_version: 1\n/m, ""));
+    const r2 = run(unstamped, ["--kind", "dev-plan"]);
+    const out = readFileSync(unstamped, "utf-8");
+    check("19 an unstamped dev-plan migrates (stamp only)", r2.json?.status === "migrated", String(r2.json?.status));
+    check("19 stamp-only dev-plan records no migrated_from", !/^migrated_from_version:/m.test(out));
+    check("19 stamp-only dev-plan is stamped v1", /^doc_schema_version: 1$/m.test(out));
+  }
+
+  // --- 19c. The dd v1 -> v2 chain (DD Package contract) ----------------------
+  {
+    // Golden, byte-exact.
+    const path = scratch("dd-v1-stamped.md", "dd-chain");
+    const sourceText = readFileSync(join(FIXTURES, "dd-v1-stamped.md"), "utf-8");
+    const r = run(path, ["--kind", "dd"]);
+    check("19c dd v1 migrates", r.json?.status === "migrated", String(r.json?.status));
+    check("19c dd v1 -> v2 reported", r.json?.detectedVersion === 1 && r.json?.currentVersion === 2);
+    check(
+      "19c byte-exact golden",
+      bytes(path).equals(bytes(join(FIXTURES, "dd-v1-stamped.expected.md"))),
+      "regenerate and re-review the golden if this is intentional"
+    );
+
+    // Independent field assertions — written by hand, not read from the golden.
+    const out = readFileSync(path, "utf-8");
+    const field = (t: string, n: string) => {
+      const m = new RegExp(`^${n}:[ \\t]*(.*)$`, "m").exec(t);
+      return m ? m[1].replace(/\s+#.*$/, "").trim() : null;
+    };
+    const once = (t: string, n: string) => (t.match(new RegExp(`^${n}:`, "gm")) ?? []).length === 1;
+    const pluginVersion = JSON.parse(readFileSync(join(REPO_ROOT, ".claude-plugin", "plugin.json"), "utf-8")).version;
+
+    check("19c doc_schema_version advanced 1 -> 2", field(out, "doc_schema_version") === "2", String(field(out, "doc_schema_version")));
+    check("19c dd_generation = single", field(out, "dd_generation") === "single", String(field(out, "dd_generation")));
+    check("19c dd_complexity_band = unassessed", field(out, "dd_complexity_band") === "unassessed", String(field(out, "dd_complexity_band")));
+    check("19c migrated_from_version = 1", field(out, "migrated_from_version") === "1");
+    check("19c migrated_by records the plugin", field(out, "migrated_by") === `ono-mobile-dev-plugin ${pluginVersion}`);
+    check("19c no migration_inputs — the chain is fully deterministic", !/^migration_inputs:/m.test(out));
+    check("19c no dd_partitions field — reserved for a later phase", !/^dd_partitions:/m.test(out));
+    for (const n of ["doc_schema_version", "dd_generation", "dd_complexity_band"]) {
+      check(`19c ${n} appears exactly once`, once(out, n));
+    }
+    for (const n of ["feature", "author", "status", "date", "detail_level", "platform", "device_type"]) {
+      check(`19c ${n} unchanged`, field(out, n) === field(sourceText, n), `${field(sourceText, n)} -> ${field(out, n)}`);
+    }
+    check("19c status is still approved", field(out, "status") === "approved");
+
+    // Body preservation, computed independently of the splitter.
+    check("19c body bytes identical", bodyOf(bytes(join(FIXTURES, "dd-v1-stamped.md"))).equals(bodyOf(bytes(path))));
+
+    // Idempotency.
+    const first = bytes(path);
+    const second = run(path, ["--kind", "dd"]);
+    check("19c second run is current", second.json?.status === "current", String(second.json?.status));
+    check("19c second run changed=false", second.json?.changed === false);
+    check("19c file byte-identical after second run", bytes(path).equals(first));
+
+    // A v2 document is a true no-op.
+    const v2 = scratch("dd-v2-stamped.md", "dd-v2");
+    const v2Before = bytes(v2);
+    const v2Stat = statSync(v2);
+    const r3 = run(v2, ["--kind", "dd"]);
+    check("19c stamped v2 dd is current", r3.json?.status === "current", String(r3.json?.status));
+    check("19c stamped v2 dd bytes unchanged", bytes(v2).equals(v2Before));
+    check("19c stamped v2 dd mtime unchanged", statSync(v2).mtimeMs === v2Stat.mtimeMs);
+    check("19c stamped v2 dd preserves its computed band", /^dd_complexity_band: medium$/m.test(readFileSync(v2, "utf-8")));
   }
 
   // --- 19b. Every shipped template parses as current for its own kind --------
