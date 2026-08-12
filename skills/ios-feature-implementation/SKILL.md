@@ -7,7 +7,7 @@ description: Methodology for implementing a planned task in a native iOS codebas
 
 This skill is a structure-only placeholder, scaffolded as part of the mobile-division plugin migration. It mirrors `skills/rn-feature-implementation/SKILL.md`'s role for React Native.
 
-Until this is authored, iOS implementation guidance will not cite grounded `standards/ios/*` IDs — those standards are also placeholder-only right now. Author both together before relying on `/implement-task` for real iOS work.
+Until this is authored, iOS implementation guidance will not cite grounded `standards/ios/*` IDs. Those standards **are** authored (IOS-001) and the IDs exist — this skill is the remaining placeholder. Author it (IOS-003) before relying on `/implement-task` for real iOS work.
 
 ## Intended methodology (once authored)
 

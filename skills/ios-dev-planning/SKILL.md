@@ -7,7 +7,7 @@ description: iOS-specific vocabulary and standard IDs for the technical-approach
 
 This skill is a structure-only placeholder, scaffolded as part of the mobile-division plugin migration. It mirrors `skills/rn-dev-planning/SKILL.md`'s role for React Native: supplying only the iOS-specific vocabulary and standard-ID citations for the Detailed Design's Technical Implementation Approach and the task breakdown, while the shared `dev-design-start` and `dev-feature-start` skills own the overall mechanics (DD structure and gap discipline; task decomposition, dependencies, rollback plan, draft-until-approved gates).
 
-Until this is authored, iOS-specific dev plans will not cite grounded `standards/ios/*` IDs — those standards are also placeholder-only right now. Author both together before relying on `/dev-design-start` and `/dev-feature-start` for real iOS planning.
+Until this is authored, iOS-specific dev plans will not cite grounded `standards/ios/*` IDs. Those standards **are** authored (IOS-001) and the IDs exist — this skill is the remaining placeholder. Author it (IOS-002) before relying on `/dev-design-start` and `/dev-feature-start` for real iOS planning.
 
 ## Intended methodology (once authored)
 
