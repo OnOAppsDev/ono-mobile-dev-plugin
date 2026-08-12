@@ -255,7 +255,7 @@
     <div class="card">
       <p class="label">Total tasks</p>
       <div class="big" id="card-total">25</div>
-      <p class="small" id="card-total-note">25 work items · 7 completed · React Native complete (Pavel Tarnopolski)</p>
+      <p class="small" id="card-total-note">25 work items · 9 completed · React Native complete (Pavel Tarnopolski)</p>
     </div>
     <div class="card">
       <p class="label">Total estimated effort</p>
@@ -268,7 +268,7 @@
     </div>
     <div class="card">
       <p class="label">Tasks by status</p>
-      <ul class="breakdown" id="card-status"><li><span class="k"><span class="swatch" style="background: var(--st-done-ink);"></span><span class="kname">Completed</span></span><span class="v">7</span></li><li><span class="k"><span class="swatch" style="background: var(--st-missing-ink);"></span><span class="kname">Missing — must be created</span></span><span class="v">7</span></li><li><span class="k"><span class="swatch" style="background: var(--st-partial-ink);"></span><span class="kname">Exists but partial</span></span><span class="v">3</span></li><li><span class="k"><span class="swatch" style="background: var(--st-placeholder-ink);"></span><span class="kname">Exists as placeholder</span></span><span class="v">6</span></li><li><span class="k"><span class="swatch" style="background: var(--st-disc-ink);"></span><span class="kname">Exists but disconnected</span></span><span class="v">1</span></li><li><span class="k"><span class="swatch" style="background: var(--st-mod-ink);"></span><span class="kname">Requires modification</span></span><span class="v">1</span></li></ul>
+      <ul class="breakdown" id="card-status"><li><span class="k"><span class="swatch" style="background: var(--st-done-ink);"></span><span class="kname">Completed</span></span><span class="v">9</span></li><li><span class="k"><span class="swatch" style="background: var(--st-missing-ink);"></span><span class="kname">Missing — must be created</span></span><span class="v">7</span></li><li><span class="k"><span class="swatch" style="background: var(--st-partial-ink);"></span><span class="kname">Exists but partial</span></span><span class="v">2</span></li><li><span class="k"><span class="swatch" style="background: var(--st-placeholder-ink);"></span><span class="kname">Exists as placeholder</span></span><span class="v">5</span></li><li><span class="k"><span class="swatch" style="background: var(--st-disc-ink);"></span><span class="kname">Exists but disconnected</span></span><span class="v">1</span></li><li><span class="k"><span class="swatch" style="background: var(--st-mod-ink);"></span><span class="kname">Requires modification</span></span><span class="v">1</span></li></ul>
     </div>
   </section>
 
@@ -361,8 +361,8 @@
 
   <!-- ================= 1. EXECUTIVE SUMMARY ================= -->
   <h2>1. Executive Summary</h2>
-  <p>The shared spine is complete and production-ready: 9 commands, 8 shared skills, 3 shared agents, 8 templates, 3 hooks, and two tested scripts (the repo-root resolver and the repository-knowledge reader). Platform maturity is uneven — React Native complete (Pavel Tarnopolski, reference); Android Mobile complete (standards, implementation, front-half and review all authored); iOS and React placeholder end to end. No TV-context knowledge exists in any platform yet.</p>
-  <p class="section-note">Largest blockers: (1) iOS platform placeholder blocks iOS Mobile + Apple TV; (2) React platform placeholder blocks Smart TV; (3) no task-status store / e2e harness. Cleared blockers: "no mobile-vs-TV context signal" by SHARED-001 ✓ (2026-07-21), the Android front-half by ANDROID-001 ✓ and Android code-review by ANDROID-002 ✓ (both 2026-08-06) — Android Mobile now has no open blocker.</p>
+  <p>The shared spine is complete and production-ready: 9 commands, 8 shared skills, 3 shared agents, 8 templates, 3 hooks, and two tested scripts (the repo-root resolver and the repository-knowledge reader). Platform maturity is uneven — React Native complete (Pavel Tarnopolski, reference); Android Mobile complete (standards, implementation, front-half and review all authored); iOS standards authored (IOS-001 ✓) but its skills and agents still placeholder; React placeholder end to end. No TV-context knowledge exists in any platform yet.</p>
+  <p class="section-note">Largest blockers: (1) iOS skills and agents still placeholder — blocks iOS Mobile lifecycle and both Apple TV items; (2) React platform placeholder blocks Smart TV; (3) no task-status store / e2e harness. Cleared blockers: "no mobile-vs-TV context signal" by SHARED-001 ✓ (2026-07-21), the Android front-half by ANDROID-001 ✓ and Android code-review by ANDROID-002 ✓ (both 2026-08-06), and the iOS standards blocker by IOS-001 ✓ (2026-08-12) — IOS-002/003/004 and ATV-001 are now unblocked.</p>
 
   <div class="table-block" data-name="Team Lifecycle Capability">
     <div class="table-toolbar">
@@ -412,7 +412,8 @@
           <tr><td contenteditable="">Android standards (10, AND-*)</td><td contenteditable="" class="tint t-done">Complete</td><td contenteditable="">High quality; mobile-oriented (no TV)</td></tr>
           <tr><td contenteditable="">Android feature-implementation skill + feature-developer agent</td><td contenteditable="" class="tint t-done">Complete</td><td contenteditable="">Authored (252-line skill)</td></tr>
           <tr><td contenteditable="">Android architect/code-reviewer/performance-reviewer + dev-planning/code-review skills</td><td contenteditable="" class="tint t-done">Complete</td><td contenteditable="">All authored (2026-08-06): android-architect.md + android-dev-planning via ANDROID-001 ✓; android-code-reviewer.md, android-performance-reviewer.md + android-code-review via ANDROID-002 ✓. No "Not yet authored" placeholder remains in any Android component</td></tr>
-          <tr><td contenteditable="">iOS standards (5), skills (3), agents (4)</td><td contenteditable="" class="tint t-placeholder">Placeholder</td><td contenteditable="">All "Not yet authored"</td></tr>
+          <tr><td contenteditable="">iOS standards (5)</td><td contenteditable="" class="tint t-done">Complete</td><td contenteditable="">IOS-001 ✓ (2026-08-12) — 168 stable IDs across IOS-SWIFT-*/UI-*/ARCH-*/PERF-*/BUILD-*; swift-standards.md hosts the shared governing block (lane routing, severity rubric, no-convention resolution, applicability stage). 26 verified external references. No "Not yet authored" text remains in standards/ios/</td></tr>
+          <tr><td contenteditable="">iOS skills (3), agents (4)</td><td contenteditable="" class="tint t-placeholder">Placeholder</td><td contenteditable="">All "Not yet authored" — pending IOS-002/003/004. The standards they cite now exist</td></tr>
           <tr><td contenteditable="">React standards (6), skills (3), agents (4)</td><td contenteditable="" class="tint t-placeholder">Placeholder</td><td contenteditable="">All "Not yet authored"</td></tr>
           <tr><td contenteditable="">Mobile-vs-TV context signal</td><td contenteditable="" class="tint t-done">Complete</td><td contenteditable="">SHARED-001 ✓ — device_type (mobile | tv) in repo-analyst, all 4 feature-flow commands, all 4 templates; /implement-task enforces it with no silent default</td></tr>
           <tr><td contenteditable="">Repository Knowledge consumer</td><td contenteditable="" class="tint t-done">Complete</td><td contenteditable="">SHARED-009 ✓ — read-repo-knowledge.ts + test, repo-knowledge-consumer skill, docs/repo-knowledge-contract.md; consumed by /analyze-feature and /dev-design-start</td></tr>
@@ -527,40 +528,40 @@
             <td contenteditable="">Update /implement-task routing/readiness notes and skill/agent docs to state the mobile-vs-TV context contract. Partially done: /implement-task states the contract (device_type required, no silent default). Remaining: no platform skill or agent (rn-/ios-/android-/react-*) mentions device_type at all.</td>
             <td contenteditable="">SHARED-001 ✓ (done)</td><td contenteditable="">0.5</td><td contenteditable="">Week 5</td><td contenteditable="">Week 5</td>
           </tr>
-          <tr data-priority="blocker">
-            <td contenteditable="">IOS-001<span class="pflag">Blocker</span></td><td contenteditable="" class="tint o-tom">Tom Zion</td><td contenteditable="">iOS</td><td contenteditable="">Standard</td>
+          <tr data-priority="done">
+            <td contenteditable="">IOS-001<span class="pflag">Done</span></td><td contenteditable="" class="tint o-tom">Tom Zion</td><td contenteditable="">iOS</td><td contenteditable="">Standard</td>
             <td contenteditable="">swift-standards.md, swiftui-uikit-standards.md, ios-architecture.md, xcode-build-signing.md, ios-performance.md (IOS-* IDs)</td>
-            <td contenteditable="" class="tint t-placeholder">Exists as placeholder</td><td contenteditable="">Complete placeholder</td>
-            <td contenteditable="">Author the 5 iOS platform standards. Blocks every other iOS item and both Apple TV items.</td>
-            <td contenteditable="">SHARED-002 ✓ (done, soft)</td><td contenteditable="">4</td><td contenteditable="">Week 1</td><td contenteditable="">Week 1</td>
+            <td contenteditable="" class="tint t-done">Completed</td><td contenteditable="">Implemented</td>
+            <td contenteditable="">Implemented 2026-08-12. All five iOS standards authored with 168 stable IDs across five roots — IOS-SWIFT-* (40), IOS-UI-* (33), IOS-ARCH-* (35), IOS-PERF-* (33), IOS-BUILD-* (27) — replacing every "Not yet authored" placeholder. swift-standards.md additionally hosts a shared governing block, placed first so a single-document consumer can bounded-read it: the lane table routing each ID root to exactly one filer, a Blocking/Major/Minor/Nit severity rubric, a three-case resolution for when a repository convention cannot be established (absence of a convention is never compliance), and a Diff/Build/Release applicability stage so a reviewer marks unreachable rules Not Applicable rather than passed. A one-defect-one-finding table names the owning ID for the six cross-document collisions and assigns deduplication to the ios-code-review merge step, since the two reviewers cannot read each other's output. Framework-, pattern- and version-neutral throughout: SwiftUI, UIKit and hybrid are first-class, the file under review selects the family, and no rule pins a Swift or iOS version. Roughly thirty rules carry explicit false-finding guards so an agent cannot condemn idiomatic code. 26 external references verified live, each with a "when to consult" note rather than inlined explanation. tvOS content deliberately left to ATV-001, with the ID convention reserved (IOS-UI-TV-*) so Noam Haba's rules route without changing the lane table. Also corrected seven agent/skill files and README that still claimed these standards were placeholders. Does not implement IOS-002/003/004.</td>
+            <td contenteditable="">SHARED-002 ✓ (done, soft)</td><td contenteditable="">4</td><td contenteditable="">Week 1</td><td contenteditable="">Week 1 ✓</td>
           </tr>
           <tr data-priority="high">
             <td contenteditable="">IOS-002<span class="pflag">High</span></td><td contenteditable="" class="tint o-tom">Tom Zion</td><td contenteditable="">iOS</td><td contenteditable="">Agent + Skill</td>
             <td contenteditable="">ios-architect.md (agent) + ios-dev-planning (skill)</td>
             <td contenteditable="" class="tint t-placeholder">Exists as placeholder</td><td contenteditable="">Complete placeholder</td>
             <td contenteditable="">Author the iOS architect agent and dev-planning skill (Analyze/Design/Feature-start).</td>
-            <td contenteditable="">IOS-001</td><td contenteditable="">2</td><td contenteditable="">Week 2</td><td contenteditable="">Week 2</td>
+            <td contenteditable="">IOS-001 ✓</td><td contenteditable="">2</td><td contenteditable="">Week 2</td><td contenteditable="">Week 2</td>
           </tr>
           <tr data-priority="high">
             <td contenteditable="">IOS-003<span class="pflag">High</span></td><td contenteditable="" class="tint o-tom">Tom Zion</td><td contenteditable="">iOS</td><td contenteditable="">Agent + Skill</td>
             <td contenteditable="">ios-feature-developer.md (agent) + ios-feature-implementation (skill)</td>
             <td contenteditable="" class="tint t-placeholder">Exists as placeholder</td><td contenteditable="">Complete placeholder</td>
             <td contenteditable="">Author the iOS feature-developer agent and feature-implementation skill (Implement/Fix/QA).</td>
-            <td contenteditable="">IOS-001</td><td contenteditable="">4</td><td contenteditable="">Week 2</td><td contenteditable="">Week 3</td>
+            <td contenteditable="">IOS-001 ✓</td><td contenteditable="">4</td><td contenteditable="">Week 2</td><td contenteditable="">Week 3</td>
           </tr>
           <tr data-priority="high">
             <td contenteditable="">IOS-004<span class="pflag">High</span></td><td contenteditable="" class="tint o-tom">Tom Zion</td><td contenteditable="">iOS</td><td contenteditable="">Agent + Skill</td>
             <td contenteditable="">ios-code-reviewer.md, ios-performance-reviewer.md (agents) + ios-code-review (skill)</td>
             <td contenteditable="" class="tint t-placeholder">Exists as placeholder</td><td contenteditable="">Complete placeholder</td>
             <td contenteditable="">Author the iOS code-reviewer + performance-reviewer agents and code-review skill (Review + release perf).</td>
-            <td contenteditable="">IOS-001</td><td contenteditable="">2</td><td contenteditable="">Week 3</td><td contenteditable="">Week 3</td>
+            <td contenteditable="">IOS-001 ✓</td><td contenteditable="">2</td><td contenteditable="">Week 3</td><td contenteditable="">Week 3</td>
           </tr>
           <tr data-priority="high">
             <td contenteditable="">ATV-001<span class="pflag">High</span></td><td contenteditable="" class="tint o-noam">Noam Haba</td><td contenteditable="">iOS (Apple TV context)</td><td contenteditable="">Standard</td>
             <td contenteditable="">iOS standards — Apple TV / tvOS context sections (in swift/swiftui-uikit/ios-architecture/ios-performance/xcode-build-signing)</td>
             <td contenteditable="" class="tint t-missing">Missing — must be created</td><td contenteditable="">Add mobile/TV context handling</td>
             <td contenteditable="">Add Apple TV / tvOS knowledge into the iOS standards as TV-context sections: focus engine, Siri/remote input, media playback, Top Shelf &amp; lifecycle, tvOS memory/performance, tvOS signing/release.</td>
-            <td contenteditable="">IOS-001, SHARED-001 ✓</td><td contenteditable="">4</td><td contenteditable="">Week 2</td><td contenteditable="">Week 2</td>
+            <td contenteditable="">IOS-001 ✓, SHARED-001 ✓</td><td contenteditable="">4</td><td contenteditable="">Week 2</td><td contenteditable="">Week 2</td>
           </tr>
           <tr data-priority="high">
             <td contenteditable="">ATV-002<span class="pflag">High</span></td><td contenteditable="" class="tint o-noam">Noam Haba</td><td contenteditable="">iOS (Apple TV context)</td><td contenteditable="">Skill + Agent</td>
@@ -680,11 +681,11 @@ SHARED-004 (task-status)  … independent, parallel</pre>
           <tr><td contenteditable="">SHARED-008 ✓</td><td contenteditable="">—</td><td contenteditable="">DOC-001</td><td contenteditable="">✓ Complete (2026-07-27) — design-reference gate; no longer blocking</td></tr>
           <tr><td contenteditable="">SHARED-009 ✓</td><td contenteditable="">—</td><td contenteditable="">SHARED-005, SHARED-010, DOC-001</td><td contenteditable="">✓ Complete (2026-07-31) — Repository Knowledge consumer; no longer blocking</td></tr>
           <tr><td contenteditable="">SHARED-010</td><td contenteditable="">SHARED-009 ✓, IOS-002, ANDROID-001 ✓, REACT-002</td><td contenteditable="">—</td><td contenteditable="">Extends repo-knowledge reuse to the three platforms once authored</td></tr>
-          <tr><td contenteditable="">IOS-001</td><td contenteditable="">SHARED-002 ✓ (done, soft)</td><td contenteditable="">IOS-002/003/004, ATV-001</td><td contenteditable="">Blocks all iOS + Apple TV</td></tr>
-          <tr><td contenteditable="">IOS-002</td><td contenteditable="">IOS-001</td><td contenteditable="">ATV-002</td><td contenteditable="">—</td></tr>
-          <tr><td contenteditable="">IOS-003</td><td contenteditable="">IOS-001</td><td contenteditable="">ATV-002</td><td contenteditable="">—</td></tr>
-          <tr><td contenteditable="">IOS-004</td><td contenteditable="">IOS-001</td><td contenteditable="">ATV-002</td><td contenteditable="">—</td></tr>
-          <tr><td contenteditable="">ATV-001</td><td contenteditable="">IOS-001, SHARED-001 ✓</td><td contenteditable="">—</td><td contenteditable="">Apple TV knowledge into iOS standards (Noam Haba)</td></tr>
+          <tr><td contenteditable="">IOS-001 ✓</td><td contenteditable="">SHARED-002 ✓ (done, soft)</td><td contenteditable="">IOS-002/003/004, ATV-001 (all unblocked)</td><td contenteditable="">✓ Complete (2026-08-12) — no longer blocking; iOS skills/agents and Apple TV standards unblocked</td></tr>
+          <tr><td contenteditable="">IOS-002</td><td contenteditable="">IOS-001 ✓</td><td contenteditable="">ATV-002</td><td contenteditable="">—</td></tr>
+          <tr><td contenteditable="">IOS-003</td><td contenteditable="">IOS-001 ✓</td><td contenteditable="">ATV-002</td><td contenteditable="">—</td></tr>
+          <tr><td contenteditable="">IOS-004</td><td contenteditable="">IOS-001 ✓</td><td contenteditable="">ATV-002</td><td contenteditable="">—</td></tr>
+          <tr><td contenteditable="">ATV-001</td><td contenteditable="">IOS-001 ✓, SHARED-001 ✓</td><td contenteditable="">—</td><td contenteditable="">Apple TV knowledge into iOS standards (Noam Haba)</td></tr>
           <tr><td contenteditable="">ATV-002</td><td contenteditable="">IOS-002/003/004, SHARED-001 ✓</td><td contenteditable="">—</td><td contenteditable="">TV context in iOS skills/agents (Noam Haba)</td></tr>
           <tr><td contenteditable="">ANDROID-001 ✓</td><td contenteditable="">Android standards (done)</td><td contenteditable="">ANDROID-003</td><td contenteditable="">✓ Complete (2026-08-06) — no longer blocking; ANDROID-003 fully unblocked (ANDROID-002 ✓ also complete)</td></tr>
           <tr><td contenteditable="">ANDROID-002 ✓</td><td contenteditable="">Android standards (done)</td><td contenteditable="">ANDROID-003</td><td contenteditable="">✓ Complete (2026-08-06) — no longer blocking; Review + release perf unblocked</td></tr>
@@ -713,8 +714,8 @@ SHARED-004 (task-status)  … independent, parallel</pre>
         <thead><tr><th>Owner</th><th>Assigned tasks</th><th>Total effort</th><th>Earliest start</th><th>Expected completion</th><th>Blockers</th></tr></thead>
         <tbody>
           <tr><td contenteditable="" class="tint o-pavel">Pavel Tarnopolski</td><td contenteditable="">None open — React Native complete (reference); owns any future React Native Skills/Agents/Standards</td><td contenteditable="">0</td><td contenteditable="">—</td><td contenteditable="">Complete</td><td contenteditable="">—</td></tr>
-          <tr><td contenteditable="" class="tint o-tom">Tom Zion</td><td contenteditable="">IOS-001, IOS-002, IOS-003, IOS-004</td><td contenteditable="">12</td><td contenteditable="">Week 1</td><td contenteditable="">Week 3</td><td contenteditable="">SHARED-002 ✓ (done, soft)</td></tr>
-          <tr><td contenteditable="" class="tint o-noam">Noam Haba</td><td contenteditable="">ATV-001, ATV-002</td><td contenteditable="">8</td><td contenteditable="">Week 2 (after IOS-001)</td><td contenteditable="">Week 4</td><td contenteditable="">IOS-001; IOS-002/003/004; SHARED-001</td></tr>
+          <tr><td contenteditable="" class="tint o-tom">Tom Zion</td><td contenteditable="">IOS-001, IOS-002, IOS-003, IOS-004 (IOS-001 ✓ done)</td><td contenteditable="">12 (4 delivered · 8 remaining)</td><td contenteditable="">Week 1</td><td contenteditable="">Week 3</td><td contenteditable="">SHARED-002 ✓ (done, soft)</td></tr>
+          <tr><td contenteditable="" class="tint o-noam">Noam Haba</td><td contenteditable="">ATV-001, ATV-002</td><td contenteditable="">8</td><td contenteditable="">Week 2 (IOS-001 ✓ — unblocked)</td><td contenteditable="">Week 4</td><td contenteditable="">IOS-002/003/004 (IOS-001 ✓, SHARED-001 ✓ cleared)</td></tr>
           <tr><td contenteditable="" class="tint o-guy">Guy Gur Arie</td><td contenteditable="">ANDROID-001, ANDROID-002, ANDROID-003, ANDROID-004 (ANDROID-001 ✓, ANDROID-002 ✓, ANDROID-004 ✓ done)</td><td contenteditable="">8.5 (4.5 delivered · 4 remaining)</td><td contenteditable="">Week 1</td><td contenteditable="">Week 4</td><td contenteditable="">SHARED-001 (for ANDROID-003)</td></tr>
           <tr><td contenteditable="" class="tint o-boris">Boris Molotsky</td><td contenteditable="">REACT-001, REACT-002, REACT-003</td><td contenteditable="">16</td><td contenteditable="">Week 1</td><td contenteditable="">Week 5</td><td contenteditable="">SHARED-002 ✓ + SHARED-003 (early); SHARED-001 ✓ (Smart TV)</td></tr>
           <tr><td contenteditable="" class="tint o-plugin">Plugin Owner</td><td contenteditable="">SHARED-001..010, DOC-001, DOC-002 (SHARED-001 ✓, SHARED-002 ✓, SHARED-008 ✓, SHARED-009 ✓ done)</td><td contenteditable="">28.5 (12 delivered · 16.5 remaining)</td><td contenteditable="">Week 1</td><td contenteditable="">Week 5</td><td contenteditable="">ANDROID-001/002 (for DOC-001 accuracy); IOS-002/ANDROID-001/REACT-002 (for SHARED-010). Note: 16.5 remaining days across Weeks 3–5 ≈ 5.5 d/week, slightly above the 4–5 d/person/week assumption</td></tr>
@@ -735,7 +736,7 @@ SHARED-004 (task-status)  … independent, parallel</pre>
       <table class="editable" id="t-time">
         <thead><tr><th>Week</th><th>Tom Zion</th><th>Noam Haba</th><th>Guy Gur Arie</th><th>Boris Molotsky</th><th>Pavel Tarnopolski</th><th>Plugin Owner</th></tr></thead>
         <tbody>
-          <tr><td contenteditable="">Week 1</td><td contenteditable="">IOS-001 (iOS standards)</td><td contenteditable="">Research/outline Apple TV standards (awaiting IOS-001)</td><td contenteditable="">ANDROID-001 ✓ complete (2026-08-06) — architect + dev-planning</td><td contenteditable="">REACT-001 (React web standards)</td><td contenteditable="">React Native complete — reference &amp; cross-team support</td><td contenteditable="">SHARED-001 ✓ complete (2026-07-21) + SHARED-002 ✓ complete (2026-07-22)</td></tr>
+          <tr><td contenteditable="">Week 1</td><td contenteditable="">IOS-001 ✓ complete (2026-08-12) — 5 iOS standards</td><td contenteditable="">Research/outline Apple TV standards (IOS-001 ✓ — now unblocked)</td><td contenteditable="">ANDROID-001 ✓ complete (2026-08-06) — architect + dev-planning</td><td contenteditable="">REACT-001 (React web standards)</td><td contenteditable="">React Native complete — reference &amp; cross-team support</td><td contenteditable="">SHARED-001 ✓ complete (2026-07-21) + SHARED-002 ✓ complete (2026-07-22)</td></tr>
           <tr><td contenteditable="">Week 2</td><td contenteditable="">IOS-002 (architect+planning) + IOS-003 start</td><td contenteditable="">ATV-001 (Apple TV knowledge → iOS standards)</td><td contenteditable="">ANDROID-002 ✓ complete (2026-08-06) — reviewers + code-review</td><td contenteditable="">REACT-002 (React agents + skills)</td><td contenteditable="">RN reference &amp; support</td><td contenteditable="">SHARED-002 ✓ finish (2026-07-22) + SHARED-008 ✓ (2026-07-27) + SHARED-009 ✓ start + SHARED-004 start</td></tr>
           <tr><td contenteditable="">Week 3</td><td contenteditable="">IOS-003 finish + IOS-004 (reviewers)</td><td contenteditable="">ATV-002 start (TV context in iOS skills/agents)</td><td contenteditable="">ANDROID-003 (Android TV knowledge)</td><td contenteditable="">REACT-002 continue</td><td contenteditable="">RN reference &amp; support</td><td contenteditable="">SHARED-009 ✓ finish (2026-07-31) + SHARED-004 finish + SHARED-003 (web security)</td></tr>
           <tr><td contenteditable="">Week 4</td><td contenteditable="">Buffer / review / support Noam</td><td contenteditable="">ATV-002 finish</td><td contenteditable="">ANDROID-003 finish (ANDROID-004 ✓ subsumed by ANDROID-001/002)</td><td contenteditable="">REACT-002 finish → REACT-003 (Smart TV) start</td><td contenteditable="">RN reference &amp; support</td><td contenteditable="">SHARED-005 (test harness/fixtures) + SHARED-006 (CI)</td></tr>
