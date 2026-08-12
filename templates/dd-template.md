@@ -1,6 +1,7 @@
 # Detailed Design (DD) Template
 
 ```yaml
+doc_schema_version: 1 # the frontmatter contract version this document was written against. Set by /dev-design-start at generation; upgraded only by scripts/migrate-planning-doc.ts. See docs/planning-doc-contract.md — never edit by hand.
 feature: # feature name
 feature_analysis_link: # path to the approved templates/feature-analysis-template.md this DD was built from
 design_reference_status: # provided | not_required — carried over from the feature analysis. `provided` is mandatory for a feature with new or changed user-facing UI; `not_required` is valid only when there is no UI change.
