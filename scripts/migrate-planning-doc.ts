@@ -64,14 +64,15 @@ export type DocKind = "feature-analysis" | "dd" | "dev-plan" | "task-breakdown";
  * The current frontmatter contract version per document kind. Must match the
  * version table in docs/planning-doc-contract.md — the test asserts it.
  *
- * feature-analysis is at 3 because its contract moved four times (see the
- * contract doc). The other three kinds are declared 1 = "the shape as of plugin
- * 0.5.0"; no migration chain is authored for them yet (SHARED-011 §4.5), so an
+ * feature-analysis is at 3 because its contract moved four times, and dd is at 2
+ * since the DD Package contract added `dd_generation` and `dd_complexity_band`
+ * (see the contract doc). dev-plan and task-breakdown are declared 1 = "the
+ * shape as of plugin 0.5.0"; no migration chain is authored for them yet, so an
  * unstamped document of those kinds is ASSUMED current.
  */
 export const CURRENT_SCHEMA_VERSION: Record<DocKind, number> = {
   "feature-analysis": 3,
-  dd: 1,
+  dd: 2,
   "dev-plan": 1,
   "task-breakdown": 1,
 };
@@ -114,7 +115,7 @@ export interface Question {
 }
 
 export interface AppliedOp {
-  op: "add" | "fill" | "rename" | "resolve";
+  op: "add" | "fill" | "rename" | "resolve" | "stamp";
   field: string;
   value?: string;
   from?: string;
@@ -329,10 +330,20 @@ interface Marker {
  * a document generated from a newer template but left unfilled is detected at
  * the older version and its blank fields are then filled by the chain.
  *
- * INVARIANT: a version's marker set is exactly the condition its migration step
- * treats as "already done". That is what makes a partially hand-edited document
- * self-heal — it detects one version lower and the step completes it — and it is
- * the rule to follow when adding a version.
+ * RULE WHEN ADDING A VERSION: choose a marker set that approximates the
+ * condition that version's migration step treats as "already done" — ideally a
+ * field the step always writes. That is what lets an UNSTAMPED document written
+ * against an older contract be detected one version lower and completed.
+ *
+ * The self-heal it provides is BOUNDED, and neither bound is repaired here:
+ *   1. A stamped document short-circuits before detection, so a document
+ *      stamped at version N with some of N's fields missing is never repaired.
+ *   2. A document that satisfies version N's marker but lacks other fields
+ *      N's step writes is detected at N and skipped.
+ * Both are reachable only by hand-editing — every generator writes a version's
+ * fields together — so widening a marker to chase them buys nothing and would
+ * desynchronise the chains (feature-analysis v3 has the same shape: one marker
+ * field, six written). See docs/planning-doc-contract.md.
  *
  * Framework metadata keys never participate — adding the stamp is not a version.
  */
@@ -343,7 +354,10 @@ const MARKERS: Record<DocKind, Marker[]> = {
     { version: 1, all: ["platform", "device_type"] },
     { version: 0, all: ["feature", "status"] },
   ],
-  dd: [{ version: 1, all: [] }],
+  dd: [
+    { version: 2, all: ["dd_generation"] },
+    { version: 1, all: [] },
+  ],
   "dev-plan": [{ version: 1, all: [] }],
   "task-breakdown": [{ version: 1, all: [] }],
 };
@@ -654,9 +668,38 @@ const FEATURE_ANALYSIS_MIGRATIONS: Migration[] = [
   },
 ];
 
+/**
+ * DETAILED DESIGN CHAIN — FROZEN ONCE RELEASED, same rule as the FA chain.
+ */
+const DD_MIGRATIONS: Migration[] = [
+  {
+    // v1 -> v2: the DD Package contract's frontmatter half (plugin 0.6.0).
+    //
+    // Fully deterministic, never asks. Every DD that exists today was produced
+    // by single-document generation, so `single` records a fact rather than a
+    // default. The complexity band is `unassessed` because the assessment did
+    // not exist when the document was written — inventing a band here would
+    // require re-deriving repository state the author never saw, which is
+    // exactly what this framework refuses to do.
+    from: 1,
+    to: 2,
+    resolvable: {},
+    apply({ fm }) {
+      const ops: StepOp[] = [];
+      if (!fm.meaningful("dd_generation")) {
+        ops.push({ op: "set", field: "dd_generation", value: "single", provenance: "derived" });
+      }
+      if (!fm.meaningful("dd_complexity_band")) {
+        ops.push({ op: "set", field: "dd_complexity_band", value: "unassessed", provenance: "derived" });
+      }
+      return { ops, questions: [] };
+    },
+  },
+];
+
 const MIGRATIONS: Record<DocKind, Migration[]> = {
   "feature-analysis": FEATURE_ANALYSIS_MIGRATIONS,
-  dd: [],
+  dd: DD_MIGRATIONS,
   "dev-plan": [],
   "task-breakdown": [],
 };
@@ -690,7 +733,32 @@ const CANONICAL_ORDER: Record<DocKind, string[]> = {
     "migrated_by",
     "migration_inputs",
   ],
-  dd: ["doc_schema_version", "migrated_from_version", "migrated_by", "migration_inputs"],
+  dd: [
+    "doc_schema_version",
+    "feature",
+    "feature_analysis_link",
+    "design_reference_status",
+    "design_reference_type",
+    "design_reference",
+    "figma_link",
+    "platform",
+    "device_type",
+    "repo_knowledge_status",
+    "repo_knowledge_schema",
+    "repo_knowledge_fingerprint",
+    "repo_knowledge_freshness",
+    "repo_knowledge_reused",
+    "repo_knowledge_derived",
+    "author",
+    "status",
+    "detail_level",
+    "dd_generation",
+    "dd_complexity_band",
+    "date",
+    "migrated_from_version",
+    "migrated_by",
+    "migration_inputs",
+  ],
   "dev-plan": ["doc_schema_version", "migrated_from_version", "migrated_by", "migration_inputs"],
   "task-breakdown": ["doc_schema_version", "migrated_from_version", "migrated_by", "migration_inputs"],
 };
@@ -803,7 +871,7 @@ function applyOp(
     return;
   }
 
-  // op.op === "set" -> add (absent) | fill (present-but-blank) | reject
+  // op.op === "set" -> add (absent) | stamp (runner metadata) | fill (blank) | reject
   const existing = find(op.field);
   if (!existing) {
     insertEntry(entries, kind, op.field, renderLine(op.field, op.value, ""));
@@ -812,9 +880,27 @@ function applyOp(
   }
   if (existing.value.trim() === op.value.trim()) return; // already correct — no-op
   if (!isBlank(existing.value)) {
-    throw new Rejected(
-      `\`${op.field}\` already holds a value (\`${existing.value.trim()}\`); a migration may not overwrite an existing value`
-    );
+    // The runner owns the framework metadata keys and must be able to ADVANCE
+    // them — migrating an already-stamped document from v1 to v2 necessarily
+    // overwrites `doc_schema_version`, and a document migrated twice
+    // necessarily overwrites `migrated_from_version` / `migrated_by`.
+    //
+    // This is the ONLY overwrite the framework permits, and it is unreachable
+    // from a step: FRAMEWORK_METADATA_KEYS is rejected for `fromStep` above,
+    // and PROTECTED_KEYS is rejected unconditionally, so approval and identity
+    // stay unwritable by either party.
+    const runnerOwnsIt = !fromStep && (FRAMEWORK_METADATA_KEYS as readonly string[]).includes(op.field);
+    if (!runnerOwnsIt) {
+      throw new Rejected(
+        `\`${op.field}\` already holds a value (\`${existing.value.trim()}\`); a migration may not overwrite an existing value`
+      );
+    }
+    const previous = existing.value.trim();
+    existing.value = op.value;
+    existing.dirty = true;
+    existing.raw = renderLine(op.field, op.value, existing.comment);
+    applied.push({ op: "stamp", field: op.field, from: previous, value: op.value, provenance: op.provenance });
+    return;
   }
   // `fill`: the key exists but carries no value (the templates ship keys as
   // `field: # explanation`). No human decision is being overwritten, so this is

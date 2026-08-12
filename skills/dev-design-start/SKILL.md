@@ -87,6 +87,14 @@ Read, in this order, everything that exists — do not skip any:
 
    **Reading is not writing.** Everything read here informs the design; only the conclusions reach the DD. A source sweep is never transcribed into the document.
 
+### Step 3a — Measure complexity (advisory; changes nothing)
+
+While the architect performs the Step 3 sweep, apply the `dd-complexity-assessment` skill: record its eleven signals from that same sweep and score them with `scripts/assess-dd-complexity.ts`. Report the returned `summary` in one line and carry the band into §Step 6's frontmatter as `dd_complexity_band`.
+
+**The band is a measurement, not a routing decision.** There is exactly one generation path, and every band takes it — `high` and `unclassified` included. Do not branch on it, do not let it change the detail level chosen in Step 2, the §5–§18 scope call, the size triggers, or the Step 7 contraction pass, and do not add a prompt or a gate for it. Partitioned generation does not exist; the model is being calibrated against real features before it is permitted to influence anything.
+
+Never collect these signals with a second repository pass, and never guess one to avoid an `unclassified` result.
+
 ### Step 4 — Validate consistency
 
 Cross-check inputs against each other. **This is a checklist to run, not a set of sections to author** — each dimension's output is a design decision or a single line of `N/A — [reason]`. Never write a section per dimension.
@@ -111,7 +119,7 @@ Populate `templates/dd-template.md`. Apply the existing-file strategy chosen in 
 
 **Section numbering is fixed.** `/dev-feature-start`, `templates/task-breakdown-template.md`, and the platform architects cross-reference §19, §20, §25, and §26 by number. Collapse a section's *content* where the rules below call for it — never renumber, merge, or delete a section heading.
 
-- **Frontmatter:** carry `platform`, `device_type`, and all four design-reference fields (`design_reference_status`, `design_reference_type`, `design_reference`, `figma_link`) from the feature analysis unchanged; set `feature_analysis_link` to the analysis path, `status: draft`, `detail_level`, `date`. Set `doc_schema_version` to the DD kind's current version per `docs/planning-doc-contract.md` — stamped at generation, **never copied from the analysis**, whose version describes a different document kind. Also set the six `repo_knowledge_*` fields from **this run's** knowledge resolution — not copied from the analysis, since the repository may have moved since it was approved.
+- **Frontmatter:** carry `platform`, `device_type`, and all four design-reference fields (`design_reference_status`, `design_reference_type`, `design_reference`, `figma_link`) from the feature analysis unchanged; set `feature_analysis_link` to the analysis path, `status: draft`, `detail_level`, `date`. Set `doc_schema_version` to the DD kind's current version per `docs/planning-doc-contract.md` — stamped at generation, **never copied from the analysis**, whose version describes a different document kind. Set `dd_generation: single` and `dd_complexity_band` to the band Step 3a measured (`unassessed` only when the assessment did not run). Both are recorded for the reader and for calibration; **nothing downstream reads either, and neither may change how this DD is written.** Also set the six `repo_knowledge_*` fields from **this run's** knowledge resolution — not copied from the analysis, since the repository may have moved since it was approved.
 
   **When Step 1 reported a migration**, record in §23 Assumptions: the version the analysis was migrated from; that any field named in its `migration_inputs` was supplied by a human at migration time rather than at approval time; and — for an analysis migrated from below v3 — that its `## Repo Conventions Detected` section is an embedded point-in-time observation rather than a citation, because the framework never rewrites bodies. Prefer canonical knowledge over that embedded snapshot where the two disagree, and note the disagreement there too.
 

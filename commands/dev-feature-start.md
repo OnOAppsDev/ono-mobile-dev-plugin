@@ -5,7 +5,13 @@ argument-hint: [feature-name]
 
 Break an approved Detailed Design (DD) into a development task breakdown and a thin feature plan.
 
-1. Take `$ARGUMENTS` as the feature name and locate its `templates/dd-template.md` from a prior `/dev-design-start` run. Confirm its frontmatter `status` is `approved` — if it's still `draft`, stop and ask a human to review it first.
+1. Take `$ARGUMENTS` as the feature name and locate its `templates/dd-template.md` from a prior `/dev-design-start` run.
+
+   **Load it through the `planning-doc-migration` skill (`--kind dd`) before reading anything from it.** That skill is the single compatibility layer for planning-document frontmatter: a DD written against an older contract is migrated in place (frontmatter only, body untouched) and you read exactly one shape. Do not carry your own tolerance for older shapes here, and never hand-edit a DD's frontmatter to make it load. If the skill reports any status other than `current` or `migrated`, stop and report it verbatim.
+
+   A DD written before the DD Package contract existed migrates silently and deterministically — it gains `dd_generation: single` and `dd_complexity_band: unassessed`, nothing else. Neither field changes how you decompose the DD: **`dd_generation` is always `single` today, and `dd_complexity_band` is advisory only. Never branch on either.**
+
+   Then confirm the frontmatter `status` is `approved` — if it's still `draft`, stop and ask a human to review it first. **Migration never changes approval**, so a DD that migrates successfully is still rejected here if it was never approved.
 2. Read the `platform`, `device_type`, `design_reference_status`, `design_reference_type`, `design_reference`, and `figma_link` fields from the approved DD — do not re-run platform or device-type detection, and do not re-ask for design input the DD already carries.
 3. Verify the DD's Definition of Ready for Development (§26) is satisfied and that no blocking Open Questions (§24) or Risks (§22) remain. If unresolved blockers exist, stop and surface them — do not generate tasks against an unstable design.
 4. Apply the `dev-feature-start` skill methodology (shared mechanics) together with the matching platform-specific dev-planning skill(s) — `rn-dev-planning` / `ios-dev-planning` / `android-dev-planning` / `react-dev-planning` — via the architect agent for the DD's single confirmed platform, to decompose the DD into tasks. The DD carries exactly one confirmed platform (never `mixed`), so invoke exactly one planning skill and one architect; every task row is tagged with that same platform.

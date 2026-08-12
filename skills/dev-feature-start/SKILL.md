@@ -7,7 +7,13 @@ description: Shared methodology for turning an approved Detailed Design (DD) int
 
 Turn an approved DD into discrete, implementable tasks — the task-generation stage that sits between design (`/dev-design-start`) and implementation (`/implement-task`). This skill **never** modifies source code.
 
-1. **Locate the approved DD (input gate).** Resolve the feature name to its `templates/dd-template.md` from a prior `/dev-design-start` run. **Confirm its frontmatter `status` is `approved`** — if it is still `draft`, stop and ask a human to review and approve it first. Do not generate tasks against an unapproved design.
+1. **Locate the approved DD (input gate).** Resolve the feature name to its `templates/dd-template.md` from a prior `/dev-design-start` run.
+
+   **Load it through the `planning-doc-migration` skill (`--kind dd`) before reading any field.** That skill is the single compatibility layer for planning-document frontmatter — a DD written against an older contract is migrated in place (frontmatter only, body untouched) and you read exactly one shape. Never carry your own legacy-shape tolerance here and never hand-edit a DD to make it load. On any status other than `current` or `migrated`, stop and report it verbatim.
+
+   **Then confirm its frontmatter `status` is `approved`** — if it is still `draft`, stop and ask a human to review and approve it first. Do not generate tasks against an unapproved design. Migration never changes approval, so a successfully migrated but unapproved DD still stops here.
+
+   The DD Package fields the loader guarantees are present (`dd_generation`, `dd_complexity_band`) are **not decomposition inputs**. `dd_generation` is always `single`; `dd_complexity_band` records what the complexity assessment measured and routes nothing. Decompose from §19/§20/§25/§26 exactly as before, and never branch on either field.
 
 2. **Read the `platform` frontmatter field** to know which platform-specific dev-planning skill to consult — always exactly one, since the DD carries exactly one confirmed platform — and read the four design-reference fields (`design_reference_status`, `design_reference_type`, `design_reference`, `figma_link`) to carry forward unchanged. **Do not re-run platform detection** — the DD carries the platform decided at Analyze time — and do not re-ask for design input.
 
