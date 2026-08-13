@@ -84,7 +84,7 @@ The repository determines the code; the **installed toolchain determines what ca
 
 - **`-showdestinations` output is not `-destination` input** — it prints `platform:iOS Simulator, id:…` with colons; `-destination` requires `key=value`.
 - **A malformed option makes `xcodebuild` dump its whole help text**, so the real message is at the *top* of stderr. Match the first lines, never the tail.
-- **`-json` is a narrow whitelist** — `-list`, `-showsdks`, `-showBuildSettings`, `-version`, and undocumented on `-showTestPlans`; **not** supported on `-showdestinations`, and absent from `man xcodebuild` entirely. It also implies `-quiet`.
+- **`-json` is a narrow whitelist** — `-list`, `-showsdks`, `-showBuildSettings`, `-version`, `-showComponent`, and undocumented on `-showTestPlans`. It is **not** supported on `-showdestinations`, which *silently accepts the flag and prints plain text anyway*, so a JSON parser fails at runtime rather than at invocation. `-json` also implies `-quiet`, and is absent from `man xcodebuild` entirely — check `xcodebuild -help` for the current set.
 - **A scheme that was never shared does not exist for you** — shared schemes live in `<container>/xcshareddata/xcschemes/`, unshared ones in the author's `xcuserdata/`. No `xcodebuild` flag creates or shares one; report it rather than improvising.
 
 ## 6. Pre-write checks
@@ -93,7 +93,7 @@ Each prevents a class of error otherwise discovered by a failed build — or not
 
 ### Deployment target of the target that owns the file
 
-Precedence, highest first: `xcodebuild -showBuildSettings -json <-workspace W.xcworkspace | -project P.xcodeproj> -scheme <S> -target <T>`, using the container and scheme the probe resolved (it collapses project, target and `.xcconfig` layering correctly and is the value the compiler will use) → the owning target's `IPHONEOS_DEPLOYMENT_TARGET` → the project-level value → `Package.swift` `platforms:` for package code. A Podfile's `platform` governs the Pods project only; it corroborates, it never decides. Expect several different values in one `project.pbxproj` — app, test and extension targets each carry their own (`IOS-BUILD-CONFIG-*`).
+Precedence, highest first: `xcodebuild -showBuildSettings -json` with the container and scheme the probe resolved. It collapses project, target and `.xcconfig` layering correctly and is the value the compiler will use — but it returns a **JSON array with one entry per target in the scheme**, so select the entry whose `"target"` matches the one that owns your file. **`-target` is silently ignored when `-scheme` is passed** (`man xcodebuild`: *"Use with -target **or** with -scheme"*) — no error, no warning, and reading element `[0]` hands you the app target's value while you edit a test or extension target. To query one target without a scheme, use `-project <P> -target <T>` → the owning target's `IPHONEOS_DEPLOYMENT_TARGET` → the project-level value → `Package.swift` `platforms:` for package code. A Podfile's `platform` governs the Pods project only; it corroborates, it never decides. Expect several different values in one `project.pbxproj` — app, test and extension targets each carry their own (`IOS-BUILD-CONFIG-*`).
 
 **Trap:** a `Package.swift` with **no** `platforms:` clause means "the oldest version the installed SDK supports", not "modern". Never read its absence as permission to use a recent API.
 
@@ -183,7 +183,7 @@ Implement in small steps and build after each meaningful one — do not discover
 - Xcode **≥ 16**: `xcrun xcresulttool get build-results --path <bundle> --compact` → branch on `status`, `errorCount`, `errors[]`, **and `warningCount`/`warnings[]` — a newly introduced warning is itself the `IOS-SWIFT-LINT-3` finding.**
 - Xcode **< 16**: `xcrun xcresulttool get object --format json --path <bundle>` (the `--legacy` flag does not exist there).
 
-Derive the branch from the recorded `xcodebuild -version`. Xcode 16 deprecated `get object` — it now requires `--legacy`, which still functions but should be treated as imminent-risk. **Apple's own help text recommends `get test-report`; that subcommand does not exist.** The real replacements are `get build-results` and `get test-results`.
+Derive the branch from the recorded `xcodebuild -version`. Xcode 16 deprecated `get object` — it now requires `--legacy`, which still functions but should be treated as imminent-risk. **As of Xcode 26.0.1, Apple's own help text recommends `get test-report` — a subcommand that does not exist**, and the call falls through to `object` and errors on a missing argument. The real replacements are `get build-results` and `get test-results`. Re-check this against the version the probe recorded; it is an Apple help-text bug fixable in any point release.
 
 Gate any coverage or test-results read on `xcrun xcresulttool get content-availability --path <bundle>` rather than discovering emptiness by failure.
 
@@ -209,11 +209,11 @@ Both frameworks may legally coexist in one target and even one file. A mixed rep
 
 ### Testing traps
 
-1. **Silent assertion loss.** On toolchains before cross-framework interop, an `XCTAssert*` inside a helper called from a Swift Testing `@Test` is **swallowed** — the test passes while asserting nothing, and the report shows no sign of it. Never share an assertion helper across the two families.
+1. **Silent assertion loss.** An `XCTAssert*` reached from a Swift Testing `@Test` is **discarded** — the test passes while asserting nothing, and the result bundle records nothing. Verified still true on Xcode 26.0.1 / Swift 6.2; **no toolchain fixes this**, because XCTest assertions are only usable from `XCTestCase`-based tests. Never share an assertion helper across the two families.
 2. **`@Test` inside an `XCTestCase` subclass is a compile error**, even though both may share a file. In Swift Testing, new suites are a `struct`, or a `final class`/`actor` when `deinit` teardown is needed.
 3. **"This code has no tests" concluded from file inspection is unsound.** Both frameworks discover tests at *runtime*. A covering test may carry no `test` prefix, sit in an unrelated file, or be one parameterized case. Answer by running `-only-testing`, never by grepping.
 4. **The test plan can silently exclude the new test** via include/exclude lists or tag filters — it passes locally and never runs in CI. Check `-showTestPlans` and the plan's selected/skipped sets.
-5. **Isolation differs between the frameworks.** XCTest runs synchronous test methods on the main actor; Swift Testing runs tests on an arbitrary task, in parallel, in-process. `@MainActor` state needs explicit isolation; shared global state needs `.serialized`, which orders only *within* a suite.
+5. **Isolation differs between the frameworks.** XCTest runs synchronous test methods on the main *thread*, but the method is **`nonisolated`** — `XCTestCase` is not `@MainActor`, so touching `@MainActor` state from one is a compile error under strict concurrency until you annotate the test class or method. Swift Testing runs tests on an arbitrary task, in parallel, in-process. Shared global state needs `.serialized`, which orders only *within* a suite.
 6. **Adding one parallel test can destabilise a suite that assumed serial execution.** Never rewrite other people's tests mid-feature to accommodate yours; in Swift Testing, `.serialized` on your own suite is the contained fix.
 
 ### Rules that hold regardless of regime
@@ -280,7 +280,7 @@ Determine which tier a check falls in **before** reporting it. Overclaiming is t
 
 **Tier 1 — mechanical; may gate the task.**
 
-- `try app.performAccessibilityAudit()` in a UI test, run **once per new or changed screen** — the audit is screen-scoped, so one call is not coverage. It fails the test by itself. Requires a **simulator runtime of iOS 17 / tvOS 17 / watchOS 10 / macOS 14 or later** — gate on the runtime, not the Xcode version.
+- `try app.performAccessibilityAudit()` in a UI test, run **once per new or changed screen** — the audit is screen-scoped, so one call is not coverage. It fails the test by itself. Requires an **OS version of iOS 17 / tvOS 17 / watchOS 10 / macOS 14 or later** — the floor is the OS the test runs against, simulator or device, not the Xcode version.
 - Audit types are platform-dependent: element description, hit region, contrast and element detection everywhere; **clipped text, traits and Dynamic Type on iOS/tvOS/watchOS only**.
 - Re-run the flow with double-length and right-to-left pseudolocalization launch arguments, and with `xcrun simctl ui <UDID> content_size accessibility-extra-extra-extra-large`, `increase_contrast enabled`, and `appearance dark`.
 - Confirm new keys reached the catalogue — a `git diff` on `*.xcstrings`, or `xcodebuild -exportLocalizations` and check the XLIFF.
@@ -293,8 +293,8 @@ Determine which tier a check falls in **before** reporting it. Overclaiming is t
 | Not verifiable | Why |
 |---|---|
 | Whether a label is *meaningful* | The audit checks a label exists. `accessibilityLabel("image1")` passes |
-| VoiceOver order, rotor, custom actions, announcements | VoiceOver cannot be enabled on a simulator headlessly; the state APIs are read-only |
-| Reduce Motion, Bold Text, Reduce Transparency, Invert Colours honoured | **`simctl ui` supports only `appearance`, `increase_contrast` and `content_size`.** You can prove the code *branches* on the setting, never that the branch is right |
+| VoiceOver order, rotor, custom actions, announcements | VoiceOver cannot be run on the Simulator at all. Note `UIAccessibility.isVoiceOverRunning` returns **true spuriously** on a simulator once the automation accessibility bridge is up — never gate on it |
+| Reduce Motion, Bold Text, Invert Colours — whether the branch is visually *right* | `simctl ui` reaches only `appearance`, `increase_contrast` and `content_size` (Xcode 26.0.1), but the rest can be forced with `xcrun simctl spawn <UDID> defaults write com.apple.Accessibility …` plus the matching `notifyutil -p com.apple.accessibility.cache.*` post. That proves the code **branches** — Tier 1. Whether the branch looks correct is Tier 2, not verifiable here |
 | Contrast of text over video, images, gradients or custom drawing | The contrast audit is scoped to overlapping *elements* — the media case sits outside it |
 | Anything on a screen the test never reached | The audit sees only the current screen |
 | Translation quality; plural correctness | Pseudolanguages simulate length and direction, not meaning |
@@ -320,13 +320,13 @@ Three artifacts are required, in this order:
 | Retain cycle | A weak-reference teardown check — `addTeardownBlock { [weak sut] in XCTAssertNil(sut) }` in XCTest, the equivalent scope-exit or `deinit` check in a Swift Testing suite. Use whichever regime [§12](#12-tests-detect-the-regime-then-write-to-it) detected |
 | Off-main-thread UI | Free, no injection: UIKit self-reports layer mutation off the main thread in the unified log under `com.apple.UIKit` / `Assert`, with a backtrace |
 | Runtime issues | The `com.apple.runtime-issues` subsystem carries the same diagnostics Xcode shows as runtime warnings |
-| Constraint conflict | **Off by default on current runtimes** — enable unsatisfiable-constraint logging by launch argument, then read `com.apple.UIKit` / `LayoutConstraints`. Grepping the log *without* enabling it is a false pass |
+| Constraint conflict | **Off by default (measured on iOS 26.0)** — enable unsatisfiable-constraint logging by launch argument, then read `com.apple.UIKit` / `LayoutConstraints`. Grepping the log *without* enabling it is a false pass. Confirm against the runtime the probe recorded |
 | Crash | A reproducing test, then the `.ips` from the result bundle (`export attachments --only-failures`). System frames arrive symbolicated; your own frames need the matching dSYM |
 | Regression | `-only-testing:` the new test first, then the repo's full invocation |
 
 **Limits, stated so they are not worked around.** `leaks` and the Instruments Leaks template **cannot attach to a simulator application** — the failure is in simulator process introspection, not the tools, and re-signing to force it is not a workaround. The Memory Graph and View debuggers are Xcode-only. Instruments can be recorded headlessly, but its exports carry raw addresses until symbolicated. On iOS, leak investigation beyond a teardown assertion is a **human hand-off** — say so rather than inventing a check.
 
-Sanitizers are mutually exclusive: Address and Thread Sanitizer **cannot build together**, and sanitizers conflict with the malloc diagnostics. One diagnostic family per run.
+Address and Thread Sanitizer **cannot build together** (`error: argument '-sanitize=thread' is not allowed with '-sanitize=address'`); `-enableUndefinedBehaviorSanitizer YES` composes with either. Sanitizers do conflict with the malloc diagnostics.
 
 ## 17. QA stage
 
