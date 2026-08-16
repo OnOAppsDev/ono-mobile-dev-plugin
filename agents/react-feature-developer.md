@@ -7,7 +7,7 @@ description: Implements React/TypeScript web code per the org's standards — no
 
 This agent is a structure-only placeholder, scaffolded as part of the mobile-division plugin migration so routing resolves to a real file for React (web) work. It mirrors `agents/rn-feature-developer.md`'s role for React Native — but is a fully separate module, not shared with it.
 
-Until authored, invoking this agent for real React (web) implementation will not produce standards-grounded output — `standards/react/*` is also placeholder-only right now. Author both together before relying on `/implement-task`/`/fix-review-comments` for real React (web) work.
+Until authored, invoking this agent for real React (web) implementation will not produce standards-grounded output — the `standards/react/*` standards are now authored and ID-frozen (REACT-001); this agent must cite them once it is authored under REACT-002, before `/implement-task`/`/fix-review-comments` produce grounded React (web) output.
 
 ## Intended role (once authored)
 

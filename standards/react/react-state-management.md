@@ -30,7 +30,7 @@ This document inherits the **React lane conventions** in `standards/react/react-
 ## Local vs. URL vs. Global Boundary
 
 - `REACT-STATE-BOUNDARY-1` State read/written by exactly one component stays in local `useState`/`useReducer` — it does not default into the global store.
-- `REACT-STATE-BOUNDARY-2` State that should be **shareable, bookmarkable, or survive reload** — active filters, the selected tab, pagination, a search query, the current record id — lives in the **URL** (path/query), not the global store and not local state, so the URL reproduces the view. This rule owns the state-placement decision; the routing mechanics of reading/writing the URL are owned by `REACT-ROUTE-URL-*` in `standards/react/react-routing.md` (boundary *reconciled in REACT-001-7*).
+- `REACT-STATE-BOUNDARY-2` State that should be **shareable, bookmarkable, or survive reload** — active filters, the selected tab, pagination, a search query, the current record id — lives in the **URL** (path/query), not the global store and not local state, so the URL reproduces the view. This rule owns the state-placement decision; the routing mechanics of reading/writing the URL are owned by `REACT-ROUTE-URL-*` in `standards/react/react-routing.md`.
 - `REACT-STATE-BOUNDARY-3` State goes into the global store only when it is shared across routes, must survive navigation/unmount, or is needed by multiple independent features — **and** is not URL-appropriate per `REACT-STATE-BOUNDARY-2`.
 - `REACT-STATE-BOUNDARY-4` Purely presentational/UI state (open/closed toggles, input focus, in-progress form values) stays local even when the containing feature has a store module for its domain data.
 
@@ -45,7 +45,7 @@ This document inherits the **React lane conventions** in `standards/react/react-
 
 - This document is a living baseline; reviewers flag state-management gaps found during review rather than working around them silently.
 - Server-state/cache conventions (the data-fetching library) are handled in `standards/react/react-api-service-layer.md`, separate from the client-state conventions above.
-- Companion React standards: `standards/react/react-coding-standards.md` (authored — governing conventions) and `standards/react/react-routing.md` (authored — `REACT-ROUTE-URL-*`, the URL-as-state mechanics); and `standards/react/react-api-service-layer.md` (authored — `REACT-API-SSR-*`), `standards/react/react-architecture.md` (cross-references *reconciled in REACT-001-7*).
+- Companion React standards: `standards/react/react-coding-standards.md` (authored — governing conventions) and `standards/react/react-routing.md` (authored — `REACT-ROUTE-URL-*`, the URL-as-state mechanics); and `standards/react/react-api-service-layer.md` (authored — `REACT-API-SSR-*`), `standards/react/react-architecture.md` (all authored; cross-references frozen in REACT-001-7).
 - Shared standards cited (not restated) here: `standards/shared/mobile-security.md` (`SEC-COOKIE-2`, `SEC-STORAGE-3`).
 
 ## External references

@@ -7,6 +7,25 @@ and this plugin adheres to [Semantic Versioning](https://semver.org/). The
 version below is the plugin's own `version` in
 [`plugin.json`](.claude-plugin/plugin.json).
 
+## [Unreleased]
+
+REACT-001 — the six React (web) standards.
+
+### Added
+- `standards/react/react-coding-standards.md`, `react-architecture.md`,
+  `react-api-service-layer.md`, `react-routing.md`, `react-state-management.md`,
+  `react-performance.md` — the React (web) standards, replacing the structure-only
+  placeholders. 111 rules across the `REACT-TS/FC/NAME/PROPS/LINT`, `REACT-ARCH-*`,
+  `REACT-API-*`, `REACT-ROUTE-*`, `REACT-STATE-*`, and `REACT-PERF-*` families; every
+  family carries the `REACT-` prefix so IDs never collide with the React Native,
+  Android, or iOS modules. Repository-first and framework-neutral (no assumed stack),
+  citing the shared `SEC-WEB-*`/`SEC-COOKIE-*`/`A11Y-*` rules for web security and
+  accessibility. The lane ID skeleton is frozen (REACT-001-7); the React skills and
+  agents remain placeholders pending REACT-002.
+
+### Changed
+- `README.md` — the React standards are no longer described as placeholders.
+
 ## [0.5.0] - 2026-08-12
 
 SHARED-011 — the legacy planning-document migration framework. Implements

@@ -7,7 +7,7 @@ description: Methodology for implementing a planned task in a React web codebase
 
 This skill is a structure-only placeholder, scaffolded as part of the mobile-division plugin migration. It mirrors `skills/rn-feature-implementation/SKILL.md`'s role for React Native — but is a fully separate module, not shared with it.
 
-Until this is authored, React (web) implementation guidance will not cite grounded `standards/react/*` IDs — those standards are also placeholder-only right now. Author both together before relying on `/implement-task` for real React (web) work.
+Until this is authored, React (web) implementation guidance will not cite grounded `standards/react/*` IDs — the `standards/react/*` standards are now authored and ID-frozen (REACT-001); this skill must cite them once it is authored under REACT-002, before `/implement-task` gives grounded React (web) implementation guidance.
 
 ## Intended methodology (once authored)
 

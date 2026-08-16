@@ -7,7 +7,7 @@ description: React (web)-specific vocabulary and standard IDs for the technical-
 
 This skill is a structure-only placeholder, scaffolded as part of the mobile-division plugin migration. It mirrors `skills/rn-dev-planning/SKILL.md`'s role for React Native — but is a fully separate module, not shared with it. It supplies only the React (web)-specific vocabulary and standard-ID citations for the Detailed Design's Technical Implementation Approach and the task breakdown, while the shared `dev-design-start` and `dev-feature-start` skills own the overall mechanics.
 
-Until this is authored, React (web)-specific dev plans will not cite grounded `standards/react/*` IDs — those standards are also placeholder-only right now. Author both together before relying on `/dev-design-start` and `/dev-feature-start` for real React (web) planning.
+Until this is authored, React (web)-specific dev plans will not cite grounded `standards/react/*` IDs — the `standards/react/*` standards are now authored and ID-frozen (REACT-001); this skill must cite them once it is authored under REACT-002, before `/dev-design-start` and `/dev-feature-start` produce grounded React (web) planning.
 
 ## Intended methodology (once authored)
 

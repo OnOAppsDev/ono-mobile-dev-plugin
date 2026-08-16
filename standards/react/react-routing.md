@@ -14,7 +14,7 @@ This document inherits the **React lane conventions** in `standards/react/react-
 - `REACT-ROUTE-URL-2` Query-string state is read and written through `URLSearchParams` (or the router's typed search API), not hand-parsed by string splitting; every value is decoded and validated on read, because a param may be absent, repeated, or attacker-supplied. Untyped/`any` param objects are not acceptable (see `REACT-TS-2` in `react-coding-standards.md`).
 - `REACT-ROUTE-URL-3` Raw string params are parsed into a typed shape **once** at the route boundary (a loader, a route definition, or a single parsing hook); views read the typed shape and do not reach for undeclared params.
 - `REACT-ROUTE-URL-4` Navigation targets are built from a single typed route definition (a path builder or typed routes), not ad-hoc string concatenation, so renaming a route is a type error rather than a silent broken link.
-- `REACT-ROUTE-URL-5` State that should be shareable or bookmarkable (active filters, selected tab, pagination, search query) belongs in the URL; genuinely ephemeral, non-shareable state uses component or history state deliberately. (The full local-vs-URL-vs-store boundary is owned by `standards/react/react-state-management.md` — *reconciled in REACT-001-7*.)
+- `REACT-ROUTE-URL-5` State that should be shareable or bookmarkable (active filters, selected tab, pagination, search query) belongs in the URL; genuinely ephemeral, non-shareable state uses component or history state deliberately. (The full local-vs-URL-vs-store boundary is owned by `REACT-STATE-BOUNDARY-2` in `standards/react/react-state-management.md`.)
 
 ## URL Structure, Stability & SEO
 
@@ -41,7 +41,7 @@ This document inherits the **React lane conventions** in `standards/react/react-
 - `REACT-ROUTE-UX-1` In-app navigation uses the router's link/navigation primitive (`<Link>` or the framework equivalent), not a raw `<a href>` that forces a full-document reload, and not a programmatic navigate where a link is semantically correct — a link is focusable, keyboard-activatable, and open-in-new-tab-able (see shared `A11Y-ROLES-*`). A cross-origin link opened in a new tab (`target="_blank"`) carries `rel="noopener noreferrer"`.
 - `REACT-ROUTE-UX-2` Scroll position is managed on navigation — reset to the top on a forward navigation to a new route, and restored on Back/Forward — rather than left wherever the previous route happened to be.
 - `REACT-ROUTE-UX-3` The app respects the browser Back/Forward buttons and does not trap or corrupt history: `push` vs `replace` is chosen deliberately (a filter change that shouldn't create a back-button step uses `replace`), and no flow hijacks the Back action.
-- `REACT-ROUTE-UX-4` Prefetching of likely-next routes (the router's prefetch / `<Link>` prefetch) is used where it improves perceived navigation speed, without prefetching so aggressively that it wastes bandwidth. (Perceived-performance budgets are owned by `standards/react/react-performance.md` — *reconciled in REACT-001-7*.)
+- `REACT-ROUTE-UX-4` Prefetching of likely-next routes (the router's prefetch / `<Link>` prefetch) is used where it improves perceived navigation speed, without prefetching so aggressively that it wastes bandwidth. (Perceived-performance budgets are owned by `standards/react/react-performance.md`, `REACT-PERF-*`.)
 
 ## Navigation Abstraction
 
@@ -55,7 +55,7 @@ This document inherits the **React lane conventions** in `standards/react/react-
 
 - This document is a living baseline; reviewers flag routing gaps found during review rather than working around them silently.
 - Where a repo's existing routing structure predates these rules, `repo-analyst`'s detected conventions take precedence for that repo until a migration is planned.
-- Companion React standards (cross-references *reconciled in REACT-001-7*): `standards/react/react-coding-standards.md` (authored — governing conventions), `standards/react/react-state-management.md` (URL-as-state boundary), `standards/react/react-performance.md` (prefetch/perceived-performance), `standards/react/react-architecture.md`.
+- Companion React standards (all authored; cross-references frozen in REACT-001-7): `standards/react/react-coding-standards.md` (governing conventions), `standards/react/react-state-management.md` (URL-as-state boundary), `standards/react/react-performance.md` (prefetch/perceived-performance), `standards/react/react-architecture.md`.
 - Shared standards cited (not restated) here: `standards/shared/mobile-security.md` (`SEC-WEB-5`, `SEC-WEB-3`) and `standards/shared/accessibility.md` (`A11Y-ROLES-*`).
 
 ## External references

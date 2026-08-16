@@ -7,7 +7,7 @@ description: Designs the technical approach for a React web feature (views, stat
 
 This agent is a structure-only placeholder, scaffolded as part of the mobile-division plugin migration so routing resolves to a real file for React (web) work. It mirrors `agents/rn-architect.md`'s role for React Native — but is a fully separate module, not shared with it, despite overlapping JS/TS/React fundamentals.
 
-Until authored, invoking this agent for real React (web) feature analysis/planning will not produce grounded, standards-cited output — `standards/react/*` is also placeholder-only right now. Author both together before relying on `/analyze-feature`/`/dev-design-start`/`/dev-feature-start` for real React (web) work.
+Until authored, invoking this agent for real React (web) feature analysis/planning will not produce grounded, standards-cited output — the `standards/react/*` standards are now authored and ID-frozen (REACT-001); this agent must cite them once it is authored under REACT-002, before `/analyze-feature`/`/dev-design-start`/`/dev-feature-start` produce grounded React (web) output.
 
 ## Intended role (once authored)
 

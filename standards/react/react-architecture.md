@@ -9,9 +9,9 @@ This document inherits the **React lane conventions** defined in `standards/reac
 ## Layered Architecture
 
 - `REACT-ARCH-LAYERS-1` The app is organized into three layers: pages/routes → features → services/store. (In a route-segment framework such as the Next.js App Router, a "page/route" is the route segment; in a client router such as React Router or TanStack Router it is the routed view component — the layer role is the same.)
-- `REACT-ARCH-LAYERS-2` Page/route components are thin — they compose feature components, read route inputs (path/query params from the URL), and render layout. They do not contain business logic or direct data-fetching calls. (URL-as-input conventions will be defined in `standards/react/react-routing.md` — *reconciled in REACT-001-7*.)
+- `REACT-ARCH-LAYERS-2` Page/route components are thin — they compose feature components, read route inputs (path/query params from the URL), and render layout. They do not contain business logic or direct data-fetching calls. (URL-as-input conventions are defined in `standards/react/react-routing.md`, `REACT-ROUTE-URL-*`.)
 - `REACT-ARCH-LAYERS-3` Features hold the business logic for a unit of product functionality — hooks, selectors, and orchestration that decide what happens and when.
-- `REACT-ARCH-LAYERS-4` Services/store hold data access and app-wide state — API clients, the data-fetching/cache layer, store slices, and persistence. They know nothing about which page or feature is calling them. (Data-layer and state conventions will be defined in `standards/react/react-api-service-layer.md` and `standards/react/react-state-management.md` — *reconciled in REACT-001-7*.)
+- `REACT-ARCH-LAYERS-4` Services/store hold data access and app-wide state — API clients, the data-fetching/cache layer, store slices, and persistence. They know nothing about which page or feature is calling them. (Data-layer and state conventions are defined in `standards/react/react-api-service-layer.md`, `REACT-API-*`, and `standards/react/react-state-management.md`, `REACT-STATE-*`.)
 
 ## Server / Client Component Boundary
 
@@ -42,8 +42,8 @@ This document inherits the **React lane conventions** defined in `standards/reac
 ## References
 
 - This document is a living baseline; reviewers flag structural gaps found during review rather than working around them silently.
-- Where a repo's existing structure predates these principles, `repo-analyst`'s detected conventions take precedence for that repo until a migration is planned — the same repo-detection-first approach will be applied to routing in `standards/react/react-routing.md` (*reconciled in REACT-001-7*).
-- Companion React standards: `standards/react/react-coding-standards.md` (authored — this document inherits its governing conventions); and `standards/react/react-routing.md`, `standards/react/react-state-management.md`, `standards/react/react-api-service-layer.md` (cross-references *reconciled in REACT-001-7*).
+- Where a repo's existing structure predates these principles, `repo-analyst`'s detected conventions take precedence for that repo until a migration is planned — the same repo-detection-first approach is applied to routing in `standards/react/react-routing.md`.
+- Companion React standards (all authored; cross-references frozen in REACT-001-7, 2026-08-16): `standards/react/react-coding-standards.md` (this document inherits its governing conventions), `standards/react/react-routing.md`, `standards/react/react-state-management.md`, `standards/react/react-api-service-layer.md`, `standards/react/react-performance.md`.
 - Shared standards cited (not restated) here: `standards/shared/mobile-security.md` (`SEC-SECRETS-2`).
 
 ## External references

@@ -135,12 +135,28 @@ REACT-001-1 ──┬─► 001-2 ─┐
 
 ---
 
+## Frozen REACT-001 ID skeleton (as of 2026-08-16, REACT-001-7)
+
+All six React standards are authored and their IDs are **frozen** — no rule is renumbered after this point, because REACT-002 agents/skills cite these IDs. Every family carries the `REACT-` prefix (collision-free vs RN `RN-*`/bare-topic, Android `AND-*`, iOS `IOS-*`). 111 defined rules; every intra-lane cross-reference resolves to a defined ID; all 12 cited shared IDs exist in `standards/shared/`.
+
+| Doc | Families (rule counts) |
+|---|---|
+| `react-coding-standards.md` | `REACT-TS-1..4`, `REACT-FC-1..7`, `REACT-NAME-1..6`, `REACT-PROPS-1..5`, `REACT-LINT-1..3` (25) |
+| `react-architecture.md` | `REACT-ARCH-LAYERS-1..4`, `REACT-ARCH-BOUNDARY-1..3`, `REACT-ARCH-FOLDERS-1..3`, `REACT-ARCH-DEPS-1..3`, `REACT-ARCH-LOGIC-1..3` (16) |
+| `react-api-service-layer.md` | `REACT-API-ORG-1..4`, `REACT-API-CACHE-1..4`, `REACT-API-BASEQ-1..7`, `REACT-API-ASYNC-1`, `REACT-API-SSR-1..2`, `REACT-API-ERR-1..3` (21) |
+| `react-routing.md` | `REACT-ROUTE-URL-1..5`, `REACT-ROUTE-STABILITY-1..4`, `REACT-ROUTE-SECURITY-1..2`, `REACT-ROUTE-SSR-1..3`, `REACT-ROUTE-UX-1..4`, `REACT-ROUTE-SERVICE-1..3` (21) |
+| `react-state-management.md` | `REACT-STATE-SLICE-1..4`, `REACT-STATE-SELECT-1..3`, `REACT-STATE-ENTITY-1..3`, `REACT-STATE-BOUNDARY-1..4`, `REACT-STATE-PERSIST-1..2` (16) |
+| `react-performance.md` | `REACT-PERF-RERENDER-1..2`, `REACT-PERF-LIST-1`, `REACT-PERF-MAINTHREAD-1`, `REACT-PERF-IMAGE-1..2`, `REACT-PERF-BUNDLE-1..3`, `REACT-PERF-HYDRATION-1`, `REACT-PERF-THIRDPARTY-1`, `REACT-PERF-CWV-1` (12) |
+
+**Reserved (not yet defined — REACT-003):** `REACT-TV-*` (e.g. `REACT-TV-FOCUS-*`, `REACT-TV-PKG-*`) for the Smart TV standard. The `REACT-` prefix reserves this space so REACT-003 routes without changing the lane scheme.
+
 ## Progress log & resume state
 
-**Paused 2026-08-13 · resume Sunday.**
+**REACT-001 EPIC COMPLETE (2026-08-16).**
 
 **Done**
-- **REACT-001-1** ✓ — `standards/react/react-coding-standards.md` authored, adversarially reviewed (clean on 6/8; 3 polish fixes applied), and given a verified `## External references` section (6 links checked live 2026-08-13).
+- **REACT-001-1..7** ✓ — all six React web standards authored, each adversarially reviewed and committed, then the lane ID skeleton frozen and all cross-references reconciled (REACT-001-7). See the *Frozen REACT-001 ID skeleton* section above. Every standard carries a verified `## External references` section.
+  - 001-1 coding-standards · 001-2 architecture · 001-3 api-service-layer · 001-4 routing · 001-5 state-management · 001-6 performance · 001-7 freeze.
 
 **Lane-wide decisions locked (inherited by every downstream React doc/agent — do not re-decide or renumber)**
 1. **ID scheme** = `REACT-` prefix on *every* family (`REACT-TS/FC/NAME/PROPS/LINT`, `REACT-ARCH-*`, `REACT-ROUTE-*`, `REACT-STATE-*`, `REACT-PERF-*`, `REACT-TV-*`). Collision-free vs RN/AND/IOS.
@@ -148,7 +164,11 @@ REACT-001-1 ──┬─► 001-2 ─┐
 3. **External-references pattern** = every standard closes with a rank-5 `## External references` section (see acceptance-bar item 10).
 
 **Next (in order)**
-- **REACT-001-2** `react-architecture.md` → then **001-3 / 001-4 / 001-6** (parallelizable after 001-1) → **001-5** (after 001-4) → **001-7** freeze (verifies IDs + external links).
+- **REACT-002** — author the 4 React agents + 3 React skills against the now-frozen `REACT-*` IDs. Start with **REACT-002-1** (planning lane: `react-architect` + `react-dev-planning`). REACT-003 (Smart TV, `REACT-TV-*`) can overlap once REACT-002 begins.
+
+**Deferred — need a deliberate decision (not blockers for REACT-002)**
+- **Completion-plan dashboard** (`PLUGIN_COMPLETION_PLAN.html`) still shows React as placeholder in its exec summary, readiness matrix, owner-workload, and inventory row. Left for a *full, consistent* status pass rather than a one-row patch (it's the shared team dashboard). REACT-001 = 6/6 standards done for that update.
+- **Version bump / release** — REACT-001 is logged under `## [Unreleased]` in CHANGELOG; bumping `plugin.json` (e.g. → 0.6.0) is a release decision for the Plugin Owner, not done here.
 
 **Where the work lives**
 - Branch: **`feat/react-001-coding-standards`**. ⚠️ The working clone is a *temporary* checkout — the durable copy is whatever was pushed to the remote / copied out (see the pause handoff).

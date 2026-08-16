@@ -7,7 +7,7 @@ description: Audits React web performance (re-renders, code-splitting, bundle si
 
 This agent is a structure-only placeholder, scaffolded as part of the mobile-division plugin migration so routing resolves to a real file for React (web) work. It mirrors `agents/rn-performance-reviewer.md`'s role for React Native — but is a fully separate module, not shared with it.
 
-Until authored, invoking this agent for real React (web) performance review will not produce standards-grounded findings — `standards/react/react-performance.md` is also placeholder-only right now. Author both together before relying on `/review-code`/`/prepare-mobile-release` for real React (web) performance sign-off.
+Until authored, invoking this agent for real React (web) performance review will not produce standards-grounded findings — the `standards/react/react-performance.md` standard is now authored and ID-frozen (REACT-001); this agent must cite it once it is authored under REACT-002, before `/review-code`/`/prepare-mobile-release` give grounded React (web) performance sign-off.
 
 ## Intended role (once authored)
 

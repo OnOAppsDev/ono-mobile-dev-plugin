@@ -7,7 +7,7 @@ description: Reviews React web code changes against the org's standards — not 
 
 This agent is a structure-only placeholder, scaffolded as part of the mobile-division plugin migration so routing resolves to a real file for React (web) work. It mirrors `agents/rn-code-reviewer.md`'s role for React Native — but is a fully separate module, not shared with it.
 
-Until authored, invoking this agent for real React (web) code review will not produce standards-grounded findings — `standards/react/*` is also placeholder-only right now. Author both together before relying on `/review-code` for real React (web) review coverage.
+Until authored, invoking this agent for real React (web) code review will not produce standards-grounded findings — the `standards/react/*` standards are now authored and ID-frozen (REACT-001); this agent must cite them once it is authored under REACT-002, before `/review-code` gives grounded React (web) review coverage.
 
 ## Intended role (once authored)
 

@@ -24,7 +24,7 @@ claude --plugin-dir /path/to/ono-mobile-dev-plugin
 - **React Native** — the plugin's original, most fully-built-out platform. Full standards, skills, and agents.
 - **Native iOS** — routing, platform detection, and folder structure are fully wired up. The five iOS **standards are authored** (IOS-001) with citable `IOS-*` IDs, and the **planning lane is authored** (IOS-002) — `ios-architect` plus the `ios-dev-planning` skill, so `/analyze-feature`, `/dev-design-start`, and `/dev-feature-start` produce grounded, standards-cited iOS output. The implementation and review lanes are still structure-only placeholders (see [Plugin internals](#plugin-internals)) pending IOS-003/004, and tvOS-context sections are pending ATV-001/002.
 - **Native Android** — routing, platform detection, and folder structure are fully wired up; the standards/skills/agents themselves are currently structure-only placeholders (see [Plugin internals](#plugin-internals)) waiting to be authored.
-- **React (web)** — a plain browser SPA (Vite/CRA/Next.js), not React Native for Web. Also structure-only placeholders today. Kept as a fully separate module from React Native despite overlapping JS/TS/React fundamentals, since the two target genuinely different runtimes (browser vs. native shell).
+- **React (web)** — a plain browser SPA (Vite/CRA/Next.js), not React Native for Web. The six React **standards are authored** (REACT-001) with citable `REACT-*` IDs (111 rules, ID skeleton frozen); the planning, implementation, and review lanes (skills + agents) remain structure-only placeholders pending REACT-002/003. Kept as a fully separate module from React Native despite overlapping JS/TS/React fundamentals, since the two target genuinely different runtimes (browser vs. native shell).
 - **Mixed repos** — a React Native repo with native iOS and/or Android changes, or a native monorepo containing both an iOS and an Android project, or a monorepo pairing a React web app with an RN/native app.
 
 The shared layer keeps its `mobile-*` naming (`mobile-repo-analysis`, `mobile-security-review`, `/prepare-mobile-release`, etc.) even though React (web) isn't literally mobile — Ono Apps is a mobile division that also owns a React web app, so the umbrella name stayed put rather than triggering a broader rename.
@@ -178,7 +178,8 @@ Every agent works against the org's written standards rather than assumed defaul
 - **`standards/shared/`** — mobile security, accessibility, i18n/RTL, release readiness, and QA handoff. Loaded on every task regardless of platform. Today's rule text in `mobile-security.md`, `accessibility.md`, and `i18n-rtl.md` is written from React Native experience (prop names, library names); iOS/Android/React-native equivalents are noted as not-yet-authored gaps rather than silently assumed equivalent.
 - **`standards/react-native/`** — React Native/TypeScript coding standards, navigation, state management, API service layer, architecture, and performance. The most fully authored module.
 - **`standards/ios/`** — Swift language and style, SwiftUI/UIKit conventions, architecture, performance, and Xcode build/signing. Authored (IOS-001); every rule carries a citable `IOS-SWIFT-*`, `IOS-UI-*`, `IOS-ARCH-*`, `IOS-PERF-*`, or `IOS-BUILD-*` ID, and `swift-standards.md` defines the lane table that routes each root to exactly one reviewer.
-- **`standards/android/`**, **`standards/react/`** — structure-only placeholders (Kotlin/React coding standards, UI-framework conventions, architecture, build/signing or bundler config, and performance) mirroring the react-native set, ready to be authored.
+- **`standards/android/`** — structure-only placeholders (Kotlin coding standards, UI-framework conventions, architecture, build/signing, and performance) mirroring the react-native set, ready to be authored.
+- **`standards/react/`** — React coding standards, architecture, routing, state management, API service layer, and performance. Authored (REACT-001); every rule carries a citable `REACT-*` ID (111 rules across `REACT-TS/FC/NAME/PROPS/LINT`, `REACT-ARCH-*`, `REACT-API-*`, `REACT-ROUTE-*`, `REACT-STATE-*`, `REACT-PERF-*`), repository-first and framework-neutral, citing the shared `SEC-WEB-*`/`A11Y-*` rules for web security and accessibility.
 - **`templates/`** — one structured template per pipeline artifact: feature analysis, detailed design (DD), feature plan, task breakdown, code review, security review, QA handoff, and release checklist. Stages communicate exclusively through these filled-in templates. Every template that needs to know the platform carries a `platform` field (frontmatter or a per-row column), and the code-review/release-checklist templates support platform-tagged findings/subsections for mixed-platform work.
 
 Reviews cite standard IDs in their findings.
@@ -239,7 +240,7 @@ standards/
   android/      kotlin-standards.md, compose-xml-standards.md, android-architecture.md,
                 gradle-build-signing.md, android-performance.md          (placeholders)
   react/        react-coding-standards.md, react-routing.md, react-state-management.md,
-                react-performance.md, react-architecture.md, react-api-service-layer.md  (placeholders)
+                react-performance.md, react-architecture.md, react-api-service-layer.md  (authored, REACT-* IDs)
 
 templates/                          (flat — shared pipeline artifacts, now platform-aware)
   feature-analysis-template.md, dd-template.md, dev-plan-template.md (feature plan),

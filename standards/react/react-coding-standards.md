@@ -28,7 +28,7 @@ Rank 5 never overrides a valid rank-2 repository convention. Absence of a conven
 
 **ID scheme.** Every React rule is prefixed `REACT-` followed by a topic segment and a number (`REACT-TS-1`, `REACT-ARCH-LAYERS-1`, `REACT-ROUTE-URL-1`, `REACT-STATE-SLICE-1`, `REACT-PERF-CWV-1`, `REACT-TV-FOCUS-1`). The `REACT-` prefix is mandatory on every family so React IDs never collide with the React Native (`RN-*` and the bare `ARCH-*`/`API-*`/`STATE-*`/`NAV-*` families it owns), Android (`AND-*`), or iOS (`IOS-*`) modules. **Do not reuse an `RN-*`/`AND-*`/`IOS-*` ID or a bare RN topic family for a React rule.** Shared standards keep their own prefixes (`SEC-*`, `A11Y-*`, `I18N-*`, `REL-*`, `QA-*`) and are cited, not re-authored, by React documents.
 
-> The coding-standards families below (`REACT-TS/FC/NAME/PROPS/LINT`) are frozen by this document. The **full** lane ID skeleton across all six React standards is frozen and its cross-references reconciled in REACT-001-7; cross-references in this file to documents not yet authored are marked *(reconciled in REACT-001-7)*.
+> The coding-standards families below (`REACT-TS/FC/NAME/PROPS/LINT`) are frozen by this document. The **full** lane ID skeleton across all six React standards was frozen in REACT-001-7 (2026-08-16) — no rule is renumbered after that point, because REACT-002 agents and skills cite these IDs. All six standards are authored and every intra-lane cross-reference resolves to a defined ID.
 
 ## TypeScript Strictness
 
@@ -46,7 +46,7 @@ Applies to TypeScript repositories. In a JavaScript-only repository this section
 - `REACT-FC-3` Hooks follow the Rules of Hooks (no conditional or looped hook calls); the `eslint-plugin-react-hooks` rules are not disabled to work around a violation — the code is restructured instead.
 - `REACT-FC-4` Side effects live in `useEffect`/`useLayoutEffect` (or an equivalent data hook) with a complete, accurate dependency array — not in the render body. Rendering stays a pure function of props and state.
 - `REACT-FC-5` An effect that attaches a DOM event listener, timer, subscription, or observer (`addEventListener`, `setInterval`, `matchMedia`, `ResizeObserver`, `IntersectionObserver`, `MutationObserver`, a store/WebSocket subscription) returns a cleanup that tears it down. A listener or observer added without a matching cleanup is a defect — it leaks and double-binds across re-renders.
-- `REACT-FC-6` Data fetched inside an effect is cancellable: abort the in-flight request (`AbortController`, or the repository's data-layer cancellation) on unmount and on a dependency change, so a resolved response cannot set state on an unmounted component or let a stale response overwrite a newer one. (Service-layer cancellation conventions will be defined in `react-api-service-layer.md` — *reconciled in REACT-001-7*.)
+- `REACT-FC-6` Data fetched inside an effect is cancellable: abort the in-flight request (`AbortController`, or the repository's data-layer cancellation) on unmount and on a dependency change, so a resolved response cannot set state on an unmounted component or let a stale response overwrite a newer one. (Service-layer cancellation conventions are defined in `react-api-service-layer.md`, `REACT-API-ASYNC-1`.)
 - `REACT-FC-7` Effects tolerate React's development-mode double-invocation (setup → cleanup → setup, observable under StrictMode on React 18+; where it does not apply the idempotency requirement still holds): setup is idempotent and always paired with a cleanup that fully reverses it. Correctness must not depend on an effect running exactly once — a "fire once" side effect belongs to an event handler or a guarded ref, not to raw effect-body code.
 
 ## Naming & File Conventions
@@ -75,7 +75,7 @@ Applies to TypeScript repositories. In a JavaScript-only repository this section
 ## References
 
 - This document is a living baseline; reviewers flag standards gaps found during review rather than working around them silently.
-- Companion React standards (cross-references *reconciled in REACT-001-7*): `standards/react/react-architecture.md`, `standards/react/react-routing.md`, `standards/react/react-state-management.md`, `standards/react/react-api-service-layer.md`, `standards/react/react-performance.md`.
+- Companion React standards (all authored; cross-references frozen in REACT-001-7): `standards/react/react-architecture.md`, `standards/react/react-routing.md`, `standards/react/react-state-management.md`, `standards/react/react-api-service-layer.md`, `standards/react/react-performance.md`.
 - Shared standards that sit alongside these general coding rules and are cited (not restated) by React reviews: `standards/shared/accessibility.md` (`A11Y-*`), `standards/shared/i18n-rtl.md` (`I18N-*`), and `standards/shared/mobile-security.md` (web rules `SEC-WEB-*`, `SEC-COOKIE-*`).
 
 ## External references

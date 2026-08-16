@@ -40,7 +40,7 @@ This document inherits the **React lane conventions** in `standards/react/react-
 
 **[Applies where the app fetches on the server — Next.js, Remix, RSC, or custom SSR. For a purely client-rendered SPA this section is N/A; do not raise its rules as findings.]**
 
-- `REACT-API-SSR-1` Data fetched during the server render populates the client's data cache on hydration, so the same data is not re-requested by a client effect after load. (Where the *route-level* loader / server-data decision lives is owned by `REACT-ROUTE-SSR-2` in `standards/react/react-routing.md`; this rule owns only the data layer's participation — cache hydration — in it. Boundary *reconciled in REACT-001-7*.)
+- `REACT-API-SSR-1` Data fetched during the server render populates the client's data cache on hydration, so the same data is not re-requested by a client effect after load. (Where the *route-level* loader / server-data decision lives is owned by `REACT-ROUTE-SSR-2` in `standards/react/react-routing.md`; this rule owns only the data layer's participation — cache hydration — in it. Boundary frozen in REACT-001-7.)
 - `REACT-API-SSR-2` A request issued on the server forwards the incoming request's credentials/cookies deliberately and scoped to that one request — one user's credentials are never reused across requests — and repeated identical fetches within a single render are deduplicated.
 
 ## Normalized Error Shapes
@@ -53,7 +53,7 @@ This document inherits the **React lane conventions** in `standards/react/react-
 
 - This document is a living baseline; reviewers flag data-layer gaps found during review rather than working around them silently.
 - Where a repo already uses a specific data-fetching library, `repo-analyst`'s detection identifies it and these concept-level rules are applied to that library's constructs.
-- Companion React standards: `standards/react/react-coding-standards.md` (authored — governing conventions; `REACT-FC-6`) and `standards/react/react-routing.md` (authored — `REACT-ROUTE-SSR-2`); and `standards/react/react-state-management.md`, `standards/react/react-architecture.md`, `standards/react/react-performance.md` (cross-references *reconciled in REACT-001-7*).
+- Companion React standards: `standards/react/react-coding-standards.md` (authored — governing conventions; `REACT-FC-6`) and `standards/react/react-routing.md` (authored — `REACT-ROUTE-SSR-2`); and `standards/react/react-state-management.md`, `standards/react/react-architecture.md`, `standards/react/react-performance.md` (all authored; cross-references frozen in REACT-001-7).
 - Shared standards cited (not restated) here: `standards/shared/mobile-security.md` (`SEC-COOKIE-1`, `SEC-COOKIE-2`, `SEC-WEB-3`, `SEC-WEB-6`, `SEC-SECRETS-2`, `SEC-LOG-1`).
 
 ## External references
