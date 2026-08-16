@@ -250,6 +250,15 @@ Two constraints belong in the request's text: a Debug or Simulator timing is **n
 
 **Name the mechanism; do not run it, and do not name a tool the repository has not adopted.**
 
+Consult these only when a request needs the mechanism's own limits or setup — not to learn what a rule means, which is the standard's job:
+
+| When | Source |
+|---|---|
+| Separating a hitch from a hang, or choosing between the responsiveness instruments | [Analyzing responsiveness issues](https://developer.apple.com/documentation/xcode/analyzing-responsiveness-issues-in-your-shipping-app) |
+| Confirming what a sanitizer does and does not detect, and where it can run | [Diagnosing memory, thread and crash issues early](https://developer.apple.com/documentation/xcode/diagnosing-memory-thread-and-crash-issues-early) |
+| Identifying what runs before `main`, and what a launch measurement covers | [Reducing your app's launch time](https://developer.apple.com/documentation/xcode/reducing-your-app-s-launch-time) |
+| Checking a field metric's availability, cadence and payload shape | [MetricKit](https://developer.apple.com/documentation/metrickit) |
+
 ## 14. What each pass returns
 
 Each pass returns **only its own** material, to the caller. Neither writes a document, and neither can see the other's findings.
