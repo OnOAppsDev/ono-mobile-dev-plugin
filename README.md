@@ -22,7 +22,7 @@ claude --plugin-dir /path/to/ono-mobile-dev-plugin
 ## What this plugin supports
 
 - **React Native** — the plugin's original, most fully-built-out platform. Full standards, skills, and agents.
-- **Native iOS** — routing, platform detection, and folder structure are fully wired up. The five iOS **standards are authored** (IOS-001) with citable `IOS-*` IDs, and the **planning lane is authored** (IOS-002) — `ios-architect` plus the `ios-dev-planning` skill, so `/analyze-feature`, `/dev-design-start`, and `/dev-feature-start` produce grounded, standards-cited iOS output. The implementation and review lanes are still structure-only placeholders (see [Plugin internals](#plugin-internals)) pending IOS-003/004, and tvOS-context sections are pending ATV-001/002.
+- **Native iOS** — routing, platform detection, and folder structure are fully wired up. The five iOS **standards are authored** (IOS-001) with citable `IOS-*` IDs, and the **planning lane is authored** (IOS-002) — `ios-architect` plus the `ios-dev-planning` skill, so `/analyze-feature`, `/dev-design-start`, and `/dev-feature-start` produce grounded, standards-cited iOS output. The **implementation lane is authored** (IOS-003) — `ios-feature-developer` plus the `ios-feature-implementation` skill, so `/implement-task` produces grounded, standards-cited iOS work and the iOS halves of `/fix-review-comments` and `/create-dev-qa-notes` are served. The review lane is still a structure-only placeholder (see [Plugin internals](#plugin-internals)) pending IOS-004, and tvOS-context sections are pending ATV-001/002.
 - **Native Android** — routing, platform detection, and folder structure are fully wired up; the standards/skills/agents themselves are currently structure-only placeholders (see [Plugin internals](#plugin-internals)) waiting to be authored.
 - **React (web)** — a plain browser SPA (Vite/CRA/Next.js), not React Native for Web. Also structure-only placeholders today. Kept as a fully separate module from React Native despite overlapping JS/TS/React fundamentals, since the two target genuinely different runtimes (browser vs. native shell).
 - **Mixed repos** — a React Native repo with native iOS and/or Android changes, or a native monorepo containing both an iOS and an Android project, or a monorepo pairing a React web app with an RN/native app.
@@ -219,14 +219,14 @@ skills/                             (flat, one level — prefix = scope)
   planning-doc-migration/           (loads a planning document through the migration framework; the single frontmatter compatibility layer)
   dev-design-start/  dev-feature-start/    (shared design + task-generation stages)
   rn-dev-planning/  rn-feature-implementation/  rn-code-review/
-  ios-dev-planning/ ios-feature-implementation/ ios-code-review/      (feature-implementation + code-review are placeholders)
+  ios-dev-planning/ ios-feature-implementation/ ios-code-review/      (code-review is a placeholder)
   android-dev-planning/ android-feature-implementation/ android-code-review/  (placeholders)
   react-dev-planning/   react-feature-implementation/   react-code-review/    (placeholders)
 
 agents/                             (flat)
   repo-analyst.md  mobile-security-reviewer.md  mobile-release-engineer.md
   rn-architect.md  rn-feature-developer.md  rn-code-reviewer.md  rn-performance-reviewer.md
-  ios-architect.md ios-feature-developer.md ios-code-reviewer.md ios-performance-reviewer.md      (all but ios-architect are placeholders)
+  ios-architect.md ios-feature-developer.md ios-code-reviewer.md ios-performance-reviewer.md      (the two reviewers are placeholders)
   android-architect.md android-feature-developer.md android-code-reviewer.md android-performance-reviewer.md  (placeholders)
   react-architect.md   react-feature-developer.md   react-code-reviewer.md   react-performance-reviewer.md    (placeholders)
 
