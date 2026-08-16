@@ -76,9 +76,9 @@ The repository determines the code; the **installed toolchain determines what ca
 1. `xcodebuild -version` — record it; the result-reading branch in [§11](#11-build-stage-evidence) depends on it. Never hardcode a version.
 2. Container: a `.xcworkspace` makes `-workspace` **and** `-scheme` mandatory; a bare `.xcodeproj` does not require `-scheme`, but omitting it silently builds the first target in project order — always pass one. A `Package.swift` root is a third case.
 3. `xcodebuild -list -json 2>/dev/null` — the scheme inventory (JSON on stdout, noise on stderr). **An empty or missing scheme list is a stop-and-report condition**, not something to route around with `-target`.
-4. `xcodebuild -showTestPlans -scheme <S> -json` — if any plan exists, **every test invocation must pass `-testPlan`**; otherwise the scheme's default plan silently governs the target set, coverage and parallelism.
-5. `xcodebuild -showdestinations -scheme <S>` — pin one simulator **UDID** and reuse it. Corroborate with `xcrun simctl list devices available --json`.
-6. Record whether `Package.resolved`, `Podfile.lock` and `*.xcconfig` exist, and whether `XCODE_XCCONFIG_FILE` is set in the environment — it **overrides every other setting, including command-line ones**.
+4. `xcodebuild -showTestPlans -scheme <S> -json` — if any plan exists, **every test invocation must pass `-testPlan`**; otherwise the scheme's default plan silently governs the target set, coverage and parallelism. If the command errors, treat the repository as having no plan and say so rather than assuming one.
+5. `xcodebuild -showdestinations -scheme <S>` — pin one simulator **UDID** and reuse it, corroborated against `xcrun simctl list devices available --json`. If no simulator destination is available, **stop and report it** — do not fall back to a device destination, which drags in signing you are not there to solve.
+6. Record whether `Package.resolved`, `Podfile.lock` and `*.xcconfig` exist. If `XCODE_XCCONFIG_FILE` is set in the environment, **stop and report it** before building: it overrides every other setting *including command-line ones*, so any build you run is not the build you specified.
 
 ### Probe traps
 
@@ -143,10 +143,10 @@ Apply these as you write, grounded in what [§4](#4-what-design-handed-over-and-
 | SwiftUI/UIKit interop | Bridge at the boundary the repo already uses; do not introduce a second UI family into a surface | `IOS-UI-INTEROP-*`, `IOS-UI-FRAMEWORK-3` |
 | Navigation | Reuse existing destinations and argument models; validate deep-link inputs; no navigation from data or domain layers | `IOS-ARCH-NAV-*`, `SEC-DEEPLINK-*` |
 | Data & persistence | Use the stack the repo already uses; migrate on schema change; never clear user data to dodge a migration; keep disk work off the main thread | `IOS-ARCH-DATA-1`, `SEC-STORAGE-*` |
-| Networking | Go through the repo's client and auth layer, never an ad-hoc request at a call site; follow approved DD contracts exactly — invent no paths, fields or response shapes; never log tokens, bodies or PII. **If a backend contract is unconfirmed, stop** | `IOS-ARCH-DATA-5`, `SEC-AUTH-*`, `SEC-NET-*`, `SEC-LOG-*` |
+| Networking | Go through the repo's client and auth layer, never an ad-hoc request at a call site; follow approved DD contracts exactly — invent no paths, fields or response shapes. **If a backend contract is unconfirmed, stop** | `IOS-ARCH-DATA-5`, `SEC-AUTH-*`, `SEC-NET-*` |
 | Performance | Avoid main-thread work and unbounded growth; use the repo's image pipeline; consider launch, render and size impact. **Never assert a magnitude from reading code** — measure it or file it as a measurement request | `IOS-PERF-*`, `IOS-PERF-MEASURE-1` |
-| Security & privacy | Approved secure storage; validate external input; no weakened transport security; least-privilege permissions at point of need | `SEC-SECRETS-*`, `SEC-STORAGE-*`, `SEC-NET-*`, `SEC-PERMS-*` |
-| Diagnostics & analytics | Reuse existing logging and analytics conventions; only the events the DD requires; no PII; debug logging gated | `IOS-SWIFT-LOG-*`, `IOS-SWIFT-ANALYTICS-*`, `SEC-LOG-*` |
+| Security & privacy | Approved secure storage; validate external input; no weakened transport security; least-privilege permissions at point of need. **Never log tokens, request bodies or PII** — this row owns that rule for every surface above | `SEC-SECRETS-*`, `SEC-STORAGE-*`, `SEC-NET-*`, `SEC-PERMS-*`, `SEC-LOG-*` |
+| Diagnostics & analytics | Reuse existing logging and analytics conventions; only the events the DD requires; debug logging gated | `IOS-SWIFT-LOG-*`, `IOS-SWIFT-ANALYTICS-*` |
 | Build & configuration | Do not change deployment target, language mode or signing configuration to make code compile; a new dependency needs a stated cost | `IOS-BUILD-CONFIG-3`, `IOS-BUILD-DEP-*`, `IOS-ARCH-MODULE-5` |
 
 The rows are a checklist, not a ladder — the file being changed decides which UI family applies (`IOS-UI-FRAMEWORK-1`).
@@ -189,7 +189,7 @@ Gate any coverage or test-results read on `xcrun xcresulttool get content-availa
 
 Run the project's configured Swift analysis and formatting tools the way the repository invokes them, and record the result (`IOS-SWIFT-LINT-1`); where the repository configures none, say so rather than substituting one.
 
-Record, per acceptance criterion, the exact command run and its structured result. **Never claim a command passed that you did not run**, and when a tool, simulator runtime, credential or backend is unavailable, state precisely what could not be verified rather than narrowing the claim silently.
+Record, per acceptance criterion, the exact command run and its structured result, and what could not be verified — [§15](#15-verification-reach--what-you-may-claim) governs what may be claimed.
 
 ## 12. Tests: detect the regime, then write to it
 
@@ -198,7 +198,7 @@ The repository's testing regime is discovered, never chosen. Record five things 
 | Question | Evidence |
 |---|---|
 | Which unit framework? | `import Testing` + `@Test`/`@Suite`/`#expect` vs `import XCTest` + `: XCTestCase`/`XCTAssert*`/`func test…()` |
-| Which regime is *current*? | Recency of the tests nearest the code being changed — **not** repo-wide counts |
+| Which regime is *current*? | The convention of the nearest neighbouring code in the same target, by the most recent commit touching it — **not** repo-wide counts. Where that is ambiguous, report the ambiguity rather than picking |
 | What kind of target? | `project.pbxproj` `productType` `…bundle.unit-test` vs `…bundle.ui-testing`; `TEST_HOST`/`BUNDLE_LOADER` ⇒ app-hosted unit tests; `.testTarget` in `Package.swift` ⇒ SwiftPM, unit only |
 | How does CI actually run them? | `.github/workflows/*`, `fastlane/Fastfile`, `Makefile`, `*.sh` — grep `xcodebuild test`, `-testPlan`, `-only-testing:`, `swift test`. **Authoritative over any invocation you invent** |
 | Which support libraries? | `Package.resolved`/`Podfile.lock`. A `__Snapshots__/` directory means a golden-image contract exists |
@@ -257,7 +257,7 @@ Detect the repository's conventions before writing; introduce nothing app-wide f
 | Dimension | Evidence to collect |
 |---|---|
 | Localization system | `*.xcstrings` (String Catalog) vs `*.strings`/`*.stringsdict` (string tables). Both present ⇒ follow the file the neighbouring feature uses; neither is the target of a migration |
-| Localization API | counts of `String(localized:` vs `NSLocalizedString(` vs `LocalizedStringResource` **in the target module** |
+| Localization API | `String(localized:` vs `NSLocalizedString(` vs `LocalizedStringResource` — resolved the same way as the testing regime above: nearest neighbouring code in the same target, most recently touched |
 | Vendor pipeline or generator | `crowdin.yml`, `.lokalise`, `phrase.yml`, `swiftgen.yml`, `L10n.`/`R.string` accessors ⇒ **hard stop on hand-editing**; strings enter through that tool's source of truth |
 | Shipped languages | `*.lproj` directories / `knownRegions`. An `ar.lproj` or `he.lproj` makes RTL a shipping requirement |
 | Identifier convention | `accessibilityIdentifier` usage and any central identifier enum |
@@ -282,7 +282,7 @@ Determine which tier a check falls in **before** reporting it. Overclaiming is t
 
 - `try app.performAccessibilityAudit()` in a UI test, run **once per new or changed screen** — the audit is screen-scoped, so one call is not coverage. It fails the test by itself. Requires an **OS version of iOS 17 / tvOS 17 / watchOS 10 / macOS 14 or later** — the floor is the OS the test runs against, simulator or device, not the Xcode version.
 - Audit types are platform-dependent: element description, hit region, contrast and element detection everywhere; **clipped text, traits and Dynamic Type on iOS/tvOS/watchOS only**.
-- Re-run the flow with double-length and right-to-left pseudolocalization launch arguments, and with `xcrun simctl ui <UDID> content_size accessibility-extra-extra-extra-large`, `increase_contrast enabled`, and `appearance dark`.
+- Re-run the flow with double-length and right-to-left pseudolocalization launch arguments, and under each accessibility setting the platform exposes — Tier 3 names the complete set and how to reach the ones `simctl ui` does not.
 - Confirm new keys reached the catalogue — a `git diff` on `*.xcstrings`, or `xcodebuild -exportLocalizations` and check the XLIFF.
 - Static greps: hardcoded font sizes, fixed text-container heights, `left`/`right` anchors, non-literal `Text(…)`, identifier equal to label.
 
