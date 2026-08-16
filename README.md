@@ -132,6 +132,10 @@ Taking a feature from idea to release (this example is React Native; the flow is
 # 7. Hand off to QA
 /create-dev-qa-notes biometric-login
 
+#    → writes docs/qa/biometric-login-qa-handoff.md with status: draft, and records
+#      qa_handoff_link in the task breakdown
+#    → a human reviews it and flips status to ready-for-qa
+
 # 8. When the release train is ready, validate shippability
 /prepare-mobile-release 2.14.0
 ```
@@ -149,7 +153,7 @@ The pipeline is deliberately gated: `/dev-design-start` refuses to run on a feat
 | `/review-code` | scope (optional) | Detects touched platform(s) from the diff; reviews for correctness, style, standards-adherence, and performance using shared + platform-specific standards; defaults to the current diff against the base branch |
 | `/review-security` | scope (optional) | Always uses the shared mobile security standards; adds platform-specific concerns/examples only when relevant |
 | `/fix-review-comments` | review-notes path | Root-causes findings (grouped by platform for a mixed review) and delegates each fix to the matching platform's feature-developer agent |
-| `/create-dev-qa-notes` | feature name | Writes shared QA handoff notes with platform-specific build/install/testing instructions |
+| `/create-dev-qa-notes` | feature name | Writes shared QA handoff notes with platform-specific build/install/testing instructions to `docs/qa/{FEATURE-NAME}-qa-handoff.md` as `status: draft`, then records `qa_handoff_link` in the task breakdown |
 | `/prepare-mobile-release` | version | Validates shippability with a shared checklist plus platform-specific release validation for every platform the release ships |
 
 ## Pipeline
