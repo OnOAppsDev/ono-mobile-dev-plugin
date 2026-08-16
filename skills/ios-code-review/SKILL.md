@@ -153,7 +153,7 @@ Files matching no bucket are **Not Applicable / Skipped** with a one-line reason
 
 ## 7. Lane ownership and the merge contract
 
-`swift-standards.md` § *Lane boundaries* is authoritative for both the root→owner routing and the **one defect, one finding** table. **Apply that table; this file does not copy it** — a second copy drifts, and has.
+`swift-standards.md` § *Lane boundaries* is authoritative for both the root→owner routing and the **one defect, one finding** table. **Apply that table; this file does not copy it.** A second copy drifts from the original, and both passes already read the governing block ([§0](#0-standards-readiness-gate)), so a copy buys nothing.
 
 **The ID's own root decides the owner, not the file it appears in.** All five `standards/ios/*` files cite IDs rooted in another family; that is cross-referencing, not reassignment.
 
