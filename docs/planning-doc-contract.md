@@ -430,6 +430,18 @@ Recorded so a later author does not discover them the hard way.
   markers must be recovered retroactively from git history the way the Feature
   Analysis table above was, and the pre-0.5.0 variants in the wild must be
   tolerated by its v1→v2 step.
+- **`qa_handoff_link` on the task breakdown is additive and deliberately outside
+  the version chain.** `/create-dev-qa-notes` writes it into an already-approved
+  breakdown after the QA handoff is generated (`QA-LINK-1` in
+  `standards/shared/qa-handoff.md`), and does **not** bump
+  `doc_schema_version`. That is safe by construction: extra fields never
+  participate in detection, untouched lines are re-emitted byte-verbatim, and the
+  field is written by a command rather than by a migration step, so neither
+  overwrite path is involved. It is recorded here so a later author does not read
+  a `task-breakdown` v1 document carrying an unlisted key as drift. If
+  `task-breakdown` ever gains a v2 for other reasons, fold this field into that
+  version's shape then — do not author a version for it alone, since nothing
+  needs migrating: a breakdown without the key simply has no handoff yet.
 - **`/implement-task` is still not wired to the loader**, even though `dd` now has
   a chain. It resolves the DD, the dev plan, the task breakdown and the feature
   analysis from frontmatter links and reads fields that exist in every version;

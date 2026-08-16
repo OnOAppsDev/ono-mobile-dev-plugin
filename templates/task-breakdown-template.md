@@ -6,6 +6,7 @@ feature: # feature name/slug — must match the DD and Dev Plan for this feature
 feature_analysis_link: # path to the approved feature analysis (the generated feature file, NOT templates/feature-analysis-template.md)
 dd_link: # path to the approved DD (the generated {FEATURE-NAME}-DD.md, NOT templates/dd-template.md)
 dev_plan_link: # path to the approved Dev Plan (the generated feature plan file, NOT templates/dev-plan-template.md)
+qa_handoff_link: # path to the QA handoff doc (docs/qa/{FEATURE-NAME}-qa-handoff.md). Left EMPTY at generation and filled by /create-dev-qa-notes once the feature is implemented — /dev-feature-start never invents a value here. See QA-LINK-1 in standards/shared/qa-handoff.md.
 design_reference_status: # provided | not_required — carried over from the DD / Dev Plan. /implement-task reads this before implementing UI tasks.
 design_reference_type: # figma | document | screenshots | existing_ui | other | none — carried over from the DD / Dev Plan
 design_reference: # the non-Figma design reference (URL, file path, document location, or precise existing-screen/component reference) — carried over from the DD / Dev Plan. null when the type is `figma` or `none`.
