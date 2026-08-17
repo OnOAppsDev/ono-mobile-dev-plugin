@@ -9,9 +9,29 @@ version below is the plugin's own `version` in
 
 ## [Unreleased]
 
-REACT-001 — the six React (web) standards.
+REACT-001 — the six React (web) standards. REACT-002 — the four React agents and
+three React skills.
 
 ### Added
+- `agents/react-architect.md` + `skills/react-dev-planning/SKILL.md` (REACT-002-1),
+  `agents/react-feature-developer.md` + `skills/react-feature-implementation/SKILL.md`
+  (REACT-002-2), and `agents/react-code-reviewer.md` +
+  `agents/react-performance-reviewer.md` + `skills/react-code-review/SKILL.md`
+  (REACT-002-3) — the React (web) planning, implementation, and review lanes, replacing
+  the structure-only placeholders. Thin agents, thick skills, mirroring the React Native
+  and Android lanes. Every lane opens with a standards-readiness gate that stops on a
+  placeholder standard, assumes no bundler/framework/router/state/data library, honors
+  `device_type` (`mobile`/`tv`) with no silent default, and cites only the frozen
+  `REACT-*` IDs plus the shared `A11Y-*`/`I18N-*`/`SEC-*` rules — never React Native's
+  `RN-*` or the bare `ARCH-*`/`API-*`/`STATE-*`/`NAV-*` families. The review lane adds
+  the four-category filing gate (repository convention / architecture / a `REACT-*`
+  standard / a shared standard), lane separation by ID root (`REACT-PERF-*` to the
+  performance reviewer, everything else to the code reviewer), and performance magnitude
+  written as a measurement request rather than an asserted number. Security defers
+  entirely to the shared `mobile-security-reviewer`. Flipping these markers opens the
+  React routes in `/analyze-feature`, `/dev-design-start`, `/dev-feature-start`,
+  `/implement-task`, `/fix-review-comments`, `/create-dev-qa-notes`, `/review-code`, and
+  `/prepare-mobile-release`.
 - `standards/react/react-coding-standards.md`, `react-architecture.md`,
   `react-api-service-layer.md`, `react-routing.md`, `react-state-management.md`,
   `react-performance.md` — the React (web) standards, replacing the structure-only
@@ -20,11 +40,13 @@ REACT-001 — the six React (web) standards.
   family carries the `REACT-` prefix so IDs never collide with the React Native,
   Android, or iOS modules. Repository-first and framework-neutral (no assumed stack),
   citing the shared `SEC-WEB-*`/`SEC-COOKIE-*`/`A11Y-*` rules for web security and
-  accessibility. The lane ID skeleton is frozen (REACT-001-7); the React skills and
-  agents remain placeholders pending REACT-002.
+  accessibility. The lane ID skeleton is frozen (REACT-001-7), which is what let the
+  REACT-002 agents and skills above cite stable IDs.
 
 ### Changed
-- `README.md` — the React standards are no longer described as placeholders.
+- `README.md` — the React standards, skills, and agents are no longer described as
+  placeholders; the React (web) summary now states that all three lanes are authored,
+  with Smart TV context (`REACT-TV-*`) still pending REACT-003.
 
 ## [0.5.0] - 2026-08-12
 

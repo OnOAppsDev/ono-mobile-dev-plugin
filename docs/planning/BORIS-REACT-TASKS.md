@@ -152,9 +152,15 @@ All six React standards are authored and their IDs are **frozen** — no rule is
 
 ## Progress log & resume state
 
-**REACT-001 EPIC COMPLETE (2026-08-16).**
+**REACT-001 EPIC COMPLETE (2026-08-16). REACT-002 EPIC COMPLETE (2026-08-17).**
 
 **Done**
+- **REACT-002-1..3** ✓ — all four React agents and three React skills authored against the frozen `REACT-*` IDs, thin-agent/thick-skill, mirroring the RN and Android lanes.
+  - **002-1** planning lane — `agents/react-architect.md` + `skills/react-dev-planning/SKILL.md` (§0 readiness gate, four-class classification, repo knowledge only via `repo-knowledge-consumer`, React detection traps).
+  - **002-2** implementation lane — `agents/react-feature-developer.md` + `skills/react-feature-implementation/SKILL.md` (reads `platform` **and** `device_type` with no silent `mobile` default, per-surface standards mapping, design-reference gate, security defers to `mobile-security-reviewer`, step-7 applied-ID trace).
+  - **002-3** review lane — `agents/react-code-reviewer.md` + `agents/react-performance-reviewer.md` + `skills/react-code-review/SKILL.md` (four-category filing gate; lane separation by ID root — `REACT-PERF-*` → perf reviewer, everything else → code reviewer; the two perf-reviewer call sites `/review-code` + `/prepare-mobile-release`; magnitude as measurement request; reviewers never fix code; no-aside stance inherited, not re-decided).
+  - Verification pass: 37 distinct `REACT-*` IDs and 9 shared IDs cited across the three review-lane files all resolve to defined rules; every referenced repo path exists; all 11 intra-document anchors resolve; no `RN-*`/`AND-*`/`IOS-*` ID leaked.
+  - Placeholder markers flipped for all seven React files; `README.md` and `CHANGELOG.md` claims corrected.
 - **REACT-001-1..7** ✓ — all six React web standards authored, each adversarially reviewed and committed, then the lane ID skeleton frozen and all cross-references reconciled (REACT-001-7). See the *Frozen REACT-001 ID skeleton* section above. Every standard carries a verified `## External references` section.
   - 001-1 coding-standards · 001-2 architecture · 001-3 api-service-layer · 001-4 routing · 001-5 state-management · 001-6 performance · 001-7 freeze.
 
@@ -164,15 +170,17 @@ All six React standards are authored and their IDs are **frozen** — no rule is
 3. **External-references pattern** = every standard closes with a rank-5 `## External references` section (see acceptance-bar item 10).
 
 **Next (in order)**
-- **REACT-002** — author the 4 React agents + 3 React skills against the now-frozen `REACT-*` IDs. Start with **REACT-002-1** (planning lane: `react-architect` + `react-dev-planning`). REACT-003 (Smart TV, `REACT-TV-*`) can overlap once REACT-002 begins.
+- **REACT-003** — Smart TV via `device_type: tv`. Start with **003-1** (author `standards/react/react-smart-tv.md`, the `REACT-TV-*` families), then **003-2** (additive `device_type:tv` branches into the base docs — never renumber frozen REACT-001 IDs), then **003-3** (state the `device_type` contract in the 3 skills + 4 agents, now that all REACT-002 bodies exist). Note for 003-3: every REACT-002 file currently says `REACT-TV-*` is unauthored/not citable and records TV coverage as pending REACT-003 — those are the exact lines 003-3 updates.
+- Day-one checklist item still open: confirm the `react-smart-tv.md` filename and whether media playback/lifecycle are in React's Smart TV scope (else record an explicit `N/A — reason`).
 
-**Deferred — need a deliberate decision (not blockers for REACT-002)**
-- **Completion-plan dashboard** (`PLUGIN_COMPLETION_PLAN.html`) still shows React as placeholder in its exec summary, readiness matrix, owner-workload, and inventory row. Left for a *full, consistent* status pass rather than a one-row patch (it's the shared team dashboard). REACT-001 = 6/6 standards done for that update.
-- **Version bump / release** — REACT-001 is logged under `## [Unreleased]` in CHANGELOG; bumping `plugin.json` (e.g. → 0.6.0) is a release decision for the Plugin Owner, not done here.
+**Deferred — need a deliberate decision (not blockers for REACT-003)**
+- **Completion-plan dashboard** (`PLUGIN_COMPLETION_PLAN.html`) still shows React as placeholder in its exec summary, readiness matrix, owner-workload, and inventory row. Left for a *full, consistent* status pass rather than a one-row patch (it's the shared team dashboard). For that update: REACT-001 = 6/6 standards done, REACT-002 = 4/4 agents + 3/3 skills done.
+- **Version bump / release** — REACT-001 and REACT-002 are logged under `## [Unreleased]` in CHANGELOG; bumping `plugin.json` (e.g. → 0.6.0) is a release decision for the Plugin Owner, not done here.
+- **Stale non-React status claims in `README.md`** — lines describing the **Android** lane (summary bullet, the `skills/` and `agents/` trees, `standards/android/`) still say "placeholders", but `android-architect`, `android-code-reviewer`, `android-performance-reviewer`, `android-code-review`, and the ten `standards/android/*` docs are authored; the iOS trees have the same drift. Not touched here — it belongs to those lanes' own claims pass, not React's.
 
 **Where the work lives**
 - Branch: **`feat/react-001-coding-standards`**. ⚠️ The working clone is a *temporary* checkout — the durable copy is whatever was pushed to the remote / copied out (see the pause handoff).
 
 **To resume on Sunday**
 - The session task tracker (#1–#13) is session-scoped and will not persist — rebuild it from the *REACT-001 / -002 / -003* epic tables above (ask Claude to "recreate the React task tracker from BORIS-REACT-TASKS.md"). Durable memory (`ono-plugin-completion-program`) also records this state.
-- Re-clone/checkout the branch, confirm `react-coding-standards.md` is present, and start REACT-001-2.
+- Re-clone/checkout the branch, confirm the seven React agent/skill files are authored (no "Status: Not yet authored" heading in any of them), and start REACT-003-1.

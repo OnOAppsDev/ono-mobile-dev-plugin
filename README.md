@@ -24,7 +24,7 @@ claude --plugin-dir /path/to/ono-mobile-dev-plugin
 - **React Native** — the plugin's original, most fully-built-out platform. Full standards, skills, and agents.
 - **Native iOS** — routing, platform detection, and folder structure are fully wired up. The five iOS **standards are authored** (IOS-001) with citable `IOS-*` IDs, and the **planning lane is authored** (IOS-002) — `ios-architect` plus the `ios-dev-planning` skill, so `/analyze-feature`, `/dev-design-start`, and `/dev-feature-start` produce grounded, standards-cited iOS output. The implementation and review lanes are still structure-only placeholders (see [Plugin internals](#plugin-internals)) pending IOS-003/004, and tvOS-context sections are pending ATV-001/002.
 - **Native Android** — routing, platform detection, and folder structure are fully wired up; the standards/skills/agents themselves are currently structure-only placeholders (see [Plugin internals](#plugin-internals)) waiting to be authored.
-- **React (web)** — a plain browser SPA (Vite/CRA/Next.js), not React Native for Web. The six React **standards are authored** (REACT-001) with citable `REACT-*` IDs (111 rules, ID skeleton frozen); the planning, implementation, and review lanes (skills + agents) remain structure-only placeholders pending REACT-002/003. Kept as a fully separate module from React Native despite overlapping JS/TS/React fundamentals, since the two target genuinely different runtimes (browser vs. native shell).
+- **React (web)** — a plain browser SPA (Vite/CRA/Next.js), not React Native for Web. The six React **standards are authored** (REACT-001) with citable `REACT-*` IDs (111 rules, ID skeleton frozen), and all three lanes are authored (REACT-002) — planning (`react-architect` + `react-dev-planning`), implementation (`react-feature-developer` + `react-feature-implementation`), and review (`react-code-reviewer` + `react-performance-reviewer` + `react-code-review`) — so the full pipeline produces grounded, `REACT-*`-cited output for React (web). Smart TV context (`device_type: tv`, the `REACT-TV-*` family) is pending REACT-003. Kept as a fully separate module from React Native despite overlapping JS/TS/React fundamentals, since the two target genuinely different runtimes (browser vs. native shell).
 - **Mixed repos** — a React Native repo with native iOS and/or Android changes, or a native monorepo containing both an iOS and an Android project, or a monorepo pairing a React web app with an RN/native app.
 
 The shared layer keeps its `mobile-*` naming (`mobile-repo-analysis`, `mobile-security-review`, `/prepare-mobile-release`, etc.) even though React (web) isn't literally mobile — Ono Apps is a mobile division that also owns a React web app, so the umbrella name stayed put rather than triggering a broader rename.
@@ -222,14 +222,14 @@ skills/                             (flat, one level — prefix = scope)
   rn-dev-planning/  rn-feature-implementation/  rn-code-review/
   ios-dev-planning/ ios-feature-implementation/ ios-code-review/      (feature-implementation + code-review are placeholders)
   android-dev-planning/ android-feature-implementation/ android-code-review/  (placeholders)
-  react-dev-planning/   react-feature-implementation/   react-code-review/    (placeholders)
+  react-dev-planning/   react-feature-implementation/   react-code-review/    (authored, REACT-002)
 
 agents/                             (flat)
   repo-analyst.md  mobile-security-reviewer.md  mobile-release-engineer.md
   rn-architect.md  rn-feature-developer.md  rn-code-reviewer.md  rn-performance-reviewer.md
   ios-architect.md ios-feature-developer.md ios-code-reviewer.md ios-performance-reviewer.md      (all but ios-architect are placeholders)
   android-architect.md android-feature-developer.md android-code-reviewer.md android-performance-reviewer.md  (placeholders)
-  react-architect.md   react-feature-developer.md   react-code-reviewer.md   react-performance-reviewer.md    (placeholders)
+  react-architect.md   react-feature-developer.md   react-code-reviewer.md   react-performance-reviewer.md    (authored, REACT-002)
 
 standards/
   shared/       mobile-security.md, accessibility.md, i18n-rtl.md, release-readiness.md, qa-handoff.md
