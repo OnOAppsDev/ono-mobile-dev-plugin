@@ -45,14 +45,20 @@ This table is enforceable, not advisory. Step 7 applies it.
 
 Generate a **decision-complete and minimal** Detailed Design, grounded in repository facts already captured by the Analyze stage, validated against the design, and ready for `/dev-feature-start` to consume. This skill **never** generates implementation tasks and **never** modifies source code.
 
-### Step 1 — Locate the approved feature analysis (input gate)
+### Step 1 — Preconditions (resolved by the command, never re-derived here)
 
-1. Resolve the feature name to its `templates/feature-analysis-template.md` from a prior `/analyze-feature` run.
-2. **Load it through the `planning-doc-migration` skill (`--kind feature-analysis`) before reading any field.** That skill is the single compatibility layer for planning-document frontmatter — an analysis written against an older contract is migrated in place (frontmatter only, body untouched) and you read exactly one shape. Never carry your own legacy-shape tolerance here and never hand-edit an analysis to make it load. On `needs-input`, resolve its batched questions with the developer first; on any other non-`current`/`migrated` status, stop and report it verbatim. When it reports a migration, carry the details into §23 Assumptions per Step 6.
-3. **Confirm its frontmatter `status` is `approved`.** If it is still `proposed`, stop and ask a human to review and approve it first — do not design against an unapproved analysis. Migration never changes approval, so a successfully migrated but unapproved analysis still stops here.
-4. Read the `platform` frontmatter field — this is authoritative, and is always exactly one of `react-native` / `react` / `ios` / `android`. **Do not re-run platform detection.** Read the design-reference fields too — `design_reference_status`, `design_reference_type`, `design_reference`, `figma_link` — all of which carry forward into the DD unchanged.
+`/dev-design-start` owns artifact resolution and the approval gate: it has already located the feature analysis, loaded it through the `planning-doc-migration` skill, confirmed `status: approved`, and read its authoritative context. **This skill receives the following and never re-derives any of it:**
 
-The approved feature analysis IS the specification for this DD: its Feature Request, repo-analyst's detected conventions, the architect's Proposed Technical Approach, and its recorded design reference are the inputs. Do not re-interrogate the developer for a spec path or a design reference that the analysis already carries, and do not restate the analysis's content in the DD — link it.
+- the path to the **approved feature analysis**;
+- `platform` — authoritative, and always exactly one of `react-native` / `react` / `ios` / `android`;
+- `device_type`;
+- the four design-reference fields — `design_reference_status`, `design_reference_type`, `design_reference`, `figma_link` — all of which carry forward into the DD unchanged;
+- this run's repository-knowledge resolution;
+- whether the loader reported a migration, and what it reported.
+
+If any of these is missing, **stop and report which one.** Do not locate, load, migrate, or approval-gate a planning document from here, and do not re-run platform detection — a second copy of those gates is how the two layers drift.
+
+The approved feature analysis IS the specification for this DD: its Feature Request, repo-analyst's detected conventions, the architect's Proposed Technical Approach, and its recorded design reference are the inputs. Do not restate the analysis's content in the DD — link it.
 
 ### Step 2 — Decide detail level and existing-file strategy
 
@@ -76,7 +82,7 @@ Ask the developer two things before generating:
 Read, in this order, everything that exists — do not skip any:
 
 1. The **approved feature analysis** (spec + detected conventions + proposed approach).
-2. The **design reference** recorded in the analysis: via the Figma MCP tool when `figma_link` is set (`design_reference_type: figma`), otherwise by reading whatever `design_reference` points at — a spec document, exported mockups/screenshots, or the existing screen/component named for `existing_ui`. If that reference cannot be accessed for any reason (auth, invalid URL, MCP unavailable, timeout, unreadable path, unresolvable screen name), stop immediately with the exact error and do not generate any part of the DD — the DD cannot be built without the design it depends on. When `design_reference_status: not_required` there is nothing to read here and nothing to ask for; skip this step. If the analysis describes new or changed UI yet carries no reference at all, stop and ask for one — a design reference is mandatory for UI work.
+2. The **design reference** the command resolved in its step 4, which owns the branch selection and both stop conditions (an inaccessible reference, and UI work with no reference at all). Read it and ground the design in it. When `design_reference_status: not_required` there is nothing to read here and nothing to ask for; skip this item.
 3. `docs/` and any architecture/integration/ADR notes, if present.
 4. **Canonical repository knowledge first, source inspection only for the gaps.** Apply the `repo-knowledge-consumer` skill, then:
    - Read the documents it reports reusable rather than re-deriving them: `docs/project/components.md` for existing screens, components, and hooks the design should reuse; `docs/project/patterns.md` for the state-management, API, navigation, styling, error-handling, and i18n conventions the design must follow; `docs/project/integrations.md` for the services and SDKs §11 and §21 will reference; and the `CLAUDE.md` structure pointers for the module map §20 builds on.
@@ -89,11 +95,10 @@ Read, in this order, everything that exists — do not skip any:
 
 ### Step 3a — Measure complexity (advisory; changes nothing)
 
-While the architect performs the Step 3 sweep, apply the `dd-complexity-assessment` skill: record its eleven signals from that same sweep and score them with `scripts/assess-dd-complexity.ts`. Report the returned `summary` in one line and carry the band into §Step 6's frontmatter as `dd_complexity_band`.
+The command triggers the `dd-complexity-assessment` skill against the Step 3 sweep and reports its `summary`. Two things follow for this methodology, and nothing else does:
 
-**The band is a measurement, not a routing decision.** There is exactly one generation path, and every band takes it — `high` and `unclassified` included. Do not branch on it, do not let it change the detail level chosen in Step 2, the §5–§18 scope call, the size triggers, or the Step 7 contraction pass, and do not add a prompt or a gate for it. Partitioned generation does not exist; the model is being calibrated against real features before it is permitted to influence anything.
-
-Never collect these signals with a second repository pass, and never guess one to avoid an `unclassified` result.
+1. Carry the band it returns into Step 6's frontmatter as `dd_complexity_band`.
+2. Nothing in this methodology reads it. The command's step 3a owns the no-branching guardrail; this skill simply has no rule that consults the band.
 
 ### Step 4 — Validate consistency
 
@@ -113,15 +118,17 @@ A gap that would **not** change a decision is not an Open Question — drop it. 
 
 Proceed to generation when this checkable condition holds: **every design decision in scope has either a recorded resolution or a blocking open question in §24.** If it does not, name the unresolved decision and ask how to proceed. Do not substitute volume for confidence — writing more never satisfies this condition.
 
+**This gap stop is the only one this methodology owns.** Every other stop in the stage belongs to the command — document resolution, loading and the approval gate in its step 1, the design reference in its step 4 — and each is defined there, once. Do not re-raise them here, and do not add a second stop for a condition the command already gates.
+
 ### Step 6 — Generate the DD
 
 Populate `templates/dd-template.md`. Apply the existing-file strategy chosen in Step 2. Place it where the repo keeps design docs (check `docs/` conventions) or at the repo root; default filename `{FEATURE-NAME}-DD.md`.
 
 **Section numbering is fixed.** `/dev-feature-start`, `templates/task-breakdown-template.md`, and the platform architects cross-reference §19, §20, §25, and §26 by number. Collapse a section's *content* where the rules below call for it — never renumber, merge, or delete a section heading.
 
-- **Frontmatter:** carry `platform`, `device_type`, and all four design-reference fields (`design_reference_status`, `design_reference_type`, `design_reference`, `figma_link`) from the feature analysis unchanged; set `feature_analysis_link` to the analysis path, `status: draft`, `detail_level`, `date`. Set `doc_schema_version` to the DD kind's current version per `docs/planning-doc-contract.md` — stamped at generation, **never copied from the analysis**, whose version describes a different document kind. Set `dd_generation: single` and `dd_complexity_band` to the band Step 3a measured (`unassessed` only when the assessment did not run). Both are recorded for the reader and for calibration; **nothing downstream reads either, and neither may change how this DD is written.** Also set the six `repo_knowledge_*` fields from **this run's** knowledge resolution — not copied from the analysis, since the repository may have moved since it was approved.
+- **Frontmatter — this is the complete field list for a DD:** carry `platform`, `device_type`, and all four design-reference fields (`design_reference_status`, `design_reference_type`, `design_reference`, `figma_link`) from the feature analysis unchanged; set `feature_analysis_link` to the analysis path, `author`, `status: draft`, `detail_level`, `date`. Set `doc_schema_version` to the DD kind's current version per `docs/planning-doc-contract.md` — stamped at generation, **never copied from the analysis**, whose version describes a different document kind. Set `dd_generation: single` and `dd_complexity_band` to the band Step 3a measured (`unassessed` only when the assessment did not run). Both are recorded for the reader and for calibration; **nothing downstream reads either, and neither may change how this DD is written.** Set the six `repo_knowledge_*` fields to the values the command's step 2 resolved for **this run** — never copied from the analysis, since the repository may have moved since it was approved.
 
-  **When Step 1 reported a migration**, record in §23 Assumptions: the version the analysis was migrated from; that any field named in its `migration_inputs` was supplied by a human at migration time rather than at approval time; and — for an analysis migrated from below v3 — that its `## Repo Conventions Detected` section is an embedded point-in-time observation rather than a citation, because the framework never rewrites bodies. Prefer canonical knowledge over that embedded snapshot where the two disagree, and note the disagreement there too.
+  **When the loader reported a migration**, record its provenance in §23 Assumptions exactly as the command's step 2 specifies — that instruction is the single definition of what §23 must carry, and it is not restated here.
 
 - **Cite upstream, never restate it.** §1–§3 summarise the feature in a few sentences and rely on `feature_analysis_link` for the rest — the analysis's Feature Request, Repo Context, and detected conventions are not copied into the DD. §19 records what this design decides **beyond** the analysis's Proposed Technical Approach, rather than re-deriving it. §22–§24 carry forward only items that are **still open**, not the analysis's full list.
 
@@ -141,9 +148,11 @@ Populate `templates/dd-template.md`. Apply the existing-file strategy chosen in 
 
   **`design_reference_status` is a strong default signal, not the decision.** `not_required` strongly indicates preserved behavior and `provided` strongly indicates changed behavior, but the semantic judgement above governs. A `not_required` feature that nonetheless alters observable behavior gets that behavior documented; a `provided` feature whose design turns out to be behavior-preserving still gets no enumerated inventory of what stays the same. Where the signal and the semantics disagree, follow the semantics and note the disagreement in §23 Assumptions.
 
-- **§19 Technical Implementation Approach — decisions, not evidence.** Delegate platform vocabulary and standard-ID citations to the dev-planning skill (`rn-/ios-/android-/react-dev-planning`) for the one confirmed platform, via that platform's architect. The feature analysis always carries exactly one confirmed platform, so this is always a single flat section — never platform-tagged subsections.
+- **§19 Technical Implementation Approach — decisions, not evidence.** §19's platform vocabulary and standard-ID citations arrive from the platform dev-planning skill the command routed to in its step 3; what this methodology governs is only what lands in the section. Because the command confirmed exactly one platform, §19 is always a single flat section — never platform-tagged subsections.
 
   **The architect's repository evidence sweep is research that informs this section; it is not this section's content.** The dimension-by-dimension survey, the `[evidence: <path>]` / `[reused: …]` / `[inference]` / `[unknown]` labelling, and any `device_type` discovery pass are the architect's working notes. §19 receives their **conclusions** — the decisions taken and the standard IDs each follows, with a path citation only where a decision genuinely rests on a specific one. Do not paste the survey. A reader who needs the full evidence base finds it in the feature analysis's Repo Context, not here.
+
+  **The sweep's dimensions and that labelling vocabulary belong to the platform dev-planning skill, not here.** This methodology neither defines nor requires them — it only excludes their raw form from the DD. Do not add a generic dimension list or a generic label set to this skill; a platform-independent layer cannot know what a platform must inspect.
 
 - **§20 Impacted Modules — modules and change classes, not files × edits.** Name the modules, packages, components, and services the feature touches; for each, state the **class** of change and, where the same change repeats, an approximate site count — for example "`:player` — all `SimpleExoPlayer` construction sites move to `ExoPlayer.Builder`, ~40 sites". Enumerate individual files only when a change class has roughly **ten or fewer** sites, or when a specific file carries a design decision of its own.
 
@@ -151,9 +160,7 @@ Populate `templates/dd-template.md`. Apply the existing-file strategy chosen in 
 
   Build on the module map via the `CLAUDE.md` structure pointers rather than re-deriving it, and name reused components from `docs/project/components.md` by path — a "new" component that already exists is the most common failure this section prevents. Mark a genuinely undetermined location explicitly (`[unknown — target module not determined]`) rather than inventing a plausible path.
 
-- Give every section its content or an explicit `N/A — [reason]`. **"Filled" means the decision is recorded, not that the section is long** — one accurate line beats a page of elaboration, at either detail level.
-
-- **Leave `status: draft`** until a human explicitly approves — `/dev-feature-start` reads only an approved DD.
+- Give every section its content or an explicit `N/A — [reason]`. **"Filled" means the decision is recorded, not that the section is long** — one accurate line beats a page of elaboration, at either detail level. This is the only rule scoping §21 Impacted Services, whose services are named from the integrations document read in Step 3; no separate rule governs it.
 
 ### Step 7 — Contract the DD before handing it over (mandatory)
 
@@ -174,7 +181,7 @@ Apply it hardest where leakage concentrates: enumerated preserved behavior in §
 
 - **Never generate implementation tasks.** `/dev-feature-start` does that from an approved DD.
 - **Never modify source code.**
-- **Never re-run platform detection** — read `platform` from the approved feature analysis.
+- **Never re-run platform detection** — `platform` is authoritative context the command resolved (Step 1).
 - **Never blindly overwrite** an existing DD — honour the Step 2 existing-file strategy.
 - **Never ignore an unresolved critical gap** — flag it and stop.
 - **Always prioritise repository facts** (the feature analysis, detected conventions, actual source) over assumptions.
