@@ -10,9 +10,37 @@ version below is the plugin's own `version` in
 ## [Unreleased]
 
 REACT-001 — the six React (web) standards. REACT-002 — the four React agents and
-three React skills.
+three React skills. REACT-003 (in progress) — React Smart TV via `device_type: tv`.
 
 ### Added
+- `standards/react/react-smart-tv.md` (REACT-003-1) — the standalone React Smart TV
+  standard, a new seventh React standards document. 47 rules across
+  `REACT-TV-FOCUS-1..8`, `REACT-TV-INPUT-1..6`, `REACT-TV-UI-1..7`,
+  `REACT-TV-MEDIA-1..6`, `REACT-TV-LIFECYCLE-1..5`, `REACT-TV-PERF-1..7`, and
+  `REACT-TV-PKG-1..8`. **Purely additive** — it defines a new `REACT-TV-*` root and
+  renumbers nothing, so every REACT-001 ID frozen on 2026-08-16 keeps its number and
+  meaning. Smart TV is framed strictly as `device_type: tv` **inside** the `react`
+  platform: no `react-tv` platform value, no TV-specific agent, skill, or command.
+  Because a standalone `REACT-TV-*` root does not resolve under the lane's mechanical
+  "the ID's own root decides the filer" rule, the document opens with an explicit
+  lane-routing table — `REACT-TV-PERF-*` to `react-performance-reviewer`, every other
+  family to `react-code-reviewer`, `REACT-TV-PKG-*` at Build/Release stage — plus an
+  applicability stage so a rule the reviewed scope cannot reach is recorded Not
+  Applicable rather than passed. Vendor-neutral across Tizen, webOS, and browser-based
+  TV runtimes: the repository's existing focus model, key map, player, and packaging
+  toolchain are findings, never defaults, and no rule freezes a vendor manifest schema
+  or key-code value into the file. Covers 10-foot UI, D-pad spatial navigation and focus
+  management with a never-lose-focus guarantee, visible focus treatment as the TV reading
+  of shared `A11Y-TOUCH-1`, overscan-safe layout, remote/Back key handling, media
+  playback and TV app lifecycle, an explicit constrained-runtime/memory budget under
+  `REACT-TV-PERF-*`, and vendor packaging/manifest/signing. Seven TV detection traps,
+  each naming the confident-but-wrong finding it prevents. Also records where a shared
+  mobile-oriented rule does not transfer: `A11Y-SR-1`'s VoiceOver/TalkBack walkthrough
+  and `A11Y-FONT-1`'s OS font-scale premise have no reliable TV equivalent, so the
+  semantic obligation is kept and the gap is stated rather than silently passed.
+  REACT-003-2 (threading `device_type: tv` branches into the six base documents) and
+  REACT-003-3 (stating the contract in the React skills and agents) are not yet done —
+  the React agents and skills still say `REACT-TV-*` is unauthored.
 - `agents/react-architect.md` + `skills/react-dev-planning/SKILL.md` (REACT-002-1),
   `agents/react-feature-developer.md` + `skills/react-feature-implementation/SKILL.md`
   (REACT-002-2), and `agents/react-code-reviewer.md` +

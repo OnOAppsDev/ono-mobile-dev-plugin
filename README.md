@@ -179,7 +179,7 @@ Every agent works against the org's written standards rather than assumed defaul
 - **`standards/react-native/`** — React Native/TypeScript coding standards, navigation, state management, API service layer, architecture, and performance. The most fully authored module.
 - **`standards/ios/`** — Swift language and style, SwiftUI/UIKit conventions, architecture, performance, and Xcode build/signing. Authored (IOS-001); every rule carries a citable `IOS-SWIFT-*`, `IOS-UI-*`, `IOS-ARCH-*`, `IOS-PERF-*`, or `IOS-BUILD-*` ID, and `swift-standards.md` defines the lane table that routes each root to exactly one reviewer.
 - **`standards/android/`** — structure-only placeholders (Kotlin coding standards, UI-framework conventions, architecture, build/signing, and performance) mirroring the react-native set, ready to be authored.
-- **`standards/react/`** — React coding standards, architecture, routing, state management, API service layer, and performance. Authored (REACT-001); every rule carries a citable `REACT-*` ID (111 rules across `REACT-TS/FC/NAME/PROPS/LINT`, `REACT-ARCH-*`, `REACT-API-*`, `REACT-ROUTE-*`, `REACT-STATE-*`, `REACT-PERF-*`), repository-first and framework-neutral, citing the shared `SEC-WEB-*`/`A11Y-*` rules for web security and accessibility.
+- **`standards/react/`** — React coding standards, architecture, routing, state management, API service layer, and performance. Authored (REACT-001); every rule carries a citable `REACT-*` ID (111 rules across `REACT-TS/FC/NAME/PROPS/LINT`, `REACT-ARCH-*`, `REACT-API-*`, `REACT-ROUTE-*`, `REACT-STATE-*`, `REACT-PERF-*`), repository-first and framework-neutral, citing the shared `SEC-WEB-*`/`A11Y-*` rules for web security and accessibility. `react-smart-tv.md` adds the Smart TV standard (REACT-003-1) — 47 `REACT-TV-*` rules for `device_type: tv`, purely additive over the frozen REACT-001 IDs, vendor-neutral across Tizen/webOS/browser-TV.
 - **`templates/`** — one structured template per pipeline artifact: feature analysis, detailed design (DD), feature plan, task breakdown, code review, security review, QA handoff, and release checklist. Stages communicate exclusively through these filled-in templates. Every template that needs to know the platform carries a `platform` field (frontmatter or a per-row column), and the code-review/release-checklist templates support platform-tagged findings/subsections for mixed-platform work.
 
 Reviews cite standard IDs in their findings.
@@ -241,6 +241,7 @@ standards/
                 gradle-build-signing.md, android-performance.md          (placeholders)
   react/        react-coding-standards.md, react-routing.md, react-state-management.md,
                 react-performance.md, react-architecture.md, react-api-service-layer.md  (authored, REACT-* IDs)
+                react-smart-tv.md                                       (authored, REACT-TV-* IDs, REACT-003-1)
 
 templates/                          (flat — shared pipeline artifacts, now platform-aware)
   feature-analysis-template.md, dd-template.md, dev-plan-template.md (feature plan),
