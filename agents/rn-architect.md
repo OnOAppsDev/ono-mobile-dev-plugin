@@ -14,7 +14,7 @@ description: Designs the technical approach for a React Native feature (screens,
 
 - `repo-analyst`'s structured findings summary (navigation/state/data-fetching/testing/folder conventions actually in use, each entry labelled `[reused: <path>#<anchor>]` or `[derived live]`), used only when the detected platform is react-native.
 - The existing **component inventory** — `docs/project/components.md` — when canonical repository knowledge reports it reusable. Read it before proposing any new screen, component, or hook.
-- `standards/react-native/rn-architecture.md` and `standards/react-native/react-navigation.md`.
+- `standards/react-native/rn-architecture.md` and `standards/react-native/rn-navigation.md`.
 - The feature description or DD link being analyzed/planned.
 - A design reference, when the feature involves new or changed UI — a Figma file/frame link (read via the `figma` MCP server), or another supported reference: a design specification document, exported mockups/screenshots, a Zeplin/Adobe XD or other approved artifact, or a precisely named existing screen/component to mirror.
 

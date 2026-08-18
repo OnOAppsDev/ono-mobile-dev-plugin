@@ -236,7 +236,7 @@ agents/                             (flat)
 
 standards/
   shared/       mobile-security.md, accessibility.md, i18n-rtl.md, release-readiness.md, qa-handoff.md
-  react-native/ react-native-coding-standards.md, react-navigation.md, rn-state-management.md,
+  react-native/ react-native-coding-standards.md, rn-navigation.md, rn-state-management.md,
                 rn-performance.md, rn-architecture.md, rn-api-service-layer.md
   ios/          swift-standards.md, swiftui-uikit-standards.md, ios-architecture.md,
                 xcode-build-signing.md, ios-performance.md               (authored, IOS-* IDs)
