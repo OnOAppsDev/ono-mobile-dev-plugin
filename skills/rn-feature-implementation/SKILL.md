@@ -216,7 +216,7 @@ Record which standard IDs were **applied** (not merely reviewed) — this is the
 | Layering, folders, dependency direction | `standards/react-native/rn-architecture.md` | `ARCH-LAYERS-*`, `ARCH-FOLDERS-*`, `ARCH-DEPS-*`, `ARCH-LOGIC-*` |
 | Data fetching & API layer | `standards/react-native/rn-api-service-layer.md` | `API-ORG-*`, `API-CACHE-*`, `API-BASEQ-*`, `API-ERR-*` |
 | Shared & global state | `standards/react-native/rn-state-management.md` | `STATE-SLICE-*`, `STATE-SELECT-*`, `STATE-ENTITY-*`, `STATE-BOUNDARY-*` |
-| Navigation & deep links | `standards/react-native/react-navigation.md` | `NAV-TYPED-*`, `NAV-SERVICE-*`, `NAV-DEEPLINK-*` |
+| Navigation & deep links | `standards/react-native/rn-navigation.md` | `NAV-TYPED-*`, `NAV-SERVICE-*`, `NAV-DEEPLINK-*` |
 | Performance | `standards/react-native/rn-performance.md` | `RN-PERF-RERENDER-*`, `RN-PERF-LIST-*`, `RN-PERF-JSTHREAD-*`, `RN-PERF-IMAGE-*`, `RN-PERF-BUNDLE-*` |
 | Accessibility (shared) | `standards/shared/accessibility.md` | `A11Y-ROLES-*`, `A11Y-TOUCH-*`, `A11Y-FONT-*`, `A11Y-SR-*` |
 | Localization & RTL (shared) | `standards/shared/i18n-rtl.md` | `I18N-COPY-*`, `I18N-RTL-*`, `I18N-FMT-*`, `I18N-TEST-*` |
