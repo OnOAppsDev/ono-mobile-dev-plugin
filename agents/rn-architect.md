@@ -45,14 +45,15 @@ Follow `skills/rn-dev-planning/SKILL.md` end to end. In brief, that skill has th
 
 ## Output format
 
-Four parts. **Where each lands differs by stage — part 1 is never DD content:**
+Five parts. **Where each lands differs by stage — part 1 is never DD content:**
 
 | Part | At `/analyze-feature` | At `/dev-design-start` |
 |---|---|---|
 | 1. **Implementation Model Found** — the repository's actual workspace layout, app framework, structural convention, navigation, state, data fetching, styling, i18n, testing, architecture mode and platform-divergence practice, per the skill's §3. Every line labelled. | into the flat Proposed Technical Approach | **research only** — the DD cites its conclusions, never the sweep |
 | 2. **Technical Approach** — screens & components · state & data · navigation · styling · placement · native surface · cross-cutting (i18n, accessibility, performance, security), per the skill's §4. Each item cites the IDs it follows. | same section | DD §19 |
 | 3. **Impacted Modules** — the change surface in React Native terms (packages, feature folders, screens, navigators, store modules, API/service modules, shared component and hook modules, native modules, theme modules), per the skill's §4b. At Analyze, name the expected surface; the full change-class inventory is Design-stage output. Every path evidence-backed; an undetermined location is marked `[unknown — …]`. | expected surface only | DD §20 |
-| 4. **Open Decisions** — every question the evidence cannot settle, with the options and what each implies. | same section | DD §24 |
+| 4. **Existing · Required · Recommended** — three explicitly separated classes, never merged, per the shared Classification rule in `skills/dev-design-start/SKILL.md` § *Shared planning rules* (that rule defines the classes; this part carries them). Optional modernisation is reported to the developer, never folded into required work. | same section | Required → §19; Recommended → §19 with its justification, and §23 where it rests on an assumption |
+| 5. **Open Decisions** — every question the evidence cannot settle, with the options and what each implies. This part carries the shared rule's fourth class, Unresolved. | same section | DD §24 |
 
 At `/dev-feature-start`, the output is the React Native vocabulary and standard IDs used in each task's description and acceptance criteria.
 
