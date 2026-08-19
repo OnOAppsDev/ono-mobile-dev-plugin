@@ -34,22 +34,12 @@ This skill grounds every Android-specific rule in an authored `AND-*` standard u
 
 ## 1. Source-of-truth hierarchy
 
-When sources disagree, this order decides — highest first:
+Defined once in `skills/dev-design-start/SKILL.md` § *Shared planning rules → Source-of-truth hierarchy*. Apply it as written; it is not restated here.
 
-| Rank | Source | Authoritative for |
-|---|---|---|
-| 1 | **Approved upstream documents** (Feature Analysis → DD) | Scope, requirements, and every already-approved decision |
-| 2 | **Inspected repository evidence** | What the codebase actually does today |
-| 3 | **Canonical repository knowledge** (`docs/project/*.md`, `CLAUDE.md`) | Repository-wide conventions, as citations |
-| 4 | **Ono standards** (`standards/android/*`, `standards/shared/*`) | The bar new work must meet |
-| 5 | **Official Android documentation** | Supporting guidance only |
+Android's parameters for the two parameterised ranks:
 
-Hard rules:
-
-- **Rank 5 never overrides rank 2.** A valid existing implementation is not a defect because official guidance now recommends something else. Note the divergence as an *optional* suggestion, never as required work.
-- **Never reinterpret a decision already approved in an upstream document.** If the plan requires violating or expanding it, stop and request approval.
-- **Never resolve conflicting evidence silently.** Report the conflict and ask.
-- If the Feature Analysis and DD conflict, stop and report — do not pick one.
+- **Rank 4** — `standards/android/*` plus `standards/shared/*`.
+- **Rank 5** — official Android documentation.
 
 ## 2. Repository-knowledge reuse
 
@@ -227,24 +217,11 @@ This skill does **not** author TV standards or TV rules — that is a separate, 
 
 ## 15. Classification: Existing, Required, Recommended, Unresolved
 
-Every statement in the plan is exactly one of these four, explicitly labelled. Merging them is the failure this section prevents:
-
-| Class | Meaning | Rule |
-|---|---|---|
-| **Existing project pattern** | What the repository already does | Cite the evidence path. Followed by default. |
-| **Required feature-specific extension** | What this feature genuinely needs | Must trace to a requirement in the approved upstream document. |
-| **Recommended deviation with justification** | A departure from the existing pattern this feature warrants | Requires an explicit justification and an approval gate. Never applied silently. |
-| **Unresolved decision requiring human approval** | A question the evidence cannot settle | Stated with options and implications. Blocks decomposition when it affects scope or contracts. |
-
-**Optional modernization suggestions are always the third or fourth class, never the second.** "The repo uses X, but Y is now recommended" is never required work.
+Defined once in `skills/dev-design-start/SKILL.md` § *Shared planning rules → Classification*. Every statement in an Android plan carries one of those four labels; the taxonomy is not restated here.
 
 ## 16. Risk classification
 
-Classify each risk by impact and by whether it blocks:
-
-- **Blocking** — decomposition cannot proceed (unconfirmed backend contract, unresolved architectural decision, missing design reference for UI work, ambiguous evidence on a load-bearing dimension).
-- **Non-blocking, must be tracked** — known risk with a mitigation, recorded in the DD's Risks section.
-- **Needs profiling or investigation** — a suspected issue that cannot be confirmed by inspection alone; say so rather than asserting it.
+Defined once in `skills/dev-design-start/SKILL.md` § *Shared planning rules → Risk classification*. Apply the three classes as written; they are not restated here.
 
 ## 17. Traceability and output requirements
 

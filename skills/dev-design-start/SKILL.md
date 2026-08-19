@@ -41,6 +41,56 @@ If neither, **it does not belong in the DD.** Volume is not thoroughness. An unm
 
 This table is enforceable, not advisory. Step 7 applies it.
 
+## Shared planning rules
+
+These three rules are platform-independent and are defined **here, once**. Every platform dev-planning skill applies them and may reference them; none may restate them. A platform lane supplies only its own parameters where a rule is parameterised, and any genuinely platform-specific addition alongside it.
+
+### Classification: Existing, Required, Recommended, Unresolved
+
+Every statement in a plan is exactly one of these four, explicitly labelled. Merging them is the failure this rule prevents:
+
+| Class | Meaning | Rule |
+|---|---|---|
+| **Existing project pattern** | What the repository already does | Cite the evidence path. Followed by default. |
+| **Required feature-specific extension** | What this feature genuinely needs | Must trace to a requirement in the approved upstream document. |
+| **Recommended deviation with justification** | A departure from the existing pattern this feature warrants | Requires an explicit justification and an approval gate. Never applied silently. |
+| **Unresolved decision requiring human approval** | A question the evidence cannot settle | Stated with options and implications. Blocks decomposition when it affects scope or contracts. |
+
+**Optional modernisation suggestions are always the third or fourth class, never the second.** "The repo uses X, but Y is now recommended" is never required work.
+
+### Risk classification
+
+Classify each risk by impact and by whether it blocks:
+
+- **Blocking** — decomposition cannot proceed (an unconfirmed backend contract, an unresolved architectural decision, a missing design reference for UI work, ambiguous evidence on a load-bearing dimension).
+- **Non-blocking, must be tracked** — a known risk with a mitigation, recorded in the DD's Risks section.
+- **Needs measurement, profiling or investigation** — a suspected issue that inspection alone cannot confirm; say so rather than asserting it.
+
+**Verify-later principle.** If a requirement or risk **cannot be verified from the evidence available at Design time**, do not assert it as satisfied. Record it explicitly as requiring later verification, name what would settle it, and carry it forward — an unverifiable item is never silently treated as met, and never quietly dropped.
+
+A platform lane may add its own blocking conditions, may tie the third class to a platform measurement rule, and names **its own mechanism** for deciding when a rule is verifiable only later. It does not redefine the three classes or the verify-later principle.
+
+### Source-of-truth hierarchy
+
+When sources disagree, this order decides — highest first:
+
+| Rank | Source | Authoritative for |
+|---|---|---|
+| 1 | **Approved upstream documents** (Feature Analysis → DD) | Scope, requirements, and decisions the document records as decided |
+| 2 | **Inspected repository evidence** | What the codebase actually does today |
+| 3 | **Canonical repository knowledge** (`docs/project/*.md`, `CLAUDE.md`) | Repository-wide conventions, as citations |
+| 4 | **Ono standards** — the platform's own `standards/<platform>/*` plus `standards/shared/*` | The bar new work must meet |
+| 5 | **The platform's official vendor or framework documentation** | Supporting guidance only |
+
+Ranks 4 and 5 are parameterised: each platform lane names its own standards directory and its own vendor documentation, and does not restate this table.
+
+Hard rules:
+
+- **Rank 5 never overrides rank 2.** A valid existing implementation is not a defect because official guidance now recommends something else. Note the divergence as an *optional* suggestion, never as required work.
+- **Never reinterpret an approved scope, requirement, or explicitly recorded decision.** If the plan requires violating or expanding one, stop and request approval.
+- **Rank 1 governs scope and requirements, not the technical approach.** Three consequences, and they are the rule: approved upstream documents own **scope and requirements**; the DD **may refine the technical implementation approach**; and a Feature Analysis's *Proposed* Technical Approach is **advisory input to DD §19, not an immutable technical decision**. Refining it is this stage's job, not a violation — what may not be reinterpreted is an approved scope, requirement, or explicitly recorded decision.
+- **Never resolve conflicting evidence silently.** Report the conflict and ask. If the Feature Analysis and DD conflict, stop and report — do not pick one.
+
 ## Methodology
 
 Generate a **decision-complete and minimal** Detailed Design, grounded in repository facts already captured by the Analyze stage, validated against the design, and ready for `/dev-feature-start` to consume. This skill **never** generates implementation tasks and **never** modifies source code.
