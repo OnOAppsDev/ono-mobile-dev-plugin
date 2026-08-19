@@ -48,11 +48,32 @@ This document inherits the **React lane conventions** in `standards/react/react-
 
 - `REACT-PERF-CWV-1` LCP (loading), CLS (visual stability), and INP (interactivity) are the explicit performance targets for user-facing routes; a change to a user-facing route is evaluated against them, and any regression claim follows the measurement discipline above (metric + scenario + threshold, measured on a production build).
 
+## Smart TV context (`device_type: tv`)
+
+**[Additive branch — REACT-003-2. Applies only where the surface runs on a TV. Authors no rule: every obligation below is owned by a rule in `standards/react/react-smart-tv.md`, and a finding is filed under that owning ID, never duplicated here.]**
+
+Establish the TV surface from evidence first — `standards/react/react-smart-tv.md` owns the applicability gate and its detection traps. Where the repository has no TV surface, this section is N/A.
+
+**Lane note.** `REACT-TV-PERF-*` belongs to `react-performance-reviewer`, exactly as `REACT-PERF-*` does — the TV performance family is this reviewer's at both `/review-code` and `/prepare-mobile-release` (shared `REL-PERF-1`). **Every other `REACT-TV-*` family belongs to `react-code-reviewer`**, including two this section points at because they interact with performance: `REACT-TV-UI-6` (virtualization vs. focus) and `REACT-TV-MEDIA-3` (player teardown). Cite them for context; do not file them. The full routing table lives in `standards/react/react-smart-tv.md`.
+
+**The measurement discipline above applies unchanged, and matters more.** A TV magnitude claim must be measured on the **target device tier**, not inferred from a desktop profile — a desktop measurement is not weak evidence about a TV, it is no evidence.
+
+What TV changes:
+
+- **Memory becomes the dominant constraint, and it does not degrade gracefully.** A TV runtime enforces a comparatively small per-app ceiling; exceeding it terminates the app rather than slowing it. `REACT-TV-PERF-1` owns the requirement for an explicit stated budget and `REACT-TV-PERF-2` owns releasing memory on navigation away — the highest-consequence performance rule on the platform. Nothing in this document's re-render or bundle families substitutes for it.
+- **`REACT-PERF-IMAGE-1` gains a decoded-bitmap dimension.** Download bytes are only half the cost; a full-resolution asset decoded for a small rail tile consumes the memory budget directly. `REACT-TV-PERF-3` owns this.
+- **`REACT-PERF-LIST-1` acquires a correctness hazard.** Virtualization unmounts rows, and an unmounted row cannot hold focus — so the virtualization window and the focus model must be reconciled. `REACT-TV-UI-6` owns that reconciliation (filed by the code reviewer); the virtualization requirement itself remains `REACT-PERF-LIST-1`.
+- **`REACT-PERF-MAINTHREAD-1` applies with a lower tolerance, and its user-facing signal changes.** On a slower single-threaded engine, work that is minor jank on desktop is an unresponsive remote. `REACT-TV-PERF-5` owns the TV framing, where responsiveness to a **key press** replaces a pointer-derived INP measurement.
+- **`REACT-PERF-CWV-1` needs reinterpretation, not deletion.** LCP and CLS remain meaningful; INP's pointer-interaction model does not map cleanly to a D-pad, so key-press responsiveness is the signal (`REACT-TV-PERF-5`). On a locally packaged app there is no network download for LCP to measure, but parse and execute cost remains — `REACT-TV-PERF-6` owns bundle cost as a startup cost independent of download, extending `REACT-PERF-BUNDLE-1..3`.
+- **`REACT-PERF-HYDRATION-1` is normally N/A** on a packaged TV app, which does not server-render (see the same note in `standards/react/react-architecture.md`). Record it Not Applicable with the reason rather than passed.
+- **Engine capability is a finding, not an assumption.** A TV runtime's engine is fixed by firmware and typically years behind the development browser, which `REACT-TV-PERF-7` owns. Its *absence* of a modern API is never raised as a modernization aside — the no-aside stance in `react-coding-standards.md` applies in full.
+- **Animation budgets are tier-bound.** `REACT-TV-PERF-4` owns bounding animation work to what the target tier sustains, with frame-rate claims measured on the device.
+
 ## References
 
 - This document is a living baseline; reviewers flag performance gaps found during review rather than working around them silently.
 - Production-hardening items (minification/obfuscation, disabled debug channels) are owned by shared `SEC-HARDEN-2`/`SEC-HARDEN-3`; this document references them where a performance action (minification, stripping dev-only code) coincides with a hardening requirement.
-- Companion React standards: `standards/react/react-coding-standards.md` (authored — governing conventions), `standards/react/react-architecture.md` (authored — `REACT-ARCH-BOUNDARY-2`), and `standards/react/react-routing.md` (authored — route-level prefetch, `REACT-ROUTE-UX-4`).
+- Companion React standards: `standards/react/react-coding-standards.md` (authored — governing conventions), `standards/react/react-architecture.md` (authored — `REACT-ARCH-BOUNDARY-2`), `standards/react/react-routing.md` (authored — route-level prefetch, `REACT-ROUTE-UX-4`), and `standards/react/react-smart-tv.md` (authored — `REACT-TV-PERF-*`, this reviewer's TV lane; added additively by REACT-003-1).
 - Shared standards cited (not restated) here: `standards/shared/mobile-security.md` (`SEC-WEB-4`, `SEC-HARDEN-2`, `SEC-HARDEN-3`).
 
 ## External references

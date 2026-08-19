@@ -39,11 +39,27 @@ This document inherits the **React lane conventions** defined in `standards/reac
 - `REACT-ARCH-LOGIC-2` Business rules live in hooks, selectors, or service functions that a component calls, so the logic is testable independent of rendering.
 - `REACT-ARCH-LOGIC-3` Derived/computed values are produced by memoized selectors or hooks, not recomputed inline inside JSX or via effects scattered across components.
 
+## Smart TV context (`device_type: tv`)
+
+**[Additive branch — REACT-003-2. Applies only where the surface runs on a TV. Authors no rule: every obligation below is owned by a `REACT-TV-*` rule in `standards/react/react-smart-tv.md`, and a finding is filed under that owning ID, never duplicated here.]**
+
+Establish the TV surface from evidence first — `standards/react/react-smart-tv.md` owns the applicability gate and its detection traps. Where the repository has no TV surface, this section is N/A.
+
+**The layering model does not change on TV.** `REACT-ARCH-LAYERS-*`, `REACT-ARCH-FOLDERS-*`, `REACT-ARCH-DEPS-*`, and `REACT-ARCH-LOGIC-*` apply unchanged. A TV app is not an exception to the three-layer model, and "it's a TV app" never justifies business logic in a component or an inverted dependency.
+
+What TV adds is **three app-level concerns that belong in the services layer** (`REACT-ARCH-LAYERS-4`), not in the component tree:
+
+- **The focus model** — a spatial-navigation engine or focus manager is app-wide infrastructure, so it lives outside a feature folder per `REACT-ARCH-FOLDERS-2` and is not reimplemented per feature. `REACT-TV-FOCUS-2` owns the requirement to use the repository's single existing model rather than introducing a parallel one; `REACT-ARCH-DEPS-3` still forbids one feature reaching into another's focus internals.
+- **The player** — `REACT-TV-MEDIA-1` requires one player owned outside the render path, which is `REACT-ARCH-LAYERS-4` and `REACT-ARCH-LOGIC-1` applied to playback. Playback state is read from the player rather than mirrored (`REACT-TV-MEDIA-2`), the same server-state principle the data layer follows.
+- **Lifecycle integration** — `REACT-TV-LIFECYCLE-1` requires one app-level module owning suspend/resume/relaunch/locale-change, which the rest of the app subscribes to. Scattered per-component `visibilitychange` listeners are both a `REACT-TV-LIFECYCLE-1` violation and a dependency-direction problem.
+
+**`REACT-ARCH-BOUNDARY-*` is normally N/A on a packaged TV application.** A Tizen `.wgt` or webOS `.ipk` is a locally installed static bundle with no server half, so the RSC server/client boundary rules typically have nothing to apply to. Confirm this from the repository — a TV app may still call a remote backend, and a browser-based TV surface served by an SSR framework is possible — and where the section is unreachable, record it **Not Applicable with the reason** rather than passed. Note that `REACT-ARCH-BOUNDARY-3`'s underlying secrets concern survives regardless of RSC: everything inside a TV package is readable, which `REACT-TV-PKG-6` owns (with shared `SEC-SECRETS-2`).
+
 ## References
 
 - This document is a living baseline; reviewers flag structural gaps found during review rather than working around them silently.
-- Where a repo's existing structure predates these principles, `repo-analyst`'s detected conventions take precedence for that repo until a migration is planned — the same repo-detection-first approach is applied to routing in `standards/react/react-routing.md`.
-- Companion React standards (all authored; cross-references frozen in REACT-001-7, 2026-08-16): `standards/react/react-coding-standards.md` (this document inherits its governing conventions), `standards/react/react-routing.md`, `standards/react/react-state-management.md`, `standards/react/react-api-service-layer.md`, `standards/react/react-performance.md`.
+- Where a repo's existing structure predates these principles, `repo-analyst`'s detected conventions take precedence for that repo until a migration is planned — the same repo-detection-first approach is applied to routing in `standards/react/react-routing.md`, and to a repository's existing Smart TV model in `standards/react/react-smart-tv.md`.
+- Companion React standards (all authored; base cross-references frozen in REACT-001-7, 2026-08-16): `standards/react/react-coding-standards.md` (this document inherits its governing conventions), `standards/react/react-routing.md`, `standards/react/react-state-management.md`, `standards/react/react-api-service-layer.md`, `standards/react/react-performance.md`, and `standards/react/react-smart-tv.md` (`REACT-TV-*`, added additively by REACT-003-1).
 - Shared standards cited (not restated) here: `standards/shared/mobile-security.md` (`SEC-SECRETS-2`).
 
 ## External references

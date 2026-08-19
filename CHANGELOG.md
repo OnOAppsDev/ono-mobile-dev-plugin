@@ -80,6 +80,26 @@ three React skills. REACT-003 (in progress) — React Smart TV via `device_type:
   REACT-002 agents and skills above cite stable IDs.
 
 ### Changed
+- `standards/react/react-coding-standards.md`, `react-architecture.md`, `react-routing.md`,
+  `react-performance.md` (REACT-003-2) — each gains an additive
+  `## Smart TV context (device_type: tv)` branch routing every TV obligation to the
+  `REACT-TV-*` rule that owns it. **The branches author no rules**, so a TV finding is
+  filed once under its owner and never duplicated into a base document, and each repeats
+  the applicability gate (no TV surface → the section is N/A). Verified additive: every
+  frozen REACT-001 rule ID across all six base documents is byte-identical to the
+  previous commit — 111 rules, nothing renumbered, dropped, or added to a frozen family.
+  The branches record where a base rule's *premise* weakens on TV rather than glossing
+  it: a packaged app's URLs are generally not shareable, so `REACT-ROUTE-URL-5` and
+  `REACT-ROUTE-STABILITY-2` rest on reload-survival instead and a shareability-based
+  finding must not be raised; `REACT-ROUTE-STABILITY-3`, `REACT-ROUTE-SSR-*`,
+  `REACT-ARCH-BOUNDARY-*`, `REACT-PERF-HYDRATION-1`, and `REACT-NAME-6` are normally
+  N/A on a packaged app and are recorded Not Applicable with a reason rather than passed;
+  `REACT-PERF-CWV-1` is reinterpreted rather than deleted, with key-press responsiveness
+  replacing INP's pointer model. `react-coding-standards.md` additionally states the
+  lane-level `device_type` contract (enum `mobile`/`tv`, no `mixed`, no silent default,
+  TV is a context signal and not a platform) and records that adding a root is the only
+  sanctioned way to extend the lane after an ID freeze — correcting its own now-false
+  claim that six React standards are authored.
 - `README.md` — the React standards, skills, and agents are no longer described as
   placeholders; the React (web) summary now states that all three lanes are authored,
   with Smart TV context (`REACT-TV-*`) still pending REACT-003.

@@ -26,9 +26,13 @@ Rank 5 never overrides a valid rank-2 repository convention. Absence of a conven
 
 **External references.** Every React standard closes with an `## External references` section: a short list of official-documentation links, each with a *when to consult* note and the `REACT-` rule IDs it supports. These are **rank-5, supporting only** — consult them for background and rationale; they never override a repository convention, and a review cites a rule by its `REACT-` ID, never by a link. Links are verified to resolve on the date they are added (and re-checked during the REACT-001-7 freeze) and are **not** fetched at review time — the standard, not the live page, is authoritative, so a rule's meaning cannot drift when an external page changes.
 
+**Device type (`mobile` / `tv`).** Every React consumer reads a `device_type` alongside `platform`, and the enum is exactly `mobile` or `tv` — never `mixed`, and never defaulted silently. **Smart TV is a context signal inside the `react` platform, not a platform of its own:** there is no `react-tv` platform value and no TV-specific agent, skill, or command. The same agents and skills serve both device types. TV-specific obligations are authored in `standards/react/react-smart-tv.md` under the `REACT-TV-*` root, which also carries that root's lane-routing table (a standalone TV root has no owner under the lane separation below, so it is stated there explicitly). Every rule in this document and in the other five base standards **still applies on a TV surface** — the TV document adds obligations and names TV equivalents where a base rule assumes a pointer; it never relaxes or forks a base rule.
+
 **ID scheme.** Every React rule is prefixed `REACT-` followed by a topic segment and a number (`REACT-TS-1`, `REACT-ARCH-LAYERS-1`, `REACT-ROUTE-URL-1`, `REACT-STATE-SLICE-1`, `REACT-PERF-CWV-1`, `REACT-TV-FOCUS-1`). The `REACT-` prefix is mandatory on every family so React IDs never collide with the React Native (`RN-*` and the bare `ARCH-*`/`API-*`/`STATE-*`/`NAV-*` families it owns), Android (`AND-*`), or iOS (`IOS-*`) modules. **Do not reuse an `RN-*`/`AND-*`/`IOS-*` ID or a bare RN topic family for a React rule.** Shared standards keep their own prefixes (`SEC-*`, `A11Y-*`, `I18N-*`, `REL-*`, `QA-*`) and are cited, not re-authored, by React documents.
 
-> The coding-standards families below (`REACT-TS/FC/NAME/PROPS/LINT`) are frozen by this document. The **full** lane ID skeleton across all six React standards was frozen in REACT-001-7 (2026-08-16) — no rule is renumbered after that point, because REACT-002 agents and skills cite these IDs. All six standards are authored and every intra-lane cross-reference resolves to a defined ID.
+> The coding-standards families below (`REACT-TS/FC/NAME/PROPS/LINT`) are frozen by this document. The **full** lane ID skeleton across the six base React standards was frozen in REACT-001-7 (2026-08-16) — no rule is renumbered after that point, because the React agents and skills cite these IDs. Every intra-lane cross-reference resolves to a defined ID.
+>
+> **`REACT-TV-*` was added additively after the freeze** (REACT-003-1, `standards/react/react-smart-tv.md`) — a new root that renumbered nothing. Adding a root is the only sanctioned way to extend the lane after a freeze; no existing family is ever renumbered or re-scoped to make room. Seven React standards are now authored.
 
 ## TypeScript Strictness
 
@@ -72,10 +76,23 @@ Applies to TypeScript repositories. In a JavaScript-only repository this section
 - `REACT-LINT-2` Inline lint-rule disables (`eslint-disable-next-line`) carry a comment explaining why the rule doesn't apply here — a bare disable is not acceptable.
 - `REACT-LINT-3` Formatting is applied via the project's configured formatter, not manual spacing — no pure-reformatting diffs mixed into a functional change.
 
+## Smart TV context (`device_type: tv`)
+
+**[Additive branch — REACT-003-2. Applies only where the surface runs on a TV. Authors no rule: every obligation below is owned by a `REACT-TV-*` rule in `standards/react/react-smart-tv.md`, and a finding is filed under that owning ID, never duplicated here.]**
+
+Establish the TV surface from evidence before applying any of this — `standards/react/react-smart-tv.md` owns the applicability gate and its detection traps. Where the repository has no TV surface, this section is N/A.
+
+Every rule in this document applies unchanged on a TV surface. What changes:
+
+- **`REACT-FC-5` (listener/observer cleanup) carries far more weight.** On a memory-capped TV runtime a leaked listener, timer, or observer is a termination rather than a slow degradation — see `REACT-TV-PERF-2`. The rule is the same; the consequence is not.
+- **Key-event listeners are not a free-for-all.** A component that attaches its own `window`/`document` `keydown` handler competes with every other mounted component and with the app's focus model. `REACT-TV-INPUT-3` owns the scoping requirement and `REACT-TV-INPUT-1` owns the prohibition on numeric key-code literals in component code; `REACT-FC-5`'s cleanup requirement applies to every such listener.
+- **`REACT-NAME-6` (`'use client'` / `'use server'`) is normally N/A.** A packaged Tizen/webOS application is a locally installed static bundle with no server component in the React sense, so the RSC directive rules typically do not apply — confirm from the repository rather than assuming, and mark the section Not Applicable with the reason rather than passed.
+- **`REACT-TS-*`, `REACT-PROPS-*`, `REACT-NAME-1..5`, and `REACT-LINT-*` apply with no TV variation.** No TV rule modifies them, and no TV surface justifies relaxing them.
+
 ## References
 
 - This document is a living baseline; reviewers flag standards gaps found during review rather than working around them silently.
-- Companion React standards (all authored; cross-references frozen in REACT-001-7): `standards/react/react-architecture.md`, `standards/react/react-routing.md`, `standards/react/react-state-management.md`, `standards/react/react-api-service-layer.md`, `standards/react/react-performance.md`.
+- Companion React standards (all authored; base cross-references frozen in REACT-001-7): `standards/react/react-architecture.md`, `standards/react/react-routing.md`, `standards/react/react-state-management.md`, `standards/react/react-api-service-layer.md`, `standards/react/react-performance.md`, and `standards/react/react-smart-tv.md` (`REACT-TV-*`, added additively by REACT-003-1).
 - Shared standards that sit alongside these general coding rules and are cited (not restated) by React reviews: `standards/shared/accessibility.md` (`A11Y-*`), `standards/shared/i18n-rtl.md` (`I18N-*`), and `standards/shared/mobile-security.md` (web rules `SEC-WEB-*`, `SEC-COOKIE-*`).
 
 ## External references
