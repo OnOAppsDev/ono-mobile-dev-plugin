@@ -10,14 +10,15 @@ version below is the plugin's own `version` in
 ## [Unreleased]
 
 REACT-001 — the six React (web) standards. REACT-002 — the four React agents and
-three React skills. REACT-003 (in progress) — React Smart TV via `device_type: tv`.
+three React skills. REACT-003 — React Smart TV via `device_type: tv`, including the
+batched adversarial review and the fixes it produced.
 
 ### Added
 - `standards/react/react-smart-tv.md` (REACT-003-1) — the standalone React Smart TV
-  standard, a new seventh React standards document. 47 rules across
+  standard, a new seventh React standards document. 51 rules across
   `REACT-TV-FOCUS-1..8`, `REACT-TV-INPUT-1..6`, `REACT-TV-UI-1..7`,
-  `REACT-TV-MEDIA-1..6`, `REACT-TV-LIFECYCLE-1..5`, `REACT-TV-PERF-1..7`, and
-  `REACT-TV-PKG-1..8`. **Purely additive** — it defines a new `REACT-TV-*` root and
+  `REACT-TV-MEDIA-1..6`, `REACT-TV-LIFECYCLE-1..5`, `REACT-TV-API-1..4`,
+  `REACT-TV-PERF-1..7`, and `REACT-TV-PKG-1..8`. **Purely additive** — it defines a new `REACT-TV-*` root and
   renumbers nothing, so every REACT-001 ID frozen on 2026-08-16 keeps its number and
   meaning. Smart TV is framed strictly as `device_type: tv` **inside** the `react`
   platform: no `react-tv` platform value, no TV-specific agent, skill, or command.
@@ -48,6 +49,29 @@ three React skills. REACT-003 (in progress) — React Smart TV via `device_type:
   browser capability).
   REACT-003-2 threaded the `device_type: tv` branches into the base documents and
   REACT-003-3 stated the contract across the React skills and agents (both below).
+  The batched adversarial review then found 9 defects, all fixed, which changed three
+  things worth naming: `REACT-TV-FOCUS-8` originally required RTL focus movement to
+  "advance in reading order", which **contradicted** `REACT-TV-FOCUS-5`'s spatial-adjacency
+  rule and was simply wrong — a D-pad maps to screen geometry, so a mirrored rail is
+  navigated by geometry; the document gained a **One defect, one finding** collision table
+  (8 rows) plus a merge-time dedup step, because `REACT-TV-MEDIA-3` and `REACT-TV-PERF-2`
+  can describe one defect across two different owners; and `REACT-TV-PKG-5`/`-6` were
+  re-routed to the shared `mobile-security-reviewer`, since they are secrets rules and
+  routing them to the React lane contradicted this document's own deferral of security.
+  A fourth family, `REACT-TV-API-1..4`, was added afterwards to settle the auth-transport
+  question: `REACT-API-BASEQ-2` mandates `httpOnly`/`Secure`/`SameSite` cookie transport
+  as though unconditional, but a TV platform distinguishes a **packaged** app (resources
+  installed locally, non-`http(s)` scheme) from a **hosted** app served over `http(s)`,
+  and cookie behavior differs between them — so the transport is now established from
+  vendor documentation for the targeted firmware rather than assumed. Where cookies are
+  unavailable the in-memory-token path becomes the primary design rather than a
+  compromise, with no relaxation of the no-script-readable-storage, no-logging and
+  no-inlining rules — reaching for `localStorage` because "cookies don't work on TV" is
+  named as a defect, not a workaround. The same family records that Samsung documents the
+  CORS `Origin` request header as **unsupported** on its TVs and requires reachable
+  origins declared in `config.xml`, so adding a backend host can be a packaging change,
+  and that CSRF exposure is re-derived against the established transport rather than
+  inherited.
 - `agents/react-architect.md` + `skills/react-dev-planning/SKILL.md` (REACT-002-1),
   `agents/react-feature-developer.md` + `skills/react-feature-implementation/SKILL.md`
   (REACT-002-2), and `agents/react-code-reviewer.md` +
@@ -79,6 +103,12 @@ three React skills. REACT-003 (in progress) — React Smart TV via `device_type:
   REACT-002 agents and skills above cite stable IDs.
 
 ### Changed
+- `standards/react/react-api-service-layer.md` — gains a Smart TV branch (added after the
+  adversarial review, outside 003-2's original four documents) qualifying the two premises
+  of this document that are browser premises: `REACT-API-BASEQ-2`'s cookie-first auth
+  transport and `REACT-API-BASEQ-5`'s CORS model. Neither frozen rule's text changed;
+  the branch routes to `REACT-TV-API-1..4`, which own establishing the transport and the
+  cross-origin model from vendor documentation for the actual target and app type.
 - `standards/react/react-coding-standards.md`, `react-architecture.md`, `react-routing.md`,
   `react-performance.md` (REACT-003-2) — each gains an additive
   `## Smart TV context (device_type: tv)` branch routing every TV obligation to the

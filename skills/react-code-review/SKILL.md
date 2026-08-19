@@ -244,7 +244,7 @@ Cite only IDs that exist in these files and genuinely apply to the change under 
 | Accessibility (shared) | `standards/shared/accessibility.md` | `A11Y-*` | code-reviewer |
 | Localization & RTL (shared) | `standards/shared/i18n-rtl.md` | `I18N-*` | code-reviewer |
 | Performance & Core Web Vitals | `standards/react/react-performance.md` | `REACT-PERF-*` | **performance-reviewer** |
-| Smart TV — focus, remote input, 10-foot UI, playback, lifecycle, packaging config | `standards/react/react-smart-tv.md` | `REACT-TV-FOCUS-*`, `REACT-TV-INPUT-*`, `REACT-TV-UI-*`, `REACT-TV-MEDIA-*`, `REACT-TV-LIFECYCLE-*`, `REACT-TV-PKG-1..4`, `REACT-TV-PKG-7..8` | code-reviewer |
+| Smart TV — focus, remote input, 10-foot UI, playback, lifecycle, packaging config | `standards/react/react-smart-tv.md` | `REACT-TV-FOCUS-*`, `REACT-TV-INPUT-*`, `REACT-TV-UI-*`, `REACT-TV-MEDIA-*`, `REACT-TV-LIFECYCLE-*`, `REACT-TV-API-*`, `REACT-TV-PKG-1..4`, `REACT-TV-PKG-7..8` | code-reviewer |
 | Smart TV — constrained runtime & memory budget | `standards/react/react-smart-tv.md` | `REACT-TV-PERF-*` | **performance-reviewer** |
 | Smart TV — signing material & secrets in the package | `standards/react/react-smart-tv.md` | `REACT-TV-PKG-5`, `REACT-TV-PKG-6` | **neither — `mobile-security-review`**, via the `SEC-*` IDs they cite |
 | Security & privacy (shared) | `standards/shared/mobile-security.md` | `SEC-*` | **neither — `mobile-security-review`** |

@@ -49,12 +49,25 @@ This document inherits the **React lane conventions** in `standards/react/react-
 - `REACT-API-ERR-2` UI components branch on the normalized `code`/`status`, never on parsing a raw error message string.
 - `REACT-API-ERR-3` Network-level failures (offline, timeout) are distinguished from server-returned error responses so the UI can show a retry affordance for the former and a message for the latter; a **deliberately aborted** request (per `REACT-API-ASYNC-1`) is distinguished from a real failure so a cancellation is not surfaced to the user as an error.
 
+## Smart TV context (`device_type: tv`)
+
+**[Additive branch. Applies only where the surface runs on a TV. Authors no rule: every obligation below is owned by a `REACT-TV-API-*` rule in `standards/react/react-smart-tv.md`, and a finding is filed under that owning ID, never duplicated here.]**
+
+Establish the TV surface from evidence first — `standards/react/react-smart-tv.md` owns the applicability gate and its detection traps. Where the repository has no TV surface, this section is N/A.
+
+Every rule in this document applies on a TV surface. But **two of `REACT-API-BASEQ-2`'s and `REACT-API-BASEQ-5`'s premises are browser premises, and a TV target may not satisfy them** — so they are established rather than assumed:
+
+- **`REACT-API-BASEQ-2` reads as unconditional; on TV it is conditional on cookie transport actually working.** The preference for an `httpOnly`, `Secure`, `SameSite` cookie over a script-readable token is correct **wherever cookies are usable**. A TV platform distinguishes a **packaged** app (resources installed locally, served from a non-`http(s)` scheme) from a **hosted** app (content served over `http(s)`), and cookie behavior differs between them. `REACT-TV-API-1` requires establishing which app type ships and whether cookies are usable on it, from vendor documentation for the targeted firmware — a finding, not an assumption.
+- **Where cookies are unavailable, this rule's in-memory-token fallback becomes the primary design**, not a compromise — owned by `REACT-TV-API-2`. What does not relax: no token in a script-readable store (`REACT-STATE-PERSIST-2`, shared `SEC-COOKIE-2`, `SEC-STORAGE-3`), none in logs (shared `SEC-LOG-1`), none inlined into the package (`REACT-API-BASEQ-6`, `REACT-TV-PKG-6`, shared `SEC-SECRETS-2`). **Reaching for `localStorage` because "cookies don't work on TV" is a defect, not a workaround** — and it is the single most likely wrong turn in a TV data layer.
+- **`REACT-API-BASEQ-5`'s CORS model may not describe the target.** A packaged app's document origin is not the API's origin, so requests are cross-origin by construction, and platforms mediate that differently: one requires every reachable origin to be declared in the **application manifest** and does not send the CORS `Origin` header at all — which breaks any server that reflects the app's origin — while another follows CORS with server-side control only. `REACT-TV-API-3` owns establishing the actual model; adding a backend host may therefore be a **packaging change** (`REACT-TV-PKG-3`), not only a code change. Unchanged: CORS is a read boundary, never authorization (shared `SEC-WEB-6`).
+- **`REACT-API-BASEQ-3`'s CSRF exposure is re-derived, not inherited.** CSRF protection is required when state changes ride an **ambient cookie** credential. Where the established TV transport carries no ambient cookie, classic browser CSRF is not the live threat — recorded as a reasoned **N/A against the established transport**, never as a passed check, and re-derived if the transport changes. `REACT-TV-API-4` owns this.
+
 ## References
 
 - This document is a living baseline; reviewers flag data-layer gaps found during review rather than working around them silently.
 - Where a repo already uses a specific data-fetching library, `repo-analyst`'s detection identifies it and these concept-level rules are applied to that library's constructs.
-- Companion React standards: `standards/react/react-coding-standards.md` (authored — governing conventions; `REACT-FC-6`) and `standards/react/react-routing.md` (authored — `REACT-ROUTE-SSR-2`); and `standards/react/react-state-management.md`, `standards/react/react-architecture.md`, `standards/react/react-performance.md` (all authored; cross-references frozen in REACT-001-7).
-- Shared standards cited (not restated) here: `standards/shared/mobile-security.md` (`SEC-COOKIE-1`, `SEC-COOKIE-2`, `SEC-WEB-3`, `SEC-WEB-6`, `SEC-SECRETS-2`, `SEC-LOG-1`).
+- Companion React standards: `standards/react/react-coding-standards.md` (authored — governing conventions; `REACT-FC-6`) and `standards/react/react-routing.md` (authored — `REACT-ROUTE-SSR-2`); and `standards/react/react-state-management.md`, `standards/react/react-architecture.md`, `standards/react/react-performance.md` (all authored; cross-references frozen in REACT-001-7); and `standards/react/react-smart-tv.md` (authored — `REACT-TV-API-*` qualifies this document's auth-transport and CORS premises on a TV surface).
+- Shared standards cited (not restated) here: `standards/shared/mobile-security.md` (`SEC-COOKIE-1`, `SEC-COOKIE-2`, `SEC-WEB-3`, `SEC-WEB-6`, `SEC-SECRETS-2`, `SEC-LOG-1`, `SEC-STORAGE-3`).
 
 ## External references
 
