@@ -17,7 +17,7 @@ It is not orchestration. The shared `dev-design-start` and `dev-feature-start` s
 
 ## Inputs this skill requires (resolved, never invented)
 
-Before anything else, obtain and **verify the existence of** the concrete inputs below. They are passed by the invoking command/agent or deterministically resolved from the feature name and repo layout — this skill **never guesses or fabricates a path** to a feature document.
+Before anything else, obtain and **verify the existence of** the concrete inputs below. They are resolved and passed by the invoking command — artifact resolution is `commands/dev-design-start.md`'s, not this skill's. This skill **never guesses or fabricates a path** to a feature document.
 
 - The confirmed **`platform`** (must be `android`) and **`device_type`** (`mobile` or `tv`), read from frontmatter. Never re-detected here.
 - The target **repository / module root**.
@@ -26,7 +26,7 @@ Before anything else, obtain and **verify the existence of** the concrete inputs
 - **At Feature-start:** the absolute path to the **approved Detailed Design (DD)**.
 - The four **design-reference fields** (`design_reference_status`, `design_reference_type`, `design_reference`, `figma_link`).
 
-If any required input is missing or cannot be resolved deterministically, **stop and report exactly which input is missing** — do not proceed against an assumed location. If `platform` is not `android`, stop: this skill does not run for another platform. If `device_type` is missing, empty, or any value other than `mobile`/`tv` (including `mixed`), **stop and report it** — never default to `mobile`.
+If any required input is missing, **stop and report exactly which input is missing** — do not proceed against an assumed location. If `platform` is not `android`, stop: this skill does not run for another platform. If `device_type` is missing, empty, or any value other than `mobile`/`tv` (including `mixed`), **stop and report it** — never default to `mobile`.
 
 ## 0. Standards readiness gate
 
@@ -43,12 +43,11 @@ Android's parameters for the two parameterised ranks:
 
 ## 2. Repository-knowledge reuse
 
-Apply the `repo-knowledge-consumer` skill before deriving anything. **Never read or parse `.ono/repo-knowledge.json` directly** — that skill is the only component that understands the manifest.
+Repository knowledge is resolved by the invoking command and consumed through the `repo-knowledge-consumer` skill, which owns the resolution procedure, what may be reused, and the citation shape. Apply it as written; it is not restated here.
 
-- Reuse every category in `usableCategories` by **reading the cited document and citing it by path plus anchor** — `docs/project/patterns.md#<anchor>` for conventions, `docs/project/components.md#<anchor>` for existing components, `docs/project/integrations.md#<anchor>` for services and SDKs, the `CLAUDE.md` structure pointers for the module map. Reuse means read and cite, never paste.
-- Derive live exactly the categories in `deriveLive`, plus the feature-specific detail no repository-wide document could contain — the actual signatures, state shape, and call sites of the specific classes *this feature* touches. That feature-specific reading is required and is not duplication.
-- **Knowledge unavailable is the normal path.** Say so in one line and derive everything live. Never stop, never ask permission, never treat it as a warning to resolve.
-- `device_type` is **never** reused from the manifest — the manifest carries no device information.
+What this lane adds on top of it:
+
+- **Derive live the Android detail no repository-wide document can hold** — the actual signatures, state shape, and call sites of the specific classes *this feature* touches, alongside the categories the consumer reports as `deriveLive`. That feature-specific reading is required and is not duplication of the manifest.
 
 ## 3. Repository evidence collection
 
@@ -244,9 +243,8 @@ Exactly one confirmed platform always applies, so these sections are **always fl
 
 ## 18. Approval gates and failure behavior
 
-- The Feature Analysis must be `approved` before it is designed against; the DD must be `approved` before it is decomposed. This skill never flips a status.
-- Documents remain `draft` until a human approves them.
-- A UI-changing feature requires a design reference of any supported type; `not_required` is never a valid outcome for one.
+- Approval gating is owned by `commands/dev-design-start.md` and `commands/dev-feature-start.md`. **This skill never flips a status.**
+- The design-reference gate is owned by `/analyze-feature`; this lane reads what it recorded and never re-runs it.
 - **Stop and report** — never work around — when: a required input is missing; `device_type` is absent or invalid; evidence is missing, contradictory, or ambiguous on a load-bearing dimension; upstream documents conflict; the plan would require violating or expanding an approved decision; a backend contract is unconfirmed; a cited standard file is missing or a placeholder.
 
 ## Definition of Done

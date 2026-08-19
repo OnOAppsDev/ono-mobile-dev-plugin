@@ -29,7 +29,7 @@ Referencing these is correct; restating them is duplication.
 | Architect routing, complexity-assessment triggering | **`commands/dev-design-start.md`** steps 3, 3a |
 | Repository-knowledge resolution procedure | **`commands/dev-design-start.md`** step 2 and `skills/repo-knowledge-consumer` |
 | DD section rules, the `N/A — [reason]` discipline, the flat-section rule, the frontmatter contract, the §20 change-class resolution rule and its site threshold, the contraction pass | **`skills/dev-design-start/SKILL.md`** Steps 2, 6 and 7 |
-| Statement classification, risk taxonomy, the ranked source-of-truth hierarchy | **Not owned by this lane.** These are platform-independent and are pending a shared-layer decision; do not introduce a React Native copy of any of them |
+| Statement classification, risk taxonomy, the ranked source-of-truth hierarchy | **`skills/dev-design-start/SKILL.md`** § *Shared planning rules* — defined once there, as Classification, Risk classification and Source-of-truth hierarchy. Apply them as written; do not introduce a React Native copy of any of them. This lane supplies only React Native's rank-4 and rank-5 values: **rank 4** — `standards/react-native/*` plus `standards/shared/*`; **rank 5** — React Native release notes and community guidance |
 
 ## 1. Standards readiness
 
@@ -73,7 +73,9 @@ This vocabulary is **owned by the React Native planning lane as part of the plat
 
 ## 4. Technical Implementation Approach (DD §19)
 
-Express the approach in the repository's own React Native vocabulary, grounded strictly in [§3](#3-react-native-repository-evidence-collection):
+Express the approach in the repository's own React Native vocabulary, grounded strictly in [§3](#3-react-native-repository-evidence-collection).
+
+**Every statement carries its class.** Label each one Existing, Required, Recommended or Unresolved per `skills/dev-design-start/SKILL.md` § *Shared planning rules → Classification* — that rule is the definition and is not restated here.
 
 - **Screens and components** — which surfaces are added or changed, and which existing components and hooks are reused (name them by path).
 - **State and data** — where state lives and who owns it, in the mechanism the repository actually uses; what is local and what is shared; how the feature's data is fetched, cached, invalidated, and how its errors are normalised.
