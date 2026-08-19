@@ -38,6 +38,14 @@ three React skills. REACT-003 (in progress) — React Smart TV via `device_type:
   mobile-oriented rule does not transfer: `A11Y-SR-1`'s VoiceOver/TalkBack walkthrough
   and `A11Y-FONT-1`'s OS font-scale premise have no reliable TV equivalent, so the
   semantic obligation is kept and the gap is stated rather than silently passed.
+  Closes with 13 rank-5 external references, each fetched and confirmed to resolve,
+  grouped Tizen / webOS / standards-and-platform-APIs. No manifest schema, key code,
+  safe-area inset, or memory limit is frozen into any rule — such values appear only in
+  the reference list and are marked illustrative, because vendor docs are reorganized
+  and vendor tooling retired without notice (the reference list cites the current webOS
+  CLI guide and says why the webOS TV CLI one, deprecated March 2024, is not used; and
+  it flags W3C CSS Spatial Navigation as a 2019 Working Draft rather than an available
+  browser capability).
   REACT-003-2 (threading `device_type: tv` branches into the six base documents) and
   REACT-003-3 (stating the contract in the React skills and agents) are not yet done —
   the React agents and skills still say `REACT-TV-*` is unauthored.

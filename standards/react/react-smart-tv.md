@@ -149,21 +149,28 @@ Packaging is vendor-specific and version-sensitive. These rules govern **how the
 
 Rank-5 supporting material only (see *External references* under the governing conventions in `react-coding-standards.md`): consult for background, never as a rule and never fetched at review time; a repository convention (rank 2) always wins. **Vendor platform documentation is versioned and changes without notice** — a rule above never depends on a specific field list or key-code value frozen into this file, and the vendor's current documentation is authoritative for the values a repository's key map and manifest must carry.
 
-> **INCOMPLETE — the link list is not yet authored (REACT-003-1, open).** No rule above
-> depends on it: the rules are written to defer to the vendor's current documentation
-> rather than to a value frozen here, so the standard is usable as it stands. What is
-> missing is the rank-5 supporting list itself. It is **not** to be filled in from memory
-> — every link must be verified to resolve on the day it is added, per the lane's
-> `## External references` contract, and each entry carries a *when to consult* note and
-> the `REACT-TV-*` IDs it supports.
->
-> Doc areas required, and the rules each would support:
->
-> - Tizen TV web-app packaging, `config.xml`, and certificate/signing (`developer.samsung.com`) — supports `REACT-TV-PKG-1..6`.
-> - Tizen TV remote key codes and hardware-key registration — supports `REACT-TV-INPUT-1`, `REACT-TV-INPUT-2`, `REACT-TV-INPUT-5`.
-> - webOS TV `appinfo.json`, `.ipk` packaging, and the vendor CLI (`webostv.developer.lge.com`) — supports `REACT-TV-PKG-1..4`, `REACT-TV-PERF-1`.
-> - webOS TV lifecycle and relaunch/locale events — supports `REACT-TV-LIFECYCLE-1`, `REACT-TV-LIFECYCLE-3`, `REACT-TV-LIFECYCLE-5`.
-> - Each vendor's 10-foot UI / safe-area (overscan) design guidance — supports `REACT-TV-UI-1`, `REACT-TV-UI-2`.
-> - W3C CSS spatial navigation (status: check whether it is still a draft and whether any TV runtime ships it) — supports `REACT-TV-FOCUS-2`, `REACT-TV-FOCUS-5`.
-> - MDN Page Visibility API — supports `REACT-TV-LIFECYCLE-1`, `REACT-TV-LIFECYCLE-4`.
-> - Each vendor's stated memory limits / performance guidance for TV web apps — supports `REACT-TV-PERF-1`, `REACT-TV-PERF-2`.
+**Two cautions specific to this document.** First, vendor documentation is **versioned and reorganized without notice**, and vendor tooling is retired on its own schedule — the webOS TV CLI, for instance, was superseded in March 2024, so a link that resolves today may describe a deprecated tool tomorrow. Second, a value quoted below is quoted to show *what kind* of value the vendor publishes, **never as the rule** — the repository's key map, safe-area inset, and manifest fields must be checked against the vendor's current documentation for the firmware actually targeted, not against this list.
+
+Links verified live 2026-08-19.
+
+**Samsung Tizen**
+
+- [Configuring Web Applications](https://developer.samsung.com/smarttv/develop/guides/fundamentals/configuring-tv-applications.html) — supports `REACT-TV-PKG-2`, `REACT-TV-PKG-3`. *Consult* for the `config.xml` elements a Tizen TV web app declares (application id, version, icon, content entry point, privileges, network access policy) when reviewing a manifest diff.
+- [Creating Certificates](https://developer.samsung.com/smarttv/develop/getting-started/setting-up-sdk/creating-certificates.html) — supports `REACT-TV-PKG-5`. *Consult* for the author/distributor certificate pair a Tizen package is signed with, and why the author certificate must survive for future updates — the reason signing material is held outside source control rather than regenerated.
+- [Command Line Interface](https://developer.samsung.com/smarttv/develop/getting-started/using-sdk/command-line-interface.html) — supports `REACT-TV-PKG-1`, `REACT-TV-PKG-4`. *Consult* for the `tizen build-web` / `tizen package` invocation (including the certificate-profile flag) that a committed packaging script should encode. Note that only `.wgt` packages install on Samsung TVs.
+- [Remote Control](https://developer.samsung.com/smarttv/develop/guides/user-interaction/remote-control.html) — supports `REACT-TV-INPUT-1`, `REACT-TV-INPUT-2`, `REACT-TV-INPUT-5`. *Consult* for the authoritative key-code table and, critically, the split between keys delivered automatically (`ArrowLeft/Up/Right/Down`, `Enter`, `Back`) and keys that reach the app **only** after `registerKey`/`registerKeyBatch` — a handler for an unregistered media or color key is dead code. Tizen's `Back` is `10009`.
+
+**LG webOS**
+
+- [`appinfo.json`](https://webostv.developer.lge.com/develop/references/appinfo-json) — supports `REACT-TV-PKG-3`, `REACT-TV-PKG-4`, `REACT-TV-PERF-1`. *Consult* for the required manifest fields (`id`, `title`, `type`, `main`, `icon`, `version`) and the optional `requiredMemory` declaration in megabytes — the field `REACT-TV-PERF-1` requires to agree with the stated budget.
+- [CLI Developer Guide](https://webostv.developer.lge.com/develop/tools/cli-dev-guide) — supports `REACT-TV-PKG-1`. *Consult* for the current `ares-package` invocation that produces an `.ipk`. **Use this page, not the separate "webOS TV CLI" guide**, which is deprecated as of March 2024.
+- [App Lifecycle Management](https://webostv.developer.lge.com/develop/guides/app-lifecycle-management) — supports `REACT-TV-LIFECYCLE-1`, `REACT-TV-LIFECYCLE-2`, `REACT-TV-LIFECYCLE-4`. *Consult* for the foreground/suspended/terminated states and how `visibilityChange` drives them — the basis for capturing state *before* suspension rather than after resume.
+- [webOS Events](https://webostv.developer.lge.com/develop/references/webos-event) — supports `REACT-TV-LIFECYCLE-3`, `REACT-TV-LIFECYCLE-5`. *Consult* for `webOSLaunch`, `webOSRelaunch` (distinguishing a relaunch from a cold start, and its launch payload) and `webOSLocaleChange` (runtime language change without a restart).
+- [Back Button](https://webostv.developer.lge.com/develop/guides/back-button) — supports `REACT-TV-INPUT-2`, `REACT-TV-INPUT-4`. *Consult* for webOS's `Back` key code (`461` — **not** Tizen's `10009`, which is why one merged key table breaks on the other platform), the default History-API-backed handling, and the platform's expected root-level behavior (an exit prompt on webOS TV 6.0+).
+- [Overscan](https://webostv.developer.lge.com/develop/guides/overscan) — supports `REACT-TV-UI-1`. *Consult* for a worked example of a published safe-area inset (webOS states a 20px margin, with all selectable objects, text, and branding required inside it). Locate the equivalent guidance for each other platform targeted rather than reusing this number.
+- [Supported App Resolution](https://webostv.developer.lge.com/develop/specifications/app-resolution) — supports `REACT-TV-UI-3`, and the *TV detection traps* warning against inferring the device from the viewport. *Consult* for how a TV renders graphics at a logical resolution independent of the panel and of video playback — on a UHD model, graphics at 1920×1080 while video plays at 3840×2160 — which is why a pixel size measured on one device does not transfer.
+
+**Standards & platform APIs**
+
+- [W3C CSS Spatial Navigation Level 1](https://www.w3.org/TR/css-nav-1/) — supports `REACT-TV-FOCUS-2`, `REACT-TV-FOCUS-5`. *Consult* for the model of directional focus movement and spatial navigation containers (`spatial-navigation-action`, `spatial-navigation-contain`). **Status matters: this is a Working Draft (26 November 2019), not a shipping feature** — treat it as vocabulary for reasoning about a focus model, never as an available browser capability, and never propose replacing a repository's working focus engine with it.
+- [MDN — Page Visibility API](https://developer.mozilla.org/en-US/docs/Web/API/Page_Visibility_API) — supports `REACT-TV-LIFECYCLE-1`, `REACT-TV-LIFECYCLE-4`. *Consult* for `visibilitychange` and `document.visibilityState`, the standard-web half of TV lifecycle handling that both vendors build on — and for the pattern of stopping work while hidden.
