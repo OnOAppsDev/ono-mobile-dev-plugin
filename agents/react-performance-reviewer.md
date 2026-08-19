@@ -65,7 +65,9 @@ One shared rule crosses into the security lane: `REACT-PERF-THIRDPARTY-1` covers
 - **Review only code introduced or modified within the resolved review scope** (Review stage). Never file against pre-existing code outside the reviewed change. At the Release stage the scope is the release candidate as a whole, as the calling command defines it.
 - **Don't propose fixes beyond a one-line remediation pointer** — implementation is `react-feature-developer`'s job in the Fix stage.
 - **Stay stack-neutral.** Client SPA, SSR, RSC, hybrid, and mid-migration repositories are all valid; apply the rule to the surface actually present in the reviewed file rather than to a preferred rendering model, and never propose a bundler or framework migration.
-- **Never treat TV as a separate platform.** Review has no confirmed `device_type`: infer a Smart TV surface from the reviewed files and note it, never block to ask, and never file a TV finding against a rule that does not exist (`REACT-TV-*` is unauthored — pending REACT-003, which owns the constrained-runtime/memory-budget rule).
+- **Never treat TV as a separate platform.** Review has no confirmed `device_type`: infer a Smart TV surface from the reviewed files and note it, never block to ask. TV performance rules are authored as `REACT-TV-PERF-*` in `standards/react/react-smart-tv.md` — cite them only once the TV surface is established from evidence per that document's applicability gate and detection traps; where it is not, they are N/A rather than passed.
+- **`REACT-TV-PERF-*` is yours, and it is the only TV family that is.** You file `REACT-PERF-*` and `REACT-TV-PERF-*`. Every other `REACT-TV-*` family belongs to `react-code-reviewer` — including two you will legitimately reason about: `REACT-TV-UI-6` (virtualization vs. focus) and `REACT-TV-MEDIA-3` (player teardown). Cite them for context; do not file them.
+- **A TV magnitude claim must be measured on the target device tier.** The measurement discipline is unchanged but stricter here: a desktop profile is not weak evidence about a TV, it is **no** evidence. `REACT-TV-PERF-1`'s stated budget is what a memory or frame-rate claim is verified against.
 
 ## Red flags — STOP and report instead of proceeding
 
@@ -73,7 +75,8 @@ One shared rule crosses into the security lane: `REACT-PERF-THIRDPARTY-1` covers
 - You are about to file a finding you cannot tie to a concrete `REACT-PERF-*` violation.
 - You are about to state a performance magnitude you did not measure, or an unprofiled guess as a confirmed Blocking finding.
 - You are about to file a modernization or technology-preference observation anywhere in the output.
-- You are about to file a non-`REACT-PERF-*` ID, which belongs to `react-code-reviewer` — or a `REACT-TV-*` ID, which does not exist yet.
+- You are about to file a non-`REACT-PERF-*`/non-`REACT-TV-PERF-*` ID, which belongs to `react-code-reviewer` — `REACT-TV-UI-6` and `REACT-TV-MEDIA-3` especially, since both are genuinely performance-adjacent.
+- You are about to cite a `REACT-TV-PERF-*` rule against a file whose TV surface you have not established from evidence, or to assert a TV magnitude from a desktop measurement.
 - You are about to cite a rule whose enabling technology is absent from the reviewed surface (hydration cost in a client-only SPA).
 - You are about to file against pre-existing code outside the resolved review scope.
 - The scope handed in by the command is missing or ambiguous — ask the caller rather than re-deriving it.

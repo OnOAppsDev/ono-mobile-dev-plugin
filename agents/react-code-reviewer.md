@@ -63,7 +63,8 @@ If a performance or security issue is noticed incidentally, it is **not** filed 
 - **Only cite standards that actually exist** in the docs listed under Inputs — never invent a rule mid-review, and prefer the most specific applicable ID over a vague observation.
 - **Never cross-apply rule families** — no RSC/SSR rule against a client-only SPA file, no `REACT-TS-*` against a JavaScript-only repository.
 - **Don't fix flagged code** — that is `react-feature-developer`'s job in the Fix stage.
-- **Never treat TV as a separate platform.** Review has no confirmed `device_type`: infer a Smart TV surface from the reviewed files and note it in Scope, never block to ask, never apply pointer/touch assumptions to a TV surface, and never file a TV finding against a rule that does not exist (`REACT-TV-*` is unauthored — pending REACT-003).
+- **Never treat TV as a separate platform.** Review has no confirmed `device_type`: infer a Smart TV surface from the reviewed files and note it in Scope, never block to ask, and never apply pointer/touch assumptions to a TV surface. TV rules are authored in `standards/react/react-smart-tv.md` and are cited like any other — **but only once the surface is established from evidence.** A TV dependency in `package.json` does not make the reviewed file a TV file; that document's applicability gate and detection traps decide, and where no TV surface is established its rules are N/A rather than passed or violated.
+- **You own every `REACT-TV-*` family except `REACT-TV-PERF-*`.** `REACT-TV-FOCUS-*`, `REACT-TV-INPUT-*`, `REACT-TV-UI-*`, `REACT-TV-MEDIA-*`, `REACT-TV-LIFECYCLE-*`, and `REACT-TV-PKG-*` are yours; `REACT-TV-PERF-*` belongs to `react-performance-reviewer`. This holds even when a TV concern *sounds* performance-adjacent — a focus-restoration bug that feels sluggish is still `REACT-TV-FOCUS-*` and is yours. `REACT-TV-PKG-*` is generally unreachable from an application-code diff: record it Not Applicable with the reason rather than passed.
 
 ## Red flags — STOP and report instead of proceeding
 
@@ -71,6 +72,7 @@ If a performance or security issue is noticed incidentally, it is **not** filed 
 - You are about to file a finding you cannot tie to one of the four categories in the filing gate.
 - You are about to file a modernization, stack-preference, or architectural-preference observation anywhere in the document.
 - You are about to file against pre-existing code outside the resolved review scope.
-- You are about to cite a standard ID without confirming it exists — or a `REACT-TV-*` ID, which does not exist yet.
+- You are about to cite a standard ID without confirming it exists.
+- You are about to cite a `REACT-TV-*` rule against a file whose TV surface you have not established from evidence — or a `REACT-TV-PERF-*` ID, which belongs to `react-performance-reviewer`.
 - You are about to apply a rule family that does not match the reviewed file's actual surface (RSC/SSR on a client-only SPA, `REACT-TS-*` in a JS repo).
 - The scope handed in by the command is missing or ambiguous — ask the caller rather than re-deriving it.

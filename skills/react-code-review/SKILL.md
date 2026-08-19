@@ -27,9 +27,9 @@ In a monorepo, review each changed file against **its own workspace's** configur
 
 ## 2. Standards readiness gate
 
-Every React finding cites an authored `REACT-*` standard under `standards/react/`. Before reviewing, confirm those standards are authored (not placeholders). If a cited `standards/react/*` file is missing or is still a structure-only placeholder, **stop and report that real React review is blocked until it is authored** — do not fall back to unwritten expectations. (As of authoring, all six `standards/react/*` files are authored and the `REACT-*` ID skeleton is frozen (REACT-001-7), as are the shared `A11Y-*`/`I18N-*`/`SEC-*` standards; this gate exists so the skill fails loudly if that regresses.)
+Every React finding cites an authored `REACT-*` standard under `standards/react/`. Before reviewing, confirm those standards are authored (not placeholders). If a cited `standards/react/*` file is missing or is still a structure-only placeholder, **stop and report that real React review is blocked until it is authored** — do not fall back to unwritten expectations. (As of authoring, all **seven** `standards/react/*` files are authored — the six base standards with the `REACT-*` ID skeleton frozen (REACT-001-7), plus `react-smart-tv.md` (`REACT-TV-*`, added additively by REACT-003-1) — as are the shared `A11Y-*`/`I18N-*`/`SEC-*` standards; this gate exists so the skill fails loudly if that regresses.)
 
-The React Smart TV standard (`REACT-TV-*`) is **not yet authored** (REACT-003) — see [§14](#14-device_type-handling-at-review).
+The React Smart TV standard is authored: `standards/react/react-smart-tv.md` owns the `REACT-TV-*` root. It is only cited once a TV surface is **established from evidence** — see [§14](#14-device_type-handling-at-review).
 
 ## 3. What may be filed — the filing gate
 
@@ -146,7 +146,7 @@ This prevents the two agents double-filing the same issue from two directions. I
 - **Read enough surrounding code to judge the change before filing.** A finding based only on the diff hunk, without checking the file's existing pattern, its workspace config, and its rendering surface, is the characteristic review defect. Reading context is required; filing against that context is not ([§4](#4-scope-discipline--legacy-code-and-the-review-boundary)).
 - **Never invent a rule mid-review.** Only cite IDs that exist in the standards files listed in [§5](#5-triage-into-standards-relevant-buckets) and the [Standards citation](#standards-citation) table.
 - **Prefer the most specific applicable ID** over a vague observation — `REACT-STATE-BOUNDARY-2` for shareable state kept out of the URL, not a general "state management could be better".
-- **Never cite a `REACT-TV-*` ID** — that family is reserved and unauthored ([§14](#14-device_type-handling-at-review)).
+- **Cite a `REACT-TV-*` ID only once the TV surface is established from evidence** ([§14](#14-device_type-handling-at-review)). The family is authored, but a TV dependency in `package.json` does not make the reviewed file a TV file — and `REACT-TV-PERF-*` is the performance reviewer's, not this lane's.
 
 ## 11. Severity rubric
 
@@ -181,12 +181,14 @@ This governs Pass B's output at both call sites, and any performance wording any
 Review has **no confirmed `device_type`** — there is no upstream frontmatter to read, unlike the Analyze and Design stages. Handle it minimally:
 
 - **Infer, never demand.** If the reviewed files sit in a Smart TV surface (a Tizen/webOS target or manifest, TV-specific key-code handling, a TV entry point or layout), note it in the review's Scope section. **Never block a review to ask** which device type is in play.
-- **Suppress inapplicable pointer/touch rules rather than invent TV rules.** `A11Y-TOUCH-1` already states that on TV form factors the requirement is a reliably focusable element with a clearly visible focus state instead of a touch-target size — honoring that is reading the authored shared standard, not adding TV knowledge.
-- **Never file a TV finding against a rule that does not exist.** No `REACT-TV-*` rules are authored yet (reserved for REACT-003). Where TV-specific review depth is genuinely unavailable, say so once in Not Applicable / Skipped and move on.
-- **Never apply pointer or touch assumptions to a TV surface** — hover affordances, tap/swipe gestures, pointer-scroll, and soft-keyboard flows do not transfer to a D-pad/remote model.
+- **The inference must clear the applicability gate before any `REACT-TV-*` rule is cited.** `standards/react/react-smart-tv.md` owns that gate and its seven **detection traps** — read them before filing. The two that bite most often at review time: a TV dependency in `package.json` does **not** make the reviewed file a TV file (a repo may ship both a phone web app and a TV app from shared code — the surface the changed file renders on decides), and a shared component used by both surfaces must satisfy both, so a pointer-only affordance in it is a finding only if the TV surface actually renders it. Where no TV surface is established, the whole TV document is **N/A** — not passed, not violated.
+- **Cite the TV rules once the surface is established.** `REACT-TV-*` is authored. Every base `REACT-*` rule still applies on a TV surface too; the TV document adds obligations and names TV equivalents where a base rule assumes a pointer, and never relaxes a base rule.
+- **Lane split within the TV root.** This skill's code-review lane owns `REACT-TV-FOCUS-*`, `REACT-TV-INPUT-*`, `REACT-TV-UI-*`, `REACT-TV-MEDIA-*`, `REACT-TV-LIFECYCLE-*`, and `REACT-TV-PKG-*`. **`REACT-TV-PERF-*` belongs to `react-performance-reviewer`** — the one exception, and it holds even when a TV concern sounds performance-adjacent (a focus-restoration bug that feels sluggish is `REACT-TV-FOCUS-*`, filed here). `REACT-TV-PKG-*` is generally unreachable from an application-code diff — record it Not Applicable with the reason.
+- **Suppress inapplicable pointer/touch rules rather than invent TV rules.** `A11Y-TOUCH-1` already states that on TV form factors the requirement is a reliably focusable element with a clearly visible focus state instead of a touch-target size; `REACT-TV-FOCUS-3` is the React rule that owns it. Two shared rules do **not** transfer cleanly and the TV document records how: `A11Y-SR-1`'s VoiceOver/TalkBack walkthrough (no TV equivalent — the semantic role/label/state obligation survives, per `REACT-TV-UI-7`) and `A11Y-FONT-1`'s OS font-scale premise (per `REACT-TV-UI-4`).
+- **Never apply pointer or touch assumptions to a TV surface** — hover affordances, tap/swipe gestures, pointer-scroll, and soft-keyboard flows do not transfer to a D-pad/remote model. `REACT-TV-INPUT-6` owns this.
 - **Never treat TV as a separate platform.** There is no separate TV reviewer, skill, or platform value; `tv` is a device type inside the React platform.
 
-This skill does **not** author React Smart TV standards or rules — that is a separate, later scope (REACT-003).
+This skill does **not** author React Smart TV rules — `standards/react/react-smart-tv.md` owns them, and this skill cites them.
 
 ## 15. Merge into the shared template
 
@@ -224,9 +226,13 @@ Cite only IDs that exist in these files and genuinely apply to the change under 
 | Accessibility (shared) | `standards/shared/accessibility.md` | `A11Y-*` | code-reviewer |
 | Localization & RTL (shared) | `standards/shared/i18n-rtl.md` | `I18N-*` | code-reviewer |
 | Performance & Core Web Vitals | `standards/react/react-performance.md` | `REACT-PERF-*` | **performance-reviewer** |
+| Smart TV — focus, remote input, 10-foot UI, playback, lifecycle, packaging | `standards/react/react-smart-tv.md` | `REACT-TV-FOCUS-*`, `REACT-TV-INPUT-*`, `REACT-TV-UI-*`, `REACT-TV-MEDIA-*`, `REACT-TV-LIFECYCLE-*`, `REACT-TV-PKG-*` | code-reviewer |
+| Smart TV — constrained runtime & memory budget | `standards/react/react-smart-tv.md` | `REACT-TV-PERF-*` | **performance-reviewer** |
 | Security & privacy (shared) | `standards/shared/mobile-security.md` | `SEC-*` | **neither — `mobile-security-review`** |
 
-Do not use React Native's `RN-*` or the generically-named `ARCH-*`/`API-*`/`STATE-*`/`NAV-*` IDs for React, and do not use Android's `AND-*` or iOS's `IOS-*` — React cites the `REACT-*` roots above. The Smart TV family (`REACT-TV-*`) is reserved and not citable until REACT-003 authors it.
+Do not use React Native's `RN-*` or the generically-named `ARCH-*`/`API-*`/`STATE-*`/`NAV-*` IDs for React, and do not use Android's `AND-*` or iOS's `IOS-*` — React cites the `REACT-*` roots above.
+
+**The two Smart TV rows above are conditional on the surface**, not on the repository: cite them only once the reviewed file's TV surface is established from evidence per [§14](#14-device_type-handling-at-review). A standalone `REACT-TV-*` root has no owner under the "root decides the filer" rule that governs every other row, which is why the TV families are split across two rows here and why `standards/react/react-smart-tv.md` states the same routing table itself.
 
 ## Red flags — STOP and report instead of proceeding
 
@@ -234,7 +240,8 @@ Do not use React Native's `RN-*` or the generically-named `ARCH-*`/`API-*`/`STAT
 - You are about to file a finding you cannot tie to one of the four categories in [§3](#3-what-may-be-filed--the-filing-gate).
 - You are about to file a modernization, stack-preference, or architectural-preference observation anywhere in the document.
 - You are about to file against pre-existing code outside the resolved review scope.
-- You are about to cite a standard ID without confirming it exists — or a `REACT-TV-*` ID, which does not exist yet.
+- You are about to cite a standard ID without confirming it exists.
+- You are about to cite a `REACT-TV-*` rule against a file whose TV surface you have not established from evidence ([§14](#14-device_type-handling-at-review)) — or a `REACT-TV-PERF-*` ID, which belongs to `react-performance-reviewer`.
 - You are about to apply an RSC or SSR rule family to a file whose surface does not server-render, or `REACT-TS-*` to a JavaScript-only repository.
 - You are about to state an unmeasured performance magnitude as fact, or an unprofiled guess as a confirmed Blocking finding.
 - The scope handed in by the command is missing or ambiguous — ask the caller rather than re-deriving it.

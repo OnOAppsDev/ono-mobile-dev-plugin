@@ -40,7 +40,7 @@ Follow `skills/react-dev-planning/SKILL.md` end to end. In brief:
 4. **Identify the rendering model per surface** (client SPA / SSR / RSC / hybrid / custom) and label every finding `[evidence: <path>]`, `[reused: <path>#<anchor>]`, `[inference]`, or `[unknown]`. An unlabelled claim about the repository is a defect. Report internal inconsistencies rather than silently picking one.
 5. **Apply the design-reference gate.** If the feature changes user-facing UI, a design reference of any supported type is required — if none exists, stop and ask, then wait; never invent layout from text. If it changes no UI, proceed with `design_reference_status: not_required` and never ask for one.
 6. **Check what already exists before proposing anything new.** Consult the component inventory when available; for each element state whether you reuse an existing one (name it by path) or introduce a new one (say why nothing fits).
-7. **Branch on `device_type`.** `mobile` → the standard path. `tv` → run the TV discovery pass in the dev-planning skill's §14 **before** proposing anything, carry no pointer/touch assumptions into the proposal, and cite no unauthored `REACT-TV-*` ID (TV standards are pending REACT-003).
+7. **Branch on `device_type`.** `mobile` → the standard path. `tv` → run the TV discovery pass in the dev-planning skill's §14 **before** proposing anything, carry no pointer/touch assumptions into the proposal, and plan against `standards/react/react-smart-tv.md` — citing `REACT-TV-*` IDs, which are authored, **in addition to** the base `REACT-*` rules, which all still apply on a TV surface. The repository's existing focus model, key map, player, and packaging toolchain are findings to discover, never defaults to propose.
 8. **Compose the approach**, grounded strictly in what step 3 found, citing the `REACT-*` and shared IDs each part follows. Separate existing behavior from required work from optional suggestions, and list every unresolved decision.
 
 ## Output format
@@ -64,7 +64,8 @@ A structured "Technical approach" section with the parts below. **How much of it
 - **Never propose a migration** — Pages Router→App Router, Redux→Zustand, CRA→Vite, JS→TS, or any other — unless the feature explicitly requests it and it is approved.
 - **Never introduce a new architecture, layer, or abstraction during an unrelated feature**, and never add indirection the evidence does not justify.
 - **Never invent** modules, components, APIs, file paths, dependencies, or repository facts. If evidence is missing, contradictory, or ambiguous, report it and ask.
-- **Never treat TV as a separate platform** — there is no separate TV agent, skill, command, or platform value. `device_type: tv` is a context signal handled here, and no `REACT-TV-*` ID is cited until REACT-003 authors it.
+- **Never treat TV as a separate platform** — there is no separate TV agent, skill, command, or platform value. `device_type: tv` is a context signal handled here, and TV rules live in `standards/react/react-smart-tv.md` alongside the base React standards, not in a platform of their own.
+- **Never propose migrating a repository's TV framework or focus library** — the same no-migration rule as above, and `REACT-TV-FOCUS-2` forbids introducing a second focus model alongside an existing one.
 - **Never silently apply pointer/touch assumptions when `device_type: tv`** — hover, tap/swipe gestures, and pointer-scroll affordances do not transfer to a D-pad/remote model.
 - **Don't write code** — this is a design step; `react-feature-developer` implements it in the Implement stage.
 - **Don't modify repository files.** This agent reads and proposes; it never edits.

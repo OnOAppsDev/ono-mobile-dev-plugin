@@ -46,9 +46,8 @@ three React skills. REACT-003 (in progress) — React Smart TV via `device_type:
   CLI guide and says why the webOS TV CLI one, deprecated March 2024, is not used; and
   it flags W3C CSS Spatial Navigation as a 2019 Working Draft rather than an available
   browser capability).
-  REACT-003-2 (threading `device_type: tv` branches into the six base documents) and
-  REACT-003-3 (stating the contract in the React skills and agents) are not yet done —
-  the React agents and skills still say `REACT-TV-*` is unauthored.
+  REACT-003-2 threaded the `device_type: tv` branches into the base documents and
+  REACT-003-3 stated the contract across the React skills and agents (both below).
 - `agents/react-architect.md` + `skills/react-dev-planning/SKILL.md` (REACT-002-1),
   `agents/react-feature-developer.md` + `skills/react-feature-implementation/SKILL.md`
   (REACT-002-2), and `agents/react-code-reviewer.md` +
@@ -100,9 +99,26 @@ three React skills. REACT-003 (in progress) — React Smart TV via `device_type:
   TV is a context signal and not a platform) and records that adding a root is the only
   sanctioned way to extend the lane after an ID freeze — correcting its own now-false
   claim that six React standards are authored.
+- `agents/react-architect.md`, `react-feature-developer.md`, `react-code-reviewer.md`,
+  `react-performance-reviewer.md`, `skills/react-dev-planning/SKILL.md`,
+  `react-feature-implementation/SKILL.md`, `react-code-review/SKILL.md` (REACT-003-3) —
+  the `device_type` contract now states that Smart TV is authored and citable. All 17
+  lines that told an agent `REACT-TV-*` was unauthored and not citable are replaced with
+  the positive contract: on `device_type: tv`, cite `REACT-TV-*` **in addition to** the
+  base `REACT-*` rules, which all still apply. Each standards-readiness gate now counts
+  **seven** `standards/react/*` files and covers `react-smart-tv.md`. The two review
+  agents and the code-review skill carry the `REACT-TV-*` routing table, since a
+  standalone TV root has no owner under the lane's "the ID's own root decides the filer"
+  rule: `REACT-TV-PERF-*` to `react-performance-reviewer`, every other TV family to
+  `react-code-reviewer`, with `REACT-TV-UI-6` and `REACT-TV-MEDIA-3` called out by name
+  as code-reviewer-owned despite being performance-adjacent. Because review has no
+  confirmed `device_type`, both reviewers must establish the TV surface from evidence
+  before citing any TV rule — a TV dependency in `package.json` does not make a reviewed
+  file a TV file — and where no TV surface is established the TV rules are Not
+  Applicable rather than passed or violated.
 - `README.md` — the React standards, skills, and agents are no longer described as
-  placeholders; the React (web) summary now states that all three lanes are authored,
-  with Smart TV context (`REACT-TV-*`) still pending REACT-003.
+  placeholders; the React (web) summary now states that the platform is complete end to
+  end, including Smart TV support via `device_type: tv`.
 
 ## [0.5.0] - 2026-08-12
 

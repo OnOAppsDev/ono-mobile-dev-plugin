@@ -42,7 +42,7 @@ Follow `skills/react-feature-implementation/SKILL.md` end to end. In brief:
 - If two applicable standards conflict for a change, flag the conflict explicitly rather than silently picking one.
 - Don't restate a standard's text in code comments — cite the ID if a non-obvious constraint needs explaining.
 - **Security is applied here but owned by the shared `mobile-security-reviewer`** — apply the shared `SEC-WEB-*`/`SEC-COOKIE-*`/`SEC-*` rules while writing, but a self-check is not the security review.
-- **Honor `device_type` with no silent default.** For `device_type: tv`, implement within the repo's existing Smart TV model, carry no pointer/touch assumptions, and cite no `REACT-TV-*` ID (pending REACT-003).
+- **Honor `device_type` with no silent default.** For `device_type: tv`, implement within the repo's **existing** Smart TV model (focus engine, key map, player, packaging) as identified during planning, carry no pointer/touch assumptions, and apply `standards/react/react-smart-tv.md`'s `REACT-TV-*` rules **in addition to** the base `REACT-*` rules — every base rule still applies on a TV surface. Never introduce a second focus model alongside an existing one (`REACT-TV-FOCUS-2`).
 - Don't implement a UI task from a description alone when no design reference is on file — ask instead of guessing. Any supported reference type satisfies this; Figma is not required specifically.
 - Don't claim a build/type-check/test/manual check passed that you did not actually run.
 - Do not use React Native's `RN-*` or the generically-named `ARCH-*`/`API-*`/`STATE-*`/`NAV-*` IDs for React — React cites the `REACT-*` roots.

@@ -32,9 +32,9 @@ If any required input is missing or cannot be resolved deterministically, **stop
 
 ## 0. Standards readiness gate
 
-This skill grounds every React-specific rule in an authored `REACT-*` standard under `standards/react/`. Before planning, confirm those standards are authored (not placeholders). If any cited `standards/react/*` file is missing or is still a structure-only placeholder, **stop and report that real React planning is blocked until it is authored** — do not silently fall back to assumed defaults. (As of authoring, all six `standards/react/*` files and the shared `A11Y-*`/`I18N-*`/`SEC-*` standards are authored and the REACT-* ID skeleton is frozen (REACT-001); this gate exists so the skill fails loudly if that regresses.)
+This skill grounds every React-specific rule in an authored `REACT-*` standard under `standards/react/`. Before planning, confirm those standards are authored (not placeholders). If any cited `standards/react/*` file is missing or is still a structure-only placeholder, **stop and report that real React planning is blocked until it is authored** — do not silently fall back to assumed defaults. (As of authoring, all **seven** `standards/react/*` files and the shared `A11Y-*`/`I18N-*`/`SEC-*` standards are authored: the six base standards with the `REACT-*` ID skeleton frozen (REACT-001-7), plus `react-smart-tv.md` (`REACT-TV-*`, added additively by REACT-003-1). This gate exists so the skill fails loudly if that regresses — on a `device_type: tv` feature it covers `react-smart-tv.md` too.)
 
-The React Smart TV standard (`REACT-TV-*`) is **not yet authored** (REACT-003). See [§14](#14-device_type-handling) for how `device_type: tv` is handled in the interim: discovery and respect for the repo's existing TV model, never a citation of an unauthored TV ID.
+The React Smart TV standard is authored: `standards/react/react-smart-tv.md` owns the `REACT-TV-*` root, and on `device_type: tv` it is planned against alongside the base standards — every base `REACT-*` rule still applies on a TV surface. See [§14](#14-device_type-handling).
 
 ## 1. Source-of-truth hierarchy
 
@@ -211,7 +211,9 @@ Run this discovery pass **before** proposing anything, recording evidence for ea
 - **Never propose migrating** to a different TV framework unless the feature explicitly requests it and it is approved.
 - **Never silently apply pointer/touch assumptions** — hover, tap/swipe gestures, and pointer-scroll affordances do not transfer to a D-pad/remote model.
 - **Reuse the existing TV components and conventions** wherever they cover the need; identify gaps without redesigning the model.
-- **Do not cite `REACT-TV-*` IDs** — the React Smart TV standard is not yet authored (REACT-003). Plan within the repo's existing TV model and the applicable general `REACT-*`/shared rules (e.g. focus and visible-focus via `A11Y-TOUCH-1/2`, TV runtime budget via `REACT-PERF-*`), and record TV-standard coverage as pending REACT-003.
+- **Cite `REACT-TV-*` IDs — the standard is authored.** `standards/react/react-smart-tv.md` supplies the vocabulary and the rule IDs for a TV plan: focus and spatial navigation (`REACT-TV-FOCUS-*`), remote/key input (`REACT-TV-INPUT-*`), 10-foot UI and overscan (`REACT-TV-UI-*`), playback (`REACT-TV-MEDIA-*`), lifecycle (`REACT-TV-LIFECYCLE-*`), the constrained-runtime and memory budget (`REACT-TV-PERF-*`), and vendor packaging/signing (`REACT-TV-PKG-*`). They are cited **in addition to** the base `REACT-*` and shared rules, which all still apply — including `A11Y-TOUCH-1/2`, whose TV reading `REACT-TV-FOCUS-3` owns.
+- **The discovery pass above is what makes those citations legitimate.** The TV rules require the repository's *existing* model; citing `REACT-TV-FOCUS-2` without having identified which focus model the repo uses is an unlabelled repository claim, and a defect. Where a discovery item is genuinely unresolvable, mark it `[unknown]` and record it as an unresolved decision rather than planning against an assumed model.
+- **Plan a stated budget, not a vague concern.** `REACT-TV-PERF-1` requires an explicit memory/performance budget for the target device tier; a magnitude claim still follows the measurement discipline in [§12](#12-performance-planning), and on TV must be measured on the target tier rather than a desktop profile.
 
 This skill does **not** author TV standards. Its TV responsibility is discovery and respect for the existing model.
 
@@ -268,7 +270,7 @@ Exactly one confirmed platform always applies, so these sections are **always fl
 - [ ] The rendering model is identified **per affected surface**.
 - [ ] Every repository claim carries an evidence, reuse, inference, or unknown label.
 - [ ] State placement (local / URL / global), routing, data/API layer, testing, performance, security, accessibility, i18n and RTL are each addressed or marked `N/A — [reason]`.
-- [ ] When `device_type: tv`, the TV discovery pass ran, no pointer/touch assumption was carried over, and no unauthored `REACT-TV-*` ID was cited.
+- [ ] When `device_type: tv`, the TV discovery pass ran, no pointer/touch assumption was carried over, the plan cites `REACT-TV-*` IDs grounded in the discovered model (never against an assumed one), and a stated `REACT-TV-PERF-1` budget is present where the feature touches memory, assets, or playback.
 - [ ] Every statement is classified Existing / Required / Recommended / Unresolved.
 - [ ] Every cited standard ID exists and genuinely applies.
 - [ ] Unresolved decisions are listed with options and implications.
@@ -290,8 +292,9 @@ Cite only IDs that exist in these files and genuinely apply.
 | Accessibility (shared) | `standards/shared/accessibility.md` | `A11Y-*` |
 | Localization & RTL (shared) | `standards/shared/i18n-rtl.md` | `I18N-*` |
 | Security & privacy (shared) | `standards/shared/mobile-security.md` | `SEC-*` (incl. `SEC-WEB-*`, `SEC-COOKIE-*`) |
+| Smart TV (`device_type: tv` only) | `standards/react/react-smart-tv.md` | `REACT-TV-FOCUS-*`, `REACT-TV-INPUT-*`, `REACT-TV-UI-*`, `REACT-TV-MEDIA-*`, `REACT-TV-LIFECYCLE-*`, `REACT-TV-PERF-*`, `REACT-TV-PKG-*` |
 
-The React Smart TV standard (`REACT-TV-*`) will be authored under REACT-003 and is **not** citable until then.
+The Smart TV row applies **only** when `device_type: tv`; on `mobile` those rules are not cited at all. On `tv` they are cited **in addition to** every row above, never instead of them.
 
 ## Red flags — STOP and report instead of proceeding
 

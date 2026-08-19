@@ -28,7 +28,7 @@ If any required input is missing or cannot be resolved deterministically, **stop
 
 ## 0. Standards readiness gate
 
-This skill grounds every React-specific rule in an authored `REACT-*` standard under `standards/react/`. Before implementing, confirm those standards are authored (not placeholders). If any cited `standards/react/*` file is still a structure-only placeholder, **stop and report that real React implementation is blocked until it is authored**. (As of authoring, all six `standards/react/*` files and the shared `A11Y-*`/`I18N-*`/`SEC-*` standards are authored and the REACT-* ID skeleton is frozen (REACT-001).) The React Smart TV standard (`REACT-TV-*`) is not yet authored (REACT-003); see [device_type handling](#device_type-handling).
+This skill grounds every React-specific rule in an authored `REACT-*` standard under `standards/react/`. Before implementing, confirm those standards are authored (not placeholders). If any cited `standards/react/*` file is still a structure-only placeholder, **stop and report that real React implementation is blocked until it is authored**. (As of authoring, all **seven** `standards/react/*` files and the shared `A11Y-*`/`I18N-*`/`SEC-*` standards are authored: the six base standards with the `REACT-*` ID skeleton frozen (REACT-001-7), plus `react-smart-tv.md` (`REACT-TV-*`, added additively by REACT-003-1). On a `device_type: tv` task this gate covers `react-smart-tv.md` too.) See [device_type handling](#device_type-handling).
 
 ## 1. Source-of-truth hierarchy
 
@@ -162,7 +162,12 @@ Produce a structured final report: 1. Task implemented · 2. Objective · 3. Fil
 `device_type` is inherited context — resolved once at `/analyze-feature` and carried in frontmatter. **Read and honor it; never re-detect it, never default to `mobile`, never treat `tv` as a separate platform.**
 
 - **`mobile`** — pointer/touch interaction and responsive-web patterns apply.
-- **`tv`** — implement within the repo's **existing** Smart TV model (Tizen/webOS/browser-TV) as identified during planning. Do not carry pointer/touch assumptions (hover, tap/swipe, pointer-scroll) into a D-pad/remote model; ensure focusable elements with a clearly visible focus state (`A11Y-TOUCH-1`/`A11Y-TOUCH-2`) and remote-key handling consistent with the repo. **Do not cite `REACT-TV-*` IDs** — the Smart TV standard is authored under REACT-003; until then, apply the repo's existing TV conventions and the applicable general `REACT-*`/shared rules, and record TV-standard coverage as pending REACT-003.
+- **`tv`** — implement within the repo's **existing** Smart TV model (Tizen/webOS/browser-TV) as identified during planning, and apply `standards/react/react-smart-tv.md`'s `REACT-TV-*` rules **in addition to** the base `REACT-*` and shared rules, which all still apply on a TV surface. Do not carry pointer/touch assumptions (hover, tap/swipe, pointer-scroll) into a D-pad/remote model (`REACT-TV-INPUT-6`). The rules most often reached for while writing TV code:
+  - **Focus is the cursor.** One element focused at all times, never dropped to `document.body` after a transition or list refresh (`REACT-TV-FOCUS-1`); focus restored on return rather than reset (`REACT-TV-FOCUS-4`); a visible focus indicator legible across a room, and never `outline: none` without an equally visible replacement (`REACT-TV-FOCUS-3` — the TV reading of `A11Y-TOUCH-1`/`A11Y-TOUCH-2`).
+  - **Use the repo's existing focus model; never add a second one** (`REACT-TV-FOCUS-2`).
+  - **No numeric key-code literals in components** — one central, platform-aware key map (`REACT-TV-INPUT-1`, `REACT-TV-INPUT-2`), key handling scoped to the focused subtree rather than a per-component `window` listener (`REACT-TV-INPUT-3`), and every listener cleaned up (`REACT-FC-5`).
+  - **Release memory on navigating away** — assets, caches, detached DOM, and any player instance (`REACT-TV-PERF-2`, `REACT-TV-MEDIA-3`). On a memory-capped TV runtime a retained reference terminates the app rather than slowing it.
+  - **Capture state before suspension, not on resume** (`REACT-TV-LIFECYCLE-2`), and treat a relaunch/launch payload as untrusted input (`REACT-TV-LIFECYCLE-3`).
 
 ## 12. Standards citation
 
@@ -179,8 +184,9 @@ Record which standard IDs were **applied** (not merely reviewed) — this is the
 | Accessibility (shared) | `standards/shared/accessibility.md` | `A11Y-*` |
 | Localization & RTL (shared) | `standards/shared/i18n-rtl.md` | `I18N-*` |
 | Security & privacy (shared) | `standards/shared/mobile-security.md` | `SEC-*` (incl. `SEC-WEB-*`, `SEC-COOKIE-*`) |
+| Smart TV (`device_type: tv` only) | `standards/react/react-smart-tv.md` | `REACT-TV-FOCUS-*`, `REACT-TV-INPUT-*`, `REACT-TV-UI-*`, `REACT-TV-MEDIA-*`, `REACT-TV-LIFECYCLE-*`, `REACT-TV-PERF-*`, `REACT-TV-PKG-*` |
 
-Do not use React Native's `RN-*` or the bare `ARCH-*`/`API-*`/`STATE-*`/`NAV-*` IDs for React — React cites the `REACT-*` roots. The Smart TV standard (`REACT-TV-*`) is not citable until REACT-003 authors it.
+Do not use React Native's `RN-*` or the bare `ARCH-*`/`API-*`/`STATE-*`/`NAV-*` IDs for React — React cites the `REACT-*` roots. The Smart TV row applies **only** when `device_type: tv`, and then in addition to every row above, never instead of them.
 
 ## Red flags — STOP and report instead of proceeding
 
