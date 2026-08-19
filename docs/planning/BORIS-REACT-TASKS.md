@@ -152,7 +152,7 @@ All six React standards are authored and their IDs are **frozen** — no rule is
 
 ## Progress log & resume state
 
-**REACT-001 ✓ (2026-08-16). REACT-002 ✓ (2026-08-17). REACT-003 ✓ (2026-08-19). ALL THREE EPICS COMPLETE AND SIGNED OFF** — authored end to end, batched adversarial review run, and all 9 findings fixed and re-verified. See the review section for the findings, the resolutions, and the one caveat about review independence.
+**REACT-001 ✓ (2026-08-16). REACT-002 ✓ (2026-08-17). REACT-003 — AUTHORED, NOT SIGNED OFF.** ⚠️ **The earlier sign-off claim is RETRACTED.** An independent adversarial pass (four agents, blocked from reading this file) ran 2026-08-19 and returned **~45 findings, all open**, including **8 P0 items where the TV standard does not function as wired** — most importantly that the 51-rule family is uncitable by the agents that own it, and that `REACT-TV-PKG-*` is filable by no agent at any stage. See [`REACT-003-independent-review-findings.md`](REACT-003-independent-review-findings.md). The prior in-context review found 9 findings and missed every P0.
 
 **Done**
 - **REACT-003-3** ✓ (2026-08-19) — the `device_type` contract stated across all 3 skills and 4 agents. Every one of the **17 located lines** that told an agent `REACT-TV-*` was unauthored/not citable is replaced with the positive contract: on `device_type: tv`, cite `REACT-TV-*` **in addition to** the base `REACT-*` rules, which all still apply on a TV surface.

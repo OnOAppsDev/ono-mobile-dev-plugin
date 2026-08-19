@@ -1,0 +1,110 @@
+# REACT-003 — independent adversarial review findings
+
+**Run:** 2026-08-19 · **Method:** four independent reviewer agents, each given the acceptance bar inline and **blocked from reading `BORIS-REACT-TASKS.md`** so none could see the prior in-context review's conclusions. Lenses: contract compliance · React/TV technical correctness (with vendor-doc verification) · executability (five simulated scenarios) · neutrality & density.
+
+**Outcome: ~45 distinct findings after deduplication. All OPEN.** This supersedes the earlier in-context pass, which found 9 and missed every item in the P0 block below. The independent pass was worth running.
+
+**Status of REACT-003:** authored, **not** signed off. The prior sign-off claim was premature and is retracted in the task doc.
+
+---
+
+## P0 — the TV standard does not function as wired
+
+These are not quality issues. Each one means part or all of the 51-rule family cannot be used.
+
+| # | Finding | Found by | Evidence |
+|---|---|---|---|
+| **P0-1** | **The TV standard is uncitable by the agents that own it.** `agents/react-code-reviewer.md:17` Inputs lists five standards files and omits `react-smart-tv.md`; `:63` says "Only cite standards that actually exist in the docs listed under Inputs"; `:68` then assigns it six TV families. `agents/react-performance-reviewer.md:23` is worse — "No other `standards/react/*` file is an input" — while `:68`–`:72` require citing `REACT-TV-PERF-*` and reading that file's dedup table. `agents/react-feature-developer.md:22-27` omits it from the implement-against list too. | 3 of 4 agents, **+ verified directly** | Highest-leverage fix in the set: ~3 lines |
+| **P0-2** | **`REACT-TV-PKG-*` is orphaned at every stage.** `REACT-TV-PKG-5`/`-6` route to the shared `mobile-security-reviewer`, which has **zero** occurrences of `REACT-TV`/`smart-tv`/"Smart TV" across `agents/mobile-security-reviewer.md`, `skills/mobile-security-review/SKILL.md`, `commands/review-security.md` — and both React reviewers are forbidden to file them. A committed Tizen author certificate is filable by **no agent**. The other six route to "Build / Release", but `commands/prepare-mobile-release.md:11` invokes only `react-performance-reviewer` (which owns `REACT-TV-PERF-*` and nothing else), `:10` explicitly waives store readiness for React, and `react-code-review/SKILL.md:150` states "Pass A has no release-stage call site". `mobile-release-readiness`, `release-readiness.md`, `release-checklist-template.md`, `mobile-release-engineer.md` — zero TV references. | contract + executability | My earlier F9 "fix" asserted release was the real gate **without checking the release chain supports it**. It does not. That was a false claim I introduced. |
+| **P0-3** | **The dedup mechanism cannot resolve the most common TV defect.** Collision-table rows 1 and 2 (`react-smart-tv.md:44`/`:45`) match the same defect — a player left undisposed on navigating away — and name **opposite owners** across the two lanes, each listing the other as "supporting". `SKILL.md:218` says "keep the one filed under the table's owning ID"; there are two. No precedence rule. Missing rows: un-virtualized rail, backgrounded timers/polling, leaked listener on navigation. | 3 of 4 agents | This is a defect in my own F2 fix |
+| **P0-4** | **No actor executes the merge.** `commands/review-code.md` has **zero** TV references, yet `SKILL.md:216` makes merge load-bearing for TV dedup. Both agents are told to merge the other's output (`react-code-reviewer.md:33`, `react-performance-reviewer.md:31`) while also told they cannot see it. | executability | Name one executor: `/review-code` step 6 |
+| **P0-5** | **The triage table has no TV row, so TV files exit review before §14 is reached.** `react-code-reviewer.md:28` step 2 runs `SKILL.md` §5, whose `:67` says files matching no bucket are "Not Applicable / Skipped… not reviewed further". §5 has 12–13 rows, none TV; it even explains why `REACT-PERF-*` is absent but says nothing about TV. §6's rule-selection table likewise. A focus-engine module, a key-map module, or a `config.xml` matches no bucket. `:86` compounds it — config-only changes are "skipped in one line", which silently drops the vendor manifest, i.e. exactly `REACT-TV-PKG-2/3/4`. | 3 of 4 agents | |
+| **P0-6** | **The planning and implementation skills actively instruct the wrong thing on TV auth transport.** `react-dev-planning/SKILL.md:157` says "prefer `httpOnly` cookies with `credentials: 'include'`" unconditionally; `:183` repeats it; the §14 discovery pass (`:200-207`) has **no** transport or cross-origin item; `:214`'s family enumeration omits `REACT-TV-API-*`; `react-feature-implementation/SKILL.md:115` and its TV bullet list (`:165-170`) do the same. So `REACT-TV-API-1`, which demands the app type be established **"before designing the transport"**, is never triggered at design time — and the architect is told to prefer the one thing the TV rules say must not be assumed. | neutrality + contract | |
+| **P0-7** | **The first TV feature in any repository cannot be planned.** `REACT-TV-FOCUS-2`, `INPUT-1/2`, `PERF-1`, and `UI-1/2/3/5` are all phrased against "the repository's **existing**" model/convention/budget. The discovery pass records items "that exist" and never says what happens when none do. The two exits contradict: `dev-planning:215` says mark `[unknown]` and continue; red flags `:305` / `react-architect.md:81` say STOP. "Cannot be identified" and "does not exist" are never distinguished. | executability | Rated the highest-risk design gap: this is the single most likely first real run |
+| **P0-8** | **Vendor-fact rules are unverifiable in the only stage that owns them.** `:179` says references are "never fetched at review time" and that no rule depends on a value frozen in the file — yet `REACT-TV-API-1`/`-3`, `UI-1`/`-4`/`-7`, `INPUT-5`, `PKG-3` all require establishing a vendor fact "from the vendor's current documentation", and all are staged **Diff**. The agent cannot fetch, is told the frozen values aren't the rule, and has no stated fallback → hallucinate or blanket-`[unknown]`. | contract + executability | Partly a consequence of my F5 fix, which made UI-4 honest but unactionable |
+
+---
+
+## P1 — factually wrong (verified against vendor docs)
+
+| # | Finding |
+|---|---|
+| **P1-1** | **`tizen:allow-origin` does not exist.** `:191`. The real mechanism is W3C WARP `<access origin subdomains>`, plus `<tizen:privilege .../internet>`, and `<tizen:allow-navigation>` for navigation. The Samsung page cited documents none of them. **I took this from a search snippet, not a fetched page** — precisely the failure mode this lane's rules exist to prevent. An agent would file a defect against a config field that cannot exist. |
+| **P1-2** | **`requiredMemory` is a launch-gate minimum, not a budget.** `REACT-TV-PERF-1` (`:146`, echoed `:162`/`:196`) requires the declared value and the measured budget to "agree". LG states: "**This value does not need to be the same as the maximum memory usage consumed by your app.**" Would fire a bogus manifest finding on nearly every webOS repo. |
+| **P1-3** | **"The remote is the only pointer" is false on webOS.** `:78`, `:82`, `REACT-TV-INPUT-6` (`:96`). LG's Magic Remote is a genuine on-screen-cursor device with standard mouse events (`onmouseover`, `onclick`), and webOS fires `cursorStateChange` so an app can distinguish 5-way from Pointer mode. `:82`'s "there is no touch target to measure" is wrong when a cursor exists. **No rule covers 5-way ↔ pointer transition or focus reconciliation when the cursor appears/disappears.** The document's own cited Back-button page contradicts `:78`. |
+| **P1-4** | **webOS graphics resolution is per-model and manifest-declared.** FHD models render graphics at **1280×720**, UHD at 1920×1080, selected by the `resolution` property in `appinfo.json` — a field absent from `REACT-TV-PKG-3`'s required list and from `:196`. `REACT-TV-UI-3`'s "fixed logical viewport regardless of the physical panel" overstates it. LG recommends shipping two packages. |
+| **P1-5** | **TLS version has nothing to do with `Secure` cookies.** `:190` claims supported TLS versions bear on "whether a `Secure`-cookie transport is even reachable". A `Secure` cookie needs only a secure context. The real risk the page implies is different and worse: Samsung lists **only TLS 1.0/1.1/1.2 — no 1.3** — so a TV may fail to connect at all to a modern endpoint. |
+| **P1-6** | **The LG CORS page I cite recommends JSONP.** `:203` says webOS offers "no client-side or manifest escape hatch"; the cited page says "To avoid cross domain issue, try using JSONP" — pointing readers at an injection pattern this lane's own `SEC-WEB-*` posture forbids. |
+| **P1-7** | **`A11Y-ROLES-3` is cited for a proposition it does not contain.** `REACT-TV-UI-5` (`:104`) cites it for "information is never conveyed by colour alone"; `standards/shared/accessibility.md` has **no** colour or contrast rule at all. That is authoring a new a11y obligation under a borrowed shared ID — a bar-4 violation. Also `:82` cites `A11Y-ROLES-3` ("state exposed **programmatically, not via visual styling**") to support a *visible focus indicator*, close to its inverse. |
+| **P1-8** | **`A11Y-ROLES-4` mis-cited.** `FOCUS-7` (`:86`) cites it for exclusion from the focus order; the rule is about hiding decorative images **from assistive tech**. |
+| **P1-9** | **Accessibility facts available and unused.** Samsung publishes a full TTS/ATK guide with a WAI-ARIA support matrix and name→role→description order ("Not all TV models support the voice guide feature"); webOS requires opting in via **`supportsAudioGuidance`** in `appinfo.json`, default **`false`** — an app that omits it has no audio guidance at all. Neither appears anywhere; the document has **zero** accessibility external references, and `UI-7` hedges into "record what varies" instead of naming the checkable opt-in. |
+| **P1-10** | **Missing coverage: screensaver must be actively suppressed during playback** (`webapis.appcommon.setScreenSaver`), restored on pause/stop, with cleanup on unmount — a classic `REACT-FC-5` leak if left disabled. `MEDIA-4` treats the screensaver only as a transition to survive, which is the inverse of the vendor obligation. |
+| **P1-11** | **Missing coverage: text entry / on-screen keyboard.** Focusing an `<input>` raises the platform IME, which takes focus, can resize the viewport, and fires blur — a direct hazard to `FOCUS-1`/`FOCUS-4`. For a standard whose thesis is "focus is the cursor", a notable omission. |
+| **P1-12** | **Vendor facts frozen into rule bodies** the document says must never be frozen (`:179`/`:181`): `INPUT-2` (`:92`) asserts Tizen/webOS differ on Back; `API-3` (`:137`) bakes in "does not send the CORS `Origin` header". Both are rank-5 vendor behaviours load-bearing inside rule text. |
+| **P1-13** | **`INPUT-1` inverts the source-of-truth hierarchy.** `:91` requires key values come from the official reference "**not** from values observed empirically", making a working repo key map a defect for having the wrong provenance — rank 5 over rank 2, which bar 1 prohibits. |
+
+---
+
+## P2 — contract and consistency
+
+- **P2-1** `agents/react-code-reviewer.md` self-contradicts in one block: `:49` "a performance or security issue… is **not noted here**" vs `:69` "**never suppress an observation** assuming the performance reviewer will file it". A top-to-bottom reader hits `:49` first.
+- **P2-2** `REACT-TV-UI-7` (`:106`) cites `A11Y-SR-2` for "focus order follows visual order", but `A11Y-SR-2` is about **reading-order** AT traversal, while `FOCUS-5`/`-8` require **spatial adjacency** and `:87` states the two diverge under RTL. A reviewer applying UI-7 files `A11Y-SR-2` against the behaviour `FOCUS-8` declares correct. **This collision was created by my F6 fix.**
+- **P2-3** Four branches claim "authors no rule" while imposing new duties owned by no ID: the `REACT-ROUTE-URL-5` filing prohibition (`routing:62`), and the "record Not Applicable with the reason" duties for `ROUTE-STABILITY-3`/`ROUTE-SSR-*` (`routing:63-64`), `ARCH-BOUNDARY-*` (`architecture:56`), `NAME-6` (`coding-standards:89`). Also in tension with "never relaxes or forks a base rule".
+- **P2-4** `REACT-TV-UI-6` forks `REACT-PERF-LIST-1` by mandating virtualization and silently deleting its explicit `content-visibility: auto` alternative — which is the one technique that does **not** unmount rows and is therefore immune to UI-6's own focus hazard.
+- **P2-5** `A11Y-TOUCH-2` ownership stated three incompatible ways across `react-smart-tv.md:82`, `dev-planning:214`, `feature-implementation:166`, `code-review:197`; the spacing obligation maps to no TV rule. All four are redundant anyway — `accessibility.md:37`/`:42` already carry the TV clauses, and the Android precedent has the right sentence for this.
+- **P2-6** `REACT-TV-PERF-7` is a **crash-correctness** rule locked in the performance lane by its ID root; the reviewer best placed to catch "this API throws on Tizen 5.5" is forbidden to file it, and the one who may has no measurement to attach.
+- **P2-7** `PERF-7` is circular: "the transpilation target… follow**s** the repository's build configuration for that target" — the build config is the artifact under review.
+- **P2-8** `device_type` is a per-feature scalar but applicability is per-surface. `dev-planning:297` forbids citing TV rules on `device_type: mobile`, while traps 1–2 say a shared component "must satisfy both". `mixed` is banned as a representation.
+- **P2-9** `[unknown]` surface has no operational consequence stated — so the pointer-assuming base rules apply by default, making `[unknown]` behave as `mobile`, the exact outcome forbidden.
+- **P2-10** Shared-ID manifest at `:174` is wrong four ways: claims `A11Y-TOUCH-2` (cited by no rule), omits `SEC-LOG-1`, `SEC-WEB-3`, `SEC-WEB-6`. My verification checked that cited IDs resolve, never that the manifest matches what is cited.
+- **P2-11** Duplicate external reference: `:187` and `:191` are the same URL as two entries.
+- **P2-12** `PKG-5`/`-6` restate `SEC-SECRETS-1/3/4` and `SEC-HARDEN-2/3` verbatim while `:34` promises no `SEC-*` rule is re-authored.
+- **P2-13** Packaging-modernization channel left open: `PKG-1` requires committed vendor-CLI scripts, and `:181`/`:197` editorialize about deprecation — nothing forecloses "your script uses the deprecated CLI", a textbook modernization finding. `PERF-7` closes its equivalent channel explicitly; `PKG-1` should too.
+- **P2-14** Unfalsifiable as written: `PERF-4` "concurrent animations are limited" (to what?); `FOCUS-3` "**sufficient** contrast and size" where sibling `UI-5` correctly says "the repository's contrast requirement".
+- **P2-15** Technique prescribed as the compliance path: `UI-5` "a scrim or plate is used"; `UI-3` "relative units or its scale helper… never as absolute pixels" (which also contradicts the doc approvingly quoting webOS's 20px, and is wrong precisely when a fixed logical viewport exists); `PERF-4` "compositor-friendly properties".
+- **P2-16** `MEDIA-2`'s headline ("not mirrored into a store") prescribes an architecture its own falsifiable test (one writer, one subscription) does not require — a common `REACT-STATE-*`-compliant design reads as a violation.
+- **P2-17** Applicability brackets are missing from four sections (FOCUS, INPUT, UI, PERF), and there is **no missing-convention resolution ladder** — the iOS precedent (`swift-standards.md:50-56`, `:61-66`) has both, plus an `unverified-convention` severity cap. The TV document is less rigorous on the axis it claims to inherit.
+- **P2-18** No TV detection traps on the **planning** deliverable (bar 7 requires them there), and §14 never points at the standard's traps. The review skill does.
+- **P2-19** No conditional-finding branch for shared components: since a diff can never establish a shared component's consumers, *every* shared design-system change resolves to N/A — so `outline: none` added to a shared `<Button>`, a `FOCUS-3` blocker, is systematically never filed. Trap 2 becomes a dead letter.
+- **P2-20** `I18N-TEST-2` used as the vehicle for directional-input verification, but its text expects **gesture direction to mirror** — gestures `INPUT-6` says do not exist, and FOCUS-8 requires D-pad direction *not* to remap.
+- **P2-21** Vendor manifest in a diff is triaged away by `SKILL.md:86` ("config-only… skip"), the exact blocker `PKG-2` exists to catch.
+- **P2-22** `:11`'s list of families that still bind on TV omits `REACT-TS-*`, `NAME-*`, `PROPS-*`, `LINT-*`.
+- **P2-23** Lane-routing table restated in **seven** places — six drift surfaces. The iOS precedent uses one line per document.
+- **P2-24** The bare-`REACT-TV-*` root shape is the one iOS explicitly forbids (`swift-standards.md:23`), and it cost a ~600-word special-case routing table plus six restatements. Not fixable without renumbering, and renumbering is correctly refused — but the standard frames it as a feature ("Lane ownership (governing — this root has no default owner)") rather than recording the cost.
+
+---
+
+## P3 — density and hygiene
+
+**Density, measured against precedents in this repo:**
+
+| Document | Rules | Words | Words/rule |
+|---|---|---|---|
+| `standards/android/*` (aggregate) | 145 | 5,448 | **~38** |
+| `standards/ios/swift-standards.md` | 40 | 2,788 | **70** |
+| `standards/react/react-smart-tv.md` | 51 | 6,851 | **134** |
+
+Rule bullets are 3,713 words — **46% of the document is not rules.** Named cuts: three motivational preambles (`:76-78`, `:112`, `:144`, ~200 words, zero obligations — and `:78`'s "no way to recover except restarting" is contradicted by `INPUT-4`'s always-effective Back); `FOCUS-8`'s middle half (~230 words for one rule); two duplicate trap pairs (7 traps → 5); the five base-document branches (~2,100 words, all opening with the same two paragraphs, two of them near-verbatim re-tellings of the primary); `code-review/SKILL.md` §14 (12 bullets/~950 words vs the Android precedent's 4 bullets/~130); and ~250 words of authoring history in three readiness gates that belongs in `CHANGELOG.md`.
+
+**Hygiene:** stale "to be authored under REACT-002" at `dev-planning:319` (the file exists, 211 lines); hardcoded counts in four places ("seven detection traps", "all seven files"); `react-api-service-layer.md:54` missing the `REACT-003-2` tag the other four branches carry; "Samsung's Voice Guide, and **LG's equivalent**" names one vendor and not the other; `react-smart-tv.md` has **no anchors at all**, so cross-document references rely on section names and counts; `templates/code-review-template.md` Scope has no field for the TV-surface determination §15 requires.
+
+---
+
+## What survived independent scrutiny
+
+Worth recording, because it is what the fixes must not break:
+
+- **`REACT-TV-FOCUS-8` (the RTL rule rewritten in the prior pass) is correct** — independently confirmed against css-nav-1's geometry-based `spatialNavigationSearch` and against how Enact Spotlight, Norigin spatial-navigation, and LRUD resolve adjacency from `getBoundingClientRect`. The named failure mode (CSS mirrors while adjacency stays hardcoded LTR) is the real-world bug in index-based engines. The reviewer found nothing wrong with it.
+- **The additive discipline is real.** `REACT-TV-*` renumbers nothing; all 23–30 base `REACT-*` cross-references and every shared `A11Y-*`/`I18N-*`/`SEC-*`/`REL-*`/`QA-*` ID resolve. No invented IDs. No `RN-*`/`AND-*`/`IOS-*` leakage.
+- **Every count claim is accurate** (51 rules: FOCUS 8, INPUT 6, UI 7, MEDIA 6, LIFECYCLE 5, API 4, PERF 7, PKG 8; seven standards files; seven traps; six non-security PKG rules).
+- **The applicability / never-passed discipline is better than the iOS and Android precedents** where it is present — "record Not Applicable with the reason, never as passed" and `API-4`'s "reasoned N/A against the established transport" have no analogue there.
+- **No modernization asides in the TV rules**, and `PERF-7` plus the W3C spatial-nav reference actively foreclose the two obvious channels.
+- **Neutrality holds on the big-ticket items** — `FOCUS-2` enumerates focus-model options without ranking; the media preamble disclaims player/protocol/DRM/codec; `PKG-1` names no CLI in rule text.
+- **The refusal to assert the packaged-app cookie claim was right** — the technical reviewer could not confirm or deny it either, and added corroborating signal that Tizen developers report cookie loss across restarts with the common workaround being to mirror into `localStorage`, which `API-2` already forbids by name.
+- **`device_type` non-defaulting is consistent** across all four agents and three skills.
+
+---
+
+## Cross-lane scope warning
+
+Several P0 fixes require editing files **outside the React lane**: `commands/prepare-mobile-release.md`, `commands/review-code.md`, `agents/mobile-security-reviewer.md` or `standards/shared/mobile-security.md`, `standards/shared/accessibility.md` (the colour-alone gap), `mobile-release-readiness`, `mobile-release-engineer.md`, `templates/code-review-template.md`. The lane convention in this plan is that another lane's claims are that lane's to fix (cf. the deferred README Android/iOS drift). **P0-2 and P0-4 cannot be closed without either touching shared files or re-scoping the rules to stay inside the React lane.** That is a decision, not an edit.
