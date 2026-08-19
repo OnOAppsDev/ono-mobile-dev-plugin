@@ -255,7 +255,7 @@
     <div class="card">
       <p class="label">Total tasks</p>
       <div class="big" id="card-total">26</div>
-      <p class="small" id="card-total-note">26 work items · 12 completed · React Native complete (Pavel Tarnopolski)</p>
+      <p class="small" id="card-total-note">26 work items · 12 completed · React Native complete, standards follow-ups open</p>
     </div>
     <div class="card">
       <p class="label">Total estimated effort</p>
@@ -361,8 +361,8 @@
 
   <!-- ================= 1. EXECUTIVE SUMMARY ================= -->
   <h2>1. Executive Summary</h2>
-  <p>The shared spine is complete and production-ready: 9 commands, 9 shared skills, 3 shared agents, 8 templates, 3 hooks, and three tested scripts (the repo-root resolver, the repository-knowledge reader and the planning-document migrator). Platform maturity is uneven — React Native complete (Pavel Tarnopolski, reference); Android Mobile complete (standards, implementation, front-half and review all authored); iOS standards, planning and implementation lanes authored (IOS-001 ✓, IOS-002 ✓, IOS-003 ✓), with its review lane still placeholder; React placeholder end to end. No TV-context knowledge exists in any platform yet.</p>
-  <p class="section-note">Largest blockers: (1) the iOS review lane is still placeholder — blocks the iOS Mobile lifecycle and ATV-002's review half; (2) React platform placeholder blocks Smart TV; (3) no task-status store / e2e harness. Cleared blockers: "no mobile-vs-TV context signal" by SHARED-001 ✓ (2026-07-21), the Android front-half by ANDROID-001 ✓ and Android code-review by ANDROID-002 ✓ (both 2026-08-06) — Android Mobile now has no open blocker — the iOS standards by IOS-001 ✓ and the iOS planning lane by IOS-002 ✓ (both 2026-08-12), which together open `/analyze-feature`, `/dev-design-start` and `/dev-feature-start` for real iOS work and unblock SHARED-010. Also delivered: the legacy planning-document migration framework by SHARED-011 ✓ (2026-08-12), so a planning document written against an older frontmatter contract no longer fails in a newer workflow stage — /dev-design-start migrates it automatically. This was never a listed blocker; it is recorded here because it removes a class of workflow failure across every stage that reads a feature analysis.</p>
+  <p>The shared spine is complete and production-ready: 9 commands, 9 shared skills, 3 shared agents, 8 templates, 3 hooks, and three tested scripts (the repo-root resolver, the repository-knowledge reader and the planning-document migrator). Platform maturity is uneven — React Native complete (Pavel Tarnopolski, reference); Android Mobile complete (standards, implementation, front-half and review all authored); iOS complete (IOS-001 ✓, IOS-002 ✓, IOS-003 ✓, IOS-004 ✓ — standards, planning, implementation and review lanes all authored); React placeholder end to end. No TV-context knowledge exists in any platform yet.</p>
+  <p class="section-note">Largest blockers: (1) React platform placeholder blocks Smart TV; (2) no task-status store / e2e harness. Cleared blockers: "no mobile-vs-TV context signal" by SHARED-001 ✓ (2026-07-21), the Android front-half by ANDROID-001 ✓ and Android code-review by ANDROID-002 ✓ (both 2026-08-06) — Android Mobile now has no open blocker — the iOS standards by IOS-001 ✓ and the iOS planning lane by IOS-002 ✓ (both 2026-08-12), which together open `/analyze-feature`, `/dev-design-start` and `/dev-feature-start` for real iOS work and unblock SHARED-010, and the iOS implementation and review lanes by IOS-003 ✓ (2026-08-13) and IOS-004 ✓ (2026-08-16) — Tom Zion's lane is finished and ATV-002 is unblocked. Also delivered: the legacy planning-document migration framework by SHARED-011 ✓ (2026-08-12), so a planning document written against an older frontmatter contract no longer fails in a newer workflow stage — /dev-design-start migrates it automatically. This was never a listed blocker; it is recorded here because it removes a class of workflow failure across every stage that reads a feature analysis.</p>
 
   <div class="table-block" data-name="Team Lifecycle Capability">
     <div class="table-toolbar">
@@ -409,7 +409,7 @@
           <tr><td contenteditable="">Shared skills (9) + shared agents (3)</td><td contenteditable="" class="tint t-done">Complete</td><td contenteditable="">Detection, security/release/QA/debug/design/feature-start, repo-knowledge-consumer</td></tr>
           <tr><td contenteditable="">Shared standards: release-readiness, qa-handoff</td><td contenteditable="" class="tint t-done">Complete</td><td contenteditable="">Platform-neutral (REL-*, QA-*)</td></tr>
           <tr><td contenteditable="">Shared standards: mobile-security, accessibility, i18n-rtl</td><td contenteditable="" class="tint t-done">Complete</td><td contenteditable="">SHARED-002 ✓ — platform-neutral requirements with labelled RN/iOS/Android/React examples; TV form-factor differences noted inside each platform example (A11Y-TOUCH-1/2). SHARED-003 ✓ — mobile-security.md extended to 48 IDs with web (SEC-WEB-*, SEC-COOKIE-*) and native (SEC-EXPOSURE-*) coverage, tagged [web only] / [native only]</td></tr>
-          <tr><td contenteditable="">React Native module (6 standards, 3 skills, 4 agents)</td><td contenteditable="" class="tint t-done">Complete</td><td contenteditable="">Reference implementation (Pavel Tarnopolski)</td></tr>
+          <tr><td contenteditable="">React Native module (6 standards, 3 skills, 4 agents)</td><td contenteditable="" class="tint t-done">Complete</td><td contenteditable="">Reference implementation (Pavel Tarnopolski). Modernized and normalized 2026-08-18/19: standards rebuilt to 124 rules across 6 files with per-document Applicability gating (RTK Query / Redux Toolkit no longer assumed) and a shared AI Agent Execution Directives block (severity, citation format, anti-hallucination); react-navigation.md renamed rn-navigation.md; implementation lane split into a thin rn-feature-developer plus a 248-line rn-feature-implementation; planning lane split into a thin rn-architect plus a 127-line rn-dev-planning carrying only RN-specific methodology. Pinned by scripts/rn-implementation-contract.test.ts (164 assertions). 16 MEDIUM/LOW standards follow-ups remain open</td></tr>
           <tr><td contenteditable="">Android standards (10, AND-*)</td><td contenteditable="" class="tint t-done">Complete</td><td contenteditable="">High quality; mobile-oriented (no TV)</td></tr>
           <tr><td contenteditable="">Android feature-implementation skill + feature-developer agent</td><td contenteditable="" class="tint t-done">Complete</td><td contenteditable="">Authored (252-line skill)</td></tr>
           <tr><td contenteditable="">Android architect/code-reviewer/performance-reviewer + dev-planning/code-review skills</td><td contenteditable="" class="tint t-done">Complete</td><td contenteditable="">All authored (2026-08-06): android-architect.md + android-dev-planning via ANDROID-001 ✓; android-code-reviewer.md, android-performance-reviewer.md + android-code-review via ANDROID-002 ✓. No "Not yet authored" placeholder remains in any Android component</td></tr>
@@ -513,8 +513,8 @@
           <tr data-priority="normal">
             <td contenteditable="">SHARED-010</td><td contenteditable="" class="tint o-plugin">Plugin Owner</td><td contenteditable="">Shared</td><td contenteditable="">Infrastructure</td>
             <td contenteditable="">Repository-knowledge reuse for iOS / Android / React (commands/analyze-feature.md + the three platform architect agents)</td>
-            <td contenteditable="" class="tint t-missing">Missing — must be created</td><td contenteditable="">Create new</td>
-            <td contenteditable="">Repository-knowledge reuse is React Native-only today: /analyze-feature reuses docs/project/patterns.md for React Native and does "lightweight existence checks only" for iOS/Android/React "per the current placeholder depth of those standards", and only rn-architect reads the component inventory. Once the three platform modules are authored, extend the consumer wiring to them — otherwise those platforms permanently re-scan what the manifest already holds. Support: Tom Zion, Guy Gur Arie, Boris Molotsky.</td>
+            <td contenteditable="" class="tint t-partial">Exists but partial</td><td contenteditable="">Create new</td>
+            <td contenteditable="">Partially delivered by ANDROID-001 ✓ and IOS-002 ✓: android-architect and ios-architect now resolve canonical knowledge through repo-knowledge-consumer and read the component inventory, and both platform dev-planning skills carry a Repository-knowledge reuse step. Still open: commands/analyze-feature.md step 3 continues to do "lightweight existence checks only" for iOS/Android/React "per the current placeholder depth of those standards", which is now false for Android and iOS; and the React lane remains placeholder, so its wiring waits on REACT-002. Support: Tom Zion, Guy Gur Arie, Boris Molotsky.</td>
             <td contenteditable="">SHARED-009 ✓, IOS-002 ✓, ANDROID-001 ✓, REACT-002</td><td contenteditable="">1</td><td contenteditable="">Week 5</td><td contenteditable="">Week 5</td>
           </tr>
           <tr data-priority="done">
@@ -535,7 +535,7 @@
             <td contenteditable="">DOC-002</td><td contenteditable="" class="tint o-plugin">Plugin Owner</td><td contenteditable="">Shared</td><td contenteditable="">Documentation</td>
             <td contenteditable="">/implement-task docs + skill/agent context-contract notes</td>
             <td contenteditable="" class="tint t-partial">Exists but partial</td><td contenteditable="">Update documentation</td>
-            <td contenteditable="">Update /implement-task routing/readiness notes and skill/agent docs to state the mobile-vs-TV context contract. Partially done: /implement-task states the contract (device_type required, no silent default). Remaining: no platform skill or agent (rn-/ios-/android-/react-*) mentions device_type at all.</td>
+            <td contenteditable="">Update /implement-task routing/readiness notes and skill/agent docs to state the mobile-vs-TV context contract. Partially done: /implement-task states the contract (device_type required, no silent default). Remaining: the Android and iOS lanes now state the contract (android-architect, ios-architect, android-dev-planning, ios-dev-planning and android-code-review all handle device_type); React is still placeholder; React Native is mobile-only by decision, with the reachable-but-unsupported react-native + tv combination parked as a separate shared finding.</td>
             <td contenteditable="">SHARED-001 ✓ (done)</td><td contenteditable="">0.5</td><td contenteditable="">Week 5</td><td contenteditable="">Week 5</td>
           </tr>
           <tr data-priority="done">
@@ -632,7 +632,7 @@
         </tbody>
       </table>
     </div>
-    <div class="hint">React Native has no open tasks — it is complete and owned by Pavel Tarnopolski as the reference implementation. Any future React Native Skills, Agents or Standards are Pavel's.</div>
+    <div class="hint">React Native's module is complete and normalized against the current architecture, owned by Pavel Tarnopolski as the reference implementation. Not zero open work: the 2026-08-18 standards review fixed 5 HIGH findings and left 16 MEDIUM/LOW follow-ups un-actioned. Any future React Native Skills, Agents or Standards are Pavel's.</div>
   </div>
 
   <!-- ================= 4. READINESS MATRIX ================= -->
@@ -725,7 +725,7 @@ SHARED-011 ✓ (doc migration) … independent, complete</pre>
       <table class="editable" id="t-work">
         <thead><tr><th>Owner</th><th>Assigned tasks</th><th>Total effort</th><th>Earliest start</th><th>Expected completion</th><th>Blockers</th></tr></thead>
         <tbody>
-          <tr><td contenteditable="" class="tint o-pavel">Pavel Tarnopolski</td><td contenteditable="">None open — React Native complete (reference); owns any future React Native Skills/Agents/Standards</td><td contenteditable="">0</td><td contenteditable="">—</td><td contenteditable="">Complete</td><td contenteditable="">—</td></tr>
+          <tr><td contenteditable="" class="tint o-pavel">Pavel Tarnopolski</td><td contenteditable="">React Native complete (reference) and normalized; 16 MEDIUM/LOW standards follow-ups open from the 2026-08-18 review; owns any future React Native Skills/Agents/Standards</td><td contenteditable="">0</td><td contenteditable="">—</td><td contenteditable="">Complete</td><td contenteditable="">—</td></tr>
           <tr><td contenteditable="" class="tint o-tom">Tom Zion</td><td contenteditable="">IOS-001, IOS-002, IOS-003, IOS-004 (all four ✓ done)</td><td contenteditable="">12 (12 delivered · 0 remaining)</td><td contenteditable="">Week 1</td><td contenteditable="">Week 3</td><td contenteditable="">SHARED-002 ✓ (done, soft)</td></tr>
           <tr><td contenteditable="" class="tint o-noam">Noam Haba</td><td contenteditable="">ATV-001, ATV-002</td><td contenteditable="">8</td><td contenteditable="">Week 2 (IOS-001 ✓ — unblocked)</td><td contenteditable="">Week 4</td><td contenteditable="">None open — IOS-004 ✓ cleared 2026-08-16; ATV-001 and ATV-002 fully unblocked</td></tr>
           <tr><td contenteditable="" class="tint o-guy">Guy Gur Arie</td><td contenteditable="">ANDROID-001, ANDROID-002, ANDROID-003, ANDROID-004 (ANDROID-001 ✓, ANDROID-002 ✓, ANDROID-004 ✓ done)</td><td contenteditable="">8.5 (4.5 delivered · 4 remaining)</td><td contenteditable="">Week 1</td><td contenteditable="">Week 4</td><td contenteditable="">SHARED-001 (for ANDROID-003)</td></tr>
@@ -1023,7 +1023,7 @@ SHARED-011 ✓ (doc migration) … independent, complete</pre>
     if(byStatus["Other"]) statusEl.appendChild(breakdownLi("Other", byStatus["Other"], "#b9c1cd"));
 
     var doneCount = byStatus["Completed"] || 0;
-    document.getElementById("card-total-note").textContent = total + " work items · " + doneCount + " completed · React Native complete (Pavel Tarnopolski)";
+    document.getElementById("card-total-note").textContent = total + " work items · " + doneCount + " completed · React Native complete, standards follow-ups open";
   }
   function breakdownLi(name, count, color){
     var li = document.createElement("li");
