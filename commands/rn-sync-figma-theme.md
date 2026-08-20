@@ -3,7 +3,7 @@ description: Read a Figma design system's variables and generate/update a Native
 argument-hint: [figma-design-system-url] [--dry-run]
 ---
 
-Read the Figma design system at `$ARGUMENTS` and generate or update this React Native repo's NativeWind theme from its variables — colors, spacing, radii, and typography (font family, size, weight, line height).
+Read the Figma design system at `$ARGUMENTS` and generate or update this React Native repo's NativeWind theme from its variables — colors, spacing, radius, and typography (font family, size, weight, line height).
 
 **This is a standalone utility, not part of the eight-stage feature pipeline.** It produces no feature analysis, DD, or task breakdown. See the `rn-nativewind-theme-sync` skill's [Approval model](../skills/rn-nativewind-theme-sync/SKILL.md#approval-model): this command bypasses **feature-pipeline approval** only — it never bypasses the repository write hooks (`require-approval-before-code`, `block-main-branch-changes`, `protect-secrets`) or the semantic confirmation gates that run whenever an existing token value would change or two incoming Figma values collide.
 
