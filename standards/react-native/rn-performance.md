@@ -33,10 +33,10 @@ These standards apply to React Native app code audited by the `rn-performance-re
 
 ## Bundle Size
 
-- `RN-PERF-BUNDLE-1` [WARNING] A new dependency's contribution to bundle size is stated when it's proposed — measured via the project's bundle-analysis tooling (e.g. `npx react-native-bundle-visualizer`, Metro's bundle report) rather than guessed from the `package.json` diff. A dependency that duplicates one already in the project (a second date library, a second icon set, a second HTTP client) is flagged regardless of its individual size. An unmeasured "this feels big/small" claim is reported at `[INFO]` as needing verification, per the Anti-hallucination thresholds in `react-native-coding-standards.md` — not asserted as a `[WARNING]` finding.
+- `RN-PERF-BUNDLE-1` [WARNING] A new dependency's contribution to bundle size is stated when it's proposed — measured via the project's bundle-analysis tooling (e.g. `npx react-native-bundle-visualizer`, Metro's bundle report) rather than guessed from the `package.json` diff. A dependency that duplicates one already in the project (a second date library, a second icon set, a second HTTP client) is flagged regardless of its individual size. An unmeasured "this feels big/small" claim is reported at `[INFO]` as needing verification, per the Anti-hallucination thresholds in `rn-coding-standards.md` — not asserted as a `[WARNING]` finding.
 
 ## References
 
 - This document is a living baseline; reviewers should flag standards gaps found during review rather than working around them silently.
 - Extracted from `agents/rn-performance-reviewer.md`'s prior inline process description as part of the mobile-division plugin migration.
-- See the "AI Agent Execution Directives" section in `standards/react-native/react-native-coding-standards.md` for the severity hierarchy, citation format, and anti-hallucination thresholds that govern how findings against the IDs above are reported.
+- See the "AI Agent Execution Directives" section in `standards/react-native/rn-coding-standards.md` for the severity hierarchy, citation format, and anti-hallucination thresholds that govern how findings against the IDs above are reported.
