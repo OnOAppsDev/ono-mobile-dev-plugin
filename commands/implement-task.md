@@ -86,9 +86,9 @@ Read the `platform` value from the selected task row — do **not** re-run platf
 | `react-native` | `rn-feature-developer` | `rn-feature-implementation` | active |
 | `android` | `android-feature-developer` | `android-feature-implementation` | active |
 | `ios` | `ios-feature-developer` | `ios-feature-implementation` | check readiness |
-| `react` | `react-feature-developer` | `react-feature-implementation` | check readiness |
+| `react` | `react-feature-developer` | `react-feature-implementation` | active |
 
-- **iOS / React:** before invoking, check the target skill and agent for a "not yet authored / structure-only placeholder" marker. If present, **stop with: "Platform implementation methodology for `<platform>` is not yet authored"** — do not pretend the route is production-ready and do not author it here. (When those skills are later authored and the marker is gone, the route opens automatically.)
+- **iOS:** before invoking, check the target skill and agent for the placeholder marker — a frontmatter `description` ending "not yet authored, currently a structure-only placeholder" **and** a `## Status: Not yet authored` heading. Match on those markers only, never on the phrase appearing in ordinary prose (an authored skill may legitimately mention "structure-only placeholder" when telling an agent to stop if a *standards* file is one). If present, **stop with: "Platform implementation methodology for `<platform>` is not yet authored"** — do not pretend the route is production-ready and do not author it here. (When those skills are later authored and the marker is gone, the route opens automatically.)
 - **Multiple platforms on one row:** the task model is single-platform-per-row. If a row lists more than one platform, **stop and require it to be split into one task per platform** at `/dev-feature-start`. Do not invent a cross-platform lead agent, and do not invoke unrelated platform agents.
 
 ## 8. Pass explicit resolved context to the selected agent + skill

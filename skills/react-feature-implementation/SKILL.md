@@ -11,7 +11,7 @@ This skill is the methodology the `react-feature-developer` agent follows to imp
 
 It is not orchestration. `/implement-task` resolves the task id, reads its `platform` and `device_type`, and routes here; the `require-approval-before-code` and `block-main-branch-changes` hooks gate code writes. This skill assumes those gates are active and focuses on doing the implementation correctly. See [Relationship with command, agent, hooks](#relationship-with-command-agent-hooks).
 
-**This skill assumes no technology.** The bundler (Vite, webpack, CRA, esbuild, Turbopack), framework (plain SPA, Next.js Pages/App Router, Remix), language (JS/TS), router, state library, data-fetching library, and styling approach are detected, never assumed. Official React/framework documentation is supporting guidance only and never overrides a valid existing implementation. This is a separate module from React Native and never reuses `RN-*` or the bare `ARCH-*`/`API-*`/`STATE-*`/`NAV-*` IDs.
+**This skill assumes no technology.** The bundler (Vite, webpack, CRA, esbuild, Turbopack), framework (plain SPA, Next.js Pages/App Router, Remix), language (JS/TS), router, state library, data-fetching library, and styling approach are detected, never assumed. Official React/framework documentation is supporting guidance only and never overrides a valid existing implementation. This is a separate module from React Native and never reuses `RN-*` or the bare `ARCH-*`/`API-*`/`STATE-*`/`NAV-*` IDs, nor Android's `AND-*` or iOS's `IOS-*`.
 
 **This skill never invents repository facts.** It grounds every change in inspected evidence and writes only the selected task's code.
 
@@ -28,7 +28,7 @@ If any required input is missing or cannot be resolved deterministically, **stop
 
 ## 0. Standards readiness gate
 
-This skill grounds every React-specific rule in an authored `REACT-*` standard under `standards/react/`. Before implementing, confirm those standards are authored (not placeholders). If any cited `standards/react/*` file is still a structure-only placeholder, **stop and report that real React implementation is blocked until it is authored**. (As of authoring, all **seven** `standards/react/*` files and the shared `A11Y-*`/`I18N-*`/`SEC-*` standards are authored: the six base standards with the `REACT-*` ID skeleton frozen (REACT-001-7), plus `react-smart-tv.md` (`REACT-TV-*`, added additively by REACT-003-1). On a `device_type: tv` task this gate covers `react-smart-tv.md` too.) See [device_type handling](#device_type-handling).
+This skill grounds every React-specific rule in an authored `REACT-*` standard under `standards/react/`. Before implementing, confirm those standards are authored (not placeholders). If any cited `standards/react/*` file is **missing** or is still a structure-only placeholder, **stop and report that real React implementation is blocked until it is authored**. (As of authoring, all **seven** `standards/react/*` files and the shared `A11Y-*`/`I18N-*`/`SEC-*` standards are authored: the six base standards with the `REACT-*` ID skeleton frozen (REACT-001-7), plus `react-smart-tv.md` (`REACT-TV-*`, added additively by REACT-003-1). On a `device_type: tv` task this gate covers `react-smart-tv.md` too.) See [device_type handling](#device_type-handling).
 
 ## 1. Source-of-truth hierarchy
 
@@ -56,7 +56,7 @@ Confirm **all** before editing; if any fails, **stop and report** — do not wor
 - [ ] No blocking open question remains for this task.
 - [ ] The task's `platform` is `react`; `device_type` is exactly `mobile` or `tv` (never defaulted).
 - [ ] The task is small enough for one implementation run (else report it should be split).
-- [ ] For UI work, the required design reference exists (any supported type; Figma not required specifically). If neither `figma_link` nor `design_reference` is set, stop and ask — do not guess spacing/color/typography. A task that changes no user-facing UI (`design_reference_status: not_required`) needs none.
+- [ ] For UI work, the required design reference exists (any supported type; Figma not required specifically). If neither `figma_link` nor `design_reference` is set, stop and ask — and if a recorded reference **cannot be read** (a dead link, an unreachable MCP server, a missing export), stop and report the exact error. Do not guess spacing/color/typography. A task that changes no user-facing UI (`design_reference_status: not_required`) needs none.
 - [ ] The repository and target package are known.
 - [ ] The current branch and approval hooks allow code changes (not on `main`/`master`).
 
@@ -64,7 +64,7 @@ Confirm **all** before editing; if any fails, **stop and report** — do not wor
 
 Inspect the actual React codebase before writing code. **Detect — do not assume** — then follow what you find (Vite/webpack/Next/Remix, client SPA/SSR/RSC, JS/TS, React Router/TanStack/framework router, Redux/Zustand/Jotai/Context, TanStack Query/RTK Query/SWR/fetch, CSS Modules/CSS-in-JS/Tailwind are never assumed):
 
-- Build tooling and scripts; framework and rendering model (client SPA / SSR / RSC — and which router on Next).
+- Build tooling and scripts; framework and rendering model (client SPA / SSR / RSC — and which router on Next), identified **per surface, not once for the whole repository** (see `skills/react-dev-planning/SKILL.md#5-rendering-model-identification`); a hybrid repo has more than one answer.
 - Language level (JS vs TS; `strict` via the `tsconfig` `extends` chain).
 - Routing mechanism and how params/query are read.
 - State management library and the local/URL/global convention.
@@ -146,6 +146,7 @@ Rules:
 - Run the narrowest relevant validation first, then broaden.
 - Distinguish new failures from pre-existing ones; do not fix unrelated pre-existing failures without approval.
 - **Validate every acceptance criterion individually.**
+- **For any UI change, the manual bidirectional (LTR/RTL) and screen-reader walkthroughs are validation candidates, not afterthoughts** — they are the evidence `QA-A11Y-1` needs downstream, and nothing else in the pipeline produces them. Run them where the environment allows and record the result either way.
 
 ## 10. Self-review
 
@@ -153,9 +154,9 @@ Before reporting completion, self-review against: task scope · DD compliance ·
 
 ## 11. Completion & reporting
 
-Produce a structured final report: 1. Task implemented · 2. Objective · 3. Files changed · 4. Summary · 5. Existing patterns reused · 6. **Acceptance-criteria checklist, one by one** · 7. Dependencies verified · 8. Validation commands run and **exact results** · 9. Tests added/updated · 10. **Applied React and shared standard IDs** · 11. Deviations from the DD/task · 12. Risks and known limitations · 13. Unresolved blockers · 14. Side effects · 15. Follow-up tasks discovered · 16. Confirmation no unrelated scope was added.
+Produce a structured final report: 1. Task implemented · 2. Objective · 3. Files changed · 4. Summary · 5. Existing patterns reused · 6. **Acceptance-criteria checklist, one by one** · 7. Dependencies verified · 8. Validation commands run and **exact results** · 9. Tests added/updated · 10. **Applied React and shared standard IDs** · 11. Deviations from the DD/task · 12. Risks and known limitations · 13. Unresolved blockers · 14. Side effects · 15. Follow-up tasks discovered · 16. Confirmation no unrelated scope was added · 17. **`device_type` implemented against** · 18. **The manual walkthrough results the QA handoff requires** — whether the bidirectional LTR/RTL check (`I18N-TEST-1`, `I18N-TEST-2`) and the accessibility/screen-reader check (`A11Y-SR-1` (whose VoiceOver/TalkBack wording has no browser equivalent — its web reading is a walkthrough with a desktop screen reader the team uses, named in the report) were actually performed, and what they showed. State "not performed" plainly when they were not; shared `QA-A11Y-1` is satisfied by a real result, never by a generic "looks fine".
 
-**Do not mark the task complete if** any acceptance criterion failed · required validation failed · a dependency is incomplete · the implementation deviates from the DD without approval · a blocker remains · files outside the approved task scope were modified without justification.
+**Do not mark the task complete if** any acceptance criterion failed · required validation failed · a dependency is incomplete · the implementation deviates from the DD without approval · a blocker remains · files outside the approved task scope were modified without justification · the code exists only in an isolated worktree rather than the intended repository.
 
 ## `device_type` handling
 
@@ -189,7 +190,7 @@ Record which standard IDs were **applied** (not merely reviewed) — this is the
 | Security & privacy (shared) | `standards/shared/mobile-security.md` | `SEC-*` (incl. `SEC-WEB-*`, `SEC-COOKIE-*`) |
 | Smart TV (`device_type: tv` only) | `standards/react/react-smart-tv.md` | `REACT-TV-FOCUS-*`, `REACT-TV-INPUT-*`, `REACT-TV-UI-*`, `REACT-TV-MEDIA-*`, `REACT-TV-LIFECYCLE-*`, `REACT-TV-API-*`, `REACT-TV-PERF-*`, `REACT-TV-PKG-*` |
 
-Do not use React Native's `RN-*` or the bare `ARCH-*`/`API-*`/`STATE-*`/`NAV-*` IDs for React — React cites the `REACT-*` roots. The Smart TV row applies **only** when `device_type: tv`, and then in addition to every row above, never instead of them.
+Do not use React Native's `RN-*` or the bare `ARCH-*`/`API-*`/`STATE-*`/`NAV-*` IDs for React, and do not use Android's `AND-*` or iOS's `IOS-*` — React cites the `REACT-*` roots. The Smart TV row applies **only** when `device_type: tv`, and then in addition to every row above, never instead of them.
 
 ## Red flags — STOP and report instead of proceeding
 

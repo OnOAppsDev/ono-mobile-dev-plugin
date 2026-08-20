@@ -10,8 +10,8 @@ version below is the plugin's own `version` in
 ## [Unreleased]
 
 REACT-001 — the six React (web) standards. REACT-002 — the four React agents and
-three React skills. REACT-003 — React Smart TV via `device_type: tv`, including the
-batched adversarial review and the fixes it produced.
+three React skills. REACT-003 — React Smart TV via `device_type: tv`. Each epic carries an
+independent adversarial review and the fixes it produced.
 
 ### Added
 - `standards/react/react-smart-tv.md` (REACT-003) — the standalone React Smart TV
@@ -69,6 +69,51 @@ batched adversarial review and the fixes it produced.
   REACT-002 agents and skills above cite stable IDs.
 
 ### Changed
+- **REACT-002 independent adversarial review, and the fixes it produced.** REACT-002 was
+  the only epic without its acceptance-bar item 9 review — its entry recorded a mechanical
+  verification only. Four independent agents (pipeline wiring, self-consistency,
+  executability, contract compliance and precedent parity), each blocked from both
+  planning docs and with Smart TV scoped out, returned ~55 findings. Recorded in
+  `docs/planning/REACT-002-independent-review-findings.md`. It confirmed the
+  Inputs-vs-Constraints defect was a **pattern, not an instance**. All React-lane items
+  are fixed; the cross-lane section is logged for its owners.
+  - **Live contradictions removed.** "Never suppress an observation" is now scoped to the
+    *One defect, one finding* collision cases, so it no longer contradicts the same
+    skill's cross-lane section. A red flag that stopped `react-code-reviewer` for
+    **citing** an ID it is elsewhere told to cite as context now stops only on **filing**
+    it. `react-performance.md` and `mobile-security.md` are declared **read-only inputs**
+    — readable for routing and context, never filable.
+  - **One assembler, one merger.** `react-performance-reviewer` hands its findings to
+    `react-code-reviewer` and no longer claims to merge or write the review document.
+  - **`REACT-FC-1` no longer files compliant code as Blocking** — the rubric example now
+    carries the rule's authored error-boundary exception.
+  - **An unconfirmed backend contract is record-and-continue at Design**, removed from
+    both stop lists; it blocks decomposition at Feature-start, not the design.
+  - **`QA-A11Y-1` is satisfiable from React's own output.** The completion report gains
+    `device_type` and the two manual walkthrough results, which are now explicit
+    validation candidates — nothing else in the pipeline produced that evidence.
+  - **A design reference that exists but cannot be read is now a stop-and-report path** in
+    the architect, the developer, and both skills, matching all three precedents; only
+    absence was handled before.
+  - **`react-feature-developer` gains Inputs, Output format, and Red flags sections** and
+    `mobile-security.md` in its standards list — it was thin by design on methodology but
+    underspecified on contract surface.
+  - **The rendering model is identified per surface, not per repository**, in the
+    implementation skill and the performance reviewer.
+  - Also: a 16th discovery dimension for environment and config supply (the load-bearing
+    fact for the bundle-secrets rules); Testing, Logging & Analytics, and Build & Config
+    slots in the architect's output; "Optional" renamed **Recommended** carrying its
+    justification and approval gate; grouped rather than per-file N/A output plus a
+    **Large diffs** protocol with explicit coverage reporting; the repository-re-read
+    clause restored as the source of the task breakdown's `files touched`; `A11Y-SR-1`
+    given a web reading; the `AND-*`/`IOS-*` prohibition extended from one file to all
+    seven; and `commands/implement-task.md`'s `react` row flipped to **active** with the
+    placeholder-marker rule scoped to iOS and defined precisely, since React's own gate
+    prose contained the phrase the scan matched on.
+  - **Recorded, not silently resolved:** testing and logging have no `REACT-TEST-*` or
+    `REACT-LOG-*` family, so a test-quality or logging defect fits none of the review
+    filing gate's four categories. Both skills now state this as a known lane gap and
+    forbid inventing an ID; authoring the families is a standards-owner decision.
 - **REACT-003 independent adversarial review, and the fixes it produced.** Four
   independent reviewer agents (contract compliance, TV technical correctness with vendor
   verification, executability, neutrality/density), each blocked from reading the prior
@@ -84,7 +129,10 @@ batched adversarial review and the fixes it produced.
   - **`REACT-TV-PKG-5`/`-6` came back to the React lane.** Routing them to the shared
     `mobile-security-reviewer` left a committed signing certificate filable by nobody,
     because that lane has zero TV awareness. They are filed by `react-code-reviewer`
-    citing `SEC-SECRETS-*` as supporting rules, and the divergence is recorded.
+    citing `SEC-SECRETS-*` as supporting rules, and the divergence is recorded. (The
+    REACT-002 review below later found this fix had not reached
+    `react-code-review/SKILL.md`, which still routed them to the security lane; that is
+    now corrected too.)
   - **The false release-stage claim is gone.** The document previously asserted
     `/prepare-mobile-release` was `REACT-TV-PKG-*`'s real enforcement point; the release
     chain has no TV awareness and invokes only the performance reviewer for React. The

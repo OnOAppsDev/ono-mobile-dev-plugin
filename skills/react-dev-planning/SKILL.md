@@ -1,6 +1,6 @@
 ---
 name: react-dev-planning
-description: Repository-first planning methodology for React (web) features — discovers the repo's actual stack and rendering model, then supplies the React vocabulary and REACT-*/shared standard IDs for a Detailed Design's Technical Implementation Approach, Impacted Modules, and task breakdown. Used by /dev-design-start and /dev-feature-start via the react-architect agent, alongside the shared dev-design-start / dev-feature-start skills, which own the overall mechanics. Assumes no framework, router, state, or data library, and handles device_type mobile and tv.
+description: Repository-first planning methodology for React (web) features — discovers the repo's actual stack and rendering model, then supplies the React vocabulary and REACT-*/shared standard IDs for a Detailed Design's Technical Implementation Approach, Impacted Modules, and task breakdown. Used by /analyze-feature, /dev-design-start and /dev-feature-start via the react-architect agent, alongside the shared dev-design-start / dev-feature-start skills, which own the overall mechanics. Assumes no framework, router, state, or data library, and handles device_type mobile and tv.
 ---
 
 # React Dev Planning
@@ -13,7 +13,7 @@ It is not orchestration. The shared `dev-design-start` and `dev-feature-start` s
 
 **This skill assumes no technology.** The build tool (Vite, webpack, esbuild, Turbopack, CRA), framework (plain React SPA, Next.js Pages Router, Next.js App Router / RSC, Remix, or none), language (JavaScript or TypeScript), router (React Router, TanStack Router, a framework router), state library (Redux Toolkit, Zustand, Jotai, Recoil, MobX, Context + `useReducer`), data-fetching library (TanStack Query, RTK Query, SWR, bare `fetch`), styling approach (CSS Modules, CSS-in-JS, Tailwind, plain CSS), and test runner are all **possible findings, never defaults**. The repository's existing conventions are the source of truth. Official React/TypeScript/framework documentation is supporting guidance only and never overrides a valid existing implementation.
 
-This is a deliberately separate module from React Native — the two overlap on JS/TS/React fundamentals but target different runtimes (browser vs. native shell). It never reuses React Native's `RN-*` / bare `ARCH-*`/`API-*`/`STATE-*`/`NAV-*` IDs.
+This is a deliberately separate module from React Native — the two overlap on JS/TS/React fundamentals but target different runtimes (browser vs. native shell). It never reuses React Native's `RN-*` / bare `ARCH-*`/`API-*`/`STATE-*`/`NAV-*` IDs, nor Android's `AND-*` or iOS's `IOS-*`.
 
 **This skill never writes code and never modifies repository files.** It plans.
 
@@ -21,7 +21,7 @@ This is a deliberately separate module from React Native — the two overlap on 
 
 Obtain and **verify the existence of** these inputs first. They are passed by the invoking command/agent or deterministically resolved from the feature name and repo layout — this skill **never guesses or fabricates a path** to a feature document.
 
-- The confirmed **`platform`** (must be `react`) and **`device_type`** (`mobile` or `tv`), read from frontmatter. Never re-detected here.
+- The confirmed **`platform`** (must be `react`) and **`device_type`** (`mobile` or `tv`). **At Analyze these are passed by the command from its own step-2 confirmation** — no document exists yet, so there is no frontmatter to read and their absence there is not a stop condition. **From Design onward they are read from frontmatter** and never re-detected.
 - The target **repository / package root** (the correct workspace, in a monorepo).
 - **At Analyze:** the feature description and `repo-analyst`'s findings summary.
 - **At Design:** the absolute path to the **approved Feature Analysis**.
@@ -85,6 +85,7 @@ Collect evidence for each dimension, recording the path that proves it:
 13. **Existing feature boundaries** — how features are packaged, where a new one would sit, and what the nearest analogous feature looks like.
 14. **Relevant integrations** — analytics, logging, feature flags, remote config, i18n framework, error reporting, media, and any SDKs the feature touches.
 15. **Monorepo layout** — workspace tooling (Nx, Turborepo, Yarn/PNPM workspaces), which package this feature lives in, and how dependencies hoist.
+16. **Environment and config supply** — the `.env*` files in play, the framework's public prefix (`NEXT_PUBLIC_`/`VITE_`) and therefore which values reach the browser, and where base URLs, feature flags, and tenant/tier identifiers are injected. This is the load-bearing fact for `REACT-API-BASEQ-6`/`SEC-SECRETS-2` (nothing secret inlined into the bundle) and for the env-inlining trap in [§4](#4-react-detection-traps).
 
 **Label every finding** `[evidence: <path>]`, `[reused: <path>#<anchor>]`, `[inference]`, or `[unknown]`. An unlabelled repository claim is a defect. Prefer `[unknown]` over a guess.
 
@@ -154,15 +155,15 @@ Plan against the repo's detected router — never a second, parallel one. The UR
 
 ## 9. Data and API layer analysis
 
-Use the repo's existing data-fetching library and base client; no ad-hoc client per feature → `REACT-API-ORG-1..4`, `REACT-API-BASEQ-1`. Plan cache keys/tags and precise invalidation → `REACT-API-CACHE-1..4`. Plan **web auth transport** — prefer `httpOnly` cookies with `credentials: 'include'` (**on `device_type: tv` this preference is conditional, not a default: `REACT-TV-API-1` requires establishing the app type and whether cookie transport works on the target before choosing, and `REACT-TV-API-3` the cross-origin model**), never tokens in script-readable storage, CSRF on state-changing requests, CORS as a read boundary not authorization, and no secrets inlined into the bundle → `REACT-API-BASEQ-2`, `REACT-API-BASEQ-3`, `REACT-API-BASEQ-5`, `REACT-API-BASEQ-6`, `SEC-COOKIE-1`, `SEC-COOKIE-2`, `SEC-WEB-3`, `SEC-WEB-6`, `SEC-SECRETS-2`. Plan request cancellation on unmount / supersede → `REACT-API-ASYNC-1`. On a server-rendering surface, plan server fetch + cache hydration and credential forwarding → `REACT-API-SSR-1`, `REACT-API-SSR-2`. Normalize error shapes centrally and distinguish aborts from failures → `REACT-API-ERR-1..3`. Never log tokens/PII → `SEC-LOG-1`.
+Use the repo's existing data-fetching library and base client; no ad-hoc client per feature → `REACT-API-ORG-1..4`, `REACT-API-BASEQ-1`. Plan cache keys/tags and precise invalidation → `REACT-API-CACHE-1..4`. Plan **web auth transport** — prefer `httpOnly` cookies with `credentials: 'include'` (**on `device_type: tv` this preference is conditional, not a default: `REACT-TV-API-1` requires establishing the app type and whether cookie transport works on the target before choosing, and `REACT-TV-API-3` the cross-origin model**), never tokens in script-readable storage, CSRF on state-changing requests, CORS as a read boundary not authorization, and no secrets inlined into the bundle → `REACT-API-BASEQ-1..7` (including `-4` central 401/refresh-and-retry and `-7` no auth headers or PII in base-layer logging), `SEC-COOKIE-1`, `SEC-COOKIE-2`, `SEC-WEB-3`, `SEC-WEB-6`, `SEC-SECRETS-2`. Plan request cancellation on unmount / supersede → `REACT-API-ASYNC-1`. On a server-rendering surface, plan server fetch + cache hydration and credential forwarding → `REACT-API-SSR-1`, `REACT-API-SSR-2`. Normalize error shapes centrally and distinguish aborts from failures → `REACT-API-ERR-1..3`. Never log tokens/PII → `SEC-LOG-1`.
 
-**If the feature depends on an unconfirmed backend contract, record it as a blocking unresolved decision.**
+**If the feature depends on an unconfirmed backend contract, record it as a blocking unresolved decision and continue planning** — do not decide the contract unilaterally, and do not stop. Most features carry one at Design time; it blocks *decomposition* at Feature-start ([§16](#16-risk-classification)), not the design itself.
 
 ## 10. Module and dependency impact
 
 **Inspect broadly; report at module and change-class resolution.** Analysis may read every relevant file to understand the true blast radius. What the *design* records is the conclusion of that reading, not its transcript.
 
-Enumerate every **module/feature folder and package** the feature touches, and for each state the **class of change** (created / modified / read-only) and, where the same change repeats across many files, an **approximate site count** (e.g. "`features/orders` — all list screens move to the shared `<DataTable>`, ~12 sites"). **Enumerate individual files only when** the affected set is small (roughly **ten or fewer** sites for a change class) or when a file is itself a **design-relevant boundary**. **Per-file expansion belongs to `/dev-feature-start` and the Task Breakdown.**
+Enumerate every **module/feature folder and package** the feature touches, and for each state the **class of change** (created / modified / read-only) and, where the same change repeats across many files, an **approximate site count** (e.g. "`features/orders` — all list screens move to the shared `<DataTable>`, ~12 sites"). **Enumerate individual files only when** the affected set is small (roughly **ten or fewer** sites for a change class) or when a file is itself a **design-relevant boundary**. **Per-file expansion belongs to `/dev-feature-start` and the Task Breakdown, which re-reads the repository to do it** — that re-read, not this design, is the source of the breakdown's `files touched` column. Never invent per-file paths here to fill it.
 
 Confirm no new circular dependency and no inverted layer dependency → `REACT-ARCH-DEPS-*`. A new third-party dependency is an unresolved decision, never a silent addition, and is weighed against bundle cost → `REACT-PERF-BUNDLE-1`. Build-tool/config changes follow the repo's existing setup.
 
@@ -170,6 +171,8 @@ Confirm no new circular dependency and no inverted layer dependency → `REACT-A
 
 Plan what will be tested and at which level, matching the repo's existing runner and libraries rather than introducing one. Cover: business/hook logic including failure and edge paths; component behavior through Testing Library (user-facing behavior, not implementation detail); e2e for critical flows where the repo uses Playwright/Cypress; localization and RTL checks where relevant → `I18N-TEST-1`, `I18N-TEST-2`. Accessibility checks for interactive UI → `A11Y-*` (see [§13](#13-security-accessibility-i18n-and-rtl-planning)).
 
+
+> **Known lane gap — testing and logging have no `REACT-*` family.** Unlike the iOS lane (`IOS-ARCH-TEST-*`) and Android (`AND-TEST-*`, `AND-LOG-*`), `standards/react/` authors **no** `REACT-TEST-*` or `REACT-LOG-*` rules. So a testing or logging plan here is grounded in **repository convention plus the shared `I18N-TEST-*`/`A11Y-*` rules only** — this is the one place the §0 claim that every React-specific rule cites an authored `REACT-*` standard does not hold, and it is stated rather than papered over. Practical consequence to respect: **do not invent a `REACT-TEST-*` or `REACT-LOG-*` ID**, and where the repository has no convention either, say so (absence of a convention is not compliance) rather than supplying a preference. Authoring those two families is a separate decision for the standards owner.
 If the repository has no test infrastructure for a layer the feature touches, say so plainly and record it as an unresolved decision — never silently plan tests that cannot run, and never propose building a test framework as part of an unrelated feature.
 
 ## 12. Performance planning
@@ -181,7 +184,7 @@ Identify the feature's realistic performance risks rather than reciting generic 
 ## 13. Security, accessibility, i18n and RTL planning
 
 - **Security** — web auth/session and CSRF → `SEC-WEB-3`, `SEC-COOKIE-1`, `SEC-COOKIE-2`; XSS / safe rendering, CSP, third-party scripts, open redirects → `SEC-WEB-1`, `SEC-WEB-2`, `SEC-WEB-4`, `SEC-WEB-5`; secrets never inlined into the client bundle → `SEC-SECRETS-2`; never logging sensitive data → `SEC-LOG-1`. Security *enforcement* at review time is owned by the shared `mobile-security-reviewer`; planning names the concern and the rule.
-- **Accessibility** — roles/labels for non-text controls → `A11Y-ROLES-1`, `A11Y-ROLES-2`; screen-reader support and focus order → `A11Y-SR-1`, `A11Y-SR-2`; font scaling → `A11Y-FONT-1`, `A11Y-FONT-2`; activation targets → `A11Y-TOUCH-1`, `A11Y-TOUCH-2`. On TV (`device_type: tv`), `A11Y-TOUCH-1` is satisfied by a reliably focusable element with a clearly visible focus state rather than a touch-target size.
+- **Accessibility** — roles/labels for non-text controls → `A11Y-ROLES-1`, `A11Y-ROLES-2`; screen-reader support and focus order → `A11Y-SR-1`, `A11Y-SR-2`. **`A11Y-SR-1` names VoiceOver and TalkBack, which do not exist on a browser surface; its web reading is a walkthrough with a desktop screen reader the team actually uses (NVDA, JAWS, or VoiceOver on macOS), recorded by name.** Do not treat the mobile tool names as making the rule N/A on web; font scaling → `A11Y-FONT-1`, `A11Y-FONT-2`; activation targets → `A11Y-TOUCH-1`, `A11Y-TOUCH-2`. On TV (`device_type: tv`), `A11Y-TOUCH-1` is satisfied by a reliably focusable element with a clearly visible focus state rather than a touch-target size.
 - **i18n and RTL** — no hardcoded user-visible strings → `I18N-COPY-1`; formatting → `I18N-FMT-1`, `I18N-FMT-2`; RTL layout and mirroring → `I18N-RTL-1`, `I18N-RTL-2`, `I18N-RTL-3`, `I18N-RTL-4`.
 
 ## 14. `device_type` handling
@@ -260,12 +263,20 @@ Output shape, consumed by the shared skills:
 
 Exactly one confirmed platform always applies, so these sections are **always flat** — never split into per-platform subsections.
 
+**Where each output part lands.** Parts 2–3 (Technical Approach, Impacted Modules) supply DD **§19** and **§20**. Part 4's **Recommended** deviations go to **§23 Assumptions** with their justification, never into §19 as though already decided; optional modernization is reported to the developer and **not written to the DD at all**. Part 5's **Unresolved Decisions** go to **§24 Open Questions**. Part 1 (Implementation Model Found) is research and is not DD content.
+
+**React decomposition hazards at `/dev-feature-start`** — call these out so two tasks do not collide:
+
+- **Shared-registry contention.** Two tasks both editing the route table, the store registry, or a barrel/index file will conflict; sequence them or assign both edits to one task.
+- **A `'use client'` boundary change ripples to importers.** Moving a module across the boundary is not a local edit — it changes what every importer ships. Scope it as its own task with its importers named.
+- **A dependency change touches the lockfile.** Any task adding or upgrading a dependency owns the lockfile edit alone; parallel tasks doing so conflict every time.
+
 ## 18. Approval gates and failure behavior
 
 - The Feature Analysis must be `approved` before it is designed against; the DD must be `approved` before it is decomposed. This skill never flips a status.
 - Documents remain `draft` until a human approves them.
 - A UI-changing feature requires a design reference of any supported type; `not_required` is never valid for one.
-- **Stop and report** — never work around — when: a required input is missing; `device_type` is absent or invalid; evidence is missing, contradictory, or ambiguous on a load-bearing dimension; upstream documents conflict; the plan would violate or expand an approved decision; a backend contract is unconfirmed; a cited standard file is missing or a placeholder.
+- **Stop and report** — never work around — when: a required input is missing; `device_type` is absent or invalid; evidence is missing, contradictory, or ambiguous on a load-bearing dimension; upstream documents conflict; the plan would violate or expand an approved decision; a cited standard file is missing or a placeholder.
 
 ## Definition of Done
 
@@ -308,7 +319,7 @@ The Smart TV row applies **only** when `device_type: tv`; on `mobile` those rule
 - Two competing mechanisms exist (router, state, data-fetching, rendering model) and the one this feature should follow cannot be determined from evidence.
 - A UI-changing feature has no design reference of any supported type.
 - `device_type: tv` and a TV surface exists but its implementation model **cannot be identified** from evidence. (A repository with **no** TV surface at all is not this case — that is the greenfield path in §14, which continues rather than stopping.)
-- The feature depends on an unconfirmed backend contract.
+- A design reference is recorded but **cannot be read** (a dead link, an unreachable MCP server, a missing export) — report the exact error rather than proceeding. (An unconfirmed **backend contract** is *not* here: it is recorded as a blocking unresolved decision and planning continues — see [§9](#9-data-and-api-layer-analysis).)
 - The plan would require introducing a new framework, router, state/data library, or migration as required work.
 - The Feature Analysis and DD conflict, or an upstream document is unapproved, stale, or draft.
 - A cited `standards/react/*` file is missing or is a structure-only placeholder (see [§0](#0-standards-readiness-gate)).

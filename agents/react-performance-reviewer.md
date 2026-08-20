@@ -7,12 +7,12 @@ description: Audits React (web) performance against the authored REACT-PERF-* ru
 
 `react-performance-reviewer` audits React (web) performance concerns only. It is invoked twice in the pipeline, for two different purposes with two different scopes and two different outputs:
 
-- Via **`/review-code`** (Review stage) — audits the React-attributed diff's performance impact, contributing the Performance section of `templates/code-review-template.md`.
+- Via **`/review-code`** (Review stage) — audits the React-attributed diff's performance impact, supplying the Performance findings that `react-code-reviewer` assembles into `templates/code-review-template.md`.
 - Via **`/prepare-mobile-release`** (Release stage) — audits the release candidate as a whole, contributing the React perf sign-off block to `templates/release-checklist-template.md` (per `REL-PERF-1` and the `mobile-release-readiness` skill).
 
-It runs **alongside, not instead of** `react-code-reviewer` and the shared `mobile-security-reviewer`. This is a separate module from React Native and never cites `RN-PERF-*`.
+It runs **alongside, not instead of** `react-code-reviewer`. Security is a separate `/review-security` pass, not a co-runner here. This is a separate module from React Native and never cites `RN-PERF-*`.
 
-**This agent assumes nothing about the repository's technology.** The bundler (Vite, webpack, CRA, esbuild, Turbopack), rendering model (client SPA, SSR, RSC, hybrid), virtualization library, image pipeline, and analytics/tag setup are read from the repository. A rule whose enabling technology is absent — `REACT-PERF-HYDRATION-1` in a client-only SPA, for instance — is recorded **N/A**, not passed and not failed.
+**This agent assumes nothing about the repository's technology.** The bundler (Vite, webpack, CRA, esbuild, Turbopack), rendering model (client SPA, SSR, RSC, hybrid — identified **per surface**, never once for the whole repository), virtualization library, image pipeline, and analytics/tag setup are read from the repository. A rule whose enabling technology is absent — `REACT-PERF-HYDRATION-1` in a client-only SPA, for instance — is recorded **N/A**, not passed and not failed.
 
 ## Inputs
 
@@ -30,7 +30,7 @@ No other `standards/react/*` file is an input **for filing**: apart from `REACT-
 2. **Audit against `REACT-PERF-*` only**: unnecessary re-renders and unstable props; large-list virtualization and stable row keys; long main-thread tasks; image sizing, responsive serving, and reserved layout space; bundle size, code-splitting, and preserved tree-shaking; hydration cost and client-boundary size; third-party script loading; and LCP/CLS/INP as the user-facing targets.
 3. **Confirm the surface before citing a rule** — `REACT-PERF-HYDRATION-1` needs a server-rendered/RSC tree to apply; `REACT-PERF-BUNDLE-1`/`-3` and `REACT-PERF-CWV-1` are observable only on a production build.
 4. **Apply the filing gate and the measurement discipline before recording anything** (see Constraints).
-5. **When called from `/review-code`** — contribute a Performance section of findings to `templates/code-review-template.md`, using the same Blocking / Major / Minor / Nit severity scale as the rest of that document, tagged `[react]`. Merge with what the other reviewers produced; never overwrite it, and never emit a separate document.
+5. **When called from `/review-code`** — hand your Performance findings to `react-code-reviewer`, which assembles and dedups `templates/code-review-template.md`. **Do not write into that document yourself, and do not merge**: use the same Blocking / Major / Minor / Nit severity scale as the rest of that document, tag each finding `[react]`, and name the owning ID on any finding that appears in the *One defect, one finding* table so the merge can resolve it. Never emit a separate document.
 6. **When called from `/prepare-mobile-release`** — produce a standalone React perf sign-off (pass / pass-with-follow-ups / fail, plus notable findings and any bundle-size delta actually measured) for the release checklist's Perf Sign-off section, tagged `[react]`.
 
 ## Output format
@@ -76,7 +76,7 @@ One shared rule crosses into the security lane: `REACT-PERF-THIRDPARTY-1` covers
 
 ## Red flags — STOP and report instead of proceeding
 
-- `standards/react/react-performance.md` is missing or is a structure-only placeholder.
+- A cited `standards/react/*` file is missing or is a structure-only placeholder — including `react-smart-tv.md` on an established TV surface, not only `react-performance.md`.
 - You are about to file a finding you cannot tie to a concrete `REACT-PERF-*` violation.
 - You are about to state a performance magnitude you did not measure, or an unprofiled guess as a confirmed Blocking finding.
 - You are about to file a modernization or technology-preference observation anywhere in the output.

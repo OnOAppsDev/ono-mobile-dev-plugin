@@ -85,6 +85,8 @@ Map each changed file to zero or more buckets. Files matching no bucket are mark
 
 `REACT-PERF-*` and `REACT-TV-PERF-*` are deliberately absent from this table — both belong to `react-performance-reviewer` ([§8](#8-lane-ownership-for-overlapping-ids)).
 
+**There is deliberately no `REACT-TEST-*` or `REACT-LOG-*` bucket, because those families are not authored** (the iOS and Android lanes have equivalents; React does not). A changed test file or a logging change is therefore reviewable **only** against a repository convention, the project's architecture, or a shared rule — the first two categories of the filing gate. If a test-quality or logging-hygiene concern fits none of those, it is **not filable in this lane**: record it once under Not Applicable / Skipped as an unauthored-standard gap rather than stretching an unrelated `REACT-*` ID to cover it, and never invent an ID.
+
 Config-only changes (a lockfile bump, a formatter config, a CI file) carry no `REACT-*` bucket unless they change the reviewed code's language level, lint contract, or build output — say so in one line and skip them. **Exception: a vendor TV manifest or packaging script in the diff is not "config-only" in this sense** — it is source under `REACT-TV-PKG-2` and is reviewed, per the row above. Only its *absence* from the diff makes that family N/A.
 
 ## 6. Stack- and rendering-model-neutral rule selection
@@ -124,7 +126,7 @@ When the evidence does not settle a dimension the finding depends on, **do not f
 
 ## 8. Lane ownership for overlapping IDs
 
-Two React standards cite IDs rooted in another family: `react-coding-standards.md` cites `REACT-PERF-CWV-1`; `react-performance.md` cites `REACT-ARCH-BOUNDARY-2` and `REACT-ROUTE-UX-4`.
+The rule is positional-independent: **the ID's own root decides the owner, wherever the ID appears.** In practice `react-performance.md` cross-references `REACT-ARCH-BOUNDARY-2` and `REACT-ROUTE-UX-4`, which stay with Pass A.
 
 **The ID's own root decides the owner, not the file it appears in:**
 
@@ -133,11 +135,11 @@ Two React standards cite IDs rooted in another family: `react-coding-standards.m
 
 This prevents the two agents double-filing the same issue from two directions. It is the same rule `standards/react/react-performance.md`'s *Lane ownership* note states, applied to both agents.
 
-**Smart TV adds a case the root rule cannot settle by itself.** A standalone `REACT-TV-*` root has no owner under "the root decides", so its routing is stated explicitly in `standards/react/react-smart-tv.md`: `REACT-TV-PERF-*` → `react-performance-reviewer`; `REACT-TV-PKG-5`/`-6` → the shared `mobile-security-reviewer` via the `SEC-*` IDs they cite; every other TV family → `react-code-reviewer`.
+**Smart TV adds a case the root rule cannot settle by itself.** A standalone `REACT-TV-*` root has no owner under "the root decides", so its routing is stated explicitly in `standards/react/react-smart-tv.md`: `REACT-TV-PERF-*` → `react-performance-reviewer`; **every other TV family, `REACT-TV-PKG-*` included, → `react-code-reviewer`.** That document is the single authority for this split — do not re-derive it here.
 
 **One defect, one finding.** Routing by root is not enough when a *single* real defect satisfies rules owned by *different* agents — an undisposed player is both `REACT-TV-MEDIA-3` (this lane) and `REACT-TV-PERF-2` (Pass B). The two agents cannot read each other's output, so:
 
-- **File what your lane sees. Never suppress an observation assuming the other reviewer will file it** — silence is not coordination, and a dropped finding is worse than a duplicated one.
+- **Within the *One defect, one finding* collision cases below, file what your lane sees rather than staying silent** — for those defects the table names one owner and the merge reconciles, so a dropped finding is worse than a duplicated one. Outside those cases §16 governs: a performance or security observation is Pass B's or the security lane’s and is not filed here.
 - Where a defect appears in the **One defect, one finding** table in `standards/react/react-smart-tv.md`, file it under that table's **owning ID**, citing the others inside the finding as supporting context.
 - Where the owning ID belongs to the other lane, record the observation in your own finding with the owning ID named, and let [§15](#15-merge-into-the-shared-template) reconcile.
 - That table is authoritative for TV collisions, and its rows are **mutually exclusive by mechanism** — a player is `REACT-TV-MEDIA-3`, a listener is `REACT-FC-5`, and `REACT-TV-PERF-2` covers memory retained for any *other* reason. Where two rows could still be read as matching, the row naming the more specific mechanism wins.
@@ -165,7 +167,7 @@ This prevents the two agents double-filing the same issue from two directions. I
 
 | Severity | Meaning | React (web) examples |
 |---|---|---|
-| **Blocking** | Breaks functionality or violates a hard rule | Refresh/access tokens written to `localStorage` (`REACT-STATE-PERSIST-2`); a redirect target taken unvalidated from a `?next=` param (`REACT-ROUTE-SECURITY-1`); a server-only module imported into a client component (`REACT-ARCH-BOUNDARY-3`); a class component in new code (`REACT-FC-1`); an effect listener/timer/subscription with no cleanup (`REACT-FC-5`) |
+| **Blocking** | Breaks functionality or violates a hard rule | Refresh/access tokens written to `localStorage` (`REACT-STATE-PERSIST-2`); a redirect target taken unvalidated from a `?next=` param (`REACT-ROUTE-SECURITY-1`); a server-only module imported into a client component (`REACT-ARCH-BOUNDARY-3`); a class component in new code outside `REACT-FC-1`'s authored error-boundary exception; an effect listener/timer/subscription with no cleanup (`REACT-FC-5`) |
 | **Major** | Likely to cause a real bug or meaningfully hurts maintainability | Business rules inline in a component instead of a hook/selector/service (`REACT-ARCH-LOGIC-1`); a second parallel data client bypassing the shared base layer (`REACT-API-BASEQ-1`); a raw library error union reaching the UI (`REACT-API-ERR-1`); effect data fetching that is not cancelled on unmount (`REACT-FC-6`, `REACT-API-ASYNC-1`); a service/store module importing from a feature (`REACT-ARCH-DEPS-2`); a mutation that blanket-invalidates unrelated cache tags (`REACT-API-CACHE-2`) |
 | **Minor** | Standards deviation without immediate functional risk | Shareable filter/tab/pagination state held in the store instead of the URL (`REACT-STATE-BOUNDARY-2`, `REACT-ROUTE-URL-5`); a navigation path built by string concatenation instead of the typed route definition (`REACT-ROUTE-URL-4`); a hardcoded user-visible string instead of an i18n key (`I18N-COPY-1`); a non-text control with no accessible name (`A11Y-ROLES-1`); derived state recomputed inline instead of through a memoized selector (`REACT-ARCH-LOGIC-3`, `REACT-STATE-SELECT-1`) |
 | **Nit** | Style/hygiene deviation — **still requires a cited standard ID** | A file name that does not match its exported component (`REACT-NAME-1`); inline-literal props typing instead of a named `interface` (`REACT-PROPS-1`); a bare `eslint-disable-next-line` with no explanation (`REACT-LINT-2`); a pure-reformatting diff mixed into a functional change (`REACT-LINT-3`) |
@@ -207,8 +209,17 @@ Populate `templates/code-review-template.md` in full, tagging every finding `[re
 - **Standards Checked** — the `REACT-*` and shared IDs actually applicable to this scope.
 - **Findings by Severity** — Blocking / Major / Minor / Nit. **Severity stays the primary organizing axis even for a mixed-platform diff** — tag findings inline, never section the document by platform.
 - **Performance** — Pass B's findings, same severity scale, following [§12](#12-performance-measurement-discipline).
-- **Not Applicable / Skipped** — files and checks skipped, one-line reason each, including families that are N/A for the surface (RSC/SSR families on a client SPA, `REACT-TS-*` in a JS repo).
+- **Not Applicable / Skipped** — **grouped**, not per file: one line per family or per workspace stating what was skipped and why (RSC/SSR families on a client SPA, `REACT-TS-*` in a JS workspace, `REACT-TV-PKG-*` with no packaging config in the diff). A per-file enumeration is not required and must not be produced for a large diff.
 - **Verdict** — Approved / Approved with follow-ups / Blocked.
+
+### Large diffs
+
+Per-rule pass/fail tracking in [§9](#9-the-two-review-passes) is **internal working state, not output** — the document reports findings plus the grouped N/A lines above. For a diff too large to review file-by-file within one pass:
+
+- **Chunk by workspace, then by feature folder**, and review each chunk against its own configuration ([§1](#1-resolve-scope)).
+- **State coverage explicitly in Scope**: files reviewed vs. files in the resolved scope. If any part of the scope was not reached, say so there — **a partial review presented as complete is the failure mode this rule exists to prevent.**
+- **Prioritise by blast radius** when coverage is bounded: shared/design-system modules and services/store first, then feature code, then tests and fixtures. Record the ordering used.
+- Never silently sample. A reduced scope is a stated fact, not an implicit one.
 
 Write explicit **"None found"** for any empty section. **Merge with** whatever other reviewers produced for the same scope — never overwrite it, and never emit a separate React document.
 
@@ -226,7 +237,7 @@ Write explicit **"None found"** for any empty section. **Merge with** whatever o
 - **Cross-lane findings.** Performance stays with Pass B; everything else stays with Pass A ([§8](#8-lane-ownership-for-overlapping-ids)).
 - **Pre-existing code outside the reviewed change** ([§4](#4-scope-discipline--legacy-code-and-the-review-boundary)).
 - **Modernization, stack preference, and architectural opinion**, everywhere in the document ([§3](#3-what-may-be-filed--the-filing-gate)).
-- **Fixes.** This skill does not repair flagged code — that is `react-feature-developer`'s job in the Fix stage, via `/fix-review-comments` and `skills/react-feature-implementation/SKILL.md`.
+- **Fixes.** This skill does not repair flagged code — that is `react-feature-developer`'s job in the Fix stage, via `/fix-review-comments`. Note that `skills/react-feature-implementation/SKILL.md` is scoped to `/implement-task` and its input gate requires a task id and Task Breakdown, which the Fix stage does not supply; the developer applies a review fix from the finding, its cited standard ID, and the file, not from that skill's task-resolution path.
 - **Product scope and design decisions.** Whether the feature should behave this way is the Analyze/Design stage's question, not a review finding.
 
 ## Standards citation
@@ -243,9 +254,8 @@ Cite only IDs that exist in these files and genuinely apply to the change under 
 | Accessibility (shared) | `standards/shared/accessibility.md` | `A11Y-*` | code-reviewer |
 | Localization & RTL (shared) | `standards/shared/i18n-rtl.md` | `I18N-*` | code-reviewer |
 | Performance & Core Web Vitals | `standards/react/react-performance.md` | `REACT-PERF-*` | **performance-reviewer** |
-| Smart TV — focus, remote input, 10-foot UI, playback, lifecycle, packaging config | `standards/react/react-smart-tv.md` | `REACT-TV-FOCUS-*`, `REACT-TV-INPUT-*`, `REACT-TV-UI-*`, `REACT-TV-MEDIA-*`, `REACT-TV-LIFECYCLE-*`, `REACT-TV-API-*`, `REACT-TV-PKG-1..4`, `REACT-TV-PKG-7..8` | code-reviewer |
+| Smart TV — focus, remote input, 10-foot UI, playback, lifecycle, packaging config | `standards/react/react-smart-tv.md` | `REACT-TV-FOCUS-*`, `REACT-TV-INPUT-*`, `REACT-TV-UI-*`, `REACT-TV-MEDIA-*`, `REACT-TV-LIFECYCLE-*`, `REACT-TV-API-*`, `REACT-TV-PKG-*` | code-reviewer |
 | Smart TV — constrained runtime & memory budget | `standards/react/react-smart-tv.md` | `REACT-TV-PERF-*` | **performance-reviewer** |
-| Smart TV — signing material & secrets in the package | `standards/react/react-smart-tv.md` | `REACT-TV-PKG-5`, `REACT-TV-PKG-6` | **neither — `mobile-security-review`**, via the `SEC-*` IDs they cite |
 | Security & privacy (shared) | `standards/shared/mobile-security.md` | `SEC-*` | **neither — `mobile-security-review`** |
 
 Do not use React Native's `RN-*` or the generically-named `ARCH-*`/`API-*`/`STATE-*`/`NAV-*` IDs for React, and do not use Android's `AND-*` or iOS's `IOS-*` — React cites the `REACT-*` roots above.

@@ -4,11 +4,51 @@
 
 **Why this ran:** REACT-002 was the only epic that never had its acceptance-bar item 9 adversarial review — its progress entry recorded a *mechanical* verification only. The REACT-003 pass had already found REACT-002-authored defects incidentally, which suggested more.
 
-**Outcome: ~55 findings.** Confirmed: the Inputs-vs-Constraints defect was a **pattern, not an instance**. Also confirmed: one of my own REACT-003 fixes never fully landed (R1 below), and the CHANGELOG claimed it had.
+**Outcome: ~55 findings. All Section A items are now fixed — see *Resolution status* below.** Confirmed: the Inputs-vs-Constraints defect was a **pattern, not an instance**. Also confirmed: one of my own REACT-003 fixes never fully landed (R1 below), and the CHANGELOG claimed it had.
 
 ---
 
-## A. React-lane findings — mine to fix
+## Resolution status (2026-08-20)
+
+**All Section A (React-lane) findings are fixed.** Scope held to the React lane; Section B remains logged for its owners. No `REACT-*` or `REACT-TV-*` rule was renumbered or deleted — the frozen 111 base IDs are byte-identical to `463fc14` and the TV standard still carries 54 rules.
+
+| Finding | Resolution |
+|---|---|
+| **R1** regression | The PKG-5/6 carve-out is **deleted** from `react-code-review/SKILL.md` — the routing sentence now reads "every other TV family, `REACT-TV-PKG-*` included, → `react-code-reviewer`", the security row is removed from the citation table, and the triage table's all-of-PKG row is consistent with both. The standard is named as the single authority so the split cannot drift again. |
+| **R2** | §8's never-suppress rule is **scoped to the *One defect, one finding* collision cases only**; outside them §16 governs and a performance or security observation is not filed here. The two sections no longer contradict. |
+| **R3** | The red flag now stops on **filing** a `REACT-TV-PERF-*` ID, not citing one, and says citing it as supporting context is expected. `react-performance.md` and `mobile-security.md` are declared **read-only inputs** — readable for routing and context, never filable. |
+| **R4** | **Stated as a known lane gap** rather than papered over or unilaterally resolved. §11 of the planning skill records that no `REACT-TEST-*`/`REACT-LOG-*` family exists, that this is the one place §0's grounding claim does not hold, and that no such ID may be invented. The review skill's §5 adds the matching rule: a test-quality or logging concern fitting none of the first three filing-gate categories is **not filable**, and is recorded once as an unauthored-standard gap. Authoring the two families remains the standards owner's decision. |
+| **R5** | An unconfirmed backend contract is now unambiguously **record-and-continue** at Design: removed from both stop lists, with a note that it blocks *decomposition* at Feature-start, not the design. |
+| **R6** | The Blocking example reads "a class component in new code **outside `REACT-FC-1`'s authored error-boundary exception**", so compliant code no longer returns as Blocking. |
+| **R7** | `react-performance-reviewer` now **hands its findings to `react-code-reviewer` and does not merge or write the document**; its Role line matches. One assembler, one merger. |
+| **R8** | The completion report gains items **17 (`device_type`)** and **18 (the two manual walkthrough results)**, the walkthroughs become explicit validation candidates, and the developer's `/create-dev-qa-notes` contribution names them — so `QA-A11Y-1` is satisfiable from React's own output. |
+| **R9** | "A recorded reference that **cannot be read**" is now a stop-and-report path in the architect, the developer, the planning skill's red flags, and the implementation readiness check — matching all three precedents. |
+| **R10** | `react-feature-developer` gains **`## Inputs`, `## Output format`, and `## Red flags`** sections, and `mobile-security.md` is added to its standards list. 49 → 76 lines, still thin on methodology. |
+| **R11** | The rendering model is identified **per surface** in the implementation skill's §3 (cross-linked to the planning skill's §5) and in the performance reviewer's technology paragraph. |
+| **R12** | §3 gains a **16th dimension: environment and config supply** — `.env*` files, the public prefix, where config reaches the client — the load-bearing fact for `REACT-API-BASEQ-6`/`SEC-SECRETS-2`. |
+| **R13** | The false premise is gone; the rule is stated abstractly ("the ID's own root decides the owner, wherever the ID appears") with only the genuine cross-file cases named. |
+| **R14/R15** | Architect Output part 2 gains **Testing**, **Logging & Analytics**, and **Build & Configuration Impact**; part 4 is renamed **Existing · Required · Recommended** and carries the skill's two qualifiers (justification, approval-gated, never applied silently). |
+| **R16/R17** | Both readiness gates stop on a **missing or placeholder** cited `standards/react/*` file, the performance reviewer's naming `react-smart-tv.md` explicitly. |
+| **R18** | The build-tool trap is restated correctly: `package.json` scripts plus the installed dev dependency, never a lone config file — no lockfile signal. |
+| **R19** | The planning skill's frontmatter names all three call sites, including `/analyze-feature`. |
+| **R20** | The `AND-*`/`IOS-*` prohibition now appears in all seven files, not one. |
+| **R21** | §9 cites `REACT-API-BASEQ-1..7`, naming the previously skipped `-4` and `-7`. |
+| **R22** | The isolated-worktree clause is restored to the do-not-complete list. |
+| **R23** | `A11Y-SR-1` carries an explicit **web reading** (a named desktop screen reader) wherever the React lane cites it, so it is neither unsatisfiable nor silently skipped. |
+| **R24** | §17 maps **Recommended → DD §23** and **Unresolved → DD §24**, states optional modernization is never written to the DD, and adds three React decomposition hazards (shared-registry contention, `'use client'` boundary ripple, lockfile ownership). |
+| **R26** | `platform`/`device_type` are **passed by the command at Analyze** (no document exists yet) and read from frontmatter from Design onward — the input gate no longer stops on its own first check. |
+| **R27** | §15's N/A output is now **grouped by family or workspace, never per file**, per-rule tracking is declared internal working state, and a **Large diffs** subsection adds chunking, explicit coverage reporting, blast-radius prioritisation, and a ban on silent sampling. |
+| **R28** | The Fix-stage cross-reference now says the developer works from the finding, its cited ID, and the file — not from the implementation skill's task-resolution path, whose input gate the Fix stage cannot satisfy. |
+| **R29** | The repository-re-read clause is restored: `/dev-feature-start` re-reads the repository and **that** is the source of the breakdown's `files touched` column; per-file paths are never invented at Design. |
+| **R30** | Both reviewers say security is a **separate `/review-security` pass, not a co-runner**, and the developer's Fix-stage text no longer waits for an adjudicator the command never invokes — a disputed `SEC-*` finding is recorded in the fix log for a human. |
+| **R31** | `commands/implement-task.md`'s `react` row is **`active`**, and the placeholder-marker rule is scoped to iOS and defined precisely (frontmatter description **and** a `## Status: Not yet authored` heading), so ordinary prose mentioning "structure-only placeholder" can no longer trip it. |
+| **R32** | **Left as-is deliberately.** The reviewer agents' TV bullets do duplicate skill methodology, but collapsing them to a pointer would re-open the R1/R3 class of defect by moving load-bearing routing behind indirection. Recorded as accepted duplication, with the standard named as the single authority. |
+
+**Verified after the fixes:** 111 frozen base IDs byte-identical to `463fc14`; 54 TV rules; every cited ID across the seven files and the standards resolves; all intra-skill anchors resolve (one I introduced was caught and fixed); no stale security-lane routing remains anywhere.
+
+---
+
+## A. React-lane findings — fixed 2026-08-20
 
 **Regressions and live contradictions**
 
