@@ -23,8 +23,8 @@ claude --plugin-dir /path/to/ono-mobile-dev-plugin
 
 - **React Native** — the plugin's original, most fully-built-out platform. Full standards, skills, and agents.
 - **Native iOS** — routing, platform detection, and folder structure are fully wired up. The five iOS **standards are authored** (IOS-001) with citable `IOS-*` IDs, and the **planning lane is authored** (IOS-002) — `ios-architect` plus the `ios-dev-planning` skill, so `/analyze-feature`, `/dev-design-start`, and `/dev-feature-start` produce grounded, standards-cited iOS output. The **implementation lane is authored** (IOS-003) — `ios-feature-developer` plus the `ios-feature-implementation` skill, so `/implement-task` produces grounded, standards-cited iOS work and the iOS halves of `/fix-review-comments` and `/create-dev-qa-notes` are served. The **review lane is authored** (IOS-004) — `ios-code-reviewer` and `ios-performance-reviewer` plus the `ios-code-review` skill, so `/review-code` and the iOS perf sign-off in `/prepare-mobile-release` produce grounded, standards-cited output. tvOS-context sections are pending ATV-001/002.
-- **Native Android** — routing, platform detection, and folder structure are fully wired up; the standards/skills/agents themselves are currently structure-only placeholders (see [Plugin internals](#plugin-internals)) waiting to be authored.
-- **React (web)** — a plain browser SPA (Vite/CRA/Next.js), not React Native for Web. Also structure-only placeholders today. Kept as a fully separate module from React Native despite overlapping JS/TS/React fundamentals, since the two target genuinely different runtimes (browser vs. native shell).
+- **Native Android** — routing, platform detection, and folder structure are fully wired up, and the lane is **authored**: ten `standards/android/` documents with citable `AND-*` IDs (ANDROID-001), the planning lane (`android-architect` + `android-dev-planning`, ANDROID-002), the implementation lane (`android-feature-developer` + `android-feature-implementation`), and the review lane (`android-code-reviewer`, `android-performance-reviewer` + `android-code-review`). Device types `mobile` and `tv` are both handled.
+- **React (web)** — a plain browser SPA (Vite/CRA/Next.js), not React Native for Web. **The only lane still a structure-only placeholder** — its four agents, three skills, and six `standards/react/` documents are scaffolding, and every command that could route to them carries a readiness gate, so the lane is never invoked silently. Kept as a fully separate module from React Native despite overlapping JS/TS/React fundamentals, since the two target genuinely different runtimes (browser vs. native shell).
 - **Mixed repos** — a React Native repo with native iOS and/or Android changes, or a native monorepo containing both an iOS and an Android project, or a monorepo pairing a React web app with an RN/native app.
 
 The shared layer keeps its `mobile-*` naming (`mobile-repo-analysis`, `mobile-security-review`, `/prepare-mobile-release`, etc.) even though React (web) isn't literally mobile — Ono Apps is a mobile division that also owns a React web app, so the umbrella name stayed put rather than triggering a broader rename.
@@ -182,7 +182,8 @@ Every agent works against the org's written standards rather than assumed defaul
 - **`standards/shared/`** — mobile security, accessibility, i18n/RTL, release readiness, and QA handoff. Loaded on every task regardless of platform. Today's rule text in `mobile-security.md`, `accessibility.md`, and `i18n-rtl.md` is written from React Native experience (prop names, library names); iOS/Android/React-native equivalents are noted as not-yet-authored gaps rather than silently assumed equivalent.
 - **`standards/react-native/`** — React Native/TypeScript coding standards, navigation, state management, API service layer, architecture, and performance. The most fully authored module.
 - **`standards/ios/`** — Swift language and style, SwiftUI/UIKit conventions, architecture, performance, and Xcode build/signing. Authored (IOS-001); every rule carries a citable `IOS-SWIFT-*`, `IOS-UI-*`, `IOS-ARCH-*`, `IOS-PERF-*`, or `IOS-BUILD-*` ID, and `swift-standards.md` defines the lane table that routes each root to exactly one reviewer.
-- **`standards/android/`**, **`standards/react/`** — structure-only placeholders (Kotlin/React coding standards, UI-framework conventions, architecture, build/signing or bundler config, and performance) mirroring the react-native set, ready to be authored.
+- **`standards/android/`** — Kotlin language and style, Compose/XML conventions, architecture, navigation, networking, persistence, logging/analytics, testing, performance, and Gradle build/signing. Authored (ANDROID-001); every rule carries a citable `AND-*` ID (`AND-KT-*`, `AND-UI-*`, `AND-ARCH-*`, `AND-VM-*`, `AND-NAV-*`, `AND-NET-*`, `AND-DATA-*`, `AND-LOG-*`, `AND-TEST-*`, `AND-PERF-*`, `AND-REL-*`, `AND-DI-*`).
+- **`standards/react/`** — structure-only placeholders (coding standards, routing, state management, architecture, API service layer, and performance) mirroring the react-native set, ready to be authored.
 - **`templates/`** — one structured template per pipeline artifact: feature analysis, detailed design (DD), feature plan, task breakdown, code review, security review, QA handoff, and release checklist. Stages communicate exclusively through these filled-in templates. Every template that needs to know the platform carries a `platform` field (frontmatter or a per-row column), and the code-review/release-checklist templates support platform-tagged findings/subsections for mixed-platform work.
 
 Reviews cite standard IDs in their findings.
@@ -198,6 +199,40 @@ Three hooks are always active while the plugin is installed:
 | `block-main-branch-changes` | Blocks file changes while checked out on `main`/`master`, enforcing a feature-branch workflow |
 
 All three hooks are already platform-agnostic and required no changes for iOS/Android/React support beyond adding the `.kts` extension.
+
+## Repository validation
+
+The plugin's deterministic parts — five helper scripts, three safety hooks, the four
+documentation contracts, and the structural integrity of the component corpus — are
+covered by a hand-rolled check suite with no external test framework and no
+dependencies. Run it from the repository root:
+
+```bash
+node scripts/check.ts            # everything
+node scripts/check.ts --strict   # the pre-PR form: a skipped suite is a failure
+node scripts/check.ts --only reference-integrity
+```
+
+`--strict` exists because a suite can legitimately skip itself — the hooks suite needs
+`jq` — and a run that skipped the entire safety layer must not report as healthy.
+
+One of those suites is worth calling out. `scripts/reference-integrity.ts` validates
+the repository's own structure: that every cited skill, agent, standard, template,
+script and contract path resolves; that every component's frontmatter is valid and its
+`name` matches its filename; that every anchor link resolves; that each component's
+readiness is classified from its own on-disk marker; and — the point of it — that **no
+command routes to a placeholder lane without a readiness gate**. It also checks that
+this README's readiness claims match what is actually on disk, so an authored platform
+cannot stay documented as a placeholder. It can be run on its own for a grouped report:
+
+```bash
+node scripts/reference-integrity.ts
+```
+
+**This is a developer and repository quality capability, not a runtime workflow step.**
+Nothing a user of the plugin does requires it, no command invokes it, and it needs no
+CI. A repository may choose to run the same command automatically in CI later; the
+validator has no dependency on that ever happening.
 
 ## MCP servers
 
@@ -224,14 +259,14 @@ skills/                             (flat, one level — prefix = scope)
   dev-design-start/  dev-feature-start/    (shared design + task-generation stages)
   rn-dev-planning/  rn-feature-implementation/  rn-code-review/
   ios-dev-planning/ ios-feature-implementation/ ios-code-review/      (authored)
-  android-dev-planning/ android-feature-implementation/ android-code-review/  (placeholders)
+  android-dev-planning/ android-feature-implementation/ android-code-review/  (authored)
   react-dev-planning/   react-feature-implementation/   react-code-review/    (placeholders)
 
 agents/                             (flat)
   repo-analyst.md  mobile-security-reviewer.md  mobile-release-engineer.md
   rn-architect.md  rn-feature-developer.md  rn-code-reviewer.md  rn-performance-reviewer.md
   ios-architect.md ios-feature-developer.md ios-code-reviewer.md ios-performance-reviewer.md      (authored)
-  android-architect.md android-feature-developer.md android-code-reviewer.md android-performance-reviewer.md  (placeholders)
+  android-architect.md android-feature-developer.md android-code-reviewer.md android-performance-reviewer.md  (authored)
   react-architect.md   react-feature-developer.md   react-code-reviewer.md   react-performance-reviewer.md    (placeholders)
 
 standards/
@@ -241,7 +276,9 @@ standards/
   ios/          swift-standards.md, swiftui-uikit-standards.md, ios-architecture.md,
                 xcode-build-signing.md, ios-performance.md               (authored, IOS-* IDs)
   android/      kotlin-standards.md, compose-xml-standards.md, android-architecture.md,
-                gradle-build-signing.md, android-performance.md          (placeholders)
+                android-navigation.md, android-networking.md, android-persistence.md,
+                android-logging-analytics.md, android-testing.md,
+                gradle-build-signing.md, android-performance.md          (authored, AND-* IDs)
   react/        react-coding-standards.md, react-routing.md, react-state-management.md,
                 react-performance.md, react-architecture.md, react-api-service-layer.md  (placeholders)
 

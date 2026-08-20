@@ -17,6 +17,7 @@
     --st-partial-bg:#fdeede;   --st-partial-ink:#9a5300;   --st-partial-line:#eab98a;
     --st-disc-bg:#f1ecfb;      --st-disc-ink:#5a3ba8;      --st-disc-line:#c9b8ec;
     --st-mod-bg:#e7effd;       --st-mod-ink:#22509a;       --st-mod-line:#a8c4f0;
+    --st-optional-bg:#eef4f6;  --st-optional-ink:#3c6b78;  --st-optional-line:#b4cdd4;
     --st-done-bg:#e5f5ec;      --st-done-ink:#136c3d;      --st-done-line:#a4d8ba;
 
     /* owner colors */
@@ -136,6 +137,7 @@
   .b-partial{background:var(--st-partial-bg); color:var(--st-partial-ink); border-color:var(--st-partial-line)}
   .b-disc{background:var(--st-disc-bg); color:var(--st-disc-ink); border-color:var(--st-disc-line)}
   .b-mod{background:var(--st-mod-bg); color:var(--st-mod-ink); border-color:var(--st-mod-line)}
+  .b-optional{background:var(--st-optional-bg); color:var(--st-optional-ink); border-color:var(--st-optional-line)}
   .b-done{background:var(--st-done-bg); color:var(--st-done-ink); border-color:var(--st-done-line)}
   /* owner badge palette */
   .b-plugin{background:var(--ow-plugin-bg); color:var(--ow-plugin-ink); border-color:var(--ow-plugin-line)}
@@ -197,6 +199,7 @@
   td.tint.t-partial{background:var(--st-partial-bg); color:var(--st-partial-ink)}
   td.tint.t-disc{background:var(--st-disc-bg); color:var(--st-disc-ink)}
   td.tint.t-mod{background:var(--st-mod-bg); color:var(--st-mod-ink)}
+  td.tint.t-optional{background:var(--st-optional-bg); color:var(--st-optional-ink)}
   td.tint.t-done{background:var(--st-done-bg); color:var(--st-done-ink)}
   td.tint.o-plugin{background:var(--ow-plugin-bg); color:var(--ow-plugin-ink)}
   td.tint.o-tom{background:var(--ow-tom-bg); color:var(--ow-tom-ink)}
@@ -303,6 +306,7 @@
         <div class="item"><span class="badge b-disc">Exists but disconnected</span></div>
         <div class="item"><span class="badge b-mod">Requires modification</span></div>
         <div class="item"><span class="badge b-missing">Missing — must be created</span></div>
+        <div class="item"><span class="badge b-optional">Optional / Deferred by decision</span></div>
       </div>
       <div class="col">
         <h4>Priority (row highlight)</h4>
@@ -326,6 +330,8 @@
   <!-- ================= 0. ARCHITECTURE DECISION ================= -->
   <h2>0. Architecture Decision (source of truth)</h2>
   <p>The plugin architecture is <strong>technology-based</strong>. There are <strong>four platforms only</strong>: React Native, React, iOS, Android. <strong>No separate <code>tvOS</code> or <code>Android TV</code> platform families are created.</strong> TV form-factor behavior (focus/remote/D-pad navigation, 10-foot UI, media playback, TV lifecycle, TV signing/packaging) lives <strong>inside the existing platform's Skills, Agents, and Standards</strong>, activated by a <strong>mobile-vs-TV context signal</strong> passed to those Skills/Agents when needed — a context signal, not a new platform value.</p>
+
+  <p><strong>Validation is a capability, not a workflow step.</strong> The deterministic checks delivered by SHARED-005 (test harness, hook coverage, document-chain dry-run) and SHARED-006 (reference-integrity / frontmatter validator) are <em>developer and repository quality tooling</em>. They run from a shell — <code>node scripts/check.ts</code>, or <code>node scripts/check.ts --strict</code> before a PR — with no dependencies, no network and no CI. No command invokes them, and nothing a user of the plugin does requires them. <strong>They must never become mandatory runtime steps for users of the plugin.</strong> Automatic CI execution of the identical command is a separate, optional opt-in (SHARED-012), deferred by decision — so &quot;no CI&quot; is a chosen position here, not missing work.</p>
 
   <div class="table-block" data-name="Team, Platform and Owner Mapping">
     <div class="table-toolbar">
@@ -421,7 +427,8 @@
           <tr><td contenteditable="">Repository Knowledge consumer</td><td contenteditable="" class="tint t-done">Complete</td><td contenteditable="">SHARED-009 ✓ — read-repo-knowledge.ts + test, repo-knowledge-consumer skill, docs/repo-knowledge-contract.md; consumed by /analyze-feature and /dev-design-start</td></tr>
           <tr><td contenteditable="">Planning-document contract + migration loader</td><td contenteditable="" class="tint t-done">Complete</td><td contenteditable="">SHARED-011 ✓ — docs/planning-doc-contract.md declares doc_schema_version per document kind (feature-analysis v3; dd / dev-plan / task-breakdown v1) and all four templates stamp it; skills/planning-doc-migration is the single frontmatter compatibility layer, consumed by /dev-design-start. Feature Analysis is the only kind with an authored migration chain — /dev-feature-start and /implement-task are deliberately not wired yet</td></tr>
           <tr><td contenteditable="">Apple TV / Android TV / Smart TV knowledge</td><td contenteditable="" class="tint t-missing">Missing</td><td contenteditable="">No platform-level TV knowledge in any standards/skills/agents. TV detection markers do exist (repo-analyst, mobile-repo-analysis) and accessibility.md carries per-platform TV examples — both shared-level, not platform-level</td></tr>
-          <tr><td contenteditable="">CI / reference-integrity validation</td><td contenteditable="" class="tint t-partial">Partial</td><td contenteditable="">No .github/ — CI is still SHARED-006. Local verification exists: <code>node scripts/check.ts</code> runs 11 suites / 1020 assertions across helpers, hooks, contracts and the document chain (SHARED-005), manually before a PR</td></tr>
+          <tr><td contenteditable="">Reference-integrity / frontmatter validation</td><td contenteditable="" class="tint t-done">Complete</td><td contenteditable=""><code>node scripts/check.ts --strict</code> runs 12 suites / 1332 assertions across helpers, hooks, <strong>repository structure</strong>, contracts and the document chain (SHARED-005 + SHARED-006), from a shell, manually before a PR</td></tr>
+        <tr><td contenteditable="">Automatic CI enforcement</td><td contenteditable="" class="tint t-optional">Optional / Deferred by decision</td><td contenteditable="">No <code>.github/</code> by design. The plugin is fully validated without CI; a repository may opt in later and run the identical command (SHARED-012). Deterministic validation is a developer/repository capability, never a runtime workflow step</td></tr>
           <tr><td contenteditable="">In-repo marketplace metadata</td><td contenteditable="" class="tint t-missing">Missing</td><td contenteditable="">Lives in external ono-plugin-marketplace</td></tr>
           <tr><td contenteditable="">README / CHANGELOG</td><td contenteditable="" class="tint t-partial">Inconsistent</td><td contenteditable="">Still label authored Android standards/skill/agent as placeholders</td></tr>
         </tbody>
@@ -479,15 +486,22 @@
             <td contenteditable="">SHARED-005<span class="pflag">High</span></td><td contenteditable="" class="tint o-plugin">Plugin Owner</td><td contenteditable="">Shared</td><td contenteditable="">Test</td>
             <td contenteditable="">Test harness (scripts/check.ts) + hook coverage + deterministic document-chain dry-run + fixture repos</td>
             <td contenteditable="" class="tint t-missing">Missing — must be created</td><td contenteditable="">Add tests</td>
-            <td contenteditable="">One command — <code>node scripts/check.ts</code>, run manually from the repo root before a PR — aggregating every deterministic suite in four phases (Helpers, Hooks, Contracts, Integration) with PASS/FAIL/SKIPPED totals and a non-zero exit on failure. <strong>&quot;E2e dry-run&quot; is scoped honestly as a <em>document-chain</em> dry-run</strong>: the real helpers are driven head-to-tail over fixture target repos so each stage's real output is proven to be valid input to the next stage's reader. It is NOT a Claude-driven end-to-end run and contains no mock runtime — commands, skills and agents are ~7.4k lines of instructions only Claude executes, so a simulated one would assert the self-consistency of a fiction. Also closes the plugin's last untested executable code: the three hooks/*.sh safety scripts. Three items in the original scope were dropped as redundant or vacuous: the repository-knowledge manifest states are already covered by read-repo-knowledge.test.ts (absent / fresh / stale-head / stale-artifacts / unknown), worktree resolution is already covered by resolve-target-repo-root.test.ts, and per-platform + TV fixture variants would exercise no deterministic branch because no helper or hook reads device_type. Support: all owners.</td>
+            <td contenteditable="">One command — <code>node scripts/check.ts</code>, run manually from the repo root before a PR — aggregating every deterministic suite in four phases (Helpers, Hooks, Contracts, Integration) with PASS/FAIL/SKIPPED totals and a non-zero exit on failure. <strong>&quot;E2e dry-run&quot; is scoped honestly as a <em>document-chain</em> dry-run</strong>: the real helpers are driven head-to-tail over fixture target repos so each stage's real output is proven to be valid input to the next stage's reader. A skipped suite (the hooks suite self-skips without <code>jq</code>) originally still exited 0 — <strong><code>--strict</code>, added with SHARED-006, turns an incomplete run into a failure</strong>, so a run that skipped the whole safety layer can no longer report as healthy. It is NOT a Claude-driven end-to-end run and contains no mock runtime — commands, skills and agents are ~7.4k lines of instructions only Claude executes, so a simulated one would assert the self-consistency of a fiction. Also closes the plugin's last untested executable code: the three hooks/*.sh safety scripts. Three items in the original scope were dropped as redundant or vacuous: the repository-knowledge manifest states are already covered by read-repo-knowledge.test.ts (absent / fresh / stale-head / stale-artifacts / unknown), worktree resolution is already covered by resolve-target-repo-root.test.ts, and per-platform + TV fixture variants would exercise no deterministic branch because no helper or hook reads device_type. Support: all owners.</td>
             <td contenteditable="">SHARED-001 ✓, SHARED-009 ✓</td><td contenteditable="">2</td><td contenteditable="">Week 4</td><td contenteditable="">Week 5</td>
           </tr>
           <tr data-priority="normal">
             <td contenteditable="">SHARED-006</td><td contenteditable="" class="tint o-plugin">Plugin Owner</td><td contenteditable="">Shared</td><td contenteditable="">Infrastructure</td>
-            <td contenteditable="">.github/ CI workflow + reference-integrity/frontmatter validator</td>
-            <td contenteditable="" class="tint t-missing">Missing — must be created</td><td contenteditable="">Create new</td>
-            <td contenteditable="">CI + reference-integrity/frontmatter validation: no "active" route may point at a placeholder; every cited skill/agent/standard exists.</td>
+            <td contenteditable="">Reference-integrity / frontmatter validator (deterministic repository validation)</td>
+            <td contenteditable="" class="tint t-done">Complete</td><td contenteditable="">Create new</td>
+            <td contenteditable=""><code>scripts/reference-integrity.ts</code> + <code>scripts/reference-integrity.test.ts</code>, registered as <strong>Phase 3 · Repository</strong> in <code>scripts/check.ts</code> (312 assertions). Validates: every cited skill / agent / standard / template / script / contract path resolves (86 candidates, 3 documented foreign-plugin citations); all intra-document anchors and relative links resolve; all 19 agents / 24 skills / 9 commands carry valid required frontmatter with <code>name</code> matching filename or directory; declared <code>skills:</code> routes resolve; every component classifies as active / placeholder / deferred <em>from its own on-disk marker</em>, with no curated registry; body markers and frontmatter descriptions agree; <strong>no command routes to a placeholder without a readiness gate</strong>; no deferred component is routed to; and README's readiness claims match disk. Its first run found and fixed <strong>7 ungated React routes</strong> (only <code>/implement-task</code> had a gate) and <strong>5 stale README claims</strong> that documented the authored Android lane as a placeholder. <strong>Runs from a shell — <code>node scripts/check.ts --strict</code> — with no CI, no dependencies and no network.</strong> Automatic CI enforcement is separate and optional: see SHARED-012.</td>
             <td contenteditable="">—</td><td contenteditable="">2</td><td contenteditable="">Week 4</td><td contenteditable="">Week 4</td>
+          </tr>
+          <tr data-priority="normal">
+            <td contenteditable="">SHARED-012</td><td contenteditable="" class="tint o-plugin">Plugin Owner</td><td contenteditable="">Shared</td><td contenteditable="">Infrastructure</td>
+            <td contenteditable="">Optional automatic CI enforcement of the deterministic check</td>
+            <td contenteditable="" class="tint t-optional">Optional / Deferred by decision</td><td contenteditable="">Opt-in</td>
+            <td contenteditable=""><strong>Deferred by product/architecture decision — not unfinished mandatory work.</strong> A repository owner may choose to run the <em>same</em> command the developer already runs — <code>node scripts/check.ts --strict</code> — automatically in GitHub Actions on <code>pull_request</code>. This adds <em>enforcement</em>, not capability: SHARED-005 and SHARED-006 are already complete and fully usable from a shell. <strong>The validators have no CI dependency</strong> — no environment variable, no network, no CI-only code path — so enabling this later changes nothing about how they work. Deliberately not created in this change: no <code>.github/</code> directory, no workflow file, no CI badge. <strong>Architecture principle: SHARED-005/006 validation capabilities are developer/repository quality tooling and must never become mandatory runtime workflow steps for users of the plugin.</strong> If adopted, the workflow is ~12 lines — checkout, <code>setup-node</code> (Node 24, for native type stripping of the unbundled <code>.ts</code> scripts), a <code>jq --version</code> guard so the hooks suite cannot skip silently, and the one command.</td>
+            <td contenteditable="">SHARED-005 ✓, SHARED-006 ✓</td><td contenteditable="">0.5</td><td contenteditable="">—</td><td contenteditable="">—</td>
           </tr>
           <tr data-priority="normal">
             <td contenteditable="">SHARED-007</td><td contenteditable="" class="tint o-plugin">Plugin Owner</td><td contenteditable="">Shared</td><td contenteditable="">Documentation</td>
@@ -688,7 +702,9 @@ SHARED-011 ✓ (doc migration) … independent, complete</pre>
           <tr><td contenteditable="">SHARED-002 ✓</td><td contenteditable="">—</td><td contenteditable="">IOS-001 (soft), REACT-001 (all unblocked)</td><td contenteditable="">✓ Complete (2026-07-22) — no longer blocking; dependents unblocked</td></tr>
           <tr><td contenteditable="">SHARED-003 ✓</td><td contenteditable="">SHARED-002 ✓ (done)</td><td contenteditable="">REACT-001</td><td contenteditable="">✓ Complete (2026-08-06) — web + native security extensions authored; no longer blocking, REACT-001 unblocked</td></tr>
           <tr><td contenteditable="">SHARED-004</td><td contenteditable="">—</td><td contenteditable="">—</td><td contenteditable="">Independent, parallel</td></tr>
-          <tr><td contenteditable="">SHARED-005</td><td contenteditable="">SHARED-001 ✓, SHARED-009 ✓</td><td contenteditable="">DOC-001</td><td contenteditable="">End-to-end validation; fixtures also cover manifest fresh/stale/absent</td></tr>
+          <tr><td contenteditable="">SHARED-005</td><td contenteditable="">SHARED-001 ✓, SHARED-009 ✓</td><td contenteditable="">DOC-001</td><td contenteditable="">Deterministic document-chain dry-run + hook coverage; manifest states were already covered by read-repo-knowledge, so no manifest fixtures were built</td></tr>
+        <tr><td contenteditable="">SHARED-006</td><td contenteditable="">—</td><td contenteditable="">SHARED-012 (optional)</td><td contenteditable="">Independent: reads only the repository. Blocks nothing; nothing blocks it</td></tr>
+        <tr><td contenteditable="">SHARED-012</td><td contenteditable="">SHARED-005 ✓, SHARED-006 ✓</td><td contenteditable="">—</td><td contenteditable="">Optional / deferred by decision — never a blocker for any other ticket</td></tr>
           <tr><td contenteditable="">SHARED-008 ✓</td><td contenteditable="">—</td><td contenteditable="">DOC-001</td><td contenteditable="">✓ Complete (2026-07-27) — design-reference gate; no longer blocking</td></tr>
           <tr><td contenteditable="">SHARED-009 ✓</td><td contenteditable="">—</td><td contenteditable="">SHARED-005, SHARED-010, DOC-001</td><td contenteditable="">✓ Complete (2026-07-31) — Repository Knowledge consumer; no longer blocking</td></tr>
           <tr><td contenteditable="">SHARED-010</td><td contenteditable="">SHARED-009 ✓, IOS-002 ✓, ANDROID-001 ✓, REACT-002</td><td contenteditable="">—</td><td contenteditable="">Extends repo-knowledge reuse to the three platforms once authored</td></tr>

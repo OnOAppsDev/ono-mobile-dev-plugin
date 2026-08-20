@@ -2,7 +2,12 @@
  * check.ts — the developer-facing entry point for the plugin's deterministic checks.
  *
  *   node scripts/check.ts            run everything, from the repository root
+ *   node scripts/check.ts --strict   same, but a skipped suite is a FAILURE
  *   node scripts/check.ts --only ts  run suites whose name contains "ts"
+ *
+ * This is a developer/repository quality capability, not a runtime workflow step and
+ * not a CI job. It reads no environment variable and needs no network. A repository may
+ * later choose to run this exact command automatically; nothing here depends on that.
  *
  * Node prints one ExperimentalWarning line on stderr for direct .ts execution. It is
  * Node's, not this tool's, and affects neither the report nor the exit code. Every suite
@@ -26,6 +31,11 @@
  * SKIPPED is a third outcome and is never folded into PASS. A suite that cannot run
  * (a missing local tool, for example) says so, and the footer reports the run as
  * incomplete.
+ *
+ * `--strict` turns that incompleteness into a failure. The hooks suite skips itself
+ * when `jq` is absent, which means a default run can print "healthy" while the entire
+ * safety layer went unverified. Use --strict before opening a PR: it refuses to call an
+ * incomplete run healthy.
  */
 
 import { spawnSync } from "child_process";
@@ -64,6 +74,11 @@ const PHASES: Phase[] = [
     suites: ["hooks"],
   },
   {
+    name: "Repository",
+    why: "the component corpus itself — references, frontmatter, route readiness",
+    suites: ["reference-integrity"],
+  },
+  {
     name: "Contracts",
     why: "documentation and code cannot drift apart",
     suites: [
@@ -84,6 +99,7 @@ const NOT_PROVEN = [
   "platform / device-type detection · file attribution — specified in prose, executed by Claude",
   "DD content quality · implementation correctness · review findings · QA prose",
   "that any command, skill or agent behaves correctly when Claude runs it",
+  "that a readiness gate, once present, actually stops or degrades correctly — gate text is prose",
 ];
 
 interface SuiteResult {
@@ -138,6 +154,7 @@ function pad(s: string, n: number): string {
 function main(): void {
   const onlyIdx = process.argv.indexOf("--only");
   const only = onlyIdx === -1 ? null : process.argv[onlyIdx + 1];
+  const strict = process.argv.includes("--strict");
 
   const registered = PHASES.flatMap((p) => p.suites);
   const onDisk = readdirSync(HERE)
@@ -146,7 +163,7 @@ function main(): void {
   const unregistered = onDisk.filter((s) => !registered.includes(s));
 
   console.log("ono-mobile-dev-plugin · deterministic check");
-  console.log(`node scripts/check.ts${only ? ` --only ${only}` : ""}`);
+  console.log(`node scripts/check.ts${strict ? " --strict" : ""}${only ? ` --only ${only}` : ""}`);
 
   const results: SuiteResult[] = [];
   for (const phase of PHASES) {
@@ -203,21 +220,30 @@ function main(): void {
     );
   }
 
-  const failed = broken.length > 0 || missingSuites.length > 0 || unregistered.length > 0 || emptyRun;
+  // Under --strict an incomplete run is a failed run: a suite that could not verify
+  // its subject proves nothing about it.
+  const incomplete = skippedSuites.length > 0 || totalSkip > 0;
+  const failed =
+    broken.length > 0 || missingSuites.length > 0 || unregistered.length > 0 || emptyRun || (strict && incomplete);
 
   if (failed) {
     const names = [
       ...broken.map((r) => `${r.suite} (${r.fail || "exit " + r.exitCode})`),
       ...missingSuites.map((r) => `${r.suite} (missing)`),
     ];
+    if (strict && incomplete) {
+      const which = skippedSuites.map((r) => r.suite);
+      names.push(`--strict: run incomplete (${which.length > 0 ? which.join(", ") : `${totalSkip} skipped assertion(s)`})`);
+    }
     if (names.length > 0) console.log(`FAILED: ${names.join(", ")}`);
     if (broken.some((r) => r.suite === "document-chain") && broken.length > 1) {
       console.log("Start with Phase 1: document-chain failures are often downstream.");
     }
-  } else if (skippedSuites.length > 0) {
+  } else if (incomplete) {
     console.log("Deterministic infrastructure healthy, but the run was INCOMPLETE — see skipped suites above.");
+    console.log("Re-run with --strict to treat an incomplete run as a failure.");
   } else {
-    console.log("Deterministic infrastructure healthy.");
+    console.log(`Deterministic infrastructure healthy.${strict ? " Nothing was skipped." : ""}`);
   }
 
   console.log("\nNOT covered by this run — these require Claude and are verified by");
