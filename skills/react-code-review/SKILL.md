@@ -80,10 +80,12 @@ Map each changed file to zero or more buckets. Files matching no bucket are mark
 | `REACT-API-*` | data-fetching definitions, base client, auth transport, cache keys/invalidation, error normalization | `standards/react/react-api-service-layer.md` |
 | `A11Y-*` | user-facing interactive surfaces | `standards/shared/accessibility.md` |
 | `I18N-*` | files carrying user-visible copy, formatting, or layout direction | `standards/shared/i18n-rtl.md` |
+| `REACT-TV-FOCUS-*`, `REACT-TV-INPUT-*`, `REACT-TV-UI-*`, `REACT-TV-MEDIA-*`, `REACT-TV-LIFECYCLE-*`, `REACT-TV-API-*` | any file on an **established** TV surface ([§14](#14-device_type-handling-at-review)) — focus/key-map modules, TV screens and wrappers, player integration, lifecycle modules | `standards/react/react-smart-tv.md` |
+| `REACT-TV-PKG-*` | a vendor manifest (`config.xml`, `appinfo.json`), packaging script, or per-target env/build config **present in the diff** | `standards/react/react-smart-tv.md` |
 
-`REACT-PERF-*` is deliberately absent from this table — it belongs to `react-performance-reviewer` ([§8](#8-lane-ownership-for-overlapping-ids)).
+`REACT-PERF-*` and `REACT-TV-PERF-*` are deliberately absent from this table — both belong to `react-performance-reviewer` ([§8](#8-lane-ownership-for-overlapping-ids)).
 
-Config-only changes (a lockfile bump, a formatter config, a CI file) carry no `REACT-*` bucket unless they change the reviewed code's language level, lint contract, or build output — say so in one line and skip them.
+Config-only changes (a lockfile bump, a formatter config, a CI file) carry no `REACT-*` bucket unless they change the reviewed code's language level, lint contract, or build output — say so in one line and skip them. **Exception: a vendor TV manifest or packaging script in the diff is not "config-only" in this sense** — it is source under `REACT-TV-PKG-2` and is reviewed, per the row above. Only its *absence* from the diff makes that family N/A.
 
 ## 6. Stack- and rendering-model-neutral rule selection
 
@@ -96,6 +98,7 @@ The **file being reviewed**, in **its own workspace**, decides which rules apply
 | React Server Components (Next App Router) | the general families **+** `REACT-ARCH-BOUNDARY-*`, `REACT-NAME-6`, `REACT-ROUTE-SSR-*`, `REACT-API-SSR-*` |
 | Hybrid repository (an App Router beside a Pages Router, or an SSR shell with client-only islands) | whichever matches **this file's** surface |
 | JavaScript-only repository or a `.js`/`.jsx` file in a mixed repo | `REACT-TS-*` is **N/A**; naming, component, architecture, routing, state, API, and lint families still apply |
+| **Smart TV surface** (Tizen/webOS/remote-driven), established per [§14](#14-device_type-handling-at-review) | the families above for the file's rendering model **+** the `REACT-TV-*` families, per that document's *Stages* table. On a packaged TV app the RSC/SSR families are normally N/A |
 
 Rules:
 
@@ -137,7 +140,8 @@ This prevents the two agents double-filing the same issue from two directions. I
 - **File what your lane sees. Never suppress an observation assuming the other reviewer will file it** — silence is not coordination, and a dropped finding is worse than a duplicated one.
 - Where a defect appears in the **One defect, one finding** table in `standards/react/react-smart-tv.md`, file it under that table's **owning ID**, citing the others inside the finding as supporting context.
 - Where the owning ID belongs to the other lane, record the observation in your own finding with the owning ID named, and let [§15](#15-merge-into-the-shared-template) reconcile.
-- That table is authoritative for TV collisions. This skill dedupes against it at merge.
+- That table is authoritative for TV collisions, and its rows are **mutually exclusive by mechanism** — a player is `REACT-TV-MEDIA-3`, a listener is `REACT-FC-5`, and `REACT-TV-PERF-2` covers memory retained for any *other* reason. Where two rows could still be read as matching, the row naming the more specific mechanism wins.
+- **`react-code-reviewer` executes the deduplication** at [§15](#15-merge-into-the-shared-template), because it is the agent that populates the template. `react-performance-reviewer` cannot do it — it does not assemble the document — so its only obligation is to **name the owning ID** on any finding in this table, which is what makes the merge resolvable.
 
 ## 9. The two review passes
 
@@ -187,18 +191,13 @@ This governs Pass B's output at both call sites, and any performance wording any
 
 ## 14. `device_type` handling at review
 
-Review has **no confirmed `device_type`** — there is no upstream frontmatter to read, unlike the Analyze and Design stages. Handle it minimally:
+Review has **no confirmed `device_type`** — there is no upstream frontmatter to read, unlike Analyze and Design. `standards/react/react-smart-tv.md` owns the applicability gate, the detection traps, the per-family *Stages* table, and the lane routing; read it rather than re-deriving any of them here.
 
-- **Infer, never demand.** If the reviewed files sit in a Smart TV surface (a Tizen/webOS target or manifest, TV-specific key-code handling, a TV entry point or layout), note it in the review's Scope section. **Never block a review to ask** which device type is in play.
-- **The inference must clear the applicability gate before any `REACT-TV-*` rule is cited.** `standards/react/react-smart-tv.md` owns that gate and its seven **detection traps** — read them before filing. The two that bite most often at review time: a TV dependency in `package.json` does **not** make the reviewed file a TV file (a repo may ship both a phone web app and a TV app from shared code — the surface the changed file renders on decides), and a shared component used by both surfaces must satisfy both, so a pointer-only affordance in it is a finding only if the TV surface actually renders it. Where no TV surface is established, the whole TV document is **N/A** — not passed, not violated.
-- **Cite the TV rules once the surface is established.** `REACT-TV-*` is authored. Every base `REACT-*` rule still applies on a TV surface too; the TV document adds obligations and names TV equivalents where a base rule assumes a pointer, and never relaxes a base rule.
-- **When the surface cannot be determined, the TV rules are Not Applicable — and that is a complete, correct answer.** A diff-scoped review often *cannot* establish which surface a shared component renders on; that would need repo-wide consumer tracing. You are told never to block and ask, so the fallback is explicit: state once in **Not Applicable / Skipped** that the TV surface could not be established from the reviewed scope, and do not cite TV rules. **Do not** guess a TV surface in order to have something to say, and **do not** treat inability to establish it as a pass. An unresolvable surface is `[unknown]`, not `mobile`.
-- **Lane split within the TV root.** This skill's code-review lane owns `REACT-TV-FOCUS-*`, `REACT-TV-INPUT-*`, `REACT-TV-UI-*`, `REACT-TV-MEDIA-*`, `REACT-TV-LIFECYCLE-*`, `REACT-TV-API-*`, and `REACT-TV-PKG-1..4`/`-7`/`-8` — though the `SEC-*` rules `REACT-TV-API-*` cites stay with the shared `mobile-security-reviewer`. **`REACT-TV-PERF-*` belongs to `react-performance-reviewer`**, and it holds even when a TV concern sounds performance-adjacent (a focus-restoration bug that feels sluggish is `REACT-TV-FOCUS-*`, filed here). **`REACT-TV-PKG-5`/`-6` belong to the shared `mobile-security-reviewer`** — they are secrets rules wearing a packaging number; cite them as context, never file them here. `REACT-TV-PKG-*` is generally unreachable from an application-code diff — record it Not Applicable with the reason, and note that `/prepare-mobile-release` is that family's real enforcement point, not this review.
-- **Suppress inapplicable pointer/touch rules rather than invent TV rules.** `A11Y-TOUCH-1` already states that on TV form factors the requirement is a reliably focusable element with a clearly visible focus state instead of a touch-target size; `REACT-TV-FOCUS-3` is the React rule that owns it. Two shared rules do **not** transfer cleanly and the TV document records how: `A11Y-SR-1`'s VoiceOver/TalkBack walkthrough (no TV equivalent — the semantic role/label/state obligation survives, per `REACT-TV-UI-7`) and `A11Y-FONT-1`'s OS font-scale premise (per `REACT-TV-UI-4`).
-- **Never apply pointer or touch assumptions to a TV surface** — hover affordances, tap/swipe gestures, pointer-scroll, and soft-keyboard flows do not transfer to a D-pad/remote model. `REACT-TV-INPUT-6` owns this.
-- **Never treat TV as a separate platform.** There is no separate TV reviewer, skill, or platform value; `tv` is a device type inside the React platform.
-
-This skill does **not** author React Smart TV rules — `standards/react/react-smart-tv.md` owns them, and this skill cites them.
+- **Infer, never demand.** If the reviewed files sit on a Smart TV surface, note it in Scope with the evidence. **Never block a review to ask.**
+- **Where the surface cannot be established, say so once in Not Applicable / Skipped and cite no TV rule.** Do not guess a surface to have something to file, and do not treat the uncertainty as a pass. An unestablished surface is `[unknown]`, never `mobile` — and under `[unknown]` you still apply the base families, suppressing only findings whose *sole* basis is a pointer/touch premise (`A11Y-TOUCH-1` sizing, a hover affordance, pointer-derived INP), each recorded N/A — surface unestablished.
+- **Read the detection traps before filing.** The two that bite hardest here: a TV dependency in `package.json` does not make the reviewed file a TV file, and a shared component used by both surfaces takes a **conditional finding** rather than a silent N/A.
+- **Lane split:** `REACT-TV-PERF-*` is `react-performance-reviewer`'s; every other TV family is this lane's. `REACT-TV-PKG-*` is reachable only when packaging config is in the diff — and then it *is* reviewed, not skipped as config-only ([§5](#5-triage-into-standards-relevant-buckets)).
+- **Suppress inapplicable pointer/touch rules rather than invent TV rules.** `A11Y-TOUCH-1` already states that on TV form factors the requirement is a reliably focusable element with a clearly visible focus state — honoring that is reading the authored shared standard, not adding TV knowledge. `REACT-TV-FOCUS-3` is the React rule that owns it.
 
 ## 15. Merge into the shared template
 
@@ -213,7 +212,7 @@ Populate `templates/code-review-template.md` in full, tagging every finding `[re
 
 Write explicit **"None found"** for any empty section. **Merge with** whatever other reviewers produced for the same scope — never overwrite it, and never emit a separate React document.
 
-**Deduplicate at merge, using the *One defect, one finding* table in `standards/react/react-smart-tv.md`.** Because Pass A and Pass B audit the same scope independently and cannot see each other's output, the same physical defect can arrive from both. At merge:
+**`react-code-reviewer` deduplicates here, using the *One defect, one finding* table in `standards/react/react-smart-tv.md`.** Because Pass A and Pass B audit the same scope independently and cannot see each other's *live* output, the same physical defect can arrive from both — but Pass A assembles this document and therefore can see Pass B's findings in it, which is what makes the merge executable. At merge:
 
 1. Where two findings describe **the same defect at the same site**, keep the one filed under the table's owning ID, fold the other's reasoning into it as supporting context, and cite both IDs in the single surviving finding.
 2. Keep the **higher** of the two severities, and keep Pass B's measurement framing where the surviving finding carries a magnitude claim ([§12](#12-performance-measurement-discipline)).

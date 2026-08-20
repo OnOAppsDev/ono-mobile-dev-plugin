@@ -25,6 +25,7 @@ Follow `skills/react-feature-implementation/SKILL.md` end to end. In brief:
    - `standards/react/react-architecture.md` (`REACT-ARCH-*`) and `standards/react/react-routing.md` (`REACT-ROUTE-*`) — folder placement, the server/client boundary, or routing.
    - `standards/react/react-performance.md` (`REACT-PERF-*`) — anything with a performance surface.
    - `standards/shared/i18n-rtl.md` (`I18N-*`) and `standards/shared/accessibility.md` (`A11Y-*`) — anything touching UI.
+   - `standards/react/react-smart-tv.md` (`REACT-TV-*`) — **whenever `device_type: tv`, in addition to every entry above.** Its rules are cited alongside the base rules, never instead of them.
 5. **Self-check the change against the task's acceptance criteria**, one by one, and run the narrowest relevant validation (build, type-check, lint, tests) — reporting only checks actually run.
 6. **Report which standard IDs were actually applied** (not just "reviewed") — this is the trace `react-code-reviewer`, `react-performance-reviewer`, and QA handoff rely on.
 

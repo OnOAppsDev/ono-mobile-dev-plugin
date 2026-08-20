@@ -154,7 +154,7 @@ Plan against the repo's detected router — never a second, parallel one. The UR
 
 ## 9. Data and API layer analysis
 
-Use the repo's existing data-fetching library and base client; no ad-hoc client per feature → `REACT-API-ORG-1..4`, `REACT-API-BASEQ-1`. Plan cache keys/tags and precise invalidation → `REACT-API-CACHE-1..4`. Plan **web auth transport** — prefer `httpOnly` cookies with `credentials: 'include'`, never tokens in script-readable storage, CSRF on state-changing requests, CORS as a read boundary not authorization, and no secrets inlined into the bundle → `REACT-API-BASEQ-2`, `REACT-API-BASEQ-3`, `REACT-API-BASEQ-5`, `REACT-API-BASEQ-6`, `SEC-COOKIE-1`, `SEC-COOKIE-2`, `SEC-WEB-3`, `SEC-WEB-6`, `SEC-SECRETS-2`. Plan request cancellation on unmount / supersede → `REACT-API-ASYNC-1`. On a server-rendering surface, plan server fetch + cache hydration and credential forwarding → `REACT-API-SSR-1`, `REACT-API-SSR-2`. Normalize error shapes centrally and distinguish aborts from failures → `REACT-API-ERR-1..3`. Never log tokens/PII → `SEC-LOG-1`.
+Use the repo's existing data-fetching library and base client; no ad-hoc client per feature → `REACT-API-ORG-1..4`, `REACT-API-BASEQ-1`. Plan cache keys/tags and precise invalidation → `REACT-API-CACHE-1..4`. Plan **web auth transport** — prefer `httpOnly` cookies with `credentials: 'include'` (**on `device_type: tv` this preference is conditional, not a default: `REACT-TV-API-1` requires establishing the app type and whether cookie transport works on the target before choosing, and `REACT-TV-API-3` the cross-origin model**), never tokens in script-readable storage, CSRF on state-changing requests, CORS as a read boundary not authorization, and no secrets inlined into the bundle → `REACT-API-BASEQ-2`, `REACT-API-BASEQ-3`, `REACT-API-BASEQ-5`, `REACT-API-BASEQ-6`, `SEC-COOKIE-1`, `SEC-COOKIE-2`, `SEC-WEB-3`, `SEC-WEB-6`, `SEC-SECRETS-2`. Plan request cancellation on unmount / supersede → `REACT-API-ASYNC-1`. On a server-rendering surface, plan server fetch + cache hydration and credential forwarding → `REACT-API-SSR-1`, `REACT-API-SSR-2`. Normalize error shapes centrally and distinguish aborts from failures → `REACT-API-ERR-1..3`. Never log tokens/PII → `SEC-LOG-1`.
 
 **If the feature depends on an unconfirmed backend contract, record it as a blocking unresolved decision.**
 
@@ -205,13 +205,18 @@ Run this discovery pass **before** proposing anything, recording evidence for ea
 5. **TV runtime & memory constraints** — the target device tier and any existing performance/memory budget conventions.
 6. **Vendor packaging & lifecycle** — Tizen (`.wgt`/`config.xml`) or webOS (`.ipk`/`appinfo.json`) packaging, app suspend/resume/exit lifecycle, and store/signing configuration.
 7. **Reusable TV components** — TV base components, screen wrappers, or a framework module the feature should extend.
+8. **Network & auth transport** — whether the target ships as a **packaged** app (resources installed locally, non-`http(s)` scheme) or a **hosted** app, whether cookie transport is usable on it, and the platform's cross-origin model → `REACT-TV-API-1`, `REACT-TV-API-3`. This is a **Design-stage** obligation: `REACT-TV-API-1` requires the app type and cookie viability be established *before* the transport is designed, and consulting vendor documentation is expected here (unlike at review). Record the finding with its source.
+
+**Read `standards/react/react-smart-tv.md`'s TV detection traps before recording any discovery finding above** — most importantly that a TV dependency in `package.json` does not establish that *this feature's* surface is TV, that a runtime `window.tizen`/`window.webOS` guard may exist only for dev-browser degradation, and that Tizen and webOS differ in manifests, key codes, lifecycle, and input model, so a repo targeting both has two answers to most of these items.
+
+**Where the repository has no TV surface yet (greenfield), absence is a gap to fill, not an ambiguity to stop on.** `REACT-TV-FOCUS-2`, `REACT-TV-INPUT-1`/`-2`, `REACT-TV-UI-1`/`-2`/`-3`, and `REACT-TV-PERF-1` are all phrased against the repository's *existing* convention. When none exists, the focus model, key map, safe-area inset, and TV budget are **required feature-specific extensions proposed once at app level** as an explicit approval-gated decision — not per feature, and not a migration. Distinguish this from the failure case: a TV surface that exists but whose model **cannot be identified** is the stop-and-report condition in *Failure behavior*; a repository with **no** TV surface at all is this greenfield path.
 
 **TV planning rules:**
 
 - **Never propose migrating** to a different TV framework unless the feature explicitly requests it and it is approved.
 - **Never silently apply pointer/touch assumptions** — hover, tap/swipe gestures, and pointer-scroll affordances do not transfer to a D-pad/remote model.
 - **Reuse the existing TV components and conventions** wherever they cover the need; identify gaps without redesigning the model.
-- **Cite `REACT-TV-*` IDs — the standard is authored.** `standards/react/react-smart-tv.md` supplies the vocabulary and the rule IDs for a TV plan: focus and spatial navigation (`REACT-TV-FOCUS-*`), remote/key input (`REACT-TV-INPUT-*`), 10-foot UI and overscan (`REACT-TV-UI-*`), playback (`REACT-TV-MEDIA-*`), lifecycle (`REACT-TV-LIFECYCLE-*`), the constrained-runtime and memory budget (`REACT-TV-PERF-*`), and vendor packaging/signing (`REACT-TV-PKG-*`). They are cited **in addition to** the base `REACT-*` and shared rules, which all still apply — including `A11Y-TOUCH-1/2`, whose TV reading `REACT-TV-FOCUS-3` owns.
+- **Cite `REACT-TV-*` IDs — the standard is authored.** `standards/react/react-smart-tv.md` supplies the vocabulary and rule IDs for a TV plan: focus and spatial navigation (`REACT-TV-FOCUS-*`), remote/key input including cursor mode and the platform IME (`REACT-TV-INPUT-*`), 10-foot UI and overscan (`REACT-TV-UI-*`), playback and screensaver suppression (`REACT-TV-MEDIA-*`), lifecycle (`REACT-TV-LIFECYCLE-*`), **network and auth transport (`REACT-TV-API-*`)**, the constrained-runtime and memory budget (`REACT-TV-PERF-*`), and vendor packaging/signing (`REACT-TV-PKG-*`). They are cited **in addition to** the base `REACT-*` and shared rules, which all still apply — `A11Y-TOUCH-1` already carries its own TV clause, and `REACT-TV-FOCUS-3` is the React rule that owns it.
 - **The discovery pass above is what makes those citations legitimate.** The TV rules require the repository's *existing* model; citing `REACT-TV-FOCUS-2` without having identified which focus model the repo uses is an unlabelled repository claim, and a defect. Where a discovery item is genuinely unresolvable, mark it `[unknown]` and record it as an unresolved decision rather than planning against an assumed model.
 - **Plan a stated budget, not a vague concern.** `REACT-TV-PERF-1` requires an explicit memory/performance budget for the target device tier; a magnitude claim still follows the measurement discipline in [§12](#12-performance-planning), and on TV must be measured on the target tier rather than a desktop profile.
 
@@ -270,7 +275,7 @@ Exactly one confirmed platform always applies, so these sections are **always fl
 - [ ] The rendering model is identified **per affected surface**.
 - [ ] Every repository claim carries an evidence, reuse, inference, or unknown label.
 - [ ] State placement (local / URL / global), routing, data/API layer, testing, performance, security, accessibility, i18n and RTL are each addressed or marked `N/A — [reason]`.
-- [ ] When `device_type: tv`, the TV discovery pass ran, no pointer/touch assumption was carried over, the plan cites `REACT-TV-*` IDs grounded in the discovered model (never against an assumed one), and a stated `REACT-TV-PERF-1` budget is present where the feature touches memory, assets, or playback.
+- [ ] When `device_type: tv`, the TV discovery pass ran (including item 8, transport), no pointer/touch assumption was carried over, and the plan cites `REACT-TV-*` IDs grounded in the discovered model — never against an assumed one. Where the feature touches memory, assets, or playback, either a stated `REACT-TV-PERF-1` budget is present **or** an unresolved decision is recorded naming who supplies the target device tier; an invented number satisfies neither.
 - [ ] Every statement is classified Existing / Required / Recommended / Unresolved.
 - [ ] Every cited standard ID exists and genuinely applies.
 - [ ] Unresolved decisions are listed with options and implications.
@@ -302,7 +307,7 @@ The Smart TV row applies **only** when `device_type: tv`; on `mobile` those rule
 - Repository evidence is missing, contradictory, or ambiguous on a dimension the plan depends on.
 - Two competing mechanisms exist (router, state, data-fetching, rendering model) and the one this feature should follow cannot be determined from evidence.
 - A UI-changing feature has no design reference of any supported type.
-- `device_type: tv` but the TV implementation model cannot be identified.
+- `device_type: tv` and a TV surface exists but its implementation model **cannot be identified** from evidence. (A repository with **no** TV surface at all is not this case — that is the greenfield path in §14, which continues rather than stopping.)
 - The feature depends on an unconfirmed backend contract.
 - The plan would require introducing a new framework, router, state/data library, or migration as required work.
 - The Feature Analysis and DD conflict, or an upstream document is unapproved, stale, or draft.
@@ -316,6 +321,6 @@ The Smart TV row applies **only** when `device_type: tv`; on `mobile` those rule
 - **Shared `dev-design-start` / `dev-feature-start` skills** — DD structure and gap discipline; task decomposition, dependencies, rollback plan, draft-until-approved gates.
 - **`agents/react-architect.md`** — the React specialist that runs this methodology.
 - **This skill** — the React planning methodology itself.
-- **`skills/react-feature-implementation/SKILL.md`** — the separate methodology used at Implement time, not here (to be authored under REACT-002).
+- **`skills/react-feature-implementation/SKILL.md`** — the separate methodology used at Implement time, not here.
 
 This skill does not move command logic into itself, does not re-run platform or device-type detection, and does not invent paths to feature documents.

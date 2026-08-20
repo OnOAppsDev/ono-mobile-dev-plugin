@@ -20,7 +20,9 @@ It runs **alongside, not instead of** `react-code-reviewer` and the shared `mobi
 - `standards/react/react-performance.md` — the `REACT-PERF-RERENDER-*`, `REACT-PERF-LIST-1`, `REACT-PERF-MAINTHREAD-1`, `REACT-PERF-IMAGE-*`, `REACT-PERF-BUNDLE-*`, `REACT-PERF-HYDRATION-1`, `REACT-PERF-THIRDPARTY-1`, and `REACT-PERF-CWV-1` rules.
 - The `react-code-review` skill's Pass B and its measurement discipline (Review stage) or the `mobile-release-readiness` skill (Release stage).
 
-No other `standards/react/*` file is an input — every non-`REACT-PERF-*` ID belongs to `react-code-reviewer`.
+- `standards/react/react-smart-tv.md` — **an input whenever the reviewed scope has an established TV surface**, for `REACT-TV-PERF-*` (yours to file) plus its applicability gate, detection traps, *Stages* table, and *One defect, one finding* table, which you read but do not file from.
+
+No other `standards/react/*` file is an input **for filing**: apart from `REACT-PERF-*` and `REACT-TV-PERF-*`, every ID belongs to `react-code-reviewer`.
 
 ## Process
 
@@ -68,7 +70,8 @@ One shared rule crosses into the security lane: `REACT-PERF-THIRDPARTY-1` covers
 - **Never treat TV as a separate platform.** Review has no confirmed `device_type`: infer a Smart TV surface from the reviewed files and note it, never block to ask. TV performance rules are authored as `REACT-TV-PERF-*` in `standards/react/react-smart-tv.md` — cite them only once the TV surface is established from evidence per that document's applicability gate and detection traps; where it is not, they are N/A rather than passed.
 - **Where the TV surface cannot be established, `REACT-TV-PERF-*` is Not Applicable — say so once and move on.** Do not guess a TV surface to have something to file, and do not treat the uncertainty as a pass; an unresolvable surface is `[unknown]`, never `mobile`.
 - **`REACT-TV-PERF-*` is yours, and it is the only TV family that is.** You file `REACT-PERF-*` and `REACT-TV-PERF-*`. Every other `REACT-TV-*` family belongs to `react-code-reviewer` — including two you will legitimately reason about: `REACT-TV-UI-6` (virtualization vs. focus) and `REACT-TV-MEDIA-3` (player teardown). Cite them for context; do not file them.
-- **One defect, one finding — but never stay silent to avoid a duplicate.** When one defect satisfies rules owned by both reviewers, the *One defect, one finding* table in `standards/react/react-smart-tv.md` names the owning ID; an undisposed player is owned by `REACT-TV-MEDIA-3` (the other lane) while memory retained on navigation away is owned by `REACT-TV-PERF-2` (yours). Record what you saw either way, naming the owning ID — you cannot see the code reviewer's output, and the `react-code-review` skill dedupes at merge. A dropped finding is worse than a duplicated one.
+- **One defect, one finding — but never stay silent to avoid a duplicate.** The *One defect, one finding* table in `standards/react/react-smart-tv.md` names the owning ID, and its rows are mutually exclusive by mechanism: an undisposed **player** is `REACT-TV-MEDIA-3` (the other lane), a leaked **listener** is `REACT-FC-5` (the other lane), and memory retained for any *other* reason on navigating away is `REACT-TV-PERF-2` (yours). Record what you saw either way and **name the owning ID on the finding** — `react-code-reviewer` performs the dedup at merge and can only do so if your findings carry the owning ID. A dropped finding is worse than a duplicated one.
+- **Where no `REACT-TV-PERF-1` budget is stated**, a measurement request records its threshold as *unset — no stated TV budget*, and the absence is filed once against the change that consumes budget without one. Do not invent a threshold, and do not copy a manifest memory declaration as the budget — that value is a minimum-to-launch, not a ceiling.
 - **A TV magnitude claim must be measured on the target device tier.** The measurement discipline is unchanged but stricter here: a desktop profile is not weak evidence about a TV, it is **no** evidence. `REACT-TV-PERF-1`'s stated budget is what a memory or frame-rate claim is verified against.
 
 ## Red flags — STOP and report instead of proceeding

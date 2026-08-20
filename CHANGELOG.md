@@ -14,64 +14,30 @@ three React skills. REACT-003 — React Smart TV via `device_type: tv`, includin
 batched adversarial review and the fixes it produced.
 
 ### Added
-- `standards/react/react-smart-tv.md` (REACT-003-1) — the standalone React Smart TV
-  standard, a new seventh React standards document. 51 rules across
-  `REACT-TV-FOCUS-1..8`, `REACT-TV-INPUT-1..6`, `REACT-TV-UI-1..7`,
-  `REACT-TV-MEDIA-1..6`, `REACT-TV-LIFECYCLE-1..5`, `REACT-TV-API-1..4`,
-  `REACT-TV-PERF-1..7`, and `REACT-TV-PKG-1..8`. **Purely additive** — it defines a new `REACT-TV-*` root and
+- `standards/react/react-smart-tv.md` (REACT-003) — the standalone React Smart TV
+  standard, a seventh React standards document. **54 rules** across
+  `REACT-TV-FOCUS-1..8`, `REACT-TV-INPUT-1..8`, `REACT-TV-UI-1..7`,
+  `REACT-TV-MEDIA-1..7`, `REACT-TV-LIFECYCLE-1..5`, `REACT-TV-API-1..4`,
+  `REACT-TV-PERF-1..7`, and `REACT-TV-PKG-1..8`. **Purely additive** — a new root that
   renumbers nothing, so every REACT-001 ID frozen on 2026-08-16 keeps its number and
-  meaning. Smart TV is framed strictly as `device_type: tv` **inside** the `react`
-  platform: no `react-tv` platform value, no TV-specific agent, skill, or command.
-  Because a standalone `REACT-TV-*` root does not resolve under the lane's mechanical
-  "the ID's own root decides the filer" rule, the document opens with an explicit
-  lane-routing table — `REACT-TV-PERF-*` to `react-performance-reviewer`, every other
-  family to `react-code-reviewer`, `REACT-TV-PKG-*` at Build/Release stage — plus an
-  applicability stage so a rule the reviewed scope cannot reach is recorded Not
-  Applicable rather than passed. Vendor-neutral across Tizen, webOS, and browser-based
-  TV runtimes: the repository's existing focus model, key map, player, and packaging
-  toolchain are findings, never defaults, and no rule freezes a vendor manifest schema
-  or key-code value into the file. Covers 10-foot UI, D-pad spatial navigation and focus
-  management with a never-lose-focus guarantee, visible focus treatment as the TV reading
-  of shared `A11Y-TOUCH-1`, overscan-safe layout, remote/Back key handling, media
-  playback and TV app lifecycle, an explicit constrained-runtime/memory budget under
-  `REACT-TV-PERF-*`, and vendor packaging/manifest/signing. Seven TV detection traps,
-  each naming the confident-but-wrong finding it prevents. Also records where a shared
-  mobile-oriented rule does not transfer: `A11Y-SR-1`'s VoiceOver/TalkBack walkthrough
-  and `A11Y-FONT-1`'s OS font-scale premise have no reliable TV equivalent, so the
-  semantic obligation is kept and the gap is stated rather than silently passed.
-  Closes with 13 rank-5 external references, each fetched and confirmed to resolve,
-  grouped Tizen / webOS / standards-and-platform-APIs. No manifest schema, key code,
-  safe-area inset, or memory limit is frozen into any rule — such values appear only in
-  the reference list and are marked illustrative, because vendor docs are reorganized
-  and vendor tooling retired without notice (the reference list cites the current webOS
-  CLI guide and says why the webOS TV CLI one, deprecated March 2024, is not used; and
-  it flags W3C CSS Spatial Navigation as a 2019 Working Draft rather than an available
-  browser capability).
-  REACT-003-2 threaded the `device_type: tv` branches into the base documents and
-  REACT-003-3 stated the contract across the React skills and agents (both below).
-  The batched adversarial review then found 9 defects, all fixed, which changed three
-  things worth naming: `REACT-TV-FOCUS-8` originally required RTL focus movement to
-  "advance in reading order", which **contradicted** `REACT-TV-FOCUS-5`'s spatial-adjacency
-  rule and was simply wrong — a D-pad maps to screen geometry, so a mirrored rail is
-  navigated by geometry; the document gained a **One defect, one finding** collision table
-  (8 rows) plus a merge-time dedup step, because `REACT-TV-MEDIA-3` and `REACT-TV-PERF-2`
-  can describe one defect across two different owners; and `REACT-TV-PKG-5`/`-6` were
-  re-routed to the shared `mobile-security-reviewer`, since they are secrets rules and
-  routing them to the React lane contradicted this document's own deferral of security.
-  A fourth family, `REACT-TV-API-1..4`, was added afterwards to settle the auth-transport
-  question: `REACT-API-BASEQ-2` mandates `httpOnly`/`Secure`/`SameSite` cookie transport
-  as though unconditional, but a TV platform distinguishes a **packaged** app (resources
-  installed locally, non-`http(s)` scheme) from a **hosted** app served over `http(s)`,
-  and cookie behavior differs between them — so the transport is now established from
-  vendor documentation for the targeted firmware rather than assumed. Where cookies are
-  unavailable the in-memory-token path becomes the primary design rather than a
-  compromise, with no relaxation of the no-script-readable-storage, no-logging and
-  no-inlining rules — reaching for `localStorage` because "cookies don't work on TV" is
-  named as a defect, not a workaround. The same family records that Samsung documents the
-  CORS `Origin` request header as **unsupported** on its TVs and requires reachable
-  origins declared in `config.xml`, so adding a backend host can be a packaging change,
-  and that CSRF exposure is re-derived against the established transport rather than
-  inherited.
+  meaning (verified byte-identical). Smart TV is `device_type: tv` **inside** the `react`
+  platform: no `react-tv` value, no TV-specific agent, skill, or command.
+  Covers 10-foot UI and overscan, D-pad spatial navigation with a never-lose-focus
+  guarantee, remote and Back-key handling, platform cursor mode and the on-screen
+  keyboard, media playback including screensaver suppression, app lifecycle, network and
+  auth transport, an explicit constrained-runtime memory budget, and vendor
+  packaging/manifest/signing. Vendor-neutral across Tizen, webOS, and browser-based TV:
+  the repository's existing focus model, key map, player, transport, and packaging
+  toolchain are findings, never defaults.
+  Because a standalone `REACT-TV-*` root does not resolve under the lane's "the ID's own
+  root decides the filer" rule, the document carries the routing table itself
+  (`REACT-TV-PERF-*` to `react-performance-reviewer`, every other family to
+  `react-code-reviewer`), a **Stages** table assigning each family the scope that can
+  actually reach it, an **Unestablished facts** rule for vendor facts an agent cannot
+  fetch at review time, a **Missing conventions** ladder that distinguishes a greenfield
+  repository from one whose model cannot be identified, and a 10-row **One defect, one
+  finding** collision table whose rows are mutually exclusive by mechanism. Closes with
+  18 rank-5 external references, each fetched and confirmed to resolve.
 - `agents/react-architect.md` + `skills/react-dev-planning/SKILL.md` (REACT-002-1),
   `agents/react-feature-developer.md` + `skills/react-feature-implementation/SKILL.md`
   (REACT-002-2), and `agents/react-code-reviewer.md` +
@@ -103,6 +69,52 @@ batched adversarial review and the fixes it produced.
   REACT-002 agents and skills above cite stable IDs.
 
 ### Changed
+- **REACT-003 independent adversarial review, and the fixes it produced.** Four
+  independent reviewer agents (contract compliance, TV technical correctness with vendor
+  verification, executability, neutrality/density), each blocked from reading the prior
+  in-context review's conclusions, returned ~45 findings against that pass's 9 — and
+  every P0 was one the in-context pass had missed. Recorded in
+  `docs/planning/REACT-003-independent-review-findings.md`. The functional blockers are
+  now fixed:
+  - **The TV standard was uncitable by the agents that owned it.** Both reviewers' and
+    the developer's Inputs lists omitted `react-smart-tv.md` while their constraints
+    forbade citing standards not listed there — `react-performance-reviewer` said
+    outright "No other `standards/react/*` file is an input". All three Inputs lists now
+    include it, scoped to an established TV surface.
+  - **`REACT-TV-PKG-5`/`-6` came back to the React lane.** Routing them to the shared
+    `mobile-security-reviewer` left a committed signing certificate filable by nobody,
+    because that lane has zero TV awareness. They are filed by `react-code-reviewer`
+    citing `SEC-SECRETS-*` as supporting rules, and the divergence is recorded.
+  - **The false release-stage claim is gone.** The document previously asserted
+    `/prepare-mobile-release` was `REACT-TV-PKG-*`'s real enforcement point; the release
+    chain has no TV awareness and invokes only the performance reviewer for React. The
+    family is now reachable at Diff when packaging config is in scope, and the release
+    gap is stated as a cross-lane item rather than assumed to work.
+  - **The collision table's rows are now mutually exclusive by mechanism**, with a
+    precedence line and three added rows; `react-code-reviewer` is named as the agent
+    that executes the dedup, since it assembles the document.
+  - **TV rows added to the review skill's triage and rule-selection tables**, without
+    which a TV file exited review before the `device_type` section was reached, and a
+    vendor manifest in a diff was skipped as "config-only".
+  - **A greenfield path** for a repository with no TV surface yet, distinguished from one
+    whose model cannot be identified — previously the first TV feature in any repository
+    could not be planned, with the skill and its red flags contradicting each other.
+  - **`REACT-TV-API-*` wired into planning and implementation** (a transport discovery
+    item, and the unqualified "prefer `httpOnly` cookies" guidance now conditional on TV).
+  - Factual corrections: `tizen:allow-origin` **does not exist** (the real mechanism is
+    W3C WARP `<access origin>` plus the internet privilege); a manifest memory
+    declaration is a **minimum to launch**, not a budget to match; a TV platform **can**
+    present an on-screen cursor with mouse events, so the D-pad is the only *guaranteed*
+    input rather than the only one — with new rules for cursor-mode transitions
+    (`REACT-TV-INPUT-7`), the platform IME (`REACT-TV-INPUT-8`), and screensaver
+    suppression during playback (`REACT-TV-MEDIA-7`); graphics resolution is per-model
+    and manifest-declared; TLS version bears on connectivity, not on `Secure` cookies;
+    and the colour-alone requirement is authored in `REACT-TV-UI-5`'s own text rather
+    than under a borrowed `A11Y-ROLES-3`, which contains no colour rule.
+  - Density: the five base-document branches were cut from ~2,165 to ~1,562 words, the
+    review skill's `device_type` section from 619 to ~290, and the standard's own prose
+    trimmed — while three rules and four governance sections were *added* to fix the
+    blockers above, so words-per-rule fell only from 134 to 118.
 - `standards/react/react-api-service-layer.md` — gains a Smart TV branch (added after the
   adversarial review, outside 003-2's original four documents) qualifying the two premises
   of this document that are browser premises: `REACT-API-BASEQ-2`'s cookie-first auth

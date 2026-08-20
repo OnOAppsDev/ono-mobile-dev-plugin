@@ -41,19 +41,17 @@ This document inherits the **React lane conventions** defined in `standards/reac
 
 ## Smart TV context (`device_type: tv`)
 
-**[Additive branch — REACT-003-2. Applies only where the surface runs on a TV. Authors no rule: every obligation below is owned by a `REACT-TV-*` rule in `standards/react/react-smart-tv.md`, and a finding is filed under that owning ID, never duplicated here.]**
+**[Applies only on an established TV surface — `standards/react/react-smart-tv.md` owns the applicability gate and detection traps; where none is established this section is N/A. It defines no new rule ID: each obligation is owned by the `REACT-TV-*` ID named, and the Not-Applicable determinations below are recording duties, not findings.]**
 
-Establish the TV surface from evidence first — `standards/react/react-smart-tv.md` owns the applicability gate and its detection traps. Where the repository has no TV surface, this section is N/A.
+**The layering model does not change.** `REACT-ARCH-LAYERS-*`, `-FOLDERS-*`, `-DEPS-*`, and `-LOGIC-*` apply unchanged; "it's a TV app" never justifies business logic in a component or an inverted dependency.
 
-**The layering model does not change on TV.** `REACT-ARCH-LAYERS-*`, `REACT-ARCH-FOLDERS-*`, `REACT-ARCH-DEPS-*`, and `REACT-ARCH-LOGIC-*` apply unchanged. A TV app is not an exception to the three-layer model, and "it's a TV app" never justifies business logic in a component or an inverted dependency.
+TV adds **three app-level concerns that belong in the services layer** (`REACT-ARCH-LAYERS-4`), not the component tree:
 
-What TV adds is **three app-level concerns that belong in the services layer** (`REACT-ARCH-LAYERS-4`), not in the component tree:
+- **The focus model** — app-wide infrastructure, so it lives outside a feature folder (`REACT-ARCH-FOLDERS-2`) and is not reimplemented per feature. `REACT-TV-FOCUS-2` forbids a second parallel model; `REACT-ARCH-DEPS-3` still forbids reaching into another feature's focus internals.
+- **The player** — `REACT-TV-MEDIA-1` requires one owner outside the render path, which is `REACT-ARCH-LAYERS-4` and `REACT-ARCH-LOGIC-1` applied to playback; playback state has exactly one writer (`REACT-TV-MEDIA-2`).
+- **Lifecycle integration** — `REACT-TV-LIFECYCLE-1` requires one app-level module owning suspend/resume/relaunch/locale-change. Scattered per-component `visibilitychange` listeners are both a `REACT-TV-LIFECYCLE-1` violation and a dependency-direction problem.
 
-- **The focus model** — a spatial-navigation engine or focus manager is app-wide infrastructure, so it lives outside a feature folder per `REACT-ARCH-FOLDERS-2` and is not reimplemented per feature. `REACT-TV-FOCUS-2` owns the requirement to use the repository's single existing model rather than introducing a parallel one; `REACT-ARCH-DEPS-3` still forbids one feature reaching into another's focus internals.
-- **The player** — `REACT-TV-MEDIA-1` requires one player owned outside the render path, which is `REACT-ARCH-LAYERS-4` and `REACT-ARCH-LOGIC-1` applied to playback. Playback state is read from the player rather than mirrored (`REACT-TV-MEDIA-2`), the same server-state principle the data layer follows.
-- **Lifecycle integration** — `REACT-TV-LIFECYCLE-1` requires one app-level module owning suspend/resume/relaunch/locale-change, which the rest of the app subscribes to. Scattered per-component `visibilitychange` listeners are both a `REACT-TV-LIFECYCLE-1` violation and a dependency-direction problem.
-
-**`REACT-ARCH-BOUNDARY-*` is normally N/A on a packaged TV application.** A Tizen `.wgt` or webOS `.ipk` is a locally installed static bundle with no server half, so the RSC server/client boundary rules typically have nothing to apply to. Confirm this from the repository — a TV app may still call a remote backend, and a browser-based TV surface served by an SSR framework is possible — and where the section is unreachable, record it **Not Applicable with the reason** rather than passed. Note that `REACT-ARCH-BOUNDARY-3`'s underlying secrets concern survives regardless of RSC: everything inside a TV package is readable, which `REACT-TV-PKG-6` owns (with shared `SEC-SECRETS-2`).
+**`REACT-ARCH-BOUNDARY-*` is normally N/A on a packaged TV app** — a `.wgt` or `.ipk` is a locally installed static bundle with no server half. Confirm it from the repository (a TV app may still call a remote backend, and a browser-based TV surface behind an SSR framework is possible) and record Not Applicable with the reason. `REACT-ARCH-BOUNDARY-3`'s secrets concern survives regardless: everything inside a TV package is readable, which `REACT-TV-PKG-6` owns.
 
 ## References
 

@@ -78,16 +78,14 @@ Applies to TypeScript repositories. In a JavaScript-only repository this section
 
 ## Smart TV context (`device_type: tv`)
 
-**[Additive branch — REACT-003-2. Applies only where the surface runs on a TV. Authors no rule: every obligation below is owned by a `REACT-TV-*` rule in `standards/react/react-smart-tv.md`, and a finding is filed under that owning ID, never duplicated here.]**
-
-Establish the TV surface from evidence before applying any of this — `standards/react/react-smart-tv.md` owns the applicability gate and its detection traps. Where the repository has no TV surface, this section is N/A.
+**[Applies only on an established TV surface — `standards/react/react-smart-tv.md` owns the applicability gate and detection traps; where none is established this section is N/A. It defines no new rule ID: each obligation is owned by the `REACT-TV-*` ID named, and the Not-Applicable determinations below are recording duties, not findings.]**
 
 Every rule in this document applies unchanged on a TV surface. What changes:
 
-- **`REACT-FC-5` (listener/observer cleanup) carries far more weight.** On a memory-capped TV runtime a leaked listener, timer, or observer is a termination rather than a slow degradation — see `REACT-TV-PERF-2`. The rule is the same; the consequence is not.
-- **Key-event listeners are not a free-for-all.** A component that attaches its own `window`/`document` `keydown` handler competes with every other mounted component and with the app's focus model. `REACT-TV-INPUT-3` owns the scoping requirement and `REACT-TV-INPUT-1` owns the prohibition on numeric key-code literals in component code; `REACT-FC-5`'s cleanup requirement applies to every such listener.
-- **`REACT-NAME-6` (`'use client'` / `'use server'`) is normally N/A.** A packaged Tizen/webOS application is a locally installed static bundle with no server component in the React sense, so the RSC directive rules typically do not apply — confirm from the repository rather than assuming, and mark the section Not Applicable with the reason rather than passed.
-- **`REACT-TS-*`, `REACT-PROPS-*`, `REACT-NAME-1..5`, and `REACT-LINT-*` apply with no TV variation.** No TV rule modifies them, and no TV surface justifies relaxing them.
+- **`REACT-FC-5` (listener/observer cleanup) carries a harder consequence.** On a memory-capped TV runtime a leaked listener, timer, or observer is a termination rather than a slow degradation (`REACT-TV-PERF-2`). The rule is identical; the failure mode is not.
+- **Key-event listeners are constrained.** A component attaching its own `window`/`document` `keydown` competes with every other mounted component: `REACT-TV-INPUT-3` owns the scoping requirement and `REACT-TV-INPUT-1` forbids numeric key-code literals in component code. `REACT-FC-5`'s cleanup applies to each such listener.
+- **`REACT-NAME-6` (`'use client'`/`'use server'`) is normally N/A** on a packaged TV app, which has no server half in the RSC sense. Confirm from the repository and record Not Applicable with the reason rather than passed.
+- **`REACT-TS-*`, `REACT-PROPS-*`, `REACT-NAME-1..5`, and `REACT-LINT-*` apply with no TV variation**, and no TV surface justifies relaxing them.
 
 ## References
 
