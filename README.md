@@ -41,6 +41,33 @@ Three documents stay here. The first is [`docs/repo-knowledge-contract.md`](docs
 
 The eight-stage pipeline, platform detection and routing, standards and templates are documented in the sections below — they are operational documentation for building and contributing to this plugin, so they stay in this repository.
 
+## Metadata ownership
+
+This plugin is distributed through [`OnOAppsDev/ono-plugin-marketplace`](https://github.com/OnOAppsDev/ono-plugin-marketplace),
+so two manifests describe it. The split is fixed:
+
+| Field | Owner | Why |
+|---|---|---|
+| `version` | **`.claude-plugin/plugin.json`** | Claude Code reads the version from here. Its docs are explicit: *"If also set in the marketplace entry, `plugin.json` wins"* — and it wins **without warning**, so a marketplace copy can only ever mask the truth. The marketplace entry therefore declares no version at all. |
+| `description` | **`plugin.json`** is canonical | The marketplace entry keeps a deliberate marketplace-facing duplicate, because it is what a user sees while *browsing* before anything is fetched. It must stay semantically aligned by hand; it is not authoritative. |
+| `author`, `hooks`, `mcpServers`, components | **`plugin.json`** | They live with the code and move in the same commit. |
+| `name` | both, and must match | It is the install identity — `/plugin install ono-mobile-dev-plugin@ono-plugin-marketplace`. Changing it breaks every existing install. |
+| `source` (`url`, `ref`, `sha`) | **the marketplace** | Distribution facts this repository cannot know. |
+| the marketplace's own `metadata.version` | **the marketplace** | It versions the catalog, not any plugin in it. |
+
+Two consequences worth knowing:
+
+**Bumping `version` here is a release action, not bookkeeping.** Setting a `version` pins
+the plugin: users on a git source keep their cached copy until the string changes. Work
+merged without a bump does not reach anyone who already installed.
+
+**Nothing enforces the description alignment across repositories.** `scripts/check.ts` is
+offline by design and never reads the marketplace repo, so the duplicate is a documented
+manual obligation. What *is* machine-checked is the release metadata inside this
+repository: `scripts/release-metadata.test.ts` asserts `plugin.json`'s version matches the
+newest release heading in [`CHANGELOG.md`](CHANGELOG.md). Cross-repository enforcement is
+deliberately out of scope — see SHARED-012 in the completion plan.
+
 ## Project Planning
 
 The implementation roadmap for building out the plugin is maintained as an interactive dashboard at:

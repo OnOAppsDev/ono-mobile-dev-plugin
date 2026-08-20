@@ -86,6 +86,7 @@ const PHASES: Phase[] = [
       "dd-consolidation-contract",
       "dd-orchestration-contract",
       "rn-implementation-contract",
+      "release-metadata",
     ],
   },
   {
