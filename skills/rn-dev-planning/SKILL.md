@@ -9,6 +9,7 @@ description: React Native-specific planning methodology — the repository evide
 
 This skill is the methodology the `rn-architect` agent follows when planning React Native work. It owns two kinds of content, for two different reasons:
 
+2. **Cite the relevant standard IDs** (`ARCH-*` from `standards/react-native/rn-architecture.md`, `API-*` from `standards/react-native/rn-api-service-layer.md`, `STATE-*` from `standards/react-native/rn-state-management.md`, `NAV-*` from `standards/react-native/rn-navigation.md`) the approach follows.
 - **What a platform-independent layer could not write** — which dimensions of a React Native repository must be inspected, the RN vocabulary for the design's approach and change surface, and which RN standard IDs may be cited.
 - **What the shared layer delegates to each platform lane** — the evidence-labelling vocabulary in [§3](#3-react-native-repository-evidence-collection). That one is not React Native-specific; it lives here because the architecture assigns it here.
 
