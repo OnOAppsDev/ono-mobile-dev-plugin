@@ -1,0 +1,22 @@
+{
+  "repoKnowledgeSchemaVersion": 1,
+  "producedBy": { "plugin": "ono-project-inspector", "version": "0.4.0" },
+  "generatedAt": "2026-01-01T00:00:00.000Z",
+  "fingerprint": { "gitHead": null, "artifacts": { "CLAUDE.md": null, "AUDIT.md": null } },
+  "coverage": { "stack": "populated", "commands": "populated", "structure": "unknown",
+                "inventory": "unknown", "conventions": "populated", "integrations": "unknown",
+                "auditTopics": "unknown" },
+  "stack": { "languages": ["TypeScript"], "frameworks": ["React Native"],
+             "platformHints": ["react-native"], "runtimeTooling": ["Metro"], "packageManagers": ["yarn"] },
+  "commands": { "install": "yarn", "run": "yarn start", "test": "yarn test", "build": null },
+  "structure": { "repositoryTree": null, "keyModules": null, "entryPoints": null },
+  "documents": {
+    "claudeMd": { "path": "CLAUDE.md", "exists": false, "anchors": [] },
+    "auditMd": { "path": "AUDIT.md", "exists": false, "anchors": [] },
+    "overview": { "path": "docs/project/overview.md", "exists": false, "anchors": [] },
+    "inventory": { "path": "docs/project/components.md", "exists": false, "anchors": [] },
+    "conventions": { "path": "docs/project/patterns.md", "exists": false, "anchors": [] },
+    "integrations": { "path": "docs/project/integrations.md", "exists": false, "anchors": [] }
+  },
+  "auditTopics": []
+}

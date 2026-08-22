@@ -59,7 +59,7 @@ Confirm **all** of the following before going further. On any failure, stop, nam
 - Dev Plan exists and `status: approved`.
 - Task Breakdown exists and `status: approved` (not `draft`).
 - The selected task row exists in the breakdown.
-- The selected task is **not already complete** (see step 10 for how completion is/ isn't tracked) and is **not blocked**.
+- The selected task is **not already complete** and is **not blocked**, per the task-state read in step 6.
 - Every `depends-on` task is complete — see step 6.
 - No unresolved blocker referenced by the task remains.
 - `platform` is present and valid on the row.
@@ -67,15 +67,33 @@ Confirm **all** of the following before going further. On any failure, stop, nam
 - For UI-touching work, a **design reference** is available (breakdown/Dev Plan/DD): either `figma_link` (`design_reference_type: figma`) or `design_reference` (type `document` / `screenshots` / `existing_ui` / `other`). If the task touches UI and neither is present → **stop and ask for a design reference.** Figma specifically is not required — any recorded reference type satisfies this check. `design_reference_status: not_required` is only valid for a task that changes no user-facing UI; if a UI-touching task carries it, stop and report the contradiction.
 - Branch is **not** `main`/`master` (the `block-main-branch-changes` hook enforces this on write; check it up front too) and repository policy allows edits.
 
-## 6. Dependency completeness (deterministic where possible, else ask)
+## 6. Task state and dependency completeness (read the store, then decide)
 
-For each task in the selected task's `depends-on`:
+Read the feature's lifecycle state through the plugin's helper — do not read or write the state file directly, and do not reimplement its rules:
 
-- If its completion can be proven from a deterministic field or approved artifact, use that proof.
-- If it cannot be proven, **stop and ask the user for explicit evidence or confirmation** (e.g. merged commits/PRs).
+```
+node --no-warnings "${CLAUDE_PLUGIN_ROOT}/scripts/task-state.ts" read \
+  --root "<TARGET_ROOT>" --feature "<feature>" --breakdown "<absolute Task Breakdown path>"
+```
+
+It always exits 0 and always prints one JSON object; branch on `status`, never on the exit code. See `docs/task-state-contract.md` for the schema, the four states, the two trust levels and the staleness rule. Show the developer the returned `summary` in one line.
+
+**The selected task.** If its state is:
+
+- **`complete` with `deterministicProof: true`** → **stop and report that it is already complete**, naming its `runId`. Proceed only if the developer explicitly overrides.
+- **`complete` but `stale: true`** → **stop and report that the task row changed since it was completed.** The recorded work no longer describes this row; the developer decides whether to re-implement.
+- **`in-progress`** → **stop and report the earlier attempt** by `runId`, together with the `filesChanged` it recorded. A previous run did not finish; the developer decides resume vs. restart.
+- **`blocked` or `failed`** → report the prior outcome and its `blockers`, then continue only if the condition that caused it is resolved.
+- **`unknown`** → nothing was recorded; continue.
+
+**Each task in the selected task's `depends-on`** — the graph comes from the Task Breakdown row, never from the store:
+
+- **`deterministicProof: true`** → the dependency is proven. This is the only machine proof; it means a `plugin-verified`, non-stale `complete`.
+- **Anything else** — `unknown`, `in-progress`, `blocked`, `failed`, a `stale` completion, or a `human-attested` completion — is **not** proof. **Stop and ask the user for explicit evidence or confirmation** (e.g. merged commits/PRs), exactly as this step always did.
+- A `human-attested` record is surfaced as an attestation, never as verification. Do **not** treat it as equivalent to a task that passed step 10.
 - Do **not** silently assume a dependency is complete, and do **not** implement dependency tasks yourself.
 
-> **Known follow-up gap (do not build in this change):** the plugin has no deterministic per-task lifecycle/status store, so "task complete" and dependency completeness are not machine-verifiable end-to-end yet. Until that exists, this step relies on user-confirmed evidence. A future change should add a deterministic task-status mechanism.
+When the store is `absent`, `unparseable`, `invalid`, `schema-too-new` or `feature-mismatch`, every task reads `unknown` and this step behaves exactly as it did before the store existed — say so in one line and fall back to asking. **A missing store never blocks the command.**
 
 ## 7. Platform routing (read from the task row; never re-detect)
 
@@ -90,6 +108,21 @@ Read the `platform` value from the selected task row — do **not** re-run platf
 
 - **React:** before invoking, check the target skill and agent for a "not yet authored / structure-only placeholder" marker. If present, **stop with: "Platform implementation methodology for `<platform>` is not yet authored"** — do not pretend the route is production-ready and do not author it here. (When that skill is later authored and the marker is gone, the route opens automatically.) The iOS route passed this gate when `ios-feature-implementation` and `ios-feature-developer` were authored (IOS-003); `/review-code`'s iOS route opened when `ios-code-review`, `ios-code-reviewer` and `ios-performance-reviewer` were authored (IOS-004).
 - **Multiple platforms on one row:** the task model is single-platform-per-row. If a row lists more than one platform, **stop and require it to be split into one task per platform** at `/dev-feature-start`. Do not invent a cross-platform lead agent, and do not invoke unrelated platform agents.
+
+## 7a. Record `in-progress` before handing off
+
+Immediately before invoking the agent, record the attempt through the helper:
+
+```
+node --no-warnings "${CLAUDE_PLUGIN_ROOT}/scripts/task-state.ts" write \
+  --root "<TARGET_ROOT>" --feature "<feature>" --task "<task-id>" --state in-progress \
+  --breakdown "<absolute Task Breakdown path>" --head "<git HEAD sha>" \
+  --payload '{"platform":"<platform>"}'
+```
+
+This is what makes an interrupted run visible to the next one: the write advances the task's attempt counter and stamps its `runId` (`<task-id>-attempt-N`). If the run dies after this point, step 6 reports the unfinished attempt instead of silently starting over.
+
+**Write lifecycle state only through this helper.** Never hand-edit the state file, and never record state from a platform skill or agent — the command owns lifecycle, the skill owns implementation.
 
 ## 8. Pass explicit resolved context to the selected agent + skill
 
@@ -133,8 +166,25 @@ After the platform skill finishes, require its structured completion report and 
 - confirmation that no unrelated scope was added,
 - confirmation that the writes landed inside `TARGET_ROOT` (not in `.claude/worktrees/…`).
 
-**Do not mark the task complete automatically.** The plugin has no approved task-status-mutation mechanism, so this command must **not** edit the Task Breakdown (or any file) to flip a task's status. Report completion for the human to act on. Do not report success if any acceptance criterion failed, required validation failed, a dependency is unproven, a blocker remains, the implementation deviates from the DD without approval, or changes exist only inside a worktree.
+**Then record the outcome — this is the one lifecycle write the command owns.** SHARED-004's task-state store is the approved task-status mechanism, and `scripts/task-state.ts` is the only way to write it. **Still never edit the Task Breakdown to flip a task's status**; the breakdown is a human-approved artifact and is not a lifecycle store.
+
+- **All of the above satisfied** → record `complete`, passing the report as the payload:
+
+  ```
+  node --no-warnings "${CLAUDE_PLUGIN_ROOT}/scripts/task-state.ts" write \
+    --root "<TARGET_ROOT>" --feature "<feature>" --task "<task-id>" --state complete \
+    --breakdown "<absolute Task Breakdown path>" --head "<git HEAD sha>" \
+    --payload '{"platform":"…","filesChanged":[…],"standardIds":[…],"validation":[{"command":"…","result":"pass"}],"acceptanceCriteria":[{"criterion":"…","met":true}],"deviations":[],"blockers":[]}'
+  ```
+
+  **A terminal `complete` may only be written after the verification above succeeds.** The helper enforces this structurally: it refuses `complete` unless every acceptance criterion is recorded and met and at least one validation entry is present, returning `refused: complete-without-verification`. If it refuses, report that verbatim and record `failed` instead.
+- **Verification failed** → record `failed` with the failing criteria and validation results in `blockers`.
+- **A blocker or unproven dependency stopped the run** → record `blocked` with the blocker text.
+
+The recorded `filesChanged`, `standardIds`, `validation` and `acceptanceCriteria` are what `/create-dev-qa-notes` later reads, so a QA handoff no longer depends on a session transcript.
+
+Do not report success if any acceptance criterion failed, required validation failed, a dependency is unproven, a blocker remains, the implementation deviates from the DD without approval, or changes exist only inside a worktree. **Approval is unaffected: recording lifecycle state neither confers nor revokes any document's `status`.**
 
 ## Responsibility boundary
 
-This command orchestrates (task-id resolution, repo-root resolution via the helper, document-path resolution, approval/dependency/blocker checks, platform routing, hook gating, invoking the correct agent+skill, passing resolved context). It does **not** contain Android/iOS/RN/React coding methodology, architecture guidance, review methodology, or the implementation logic itself — those live in the platform feature-implementation skills.
+This command orchestrates (task-id resolution, repo-root resolution via the helper, document-path resolution, approval/dependency/blocker checks, platform routing, hook gating, invoking the correct agent+skill, passing resolved context, and recording lifecycle state through `scripts/task-state.ts` — it is the only writer). It does **not** contain Android/iOS/RN/React coding methodology, architecture guidance, review methodology, or the implementation logic itself — those live in the platform feature-implementation skills.

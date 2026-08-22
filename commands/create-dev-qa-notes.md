@@ -32,9 +32,20 @@ Read its frontmatter for the values this handoff carries: `feature`, `platform`,
 
 ## 4. Gather what was implemented
 
-Gather what was built for the feature (implementation summary, standard IDs applied) from the Implement stage's output. The task breakdown carries exactly one confirmed platform, so gather from that platform's feature-developer agent (`rn-feature-developer` / `ios-feature-developer` / `android-feature-developer` / `react-feature-developer`) — the one matching the breakdown's `platform`.
+**Read the persisted implementation record first.** `/implement-task` records what each task actually produced through the task-state store, so this no longer depends on a session transcript:
 
-If no record of what was implemented for this feature can be found, **say so explicitly and write nothing** — a handoff of guessed test steps is worse than no handoff.
+```
+node --no-warnings "${CLAUDE_PLUGIN_ROOT}/scripts/task-state.ts" read \
+  --root "<TARGET_ROOT>" --feature "<feature>" --breakdown "<absolute Task Breakdown path>"
+```
+
+It always exits 0 and prints one JSON object; branch on `status`. See `docs/task-state-contract.md`. For every task recorded `complete`, the record carries `filesChanged`, `standardIds`, `validation` and `acceptanceCriteria` — that is the source for the handoff's screens/flows, the applied `I18N-*`/`A11Y-*` IDs, and the edge cases actually exercised. Note any task that is not `complete`, or whose completion is `stale`, under Known Limitations rather than describing it as delivered.
+
+**Then fill the gaps from the platform feature-developer agent.** The task breakdown carries exactly one confirmed platform, so use that platform's agent (`rn-feature-developer` / `ios-feature-developer` / `android-feature-developer` / `react-feature-developer`) for anything the record does not hold — narrative summary, screens/flows in user-facing language, and the build/install instructions.
+
+**Readiness gate — React.** Before invoking, check that platform's feature-developer agent for a "not yet authored / structure-only placeholder" marker. If present, **stop with: "Platform QA-handoff methodology for `<platform>` is not yet authored"** — do not invoke a placeholder agent and do not write build/install instructions for a lane whose methodology does not exist. (When that lane is later authored and the marker is gone, the route opens automatically.) React (web) is the only lane still gated — `react-native`, `ios` and `android` are authored.
+
+If the store reports nothing recorded **and** no record of what was implemented can be found from the agent, **say so explicitly and write nothing** — a handoff of guessed test steps is worse than no handoff.
 
 ## 5. Write the handoff content
 
