@@ -26,7 +26,7 @@ The two libraries the org's repos most commonly use are React Navigation (screen
 ## Deep Link Structure
 
 - `NAV-DEEPLINK-1` [CRITICAL] Deep links map to a documented, versioned URL structure (e.g. a single source-of-truth route table), not ad hoc strings scattered across the codebase.
-- `NAV-DEEPLINK-2` [CRITICAL] Any new deep link target is added with a corresponding entry in `standards/shared/mobile-security.md`'s `SEC-DEEPLINK-*` validation rules.
+- `NAV-DEEPLINK-2` [CRITICAL] Any new deep link target validates its incoming parameters in application code before they reach navigation, state, or a network call, against the `SEC-DEEPLINK-*` rules in `standards/shared/mobile-security.md` — an external entry point is untrusted input. `SEC-DEEPLINK-*` is the authority on what that validation must cover; this rule requires that the new target actually be covered by it. Never satisfy this rule by editing `standards/shared/mobile-security.md` or any other standards document — a standards file is not an application artifact, and adding a deep link never changes the shared security standard.
 - `NAV-DEEPLINK-3` [CRITICAL] Deep link URL structure changes are backward-compatible or versioned.
 
 ## Navigation API Usage
