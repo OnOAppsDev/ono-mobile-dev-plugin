@@ -183,6 +183,12 @@ The pipeline is deliberately gated: `/dev-design-start` refuses to run on a feat
 | `/create-dev-qa-notes` | feature name | Writes shared QA handoff notes with platform-specific build/install/testing instructions to `docs/qa/{FEATURE-NAME}-qa-handoff.md` as `status: draft`, then records `qa_handoff_link` in the task breakdown |
 | `/prepare-mobile-release` | version | Validates shippability with a shared checklist plus platform-specific release validation for every platform the release ships |
 
+### Utilities (outside the pipeline)
+
+| Command | Arguments | What it does |
+|---|---|---|
+| `/rn-sync-figma-theme` | Figma design-system URL, optional `--dry-run` | React Native only — alerts and hard-fails on any other platform. Scopes to the design-system page/frame when the Figma file has more than one part, reads its variables (colors, spacing, radii, typography) via the `figma` MCP server, and runs them through the deterministic `scripts/figma-theme-tokens.ts` engine (classify → normalize → diff → render) to generate/update the repo's actual canonical theme/tokens module. Diffs against existing token values and requires explicit confirmation before overriding any of them; re-verifies the write afterward. `--dry-run` runs every read-only step and shows the diff without writing. Bypasses feature-pipeline approval only — see [Approval model](#approval-model) — never the write hooks or the override-confirmation gate. |
+
 ## Pipeline
 
 | Stage | Command | Shared skill/agent | Platform-specific skill/agent (per platform touched) |
@@ -261,9 +267,19 @@ Nothing a user of the plugin does requires it, no command invokes it, and it nee
 CI. A repository may choose to run the same command automatically in CI later; the
 validator has no dependency on that ever happening.
 
+## Approval model
+
+"Approval" means three different, independent things in this plugin. Conflating them is what makes a command's docs claim "no approval" when a write is actually still gated — every command's docs are written to name which of these it means:
+
+1. **Pipeline approval** — the human sign-off between the eight SDLC stages (feature analysis → DD → task breakdown → ...). Only pipeline stages need this; a standalone utility like `/rn-sync-figma-theme` has no pipeline stage to approve and so doesn't need it.
+2. **Semantic change approval** — required whenever an operation would change an existing value or make a consequential decision a human hasn't already made, regardless of whether the command is part of the pipeline. `/rn-sync-figma-theme`'s override-confirmation gate (present any existing token that would change, then require an explicit approve/skip/cancel decision before writing) is this kind.
+3. **Repository write hooks** — `require-approval-before-code`, `block-main-branch-changes`, `protect-secrets`. Global safety mechanisms that gate every file write in this plugin, regardless of pipeline stage or semantic content.
+
+The rule that keeps these consistent everywhere: **a command may bypass feature-pipeline approval because it is a standalone utility, but it never bypasses repository-level write hooks or semantic override confirmation.** When a command's docs say "no approval gate" or "needs no approval," that always means kind 1 only — never read it as "no approval at all," and no command in this plugin should be written to imply otherwise.
+
 ## MCP servers
 
-- **`figma`** (`https://mcp.figma.com/mcp`) — the hosted Figma MCP server, used by `/analyze-feature` and `/implement-task` to pull design context, screenshots, and variables from a Figma file, regardless of platform. Figma is one supported design-reference type, not a requirement — a spec document, mockups/screenshots, or an existing screen to mirror works too, and non-UI work needs no design reference at all. Each developer authenticates once via OAuth on first use (`/mcp` to check connection status).
+- **`figma`** (`https://mcp.figma.com/mcp`) — the hosted Figma MCP server, used by `/analyze-feature` and `/implement-task` to pull design context, screenshots, and variables from a Figma file, regardless of platform; and by `/rn-sync-figma-theme` (React Native only) to read a design system's variables and generate a NativeWind theme. Figma is one supported design-reference type, not a requirement — a spec document, mockups/screenshots, or an existing screen to mirror works too, and non-UI work needs no design reference at all. Each developer authenticates once via OAuth on first use (`/mcp` to check connection status).
 
 ## Plugin internals
 
@@ -277,6 +293,7 @@ commands/                          (flat, platform-aware — one per lifecycle s
   fix-review-comments.md
   create-dev-qa-notes.md
   prepare-mobile-release.md
+  rn-sync-figma-theme.md            (utility, outside the pipeline — React Native only)
 
 skills/                             (flat, one level — prefix = scope)
   mobile-repo-analysis/             mobile-security-review/
@@ -285,6 +302,8 @@ skills/                             (flat, one level — prefix = scope)
   planning-doc-migration/           (loads a planning document through the migration framework; the single frontmatter compatibility layer)
   dev-design-start/  dev-feature-start/    (shared design + task-generation stages)
   rn-dev-planning/  rn-feature-implementation/  rn-code-review/
+  rn-nativewind-theme-sync/         (Figma variables -> NativeWind theme; observation layer only — classification, normalization,
+                                     diffing, and rendering are decided by scripts/figma-theme-tokens.ts; no dedicated agent)
   ios-dev-planning/ ios-feature-implementation/ ios-code-review/      (authored)
   android-dev-planning/ android-feature-implementation/ android-code-review/  (authored)
   react-dev-planning/   react-feature-implementation/   react-code-review/    (placeholders)
@@ -298,7 +317,7 @@ agents/                             (flat)
 
 standards/
   shared/       mobile-security.md, accessibility.md, i18n-rtl.md, release-readiness.md, qa-handoff.md
-  react-native/ react-native-coding-standards.md, rn-navigation.md, rn-state-management.md,
+  react-native/ rn-coding-standards.md, rn-navigation.md, rn-state-management.md,
                 rn-performance.md, rn-architecture.md, rn-api-service-layer.md
   ios/          swift-standards.md, swiftui-uikit-standards.md, ios-architecture.md,
                 xcode-build-signing.md, ios-performance.md               (authored, IOS-* IDs)

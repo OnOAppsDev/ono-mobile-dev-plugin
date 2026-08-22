@@ -126,9 +126,13 @@ Functional components with hooks only in new or modified code; extract reusable 
 
 One component per file with the filename matching the component; `use`-prefixed camelCase hooks; utility files named for what they export; props typed via a named `interface`/`type`, defaults supplied as default parameters, optional props marked `?`, callback props given explicit parameter and return types. → `RN-NAME-*`, `RN-PROPS-*`.
 
+### Constants & styling
+
+Extract values used more than once, or shared across files, into a named constant declared in a file scoped to what it configures rather than repeating inline literals; use one styling method consistently (`StyleSheet.create` or the repository's detected styling library) defined outside the render function rather than inline style objects/arrays; source colors, spacing, and typography from the repository's shared theme/tokens module rather than hardcoding them per component. → `RN-CONST-*`, `RN-STYLE-*`.
+
 ### Architecture, layering & folder placement
 
-Keep screens thin, business logic in features, and data access in services/store; colocate a feature's screens, components, state, endpoints, and hooks under one feature folder; keep dependencies pointing downward and avoid reaching into another feature's internals; keep business rules out of components and derive computed values through memoized selectors or hooks. → `ARCH-LAYERS-*`, `ARCH-FOLDERS-*`, `ARCH-DEPS-*`, `ARCH-LOGIC-*`.
+Keep screens thin, business logic in features, and data access in services/store; colocate a feature's screens, components, state, endpoints, and hooks under one feature folder; keep dependencies pointing downward and avoid reaching into another feature's internals; keep business rules out of components and derive computed values through memoized selectors or hooks; before adding a new component, hook, or utility, check the component inventory and shared modules for one that already covers the need, and extract logic duplicated in two or more places into a shared hook, utility, or component. → `ARCH-LAYERS-*`, `ARCH-FOLDERS-*`, `ARCH-DEPS-*`, `ARCH-LOGIC-*`, `ARCH-REUSE-*`.
 
 ### Data fetching & API layer
 
@@ -212,8 +216,8 @@ Record which standard IDs were **applied** (not merely reviewed) — this is the
 
 | Area | Standard file | IDs |
 |---|---|---|
-| TypeScript, components, hooks, naming, lint | `standards/react-native/react-native-coding-standards.md` | `RN-TS-*`, `RN-FC-*`, `RN-NAME-*`, `RN-PROPS-*`, `RN-LINT-*` |
-| Layering, folders, dependency direction | `standards/react-native/rn-architecture.md` | `ARCH-LAYERS-*`, `ARCH-FOLDERS-*`, `ARCH-DEPS-*`, `ARCH-LOGIC-*` |
+| TypeScript, components, hooks, naming, constants, styling, lint | `standards/react-native/rn-coding-standards.md` | `RN-TS-*`, `RN-FC-*`, `RN-NAME-*`, `RN-PROPS-*`, `RN-CONST-*`, `RN-STYLE-*`, `RN-LINT-*` |
+| Layering, folders, dependency direction, reuse | `standards/react-native/rn-architecture.md` | `ARCH-LAYERS-*`, `ARCH-FOLDERS-*`, `ARCH-DEPS-*`, `ARCH-LOGIC-*`, `ARCH-REUSE-*` |
 | Data fetching & API layer | `standards/react-native/rn-api-service-layer.md` | `API-ORG-*`, `API-CACHE-*`, `API-BASEQ-*`, `API-ERR-*` |
 | Shared & global state | `standards/react-native/rn-state-management.md` | `STATE-SLICE-*`, `STATE-SELECT-*`, `STATE-ENTITY-*`, `STATE-BOUNDARY-*` |
 | Navigation & deep links | `standards/react-native/rn-navigation.md` | `NAV-TYPED-*`, `NAV-SERVICE-*`, `NAV-DEEPLINK-*` |

@@ -10,7 +10,7 @@ description: Reviews React Native code changes against the org's standards and p
 ## Inputs
 
 - The diff/file scope resolved by the `/review-code` command, filtered to files attributed to react-native (an explicit `[scope]` argument, or the current diff against the base branch).
-- `standards/react-native/react-native-coding-standards.md` (`RN-*`), `standards/react-native/rn-api-service-layer.md` (`API-*`), `standards/react-native/rn-state-management.md` (`STATE-*`), `standards/shared/i18n-rtl.md` (`I18N-*`), `standards/shared/accessibility.md` (`A11Y-*`), `standards/react-native/rn-architecture.md` (`ARCH-*`), `standards/react-native/rn-navigation.md` (`NAV-*`).
+- `standards/react-native/rn-coding-standards.md` (`RN-*`), `standards/react-native/rn-api-service-layer.md` (`API-*`), `standards/react-native/rn-state-management.md` (`STATE-*`), `standards/shared/i18n-rtl.md` (`I18N-*`), `standards/shared/accessibility.md` (`A11Y-*`), `standards/react-native/rn-architecture.md` (`ARCH-*`), `standards/react-native/rn-navigation.md` (`NAV-*`).
 - The `rn-code-review` skill.
 
 ## Process
