@@ -41,6 +41,10 @@ These standards apply to all React Native application code reviewed by `rn-code-
 - `RN-CONST-3` [INFO] Constant names use `SCREAMING_SNAKE_CASE` for primitive values and `PascalCase` for enum-like object maps, consistent across the codebase.
 - `RN-CONST-4` [WARNING] No magic numbers: a numeric literal with domain meaning (timeouts, durations, retry counts, pagination sizes, dimensions, z-indices, thresholds) is extracted into a named constant rather than inlined at the call site. `0`, `1`, `-1`, and array/index bookkeeping in idiomatic use (loop counters, `.length - 1`) are exempt, as are values already covered by a design-token module under `RN-STYLE-3`.
 
+## Security
+
+- `RN-SEC-1` [CRITICAL] No API keys, tokens, or other secrets are hardcoded as string literals in `.tsx`/`.ts` source — they are read from env files (`.env` via the project's env-loading mechanism) or from files the repo's `.gitignore` excludes from source control. Ties to `SEC-SECRETS-1`/`SEC-SECRETS-3` in `standards/shared/mobile-security.md`; a value baked into the shipped bundle at build time is still public per `SEC-SECRETS-2` regardless of which file it started in.
+
 ## Styling
 
 - `RN-STYLE-1` [WARNING] The app uses one styling method consistently (e.g. `StyleSheet.create`, a single styling library) — no mixing of approaches across the codebase.
@@ -56,18 +60,15 @@ These standards apply to all React Native application code reviewed by `rn-code-
 
 ## Testing
 
-`repo-analyst` detects the project's test runner, component-testing library, and test-file convention (colocated `*.test.tsx`, a `__tests__/` directory, `*.spec.ts`, or another arrangement). Apply the rules below **in the terms of the detected stack and convention** — they govern *what must be covered and at which level*, never which library or filename layout is used. A file is never failed for using a different-but-valid testing toolchain, and these rules never require adopting a testing dependency the project does not already have. Where a project has no test infrastructure for a layer at all, that is reported at `[INFO]` as a coverage gap rather than failed at `[WARNING]`.
-
-- `RN-TEST-1` [WARNING] Every screen and non-trivial feature component has accompanying test coverage, placed per the repo's detected test-file convention. Where the detected component-testing library exposes accessibility-based queries, tests select elements by accessibility role/label rather than by `testID` or raw text nodes; where it does not, use its nearest user-facing equivalent.
-- `RN-TEST-2` [WARNING] Custom business-logic hooks (`use*`) are covered in isolation using the detected library's hook-testing mechanism, not only indirectly through a component test. Where the detected library provides no hook-testing utility, the hook's logic is extracted to a plain function that is unit-tested directly instead.
+- `RN-TEST-1` [WARNING] Every screen and non-trivial feature component has an accompanying `.test.tsx` file using `@testing-library/react-native`; tests query by accessibility role/label (`getByRole`, `getByLabelText`) rather than `testID` or raw text nodes.
+- `RN-TEST-2` [WARNING] Custom business-logic hooks (`use*`) are tested in isolation with `renderHook` from `@testing-library/react-native`, not only indirectly through a component test.
 - `RN-TEST-3` [WARNING] Every API module/service layer has unit test coverage for its normalized error shapes (`API-ERR-*` in `standards/react-native/rn-api-service-layer.md`) — network failures and server error responses are each asserted to normalize correctly, not just the happy path.
-- `RN-TEST-4` [WARNING] Global state transitions and derived/selector output (`STATE-*` in `standards/react-native/rn-state-management.md`) have isolated unit test coverage — tested directly against the detected state library's own units (reducers and selectors, a store action and its derivation, or the equivalent), not only indirectly through a component test.
+- `RN-TEST-4` [WARNING] Global state reducers and selectors (`STATE-*` in `standards/react-native/rn-state-management.md`) have isolated unit test coverage — state transitions and derived/selector output are tested directly, not only indirectly through a component test.
 
 ## References
 
 - This document is a living baseline; reviewers should flag standards gaps found during review rather than working around them silently.
 - See `standards/react-native/rn-api-service-layer.md`, `standards/react-native/rn-state-management.md`, `standards/shared/i18n-rtl.md`, and `standards/shared/accessibility.md` for domain-specific rules that sit alongside these general coding standards.
-- **Security is not covered by any `RN-*` ID.** `standards/shared/mobile-security.md` is the sole owner of security rules (`SEC-SECRETS-*` for hardcoded keys and tokens, `SEC-STORAGE-*`, `SEC-DEEPLINK-*`, and the rest), and they are filed by the shared `mobile-security-reviewer` via `/review-security` — not by `rn-code-reviewer` via `/review-code`, which excludes security commentary by design. Do not add an RN-specific duplicate of a `SEC-*` rule: it would let one defect be filed twice, under two IDs, by two agents that cannot see each other's output.
 
 ## AI Agent Execution Directives
 

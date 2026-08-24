@@ -53,4 +53,4 @@ These standards apply to state management in React Native app code reviewed by `
 - `repo-analyst`'s Stack Detection determines whether the Redux Toolkit section applies; the Universal Principles always apply regardless of its finding.
 - This document is a living baseline; reviewers should flag standards gaps found during review rather than working around them silently.
 - See `standards/react-native/rn-api-service-layer.md` for server-state/cache conventions, which are handled separately from the client-state conventions above.
-- See the "AI Agent Execution Directives" section in `standards/react-native/react-native-coding-standards.md` for the severity hierarchy, citation format, and anti-hallucination thresholds that govern how findings against the IDs above are reported.
+- See the "AI Agent Execution Directives" section in `standards/react-native/rn-coding-standards.md` for the severity hierarchy, citation format, and anti-hallucination thresholds that govern how findings against the IDs above are reported.

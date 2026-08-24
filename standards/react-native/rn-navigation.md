@@ -43,4 +43,4 @@ The two libraries the org's repos most commonly use are React Navigation (screen
 
 - This document is a living baseline; reviewers should flag standards gaps found during review rather than working around them silently.
 - See `standards/shared/mobile-security.md` (`SEC-DEEPLINK-*`) for the security-specific deep link validation rules that pair with `NAV-DEEPLINK-*` above.
-- See the "AI Agent Execution Directives" section in `standards/react-native/react-native-coding-standards.md` for the severity hierarchy, citation format, and anti-hallucination thresholds that govern how findings against the IDs above are reported.
+- See the "AI Agent Execution Directives" section in `standards/react-native/rn-coding-standards.md` for the severity hierarchy, citation format, and anti-hallucination thresholds that govern how findings against the IDs above are reported.

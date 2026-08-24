@@ -7,6 +7,39 @@ and this plugin adheres to [Semantic Versioning](https://semver.org/). The
 version below is the plugin's own `version` in
 [`plugin.json`](.claude-plugin/plugin.json).
 
+## [0.6.0] - 2026-08-19
+
+### Added
+- `/rn-sync-figma-theme` — a standalone utility command (React Native only — alerts and
+  hard-fails on any other platform) that reads a Figma design system's **variables**
+  (colors, spacing, radii, typography) via the `figma` MCP server and generates/updates
+  the repo's NativeWind theme. When the linked Figma file has more than one page/part,
+  it scopes the read to the design-system page/frame rather than the whole file. Before
+  writing, it diffs generated tokens against whatever the target theme module already
+  holds and asks for explicit confirmation before overriding any existing value. It sits
+  outside the eight-stage pipeline: no feature analysis, DD, or task breakdown is
+  produced or required, though the existing write hooks
+  (`require-approval-before-code`, `block-main-branch-changes`, `protect-secrets`) still
+  gate every file change.
+- `skills/rn-nativewind-theme-sync` — the scoping/extraction/classification/naming/
+  diff/write methodology this command follows: a hard platform gate, resolving the
+  Figma URL, scoping to the design-system part of the file via `get_metadata`/
+  `search_design_system`, reading variables through `get_variable_defs`, resolving
+  aliases to primitive values, classifying each variable into a token category,
+  normalizing Figma variable paths into NativeWind token keys, routing multi-mode
+  variables (Light/Dark, brand variants) to NativeWind v4 CSS variables rather than
+  baking one mode into the JS config, diffing against existing values with a
+  confirm-before-override gate, and writing everything into a clearly delimited,
+  re-syncable managed block in the repo's actual single theme/tokens module (falling
+  back to `tailwind.config.js` and the global stylesheet when no such module exists) so
+  a later re-run only touches Figma-sourced tokens. No dedicated agent — grounded
+  directly in `RN-STYLE-3`'s "single theme/tokens module" rule from
+  `standards/react-native/rn-coding-standards.md`.
+
+### Unchanged (deliberately)
+- The eight-stage pipeline, every approval gate, all three safety hooks, all
+  `standards/**`, and every other command.
+
 ## [0.5.0] - 2026-08-12
 
 SHARED-011 — the legacy planning-document migration framework. Implements

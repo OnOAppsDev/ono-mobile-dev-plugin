@@ -1,3 +1,4 @@
+
 # Architecture Principles
 
 ## Purpose & Scope
@@ -68,4 +69,6 @@ These principles apply to how React Native app code is organized and layered, an
 
 - This document is a living baseline; reviewers should flag structural gaps found during review rather than working around them silently.
 - Where a repo's existing structure predates these principles, `repo-analyst`'s detected conventions take precedence for that repo until a migration is planned — see `standards/react-native/rn-navigation.md` for the same repo-detection-first approach applied to navigation.
-- See the "AI Agent Execution Directives" section in `standards/react-native/react-native-coding-standards.md` for the severity hierarchy, citation format, and anti-hallucination thresholds that govern how findings against the IDs above are reported.
+
+- See the "AI Agent Execution Directives" section in `standards/react-native/rn-coding-standards.md` for the severity hierarchy, citation format, and anti-hallucination thresholds that govern how findings against the IDs above are reported.
+
