@@ -7,6 +7,73 @@ and this plugin adheres to [Semantic Versioning](https://semver.org/). The
 version below is the plugin's own `version` in
 [`plugin.json`](.claude-plugin/plugin.json).
 
+## [Unreleased]
+
+ANDROID-001 — the Android planning lane, re-implemented. Same contract, restructured for
+progressive disclosure per Anthropic's Agent Skills authoring guidance. Left unversioned
+deliberately: `scripts/task-state.ts` and `scripts/migrate-planning-doc.ts` each pin
+`PLUGIN_VERSION` to `.claude-plugin/plugin.json`, and every planning-document migration
+golden fixture embeds that string, so a version bump is its own reviewed change.
+
+### Added
+- `docs/planning/ANDROID-001-file-map.html` — a self-contained, plain-language explainer for
+  the restructured lane: what each new and changed file is for and when it is read, the
+  eight-step planning workflow, all twelve analysis domains broken out point by point with
+  the standard IDs each cites, the three stage output contracts and the Impacted-Modules
+  reporting rules, and the TV discovery pass. A reviewer's companion to this entry; like
+  `PLUGIN_COMPLETION_PLAN.html` it is documentation only and is never read by the plugin
+  during execution.
+
+### Changed
+- `skills/android-dev-planning` — split from a single 312-line `SKILL.md` into a navigation
+  and core-method `SKILL.md` plus three one-level-deep reference files loaded on demand:
+  `references/analysis-domains.md` (per-domain planning depth and the concrete standard IDs
+  each domain cites), `references/output-contracts.md` (what Analyze, Design and
+  Feature-start each receive, Impacted-Modules reporting resolution, traceability), and
+  `references/tv-context.md` (the `device_type: tv` discovery pass and TV planning rules,
+  read only when the confirmed device type is `tv`). Every one of the 131 standard IDs the
+  previous version cited is preserved, and the `AND-UI-LIST-*`/`AND-UI-RES-*` family globs are
+  kept so their whole coverage stays reachable; `AND-UI-LIST-1`, `AND-UI-LIST-5` and
+  `AND-UI-LIST-6` are additionally named so the UI-model section points at the concrete rules
+  that carry weight at planning altitude. The methodology
+  itself is unchanged: repository-first, framework-agnostic, detect-never-assume, with the
+  same evidence sweep, labelling discipline, classification, gates and red flags. Adds an
+  explicit progress checklist and a verify-fix-re-verify step before handoff, and drops a
+  time-sensitive parenthetical asserting how many standards files were authored at the time
+  of writing.
+- `agents/android-architect.md` — reduced from 14.2 KB to 8.9 KB by removing the
+  methodology it restated from the skill while declaring that route machine-readably as
+  `skills: [android-dev-planning]`, matching the convention `ios-code-reviewer` and
+  `ios-performance-reviewer` already use. The Impacted-Modules reporting rule, which
+  previously existed in both the agent and the skill and could drift, now has one owner.
+- **Fixed a contract violation**: the agent previously instructed itself to "stop and ask"
+  the user for a design reference when a UI-changing feature had none. `commands/analyze-feature.md`
+  step 5 owns that gate and step 6 states that "the architect does not raise its own Figma
+  request and does not gate on Figma specifically". The agent now confirms the recorded
+  gate rather than re-running it, matching `ios-architect` and `rn-architect`.
+- **Fixed a stage-one input bug**: the skill required `device_type` to be "read from
+  frontmatter", but `/analyze-feature` invokes the architect (step 4) before the feature
+  analysis and its frontmatter exist (step 7), so at Analyze there is nothing to read and the
+  rule as written turned the normal first-stage state into a stop. `device_type` now comes
+  from the user confirmation at `commands/analyze-feature.md` step 2 at Analyze and from the
+  upstream document's frontmatter from Design onward, matching `skills/ios-dev-planning`. The
+  same wording is corrected in the Definition of Done. The previous version carried the same
+  sentence but was scoped to Design and Feature-start only; extending this lane to Analyze is
+  what made it reachable.
+- `README.md` — corrected the Android lane attribution: the planning lane is ANDROID-001
+  (it was credited to ANDROID-002), and the `standards/android/` documents are not
+  ANDROID-001's deliverable.
+- `agents/repo-analyst.md` and `skills/mobile-repo-analysis/SKILL.md` — both pointed readers
+  at "`skills/android-dev-planning/SKILL.md` §3" for the deeper Android inspection. That
+  heading no longer exists after the restructure, so both now name the
+  repository-evidence-collection step instead. The iOS half of the shared sentence stays
+  correct, because it describes the step rather than asserting a number only one lane has.
+
+### Unchanged (deliberately)
+- Every command, hook, template and standard, and every agent and skill other than the four
+  files named above. No Android TV standards were authored — ANDROID-003 owns that scope, and
+  `references/tv-context.md` carries discovery guidance only, citing no TV standard ID.
+
 ## [0.6.0] - 2026-08-19
 
 ### Added

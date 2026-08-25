@@ -1,0 +1,843 @@
+<title>ANDROID-001 File Map</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Newsreader:ital,opsz,wght@0,6..72,400;0,6..72,500;0,6..72,600;1,6..72,400&family=Source+Sans+3:ital,wght@0,400;0,600;0,700;1,400&family=JetBrains+Mono:wght@400;500;700&display=swap">
+
+<style>
+  :root {
+    --paper:      #F3F6F6;
+    --card:       #FFFFFF;
+    --ink:        #16211F;
+    --ink-soft:   #4A5A57;
+    --ink-faint:  #74827F;
+    --rule:       #DCE4E3;
+    --rule-soft:  #E9EFEE;
+    --new:        #0F5C55;
+    --new-wash:   #E4F0EE;
+    --changed:    #8C5A0C;
+    --changed-wash:#F6EDDD;
+    --code-bg:    #EAF0EF;
+    --chip-bg:    #E9F1EF;
+    --chip-ink:   #2C5C56;
+
+    --measure: 68ch;
+    --wide: 52rem;
+    --s1: .35rem; --s2: .7rem; --s3: 1.1rem; --s4: 1.7rem; --s5: 2.6rem; --s6: 4rem;
+  }
+
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --paper:      #101817;
+      --card:       #16211F;
+      --ink:        #E8EFED;
+      --ink-soft:   #A9B8B5;
+      --ink-faint:  #7C8B88;
+      --rule:       #263433;
+      --rule-soft:  #1E2A29;
+      --new:        #6FC5B6;
+      --new-wash:   #16302C;
+      --changed:    #D9A65C;
+      --changed-wash:#302516;
+      --code-bg:    #1C2827;
+      --chip-bg:    #1B2E2B;
+      --chip-ink:   #8FCFC3;
+    }
+  }
+
+  :root[data-theme="dark"] {
+    --paper:      #101817;
+    --card:       #16211F;
+    --ink:        #E8EFED;
+    --ink-soft:   #A9B8B5;
+    --ink-faint:  #7C8B88;
+    --rule:       #263433;
+    --rule-soft:  #1E2A29;
+    --new:        #6FC5B6;
+    --new-wash:   #16302C;
+    --changed:    #D9A65C;
+    --changed-wash:#302516;
+    --code-bg:    #1C2827;
+    --chip-bg:    #1B2E2B;
+    --chip-ink:   #8FCFC3;
+  }
+
+  *, *::before, *::after { box-sizing: border-box; }
+
+  body {
+    margin: 0;
+    background: var(--paper);
+    color: var(--ink);
+    font-family: "Source Sans 3", ui-sans-serif, system-ui, -apple-system, sans-serif;
+    font-size: 17px;
+    line-height: 1.62;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  .wrap {
+    max-width: var(--measure);
+    margin: 0 auto;
+    padding: var(--s6) 1.35rem var(--s6);
+    display: flex;
+    flex-direction: column;
+    gap: var(--s5);
+  }
+
+  code, .path {
+    font-family: "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
+    font-size: .85em;
+    background: var(--code-bg);
+    padding: .1em .38em;
+    border-radius: 3px;
+    word-break: break-word;
+  }
+
+  a { color: var(--new); text-decoration-thickness: 1px; text-underline-offset: .18em; }
+  a:focus-visible { outline: 2px solid var(--new); outline-offset: 3px; border-radius: 2px; }
+
+  /* ---------- masthead ---------- */
+  header { display: flex; flex-direction: column; gap: var(--s2); }
+  .eyebrow {
+    font-size: .74rem; letter-spacing: .13em; text-transform: uppercase;
+    font-weight: 700; color: var(--ink-faint);
+  }
+  h1 {
+    font-family: Newsreader, Georgia, "Times New Roman", serif;
+    font-weight: 500; font-size: clamp(2.1rem, 5.4vw, 3rem);
+    line-height: 1.1; margin: 0; text-wrap: balance; letter-spacing: -.012em;
+  }
+  .standfirst {
+    font-family: Newsreader, Georgia, serif;
+    font-size: 1.2rem; line-height: 1.52; color: var(--ink-soft);
+    margin: var(--s1) 0 0; max-width: 56ch;
+  }
+
+  /* ---------- contents ---------- */
+  .toc {
+    border-top: 1px solid var(--rule); border-bottom: 1px solid var(--rule);
+    padding: var(--s3) 0; display: flex; flex-direction: column; gap: var(--s2);
+  }
+  .toc h2 {
+    font-size: .72rem; letter-spacing: .13em; text-transform: uppercase;
+    font-weight: 700; color: var(--ink-faint); margin: 0;
+    border: none; padding: 0; font-family: inherit;
+  }
+  .toc ol {
+    margin: 0; padding: 0; list-style: none;
+    display: grid; gap: .28rem .9rem; grid-template-columns: 1fr;
+    counter-reset: toc;
+  }
+  @media (min-width: 620px) { .toc ol { grid-template-columns: 1fr 1fr; } }
+  .toc li { counter-increment: toc; display: flex; gap: .6rem; align-items: baseline; font-size: .95rem; }
+  .toc li::before {
+    content: counter(toc, decimal-leading-zero);
+    font-family: "JetBrains Mono", ui-monospace, monospace;
+    font-size: .72rem; color: var(--ink-faint); font-variant-numeric: tabular-nums; flex: none;
+  }
+  .toc a { color: var(--ink); text-decoration: none; border-bottom: 1px solid transparent; }
+  .toc a:hover { border-bottom-color: var(--new); }
+
+  /* ---------- sections ---------- */
+  section { display: flex; flex-direction: column; gap: var(--s3); scroll-margin-top: 1.5rem; }
+  section > h2 {
+    font-family: Newsreader, Georgia, serif;
+    font-weight: 600; font-size: 1.55rem; line-height: 1.2;
+    margin: 0; letter-spacing: -.008em;
+    padding-bottom: var(--s2);
+    border-bottom: 2px solid var(--ink);
+  }
+  p { margin: 0; max-width: 62ch; }
+  .lede { color: var(--ink-soft); }
+  .sub {
+    font-family: Newsreader, Georgia, serif; font-weight: 600;
+    font-size: 1.14rem; margin: var(--s2) 0 0; letter-spacing: -.005em;
+  }
+
+  /* ---------- before / after ---------- */
+  .shape { display: grid; gap: var(--s3); grid-template-columns: 1fr; }
+  @media (min-width: 620px) {
+    .shape {
+      grid-template-columns: 1fr 1fr;
+      width: min(calc(100vw - 2.7rem), var(--wide));
+      margin-inline: calc((var(--measure) - min(calc(100vw - 2.7rem), var(--wide))) / 2);
+    }
+  }
+
+  .panel {
+    background: var(--card); border: 1px solid var(--rule);
+    border-radius: 7px; padding: var(--s3);
+    display: flex; flex-direction: column; gap: var(--s2);
+  }
+  .panel h3 {
+    margin: 0; font-size: .74rem; letter-spacing: .13em;
+    text-transform: uppercase; font-weight: 700; color: var(--ink-faint);
+  }
+  .stack { display: flex; flex-direction: column; gap: .3rem; margin: 0; padding: 0; list-style: none; }
+  .stack li {
+    font-family: "JetBrains Mono", ui-monospace, monospace;
+    font-size: .715rem; line-height: 1.5;
+    padding: .42rem .58rem; border-radius: 4px;
+    background: var(--rule-soft); color: var(--ink);
+    display: flex; justify-content: space-between; gap: .6rem; align-items: baseline;
+  }
+  .stack li .sz { color: var(--ink-faint); font-variant-numeric: tabular-nums; flex: none; }
+  .stack li.always { background: var(--code-bg); }
+  .stack li.ondemand { background: transparent; border: 1px dashed var(--rule); color: var(--ink-soft); }
+  .panel .note { font-size: .86rem; color: var(--ink-faint); margin: 0; line-height: 1.45; }
+
+  /* ---------- file entries ---------- */
+  .files { display: flex; flex-direction: column; gap: var(--s3); }
+
+  .file {
+    background: var(--card);
+    border: 1px solid var(--rule);
+    border-left: 4px solid var(--tone, var(--rule));
+    border-radius: 5px;
+    padding: var(--s3);
+    display: flex; flex-direction: column; gap: var(--s2);
+  }
+  .file.new     { --tone: var(--new); }
+  .file.changed { --tone: var(--changed); }
+
+  .file-head { display: flex; flex-wrap: wrap; align-items: baseline; gap: .55rem; }
+  .file-path {
+    font-family: "JetBrains Mono", ui-monospace, monospace;
+    font-size: .93rem; font-weight: 700; color: var(--ink);
+    letter-spacing: -.01em; word-break: break-word;
+  }
+  .tag {
+    font-size: .66rem; letter-spacing: .1em; text-transform: uppercase;
+    font-weight: 700; padding: .2em .55em; border-radius: 3px; flex: none;
+  }
+  .tag.new     { background: var(--new-wash);     color: var(--new); }
+  .tag.changed { background: var(--changed-wash); color: var(--changed); }
+  .tag.tiny    { background: var(--rule-soft);    color: var(--ink-faint); }
+
+  .file dl { margin: 0; display: flex; flex-direction: column; gap: var(--s2); }
+  .file dt {
+    font-size: .7rem; letter-spacing: .11em; text-transform: uppercase;
+    font-weight: 700; color: var(--ink-faint); margin-bottom: .12rem;
+  }
+  .file dd { margin: 0; max-width: 60ch; }
+  .file dd.when { color: var(--ink-soft); }
+
+  .fix {
+    background: var(--changed-wash);
+    border-radius: 4px; padding: var(--s2) var(--s3);
+    font-size: .95rem; line-height: 1.55; color: var(--ink);
+  }
+  .fix strong { color: var(--changed); }
+
+  /* ---------- topic blocks: description + numbered points ---------- */
+  .topics { display: flex; flex-direction: column; gap: var(--s4); }
+
+  .topic { display: flex; flex-direction: column; gap: var(--s2); }
+  .topic h3 {
+    font-family: Newsreader, Georgia, serif;
+    font-weight: 600; font-size: 1.22rem; line-height: 1.25;
+    margin: 0; letter-spacing: -.006em;
+    display: flex; flex-wrap: wrap; align-items: baseline; gap: .5rem;
+  }
+  .topic h3 .kicker {
+    font-family: "JetBrains Mono", ui-monospace, monospace;
+    font-size: .66rem; font-weight: 500; letter-spacing: .04em;
+    color: var(--chip-ink); background: var(--chip-bg);
+    padding: .2em .45em; border-radius: 3px;
+  }
+  .topic > p { color: var(--ink-soft); font-size: 1rem; }
+
+  .points { margin: 0; padding: 0; list-style: none; counter-reset: pt; display: flex; flex-direction: column; gap: .5rem; }
+  .points > li {
+    counter-increment: pt;
+    display: grid; grid-template-columns: 1.75rem 1fr; gap: .1rem .3rem;
+    font-size: .97rem; line-height: 1.55; max-width: 64ch;
+  }
+  .points > li::before {
+    content: counter(pt) ".";
+    font-family: "JetBrains Mono", ui-monospace, monospace;
+    font-size: .78rem; color: var(--new); font-weight: 500;
+    font-variant-numeric: tabular-nums;
+    padding-top: .19rem;
+  }
+  .points b { font-weight: 700; }
+  .points .d { color: var(--ink-soft); }
+  .ids { display: inline-flex; flex-wrap: wrap; gap: .25rem; vertical-align: baseline; }
+  .id {
+    font-family: "JetBrains Mono", ui-monospace, monospace;
+    font-size: .68rem; letter-spacing: -.01em;
+    background: var(--chip-bg); color: var(--chip-ink);
+    padding: .12em .34em; border-radius: 3px; white-space: nowrap;
+  }
+
+  .callout {
+    background: var(--new-wash); color: var(--ink);
+    border-radius: 5px; padding: var(--s2) var(--s3);
+    font-size: .95rem; line-height: 1.55; max-width: 62ch;
+  }
+  .callout strong { color: var(--new); }
+
+  /* ---------- plain numbered sequences ---------- */
+  .seq { margin: 0; padding: 0; list-style: none; counter-reset: sq; display: flex; flex-direction: column; gap: .45rem; }
+  .seq > li {
+    counter-increment: sq;
+    display: grid; grid-template-columns: 2.1rem 1fr; gap: .1rem .3rem;
+    font-size: .97rem; line-height: 1.55; max-width: 64ch;
+  }
+  .seq > li::before {
+    content: counter(sq, decimal-leading-zero);
+    font-family: "JetBrains Mono", ui-monospace, monospace;
+    font-size: .74rem; color: var(--ink-faint); font-variant-numeric: tabular-nums;
+    padding-top: .22rem;
+  }
+  .seq b { font-weight: 700; }
+  .seq .d { color: var(--ink-soft); }
+
+  /* ---------- one-liners ---------- */
+  .oneliners { display: flex; flex-direction: column; gap: .55rem; }
+  .oneliner {
+    display: grid; gap: .15rem .9rem; align-items: baseline;
+    padding: var(--s2) 0; border-bottom: 1px solid var(--rule-soft);
+    grid-template-columns: 1fr;
+  }
+  @media (min-width: 620px) { .oneliner { grid-template-columns: minmax(0, 16.5rem) 1fr; } }
+  .oneliner:last-child { border-bottom: none; }
+  .oneliner .p {
+    font-family: "JetBrains Mono", ui-monospace, monospace;
+    font-size: .82rem; font-weight: 500; color: var(--ink); word-break: break-word;
+  }
+  .oneliner .d { color: var(--ink-soft); font-size: .96rem; }
+
+  /* ---------- tables ---------- */
+  .tablewrap { overflow-x: auto; }
+  table { border-collapse: collapse; width: 100%; font-size: .93rem; }
+  caption {
+    text-align: left; color: var(--ink-faint); font-size: .86rem;
+    padding-bottom: var(--s2); line-height: 1.45;
+  }
+  th, td { text-align: left; padding: .62rem .8rem; vertical-align: top; }
+  thead th {
+    font-size: .69rem; letter-spacing: .11em; text-transform: uppercase;
+    color: var(--ink-faint); border-bottom: 1.5px solid var(--rule);
+    font-weight: 700; white-space: nowrap;
+  }
+  tbody tr { border-bottom: 1px solid var(--rule-soft); }
+  tbody tr:last-child { border-bottom: none; }
+  tbody td:first-child { font-weight: 600; }
+  table.payoff tbody td:first-child { white-space: nowrap; }
+  td .opened {
+    font-family: "JetBrains Mono", ui-monospace, monospace;
+    font-size: .78rem; color: var(--ink-soft); line-height: 1.5;
+  }
+  td .tvbit { color: var(--new); font-weight: 500; }
+
+  footer {
+    border-top: 1px solid var(--rule);
+    padding-top: var(--s3); color: var(--ink-faint); font-size: .9rem;
+  }
+  footer p { max-width: 60ch; }
+</style>
+
+<div class="wrap">
+
+  <header>
+    <div class="eyebrow">ANDROID-001 · ono-mobile-dev-plugin</div>
+    <h1>What each file does now</h1>
+    <p class="standfirst">The Android planning lane used to be two big documents. It is now one short entry document plus three references that are only opened when they are actually needed — and this page walks through what is inside each of them.</p>
+  </header>
+
+  <nav class="toc" aria-label="Contents">
+    <h2>On this page</h2>
+    <ol>
+      <li><a href="#picture">The change in one picture</a></li>
+      <li><a href="#workflow">How a plan actually gets made</a></li>
+      <li><a href="#new">The three new files</a></li>
+      <li><a href="#domains">Inside <code>analysis-domains.md</code></a></li>
+      <li><a href="#contracts">Inside <code>output-contracts.md</code></a></li>
+      <li><a href="#tv">Inside <code>tv-context.md</code></a></li>
+      <li><a href="#rewritten">The two rewritten files</a></li>
+      <li><a href="#small">Four small edits</a></li>
+      <li><a href="#payoff">Why this arrangement is worth it</a></li>
+    </ol>
+  </nav>
+
+  <section id="picture">
+    <h2>The change in one picture</h2>
+    <p class="lede">Nothing about <em>how</em> an Android feature gets planned changed. What changed is which document holds what — and when it gets read.</p>
+
+    <div class="shape">
+      <div class="panel">
+        <h3>Before</h3>
+        <ul class="stack">
+          <li class="always"><span>android-architect.md</span><span class="sz">14.2 KB</span></li>
+          <li class="always"><span>android-dev-planning / SKILL.md</span><span class="sz">30.9 KB</span></li>
+        </ul>
+        <p class="note">Both read every single time, for every feature. The agent also repeated a large part of the method it was only supposed to follow — so the same rule lived in two places and could drift apart.</p>
+      </div>
+
+      <div class="panel">
+        <h3>After</h3>
+        <ul class="stack">
+          <li class="always"><span>android-architect.md</span><span class="sz">8.9 KB</span></li>
+          <li class="always"><span>android-dev-planning / SKILL.md</span><span class="sz">20.4 KB</span></li>
+          <li class="ondemand"><span>references / analysis-domains.md</span><span class="sz">10.3 KB</span></li>
+          <li class="ondemand"><span>references / output-contracts.md</span><span class="sz">6.4 KB</span></li>
+          <li class="ondemand"><span>references / tv-context.md</span><span class="sz">5.2 KB</span></li>
+        </ul>
+        <p class="note">Solid = always read. Dashed = opened only when that part of the job comes up.</p>
+      </div>
+    </div>
+  </section>
+
+  <section id="workflow">
+    <h2>How a plan actually gets made</h2>
+    <p class="lede">This is the sequence in <code>SKILL.md</code>, and it is a real sequence — each step only makes sense once the one before it is done. The references get pulled in at steps 4 and 5.</p>
+
+    <ol class="seq">
+      <li><span><b>Standards readiness gate.</b> <span class="d">Confirm every Android rule the plan intends to quote is actually written down, not an empty placeholder. A placeholder says so in its own purpose line, so the check is a read, not a guess. It is expected to pass — it exists so the lane fails loudly if someone deletes a standard.</span></span></li>
+      <li><span><b>Source of truth, then reuse what the repo already publishes.</b> <span class="d">An approved scope or a recorded decision outranks a standard, which outranks Android's own documentation. Existing repo knowledge is reused rather than re-derived; the feature-specific detail is always read fresh.</span></span></li>
+      <li><span><b>Collect the evidence.</b> <span class="d">Eighteen dimensions of the codebase — Gradle setup, modules, SDK levels, UI toolkit, navigation, state, DI, networking, persistence, background work, concurrency, testing, reusable components, integrations, and the rest. Each finding is stamped with the file that proves it, or marked unknown.</span></span></li>
+      <li><span><b>Identify the implementation model per surface.</b> <span class="d">Compose, XML/Views, both, mid-migration, or something in-house. Per screen, not per project — a repository is allowed to contain several, and the surface the feature touches decides which rules apply.</span></span></li>
+      <li><span><b>Branch on phone versus TV.</b> <span class="d">Phone takes the standard path. TV opens <code>tv-context.md</code> and runs its discovery pass before anything is proposed.</span></span></li>
+      <li><span><b>Compose the approach.</b> <span class="d">Work through <code>analysis-domains.md</code> for every topic the feature touches, checking what already exists before proposing anything new.</span></span></li>
+      <li><span><b>Classify every statement.</b> <span class="d">Everything written down is one of four things: already there, genuinely required, recommended, or an open question. The three lists are never merged.</span></span></li>
+      <li><span><b>Verify, fix, verify again.</b> <span class="d">Run the plan against the Definition of Done. A failing item gets fixed and re-checked, not handed over with a note.</span></span></li>
+    </ol>
+  </section>
+
+  <section id="new">
+    <h2>The three new files</h2>
+    <p class="lede">All three live in <code>skills/android-dev-planning/references/</code> and are linked directly from <code>SKILL.md</code>. What each one contains is broken out in the three sections after this one.</p>
+
+    <div class="files">
+
+      <article class="file new">
+        <div class="file-head">
+          <span class="file-path">references/analysis-domains.md</span>
+          <span class="tag new">New</span>
+          <span class="tag tiny">189 lines · 10.3 KB</span>
+        </div>
+        <dl>
+          <div>
+            <dt>What it is</dt>
+            <dd>The detail pages. Twelve topics a plan has to cover — module impact, state, lifecycle, navigation, storage, networking, testing, performance, security, accessibility, translations, logging — each one listing the exact rules to quote, plus a pointer to where the UI model gets decided.</dd>
+          </div>
+          <div>
+            <dt>Why it is its own file</dt>
+            <dd>It is a lookup, not a read-through. You open the topics your feature actually touches and skip the rest.</dd>
+          </div>
+          <div>
+            <dt>When it is read</dt>
+            <dd class="when">While writing the technical approach.</dd>
+          </div>
+        </dl>
+      </article>
+
+      <article class="file new">
+        <div class="file-head">
+          <span class="file-path">references/output-contracts.md</span>
+          <span class="tag new">New</span>
+          <span class="tag tiny">101 lines · 6.4 KB</span>
+        </div>
+        <dl>
+          <div>
+            <dt>What it is</dt>
+            <dd>Where the finished work goes. The same analysis feeds three different stages, and each one wants a different slice of it. This file says which slice, and which numbered section of the design document it lands in.</dd>
+          </div>
+          <div>
+            <dt>Why it is its own file</dt>
+            <dd>Only one stage is ever running. Two thirds of this file is irrelevant at any given moment.</dd>
+          </div>
+          <div>
+            <dt>When it is read</dt>
+            <dd class="when">Just before writing the output.</dd>
+          </div>
+        </dl>
+      </article>
+
+      <article class="file new">
+        <div class="file-head">
+          <span class="file-path">references/tv-context.md</span>
+          <span class="tag new">New</span>
+          <span class="tag tiny">88 lines · 5.2 KB</span>
+        </div>
+        <dl>
+          <div>
+            <dt>What it is</dt>
+            <dd>The Android TV chapter. A ten-point pass for finding out how a TV app is <em>actually</em> built before proposing anything, plus the things that apply to a TV screen but never to a phone — D-pad navigation, focus, the remote.</dd>
+          </div>
+          <div>
+            <dt>Why it is its own file</dt>
+            <dd>Most features are phone features. Keeping TV separate means phone work never pays for it — and it gives ANDROID-003 somewhere to put the TV standards.</dd>
+          </div>
+          <div>
+            <dt>When it is read</dt>
+            <dd class="when">Only when the feature has been confirmed as a TV feature. Never otherwise.</dd>
+          </div>
+        </dl>
+      </article>
+
+    </div>
+  </section>
+
+  <section id="domains">
+    <h2>Inside <code>analysis-domains.md</code></h2>
+    <p class="lede">Twelve topics, plus a pointer at the top to where the screen’s UI model gets decided — that decision comes first, because several topics below resolve differently depending on it. Every topic the feature touches gets worked through; every topic it does not touch gets written down as <code>N/A</code> <em>with the reason</em>. Saying nothing is treated as a defect, not as “not applicable”.</p>
+    <p class="callout"><strong>The tags in green</strong> are the rule identifiers the plan cites, so a reviewer can look the rule up instead of arguing about it. Nothing is quoted unless it genuinely applies to the point it is attached to.</p>
+
+    <div class="topics">
+
+      <article class="topic">
+        <h3>Surfaces and the UI model <span class="kicker">decide this first</span></h3>
+        <p>Not a topic in its own right here — a signpost. Which UI model a screen uses (Compose, XML/Views, both, mid-migration, or something in-house) is settled in the workflow above, and it decides which UI rules apply. This section points there and deliberately repeats none of it, so the two can never disagree.</p>
+      </article>
+
+      <article class="topic">
+        <h3>Module and dependency impact <span class="kicker">blast radius</span></h3>
+        <p>What the change actually touches, and whether it bends the project's own dependency rules. Read as widely as needed; report at module level, never as a file-by-file transcript.</p>
+        <ol class="points">
+          <li><span><b>No new circular dependency</b> <span class="d">— two classes or modules must not end up depending on each other.</span> <span class="ids"><span class="id">AND-ARCH-DEPS-2</span></span></span></li>
+          <li><span><b>No inverted layer dependency</b> <span class="d">— a lower layer never reaches upward into a higher one.</span> <span class="ids"><span class="id">AND-ARCH-DEPS-1</span></span></span></li>
+          <li><span><b>No new module, and no new edge between existing modules,</b> <span class="d">without it being approved in the design.</span> <span class="ids"><span class="id">AND-ARCH-MODULE-3</span></span></span></li>
+          <li><span><b>A new third-party library is an open decision,</b> <span class="d">never a silent addition — declared the way the project declares dependencies, justified against what already exists with its size noted, and pinned to a version when it touches auth, crypto, storage or networking.</span> <span class="ids"><span class="id">AND-REL-DEP-1</span><span class="id">-2</span><span class="id">-3</span></span></span></li>
+          <li><span><b>Build configuration follows the existing variant and flavour structure,</b> <span class="d">environment values come through the mechanism already in place rather than being hardcoded per call site, and the SDK levels — <code>minSdk</code>, <code>targetSdk</code>, <code>compileSdk</code> — are never moved as a side effect of a feature.</span> <span class="ids"><span class="id">AND-REL-VARIANT-1</span><span class="id">-2</span><span class="id">-3</span></span></span></li>
+        </ol>
+      </article>
+
+      <article class="topic">
+        <h3>State and data flow <span class="kicker">who owns the truth</span></h3>
+        <p>Who holds each piece of state, how it changes, and how the screen finds out. Described in the project's own vocabulary — if there is no ViewModel layer, the plan describes what the project actually uses instead of inventing one.</p>
+        <ol class="points">
+          <li><span><b>State ownership</b> <span class="d">— one owner per piece of state, following the project's existing state convention rather than a newly invented one, with a single source of truth so two holders cannot drift apart.</span> <span class="ids"><span class="id">AND-VM-STATE-1</span><span class="id">-3</span></span></span></li>
+          <li><span><b>State shape</b> <span class="d">— loading, success, empty and error spelled out explicitly, not left implied.</span> <span class="ids"><span class="id">AND-VM-STATE-2</span></span></span></li>
+          <li><span><b>Immutability</b> <span class="d">— a new state object is emitted rather than mutating one the UI is already holding, where that is the existing convention.</span> <span class="ids"><span class="id">AND-VM-STATE-4</span></span></span></li>
+          <li><span><b>Event flow</b> <span class="d">— how user actions reach the state owner, and how one-shot effects (navigation, a toast, a dialog) are delivered exactly once and not replayed.</span> <span class="ids"><span class="id">AND-VM-EVENT-1</span></span></span></li>
+          <li><span><b>The path end to end</b> <span class="d">— input to state holder to repository to data source and back, naming the real classes involved.</span></span></li>
+          <li><span><b>Framework independence</b> <span class="d">— no Android UI type is held in a place the project deliberately keeps them out of.</span> <span class="ids"><span class="id">AND-VM-LIFECYCLE-1</span></span></span></li>
+        </ol>
+      </article>
+
+      <article class="topic">
+        <h3>Lifecycle, process recreation and concurrency <span class="kicker">rotation, background, kill</span></h3>
+        <p>What happens when the screen rotates, the user backgrounds the app, or Android kills the process — and what work runs where.</p>
+        <ol class="points">
+          <li><span><b>Lifecycle ownership</b> <span class="d">— which lifecycle owns each piece of work, and how the feature behaves across a configuration change and backgrounding.</span> <span class="ids"><span class="id">AND-VM-LIFECYCLE-1</span><span class="id">-2</span></span></span></li>
+          <li><span><b>Lifecycle-aware collection</b> <span class="d">— UI state is observed in a way that stops when the screen is not visible, not by a raw unscoped collector.</span> <span class="ids"><span class="id">AND-VM-LIFECYCLE-3</span></span></span></li>
+          <li><span><b>Surviving process death</b> <span class="d">— decided per piece of state: throwaway, restorable, or genuinely persisted. This is stated even when the answer is “nothing needs to survive” — leaving it silent is a common defect.</span> <span class="ids"><span class="id">AND-VM-LIFECYCLE-2</span></span></span></li>
+          <li><span><b>Concurrency</b> <span class="d">— what runs off the main thread and on which dispatcher, following the project's existing injection convention.</span> <span class="ids"><span class="id">AND-KT-COROUTINE-1</span><span class="id">-2</span><span class="id">AND-PERF-THREAD-1</span></span></span></li>
+          <li><span><b>Cancellation and scoping</b> <span class="d">— which scope owns each operation and what cancels it when the user walks away, with a blocking call switching thread itself rather than relying on every caller to remember.</span> <span class="ids"><span class="id">AND-KT-COROUTINE-3</span><span class="id">-4</span></span></span></li>
+          <li><span><b>Background work</b> <span class="d">— when work must outlive the screen, use the mechanism the project already has, judged against four questions: must it survive process death, can it be deferred, is it user-visible, is it time-critical. A new background mechanism is not introduced when an existing one fits.</span></span></li>
+        </ol>
+      </article>
+
+      <article class="topic">
+        <h3>Navigation <span class="kicker">getting there and back</span></h3>
+        <p>Planned against whatever navigation the project already has — including a fully custom one. Back-stack behaviour is a requirement of any implementation, not a feature of a particular library.</p>
+        <ol class="points">
+          <li><span><b>One mechanism only</b> <span class="d">— never a second navigation system running in parallel with the existing one.</span> <span class="ids"><span class="id">AND-NAV-DEST-1</span></span></span></li>
+          <li><span><b>Reuse destinations and helpers</b> <span class="d">— a screen that already exists does not get a second route added for it.</span> <span class="ids"><span class="id">AND-NAV-DEST-2</span><span class="id">-3</span></span></span></li>
+          <li><span><b>Arguments and deep links</b> <span class="d">— passed through the typed argument mechanism rather than smuggled through shared global state, validated when they arrive from outside the app, and kept small: a large object is passed by id and re-resolved, not pushed through the back stack.</span> <span class="ids"><span class="id">AND-NAV-ARGS-1</span><span class="id">-2</span><span class="id">-3</span><span class="id">SEC-DEEPLINK-1</span><span class="id">-2</span></span></span></li>
+          <li><span><b>Back-stack behaviour</b> <span class="d">— where the user actually lands on back and on up, stated rather than left to a default that contradicts it.</span> <span class="ids"><span class="id">AND-NAV-STACK-1</span></span></span></li>
+          <li><span><b>Navigation fires from a safe point</b> <span class="d">— in response to a real event, guarded so a double tap cannot navigate twice.</span> <span class="ids"><span class="id">AND-NAV-STACK-2</span></span></span></li>
+          <li><span><b>Navigation is never triggered from the data or domain layer</b> <span class="d">— screens decide where to go, not repositories.</span> <span class="ids"><span class="id">AND-NAV-LAYER-1</span></span></span></li>
+        </ol>
+      </article>
+
+      <article class="topic">
+        <h3>Persistence <span class="kicker">what gets stored</span></h3>
+        <p>Which existing store handles this kind of data, and what happens to data that is already on the device.</p>
+        <ol class="points">
+          <li><span><b>Use the store the project already has</b> <span class="d">for the kind of data involved — no second store for data an existing one already covers.</span> <span class="ids"><span class="id">AND-DATA-STORE-1</span><span class="id">-2</span><span class="id">-3</span></span></span></li>
+          <li><span><b>Schema migrations are planned explicitly</b> <span class="d">— a schema change ships with its migration, real user data is never wiped to avoid writing one, and the migration is tested where the project tests them.</span> <span class="ids"><span class="id">AND-DATA-MIGRATE-1</span><span class="id">-2</span><span class="id">-3</span></span></span></li>
+          <li><span><b>Disk work stays off the main thread</b> <span class="d">— reads and writes never block the UI.</span> <span class="ids"><span class="id">AND-DATA-THREAD-1</span></span></span></li>
+          <li><span><b>Cache invalidation and the source of truth are defined</b> <span class="d">— what is authoritative, and when the cached copy stops being trusted.</span> <span class="ids"><span class="id">AND-DATA-CACHE-1</span></span></span></li>
+          <li><span><b>Sensitive data goes to the project's secure storage,</b> <span class="d">never to ordinary preferences or a plain file.</span> <span class="ids"><span class="id">AND-DATA-SEC-1</span><span class="id">-2</span><span class="id">-3</span><span class="id">SEC-STORAGE-1</span><span class="id">-2</span></span></span></li>
+        </ol>
+      </article>
+
+      <article class="topic">
+        <h3>Networking <span class="kicker">talking to the backend</span></h3>
+        <p>How the feature calls the server, and what it does when the call fails. A feature resting on an unconfirmed backend contract is recorded as a <em>blocking</em> open question, not planned around.</p>
+        <ol class="points">
+          <li><span><b>The existing client, with its existing cross-cutting setup</b> <span class="d">— no ad-hoc HTTP client per feature.</span> <span class="ids"><span class="id">AND-NET-CLIENT-1</span><span class="id">-2</span><span class="id">-3</span></span></span></li>
+          <li><span><b>The API contract is followed exactly</b> <span class="d">— an endpoint, a field, or a response shape is never invented to make the plan work.</span> <span class="ids"><span class="id">AND-NET-CONTRACT-1</span><span class="id">-2</span></span></span></li>
+          <li><span><b>Transport models stay separate from domain models,</b> <span class="d">mapped the way the project already maps them.</span> <span class="ids"><span class="id">AND-NET-DTO-1</span><span class="id">-2</span></span></span></li>
+          <li><span><b>Authentication is planned</b> <span class="d">— the token is attached centrally rather than per call and never in a URL, and expiry goes through the project's one refresh-and-retry path instead of fanning out to every caller.</span> <span class="ids"><span class="id">AND-NET-AUTH-1</span><span class="id">-2</span><span class="id">SEC-AUTH-1</span></span></span></li>
+          <li><span><b>Errors, timeouts, retries and offline behaviour are specified</b> <span class="d">— one normalized error shape, with “no connection” told apart from “the server said no” so the screen can offer the right thing, and a cancelled request actually cancelled.</span> <span class="ids"><span class="id">AND-NET-ERR-1</span><span class="id">-2</span><span class="id">-3</span><span class="id">-4</span><span class="id">-5</span></span></span></li>
+        </ol>
+      </article>
+
+      <article class="topic">
+        <h3>Testing <span class="kicker">what will be proven</span></h3>
+        <p>What gets tested and at which level, matched to the setup the project already has. If a layer has no test infrastructure at all, that is said plainly and raised as an open question — tests that cannot run are never quietly planned, and building a test framework is never smuggled into an unrelated feature.</p>
+        <ol class="points">
+          <li><span><b>Match the existing setup</b> <span class="d">— no new test framework introduced as part of a feature.</span> <span class="ids"><span class="id">AND-TEST-UNIT-2</span></span></span></li>
+          <li><span><b>Business and domain logic,</b> <span class="d">including the failure and edge paths the design actually defines.</span> <span class="ids"><span class="id">AND-TEST-UNIT-1</span></span></span></li>
+          <li><span><b>Determinism</b> <span class="d">— time and dispatchers are controlled so a test cannot pass or fail by luck.</span> <span class="ids"><span class="id">AND-TEST-UNIT-3</span></span></span></li>
+          <li><span><b>State-holder behaviour</b> <span class="d">— not just the final value but the sequence emitted along the way, loading through to success or error, with one-shot events asserted to fire once and not be re-delivered.</span> <span class="ids"><span class="id">AND-TEST-VM-1</span><span class="id">-2</span><span class="id">-3</span></span></span></li>
+          <li><span><b>Instrumentation and UI tests</b> <span class="d">— where the project already uses them.</span> <span class="ids"><span class="id">AND-TEST-INSTR-1</span><span class="id">AND-TEST-COMPOSE-1</span><span class="id">-2</span></span></span></li>
+          <li><span><b>Translation and RTL checks</b> <span class="d">— every new screen walked through in both a left-to-right and a right-to-left locale, gestures and carousels included, not just the static layout.</span> <span class="ids"><span class="id">I18N-TEST-1</span><span class="id">-2</span></span></span></li>
+        </ol>
+      </article>
+
+      <article class="topic">
+        <h3>Performance <span class="kicker">this feature's real risks</span></h3>
+        <p>The risks <em>this</em> feature actually carries, not a recited generic list. A risk that needs measuring is labelled as needing measuring — a guess is never written down as a confirmed finding.</p>
+        <ol class="points">
+          <li><span><b>Main-thread work</b> <span class="d">— anything heavy enough to make the UI stutter, moved off the main thread.</span> <span class="ids"><span class="id">AND-PERF-THREAD-1</span><span class="id">-2</span><span class="id">-3</span></span></span></li>
+          <li><span><b>Lists</b> <span class="d">— rendering cost, stable item identity, and whether a large collection needs a recycling or lazy container at all.</span> <span class="ids"><span class="id">AND-PERF-LIST-1</span><span class="id">-2</span><span class="id">-3</span></span></span></li>
+          <li><span><b>Images</b> <span class="d">— loading, sizing, and not decoding something far larger than the space it is drawn into.</span> <span class="ids"><span class="id">AND-PERF-IMAGE-1</span><span class="id">-2</span><span class="id">-3</span></span></span></li>
+          <li><span><b>Leaks and retention</b> <span class="d">— a screen or context held by something longer-lived, a listener or collector never unregistered, allocations in a per-frame path, and temporary files left behind.</span> <span class="ids"><span class="id">AND-PERF-MEM-1</span><span class="id">-2</span><span class="id">-3</span><span class="id">-4</span></span></span></li>
+          <li><span><b>Startup, download size and battery</b> <span class="d">— the costs a feature adds to the whole app rather than to its own screen.</span> <span class="ids"><span class="id">AND-PERF-SIZE-1</span><span class="id">-2</span><span class="id">-3</span></span></span></li>
+        </ol>
+      </article>
+
+      <article class="topic">
+        <h3>Security <span class="kicker">nothing leaks</span></h3>
+        <p>The security section exists so a new feature does not open a way in or a way out. Four things get checked every time — what the app knows, how it talks, what the outside world can reach, and what ends up written down.</p>
+        <ol class="points">
+          <li><span><b>Secrets and tokens</b> <span class="d">— no API key, token, password or signing credential in source, and anything baked into the shipped build is treated as public, because a build artifact can be taken apart.</span> <span class="ids"><span class="id">SEC-SECRETS-1</span><span class="id">-2</span></span></span></li>
+          <li><span><b>Transport security</b> <span class="d">— encrypted connections with no cleartext exception, and certificate pinning where the endpoint carries authentication or sensitive data.</span> <span class="ids"><span class="id">SEC-NET-1</span><span class="id">-2</span></span></span></li>
+          <li><span><b>Intents and deep links</b> <span class="d">— a link target is checked against an allowlist before anything navigates to it, and a verified app link is preferred over an unverified custom URL scheme.</span> <span class="ids"><span class="id">SEC-DEEPLINK-1</span><span class="id">-3</span></span></span></li>
+          <li><span><b>Permissions</b> <span class="d">— every new one is justified by a real feature need in the same change, and scoped as narrowly as the platform allows.</span> <span class="ids"><span class="id">SEC-PERMS-1</span><span class="id">-2</span></span></span></li>
+          <li><span><b>WebView surfaces</b> <span class="d">— only where one exists: origins restricted to a known allowlist, and file-system or cross-origin file access left off unless there is a documented need.</span> <span class="ids"><span class="id">SEC-WEBVIEW-1</span><span class="id">-2</span></span></span></li>
+          <li><span><b>Nothing sensitive is written down</b> <span class="d">— no personal data, secret, token, or request or response body reaches a log or a debug-inspection channel.</span> <span class="ids"><span class="id">SEC-LOG-1</span><span class="id">AND-LOG-PII-1</span></span></span></li>
+        </ol>
+      </article>
+
+      <article class="topic">
+        <h3>Accessibility <span class="kicker">usable by everyone</span></h3>
+        <p>What the feature owes a user who navigates by screen reader, by keyboard or remote, or with the system font turned up.</p>
+        <ol class="points">
+          <li><span><b>Roles and labels</b> <span class="d">— every control carries a role matching its function, and a label describing the action rather than the icon: “Delete item”, not “trash icon”.</span> <span class="ids"><span class="id">A11Y-ROLES-1</span><span class="id">-2</span></span></span></li>
+          <li><span><b>Screen-reader support and focus order</b> <span class="d">— the flow is walked through manually with TalkBack, and the reading order follows the visual order, with modals keeping focus inside themselves.</span> <span class="ids"><span class="id">A11Y-SR-1</span><span class="id">-2</span></span></span></li>
+          <li><span><b>Font scaling</b> <span class="d">— text respects the system font-scale setting, and the layout is checked at large sizes without clipping or overlapping.</span> <span class="ids"><span class="id">A11Y-FONT-1</span><span class="id">-2</span></span></span></li>
+          <li><span><b>Activation targets</b> <span class="d">— anything interactive meets the platform minimum, with enough separation from its neighbour to avoid the wrong tap.</span> <span class="ids"><span class="id">A11Y-TOUCH-1</span><span class="id">-2</span></span></span></li>
+          <li><span><b>On a TV screen the target rule changes shape</b> <span class="d">— a reliably focusable element with a clearly visible focus state replaces a touch-target size, because nobody is touching the screen.</span></span></li>
+        </ol>
+      </article>
+
+      <article class="topic">
+        <h3>Localization and RTL <span class="kicker">every language</span></h3>
+        <p>Whether the feature survives being translated, and being mirrored right-to-left.</p>
+        <ol class="points">
+          <li><span><b>No hardcoded user-visible strings</b> <span class="d">— every piece of copy comes from a resource, not from the code.</span> <span class="ids"><span class="id">I18N-COPY-1</span><span class="id">AND-UI-RES-1</span></span></span></li>
+          <li><span><b>Dates, numbers and currency are formatted, not assembled</b> <span class="d">— locale-aware formatters decide the shape, including the currency symbol and the grouping and decimal separators, rather than string concatenation.</span> <span class="ids"><span class="id">I18N-FMT-1</span><span class="id">-2</span></span></span></li>
+          <li><span><b>RTL layout and mirroring</b> <span class="d">— spacing and alignment are direction-relative rather than left and right, order comes from the resolved direction, and directional icons are flipped explicitly, because mirroring the layout does not flip icon content on its own.</span> <span class="ids"><span class="id">I18N-RTL-1</span><span class="id">-2</span><span class="id">-3</span><span class="id">-4</span></span></span></li>
+        </ol>
+      </article>
+
+      <article class="topic">
+        <h3>Logging and analytics <span class="kicker">what gets recorded</span></h3>
+        <p>Reuse the project's conventions, record only what the feature genuinely needs, and keep it clean of anything personal.</p>
+        <ol class="points">
+          <li><span><b>The existing logging abstraction is used</b> <span class="d">— the project's logger, not raw log calls scattered through new code.</span> <span class="ids"><span class="id">AND-LOG-HYGIENE-1</span></span></span></li>
+          <li><span><b>Debug logging is gated</b> <span class="d">— it does not run in a release build, and it is easy to strip.</span> <span class="ids"><span class="id">AND-LOG-HYGIENE-2</span></span></span></li>
+          <li><span><b>Errors are never silently swallowed</b> <span class="d">— enough non-sensitive context survives to investigate a failure, rather than an empty catch.</span> <span class="ids"><span class="id">AND-LOG-HYGIENE-3</span></span></span></li>
+          <li><span><b>Analytics events are the ones the design specifies</b> <span class="d">— through the existing wrapper, reusing names that already exist, and firing once per real user action rather than again on every recomposition or rotation.</span> <span class="ids"><span class="id">AND-LOG-ANALYTICS-1</span><span class="id">-2</span><span class="id">-3</span></span></span></li>
+          <li><span><b>No personal data anywhere downstream</b> <span class="d">— not in analytics properties, and not in crash-reporter breadcrumbs, which get checked and redacted.</span> <span class="ids"><span class="id">AND-LOG-PII-2</span><span class="id">-3</span></span></span></li>
+        </ol>
+      </article>
+
+    </div>
+  </section>
+
+  <section id="contracts">
+    <h2>Inside <code>output-contracts.md</code></h2>
+    <p class="lede">The full analysis is produced every time. What differs is which parts of it are handed over, and where they land. Nothing is assumed to be pasted in verbatim.</p>
+
+    <h3 class="sub">The five parts of the analysis</h3>
+    <ol class="seq">
+      <li><span><b>Implementation model found.</b> <span class="d">What the repository actually does today — UI model per screen, architecture, state, navigation, DI, concurrency, networking, persistence, module layout, and the TV model when it is a TV feature. Every line labelled with the file that proves it, or marked as reused, inferred, or unknown. Produced in full every time, because everything else rests on it.</span></span></li>
+      <li><span><b>Technical approach.</b> <span class="d">The plan itself, broken down by the domains in the previous section, each item citing the rules it follows.</span></span></li>
+      <li><span><b>Impacted modules.</b> <span class="d">The change inventory — what gets touched, as opposed to where the new code goes. Resolution rules below.</span></span></li>
+      <li><span><b>Existing · required · recommended.</b> <span class="d">Three lists that are never merged: what is already there and will be followed, what this feature genuinely needs, and deviations being recommended — each with a justification and an approval gate. Optional modernisation is routed into the recommended list, never into required work.</span></span></li>
+      <li><span><b>Unresolved decisions.</b> <span class="d">Every question that needs a human answer, with the options and what each one implies.</span></span></li>
+    </ol>
+
+    <h3 class="sub">Who receives what</h3>
+    <div class="tablewrap">
+      <table>
+        <caption>Section numbers are fixed, and other documents cite them by number — so they are used as numbers.</caption>
+        <thead>
+          <tr><th>Stage</th><th>Receives</th></tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>Analyse a feature</td>
+            <td>All five parts, flattened into the analysis document's one “Proposed Technical Approach” section. The evidence base belongs here — it is what a later reader resolves the design from. At this stage part 3 names only the <em>expected</em> surface; the full change inventory is design-stage work.</td>
+          </tr>
+          <tr>
+            <td>Write the detailed design</td>
+            <td>Parts 2–5 only. Part 2 → §19, part 3 → §20, recommended items → §19 with their justification (and §23 where one rests on an assumption), open questions → §24. Part 1 is research that <em>informs</em> the design; its conclusions get cited, the sweep itself is never pasted in.</td>
+          </tr>
+          <tr>
+            <td>Break the design into tasks</td>
+            <td>Only the Android vocabulary and rule identifiers used in each task's description and acceptance criteria, against §19, §20 and the acceptance-criteria mapping in §25. The decomposition itself belongs to another skill.</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <h3 class="sub">How precisely impacted modules are reported</h3>
+    <p class="lede">The most common failure here is a design document that quietly becomes a task list. Four rules stop that.</p>
+    <ol class="points">
+      <li><span><b>Report at module and change-class level</b> <span class="d">— name each affected module, package, component or service, say what class of change it undergoes, and whether it is created, modified, or only read.</span></span></li>
+      <li><span><b>Give an approximate site count when one change repeats</b> <span class="d">— “all player construction sites move to the builder API, roughly forty sites” carries the scale without listing forty files.</span></span></li>
+      <li><span><b>List individual files only when the set is small</b> <span class="d">— about ten or fewer for a given change — or when a specific file is a genuine boundary: it defines a public surface, carries a decision of its own, or is the seam the design turns on.</span></span></li>
+      <li><span><b>Every path is one that was actually seen.</b> <span class="d">Where a location genuinely is not decided yet, it is marked unknown rather than filled in with something plausible.</span></span></li>
+    </ol>
+    <p class="callout"><strong>Per-file expansion belongs to the task breakdown,</strong> which re-reads the repository to do it. A design that lists every touched file has written the task breakdown in the wrong document.</p>
+
+    <h3 class="sub">Traceability</h3>
+    <p class="lede">Every element of a plan points at something concrete: a repository claim points at a file path, a requirement points at the upstream document section it came from, a rule points at a real identifier that genuinely applies, and a recommendation points at its justification. A rule that is merely adjacent to the point being made is not cited at all.</p>
+  </section>
+
+  <section id="tv">
+    <h2>Inside <code>tv-context.md</code></h2>
+    <p class="lede">Read only when the feature is confirmed as a TV feature. TV is a context signal inside the Android platform — there is no separate TV platform, agent, skill or command.</p>
+
+    <p class="callout"><strong>The governing assumption:</strong> an Android TV app may be built <em>any</em> way at all — standard TV frameworks, an in-house framework, or something else entirely. Find out which before making a single decision. Leanback, Compose for TV, or any standard component set is never assumed.</p>
+
+    <h3 class="sub">The discovery pass — run before proposing anything</h3>
+    <p class="lede">Ten things to establish, each recorded with the evidence for it, or marked unknown.</p>
+    <ol class="seq">
+      <li><span><b>Focus handling</b> <span class="d">— how focus moves, is tracked and restored, and whether there is a custom focus engine.</span></span></li>
+      <li><span><b>D-pad and remote input</b> <span class="d">— where key events arrive and get dispatched, plus any media or remote-button handling.</span></span></li>
+      <li><span><b>Navigation</b> <span class="d">— the TV navigation mechanism, which may be different from the mobile one in the very same repository.</span></span></li>
+      <li><span><b>TV UI components</b> <span class="d">— what is actually used: framework widgets, Compose for TV, Leanback widgets, or in-house components.</span></span></li>
+      <li><span><b>Playback integration</b> <span class="d">— the player, who owns its lifecycle, how the surface is handled, and the playback-state model, where the feature touches playback.</span></span></li>
+      <li><span><b>Lifecycle conventions</b> <span class="d">— TV-specific screen lifecycle handling, including background and resume behaviour.</span></span></li>
+      <li><span><b>Reusable base classes</b> <span class="d">— TV base activities, fragments, screens or wrappers the feature should extend.</span></span></li>
+      <li><span><b>In-house framework modules</b> <span class="d">— which exist, and what their public surface is.</span></span></li>
+      <li><span><b>Launcher and banner configuration</b> <span class="d">— the manifest entries that make this app a TV app.</span></span></li>
+      <li><span><b>Packaging and release configuration</b> <span class="d">— TV-specific variants, flavours, or distribution setup.</span></span></li>
+    </ol>
+
+    <h3 class="sub">The one thing that is true regardless of toolkit</h3>
+    <p class="lede">A TV app declares itself in the manifest whichever way its UI is built — a launcher activity carrying the TV launcher intent category, touchscreen declared as not required, a leanback feature declaration whose <em>required</em> flag decides TV-only versus shared with mobile, and a banner on the application element, localized. These facts confirm a TV target and say <strong>nothing whatsoever</strong> about the UI framework. The names carry the word “leanback”, but they are platform and store-filtering identifiers rather than a library dependency — they remain current even though the Leanback library itself is now deprecated, and they apply equally to a Compose-for-TV or fully custom app. Equally toolkit-independent: D-pad traversal, an always-visible focus indicator, and predictable back behaviour are expectations of every TV implementation.</p>
+
+    <h3 class="sub">TV planning rules</h3>
+    <ol class="points">
+      <li><span><b>Never propose a migration</b> <span class="d">to Leanback, Compose for TV, or anything else, unless the feature explicitly asks for it and it is approved.</span></span></li>
+      <li><span><b>Never carry a touch assumption across.</b> <span class="d">Touch targets, taps, swipes, scroll affordances and soft-keyboard flows do not transfer to a remote control.</span></span></li>
+      <li><span><b>Reuse the existing custom components</b> <span class="d">wherever they already cover the need.</span></span></li>
+      <li><span><b>Name weaknesses without redesigning around them.</b> <span class="d">Identifying a gap or a risk in the existing model is in scope; unilaterally re-architecting is not.</span></span></li>
+      <li><span><b>Where a repository has both mobile and TV surfaces,</b> <span class="d">plan only for the confirmed one, and never assume the mobile conventions apply to the TV side.</span></span></li>
+      <li><span><b>If the TV model cannot be identified from evidence, stop and report it</b> <span class="d">rather than planning against an assumed one.</span></span></li>
+    </ol>
+    <p class="callout"><strong>Scope boundary.</strong> This file's job is discovery and respect for what exists. It does not author TV standards — that is ANDROID-003. Until those rules exist, a TV rule identifier that has not been written is not cited; the gap gets named instead.</p>
+  </section>
+
+  <section id="rewritten">
+    <h2>The two rewritten files</h2>
+
+    <div class="files">
+
+      <article class="file changed">
+        <div class="file-head">
+          <span class="file-path">skills/android-dev-planning/SKILL.md</span>
+          <span class="tag changed">Rewritten</span>
+          <span class="tag tiny">30.9 → 20.4 KB</span>
+        </div>
+        <dl>
+          <div>
+            <dt>Was</dt>
+            <dd>The entire manual in one document.</dd>
+          </div>
+          <div>
+            <dt>Now</dt>
+            <dd>The contents page, plus the part genuinely needed every time: what it needs handed to it, the eight-step workflow above, the eighteen-dimension repository sweep, the five implementation models, the standards index, and the final checks. It points at the three references instead of containing them.</dd>
+          </div>
+          <div>
+            <dt>Also still here</dt>
+            <dd>The list of things that make it stop and report instead of proceeding — a missing input, contradictory evidence, two competing mechanisms with no way to tell which applies, a UI feature with no design reference, an unconfirmed backend contract, or a plan that would require a new architecture as <em>required</em> work.</dd>
+          </div>
+        </dl>
+        <p class="fix"><strong>A second real bug fixed.</strong> It required the phone-or-TV setting to be read from the feature document’s own header — but at the first stage that document does not exist yet, so the rule turned a completely normal state into a full stop. It now takes the value from the confirmation the command already made, and only reads the header from the design stage onward. The iOS lane already did exactly this; Android was the outlier again.</p>
+      </article>
+
+      <article class="file changed">
+        <div class="file-head">
+          <span class="file-path">agents/android-architect.md</span>
+          <span class="tag changed">Rewritten</span>
+          <span class="tag tiny">14.2 → 8.9 KB</span>
+        </div>
+        <dl>
+          <div>
+            <dt>What it is</dt>
+            <dd>The specialist that actually does the Android planning.</dd>
+          </div>
+          <div>
+            <dt>Was</dt>
+            <dd>It repeated roughly half the method it was only supposed to follow.</dd>
+          </div>
+          <div>
+            <dt>Now</dt>
+            <dd>Only what is genuinely its own job: who it is, what it is given, the order it works in, and the things it must never do — including not re-detecting the platform or device type it was handed, and not presenting the React Native folder-structure verdict from the repository analyst as an Android finding.</dd>
+          </div>
+        </dl>
+        <p class="fix"><strong>One real bug fixed.</strong> It used to stop and ask the user for a Figma link. That is <code>/analyze-feature</code>'s job, and that command says in writing that the architect must not do it. The iOS and React Native equivalents already had this right — Android was the odd one out.</p>
+      </article>
+
+    </div>
+  </section>
+
+  <section id="small">
+    <h2>Four small edits</h2>
+    <p class="lede">A line or two each. Nothing structural.</p>
+
+    <div class="oneliners">
+      <div class="oneliner">
+        <div class="p">agents/repo-analyst.md</div>
+        <div class="d">Pointed readers at “section 3” of the Android skill. That section got renamed, so the pointer now names the step instead of a number.</div>
+      </div>
+      <div class="oneliner">
+        <div class="p">skills/mobile-repo-analysis/SKILL.md</div>
+        <div class="d">The same broken pointer, in a sentence that covers both iOS and Android. Fixed the same way, so it still reads correctly for iOS.</div>
+      </div>
+      <div class="oneliner">
+        <div class="p">README.md</div>
+        <div class="d">Credited the Android planning lane to the wrong task — ANDROID-002 instead of ANDROID-001.</div>
+      </div>
+      <div class="oneliner">
+        <div class="p">CHANGELOG.md</div>
+        <div class="d">A new <em>Unreleased</em> entry describing everything above. Left unversioned on purpose: bumping the version drags in seven other files that belong to a different task.</div>
+      </div>
+    </div>
+  </section>
+
+  <section id="payoff">
+    <h2>Why this arrangement is worth it</h2>
+
+    <div class="tablewrap">
+      <table class="payoff">
+        <caption>What actually gets read, per situation.</caption>
+        <thead>
+          <tr><th>Situation</th><th>Files opened</th></tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>Planning a phone feature</td>
+            <td><span class="opened">agent · SKILL.md · analysis-domains · output-contracts</span></td>
+          </tr>
+          <tr>
+            <td>Planning a TV feature</td>
+            <td><span class="opened">the same four, <span class="tvbit">plus tv-context</span></span></td>
+          </tr>
+          <tr>
+            <td>Breaking a design into tasks</td>
+            <td><span class="opened">agent · SKILL.md only</span></td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <p>Phone work — the common case — never pays for the TV chapter. The task-breakdown stage, which only needs the vocabulary and the rule names, stops loading the whole method and reads <strong>35% less</strong> than before.</p>
+
+    <p class="lede">Worth being straight about the trade: added together, all five files hold about 13% <em>more</em> text than the two they replace, because real content was added — restored rules, corrected rule references, a verified TV section, and two bug fixes. A full phone planning run lands 2% above the old pair; the gain is the 35% cut to what is read every time, not a smaller corpus.</p>
+  </section>
+
+  <footer>
+    <p>Branch <code>ANDROID-001</code>, off <code>raz_main</code>, off <code>main</code>. Six files changed, four added — the three references and this page, which now lives at <code>docs/planning/</code>. The repository's own test suite reports the same three failures it reports on <code>main</code> — all outside the Android lane. Nothing is committed.</p>
+  </footer>
+
+</div>
