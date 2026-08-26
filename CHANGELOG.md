@@ -7,7 +7,18 @@ and this plugin adheres to [Semantic Versioning](https://semver.org/). The
 version below is the plugin's own `version` in
 [`plugin.json`](.claude-plugin/plugin.json).
 
-## [0.6.0] - 2026-08-19
+## [Unreleased]
+
+Work merged since the 0.5.0 release (`d829d78`). **`plugin.json` still declares `0.5.0`,
+so nothing below has shipped** — a git-sourced install pinned by that version string does
+not receive any of it. The next version bump is deliberately separate work.
+
+A `## [0.6.0]` heading previously sat above this section for the NativeWind theme-sync
+work. It was never a release: no commit ever set `plugin.json` to `0.6.0`, there is no
+`v0.6.0` tag, and the commit that wrote the heading (`aeecd08`) did not touch the manifest
+— unlike every prior release, each of which bumped it in the same commit. Its entries were
+folded in here rather than deleted, so no content was lost and this file once again obeys
+its own rule that the newest version heading is the manifest's version.
 
 ### Added
 - `/rn-sync-figma-theme` — a standalone utility command (React Native only — alerts and
@@ -35,18 +46,6 @@ version below is the plugin's own `version` in
   a later re-run only touches Figma-sourced tokens. No dedicated agent — grounded
   directly in `RN-STYLE-3`'s "single theme/tokens module" rule from
   `standards/react-native/rn-coding-standards.md`.
-
-### Unchanged (deliberately)
-- The eight-stage pipeline, every approval gate, all three safety hooks, all
-  `standards/**`, and every other command.
-
-## [Unreleased]
-
-Work merged since the 0.5.0 bump (`d829d78`). **`plugin.json` still declares `0.5.0`** —
-these items ship with the next version bump, which is deliberately separate work. Until
-then, a git-sourced install pinned by that version string does not receive them.
-
-### Added
 - **The iOS platform standards** (IOS-001, `173785f`) — five documents under
   `standards/ios/` with citable `IOS-SWIFT-*`, `IOS-UI-*`, `IOS-ARCH-*`, `IOS-PERF-*` and
   `IOS-BUILD-*` IDs; `swift-standards.md` defines the lane table routing each ID root to
@@ -104,6 +103,10 @@ then, a git-sourced install pinned by that version string does not receive them.
   that was false for a placeholder, and read as though canonical reuse were
   React-Native-only. No architect, dev-planning skill, `repo-analyst` or
   `repo-knowledge-consumer` changed — only the command's description was stale.
+
+### Unchanged (deliberately)
+- The eight-stage pipeline, every approval gate, all three safety hooks, all
+  `standards/**`, and every other command.
 
 ## [0.5.0] - 2026-08-12
 

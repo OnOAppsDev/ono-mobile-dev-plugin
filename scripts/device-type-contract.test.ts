@@ -39,7 +39,7 @@
  *   node scripts/check.ts --only device-type-contract
  */
 
-import { readFileSync } from "fs";
+import { readFileSync, readdirSync } from "fs";
 import { join, dirname } from "path";
 
 const HERE = import.meta.dirname ?? __dirname;
@@ -156,10 +156,13 @@ const flat = (s: string): string => s.replace(/\s+/g, " ");
     /not a placeholder lane awaiting authoring/.test(skill));
   check("4 RN TV support is named a separate product and architecture decision",
     /separate product and architecture decision/.test(skill));
-  check("4 no react-native standard carries TV rules",
-    ["react-native-coding-standards", "rn-api-service-layer", "rn-architecture",
-      "rn-navigation", "rn-performance", "rn-state-management"]
-      .every((f) => !/\btvos\b|Platform\.isTV|android tv|apple tv/i.test(read(`standards/react-native/${f}.md`))));
+  // Enumerate the directory rather than a remembered list: a rename (the RN coding-standards
+  // document was renamed once already) must not make this assertion crash or, worse,
+  // silently stop checking a file that quietly dropped out of a hard-coded array.
+  const rnStandards = readdirSync(join(REPO_ROOT, "standards", "react-native")).filter((f) => f.endsWith(".md"));
+  check("4 the react-native standards directory is non-empty", rnStandards.length >= 6, `${rnStandards.length}`);
+  const withTv = rnStandards.filter((f) => /\btvos\b|Platform\.isTV|android tv|apple tv/i.test(read(`standards/react-native/${f}`)));
+  check("4 no react-native standard carries TV rules", withTv.length === 0, withTv.join(", "));
 }
 
 // --- 5. Nothing else moved -----------------------------------------------

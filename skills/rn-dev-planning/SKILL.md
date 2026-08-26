@@ -112,7 +112,7 @@ Cite only IDs that exist in these files and genuinely apply to the point being m
 
 | Area | Standard file | ID roots |
 |---|---|---|
-| TypeScript, components, hooks, naming, props, constants, styling, lint, testing | `standards/react-native/react-native-coding-standards.md` | `RN-TS-*`, `RN-FC-*`, `RN-NAME-*`, `RN-PROPS-*`, `RN-CONST-*`, `RN-STYLE-*`, `RN-LINT-*`, `RN-TEST-*` |
+| TypeScript, components, hooks, naming, props, constants, styling, lint, testing | `standards/react-native/rn-coding-standards.md` | `RN-TS-*`, `RN-FC-*`, `RN-NAME-*`, `RN-PROPS-*`, `RN-CONST-*`, `RN-STYLE-*`, `RN-LINT-*`, `RN-TEST-*` |
 | Layering, structure, dependency direction, composition, reuse, architecture mode | `standards/react-native/rn-architecture.md` | `ARCH-LAYERS-*`, `ARCH-STRUCT-*`, `ARCH-FOLDERS-*`, `ARCH-TYPE-*`, `ARCH-DEPS-*`, `ARCH-LOGIC-*`, `ARCH-COMPOSE-*`, `ARCH-REUSE-*`, `ARCH-NEW-*`, `ARCH-LEGACY-*` |
 | Data fetching, cache, errors, pagination, cancellation | `standards/react-native/rn-api-service-layer.md` | `API-ORG-*`, `API-ERR-*`, `API-PAGE-*`, `API-CANCEL-*`, `API-CACHE-*`, `API-BASEQ-*` |
 | State, selectors, boundaries, serialisation, persistence | `standards/react-native/rn-state-management.md` | `STATE-SELECT-*`, `STATE-BOUNDARY-*`, `STATE-SERIAL-*`, `STATE-PERSIST-*`, `STATE-SLICE-*`, `STATE-ENTITY-*` |
