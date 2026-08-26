@@ -40,10 +40,82 @@ version below is the plugin's own `version` in
 - The eight-stage pipeline, every approval gate, all three safety hooks, all
   `standards/**`, and every other command.
 
+## [Unreleased]
+
+Work merged since the 0.5.0 bump (`d829d78`). **`plugin.json` still declares `0.5.0`** —
+these items ship with the next version bump, which is deliberately separate work. Until
+then, a git-sourced install pinned by that version string does not receive them.
+
+### Added
+- **The iOS platform standards** (IOS-001, `173785f`) — five documents under
+  `standards/ios/` with citable `IOS-SWIFT-*`, `IOS-UI-*`, `IOS-ARCH-*`, `IOS-PERF-*` and
+  `IOS-BUILD-*` IDs; `swift-standards.md` defines the lane table routing each ID root to
+  exactly one reviewer. tvOS guidance is deliberately out of scope until `ATV-001`.
+- **The iOS planning lane** (IOS-002, `ded9be0`) — `agents/ios-architect.md` plus
+  `skills/ios-dev-planning/SKILL.md`, so `/analyze-feature`, `/dev-design-start` and
+  `/dev-feature-start` produce grounded, standards-cited iOS output.
+- **The iOS implementation lane** (IOS-003, `9d5f30d`) — `agents/ios-feature-developer.md`
+  plus `skills/ios-feature-implementation/SKILL.md`, including the Build-stage evidence a
+  reviewer working from a diff cannot supply. Serves `/implement-task` and the iOS halves
+  of `/fix-review-comments` and `/create-dev-qa-notes`.
+- **The iOS review lane** (IOS-004, `9e7170d`) — `agents/ios-code-reviewer.md`,
+  `agents/ios-performance-reviewer.md` and `skills/ios-code-review/SKILL.md`, completing
+  the iOS lifecycle: standards → planning → implementation → review.
+- **A deterministic per-task lifecycle store** (SHARED-004, `7248cd2`) —
+  `docs/task-state-contract.md` and `scripts/task-state.ts`, the only reader/writer, at
+  one path per feature: `<TARGET_ROOT>/docs/tasks/{FEATURE}-task-state.json`. Four writable
+  states, SHA-256 row fingerprinting for staleness, an attempt counter, and a `provenance`
+  axis keeping *human-attested* distinct from *plugin-verified*. `/implement-task` gates on
+  `deterministicProof` — complete **and** plugin-verified **and** not stale — and records
+  `in-progress` before handing off, so a crashed attempt is visible. `/create-dev-qa-notes`
+  reads the persisted record first. Clock-free: no `Date`, no randomness; *when and by
+  whom* comes from git.
+- **A deterministic check harness** (SHARED-005, `b5916b2`) — `scripts/check.ts` aggregates
+  every deterministic suite in phases with PASS/FAIL/SKIPPED totals and a non-zero exit.
+  Adds the first coverage of the three `hooks/*.sh` safety scripts, and a **document-chain
+  dry-run** that drives the real helpers head-to-tail over fixture target repositories, so
+  each stage's real output is proven to be valid input to the next stage's reader. It is
+  **not** a Claude-driven end-to-end run and contains no mock runtime.
+- **A reference-integrity validator** (SHARED-006, `d1cc7f4`) —
+  `scripts/reference-integrity.ts` checks that every cited skill, agent, standard, template,
+  script and contract path resolves, that every anchor and relative link resolves, that
+  component frontmatter is valid with `name` matching its filename or directory, and that
+  each component's readiness is classified from its own on-disk marker. Its headline rule:
+  **no command may route to a placeholder lane without a readiness gate.** Its first run
+  found and fixed seven ungated React routes and five stale README status claims.
+  `--strict` makes a skipped suite a failure.
+- **`scripts/release-metadata.test.ts`** (SHARED-007, `c66a6be`) — asserts `plugin.json`'s
+  version matches the newest release heading in this file, and that no marketplace-owned
+  field leaks into the manifest.
+
+### Changed
+- **Metadata ownership between this plugin and its marketplace** (SHARED-007, `c66a6be`) —
+  `.claude-plugin/plugin.json` is the authoritative source for this plugin's version, and
+  the `ono-plugin-marketplace` entry now declares none. Claude Code always uses the
+  `plugin.json` value **without warning**, so a marketplace copy could only mask the truth
+  — and had: the marketplace listed 0.2.0 against an actual 0.5.0. README documents the
+  ownership split under *Metadata ownership*.
+- **Repository-knowledge orchestration** (SHARED-010, `911d47c`) —
+  `/analyze-feature` step 3 now states the rule *every authored lane reuses canonical
+  repository knowledge; the lanes differ only in which layer does the reusing*, with one
+  bullet per lane: React Native reused at `repo-analyst`, iOS and Android reused at the
+  architect through `repo-knowledge-consumer`, React deferred **because its lane is not
+  authored** (`REACT-002`). It previously grouped all three non-RN lanes under a rationale
+  that was false for a placeholder, and read as though canonical reuse were
+  React-Native-only. No architect, dev-planning skill, `repo-analyst` or
+  `repo-knowledge-consumer` changed — only the command's description was stale.
+
 ## [0.5.0] - 2026-08-12
 
 SHARED-011 — the legacy planning-document migration framework. Implements
 [`docs/planning/SHARED-011-legacy-document-migration-design.md`](docs/planning/SHARED-011-legacy-document-migration-design.md).
+
+Three further items shipped in this window and were missing from this entry until DOC-001
+backfilled them: the web and native security extensions (SHARED-003, `feb691b`) and the
+Android planning and review lanes (ANDROID-001, `9177aaa`; ANDROID-002, `b3e4a3f`).
+ANDROID-004 has no entry of its own because it had no separate work — its whole scope was
+removing text that claimed the Android standards were placeholders, which those two
+commits removed as they authored the skills.
 
 ### Added
 - `scripts/migrate-planning-doc.ts` — detects which frontmatter contract version a
@@ -69,6 +141,26 @@ SHARED-011 — the legacy planning-document migration framework. Implements
   `repo-knowledge-consumer`'s canonical values.
 - `doc_schema_version` in all four planning templates, so every document generated from
   0.5.0 onward is self-describing. Stamped at generation; upgraded only by the framework.
+
+### Added
+- **Web and native security extensions** (SHARED-003) — `standards/shared/mobile-security.md`
+  gained `[web only]` rule families for React web and embedded web content: `SEC-WEB-*`
+  (XSS, CSP, CSRF, redirects, CORS, third-party scripts) and `SEC-COOKIE-*` (browser
+  session handling), alongside native platform detail on the existing rules.
+  `/review-security` instructs its reviewer to apply the `[web only]` rules for React
+  rather than silently skipping the surface, so the one shared security reviewer covers
+  every platform from one checklist.
+- **The Android planning lane** (ANDROID-001) — `agents/android-architect.md` and
+  `skills/android-dev-planning/SKILL.md` authored (+403 lines): a repository-first
+  methodology that discovers the repo's actual implementation model before proposing
+  anything, supplies Android vocabulary and `AND-*` citations for a DD's Technical
+  Implementation Approach and Impacted Modules, and handles `device_type` `mobile` and
+  `tv` in one agent and one skill. It assumes no UI toolkit, architecture, or library.
+- **The Android review lane** (ANDROID-002) — `agents/android-code-reviewer.md`,
+  `agents/android-performance-reviewer.md`, and `skills/android-code-review/SKILL.md`
+  authored (+317 lines), so `/review-code` and the Android perf sign-off in
+  `/prepare-mobile-release` file concrete `AND-*` violations from the reviewed change
+  rather than modernization suggestions.
 
 ### Changed
 - `/dev-design-start` loads the feature analysis through `planning-doc-migration` before
@@ -107,7 +199,22 @@ SHARED-011 — the legacy planning-document migration framework. Implements
 
 ## [0.4.0] - 2026-07-28
 
+Repository-knowledge consumption (SHARED-009), plus three shared-layer changes that
+shipped in the same window and were missing from this entry until DOC-001 backfilled
+them: the mobile-vs-TV context signal (SHARED-001, `6c56ec5`), the platform-neutral
+rewrite of the shared standards (SHARED-002, `f39ed74`), and the single-confirmed-platform
+and design-reference gates (SHARED-008, `c90c78c`).
+
 ### Added
+- **`device_type` — the mobile-vs-TV context signal** (SHARED-001). Exactly one of
+  `mobile` or `tv`, with no `mixed` value. **TV is a context inside a platform, never a
+  fifth platform**: `repo-analyst` resolves it from packaging and framework markers
+  (Step 6.5), `/analyze-feature` has the developer confirm it alongside the platform, and
+  all four planning templates carry it in frontmatter so every later stage reads it
+  instead of re-detecting. When a repository holds both a mobile and a TV target and the
+  workflow's target is undeterminable, the resolution **stops and asks** rather than
+  defaulting to `mobile`. `/implement-task` refuses a task row with no `device_type` —
+  there is no silent default.
 - `scripts/read-repo-knowledge.ts` — deterministic reader for the repository-knowledge
   manifest `ono-project-inspector` publishes at `.ono/repo-knowledge.json`. Computes
   freshness (git HEAD plus per-document SHA-256) and applies the degradation matrix,
@@ -144,6 +251,25 @@ SHARED-011 — the legacy planning-document migration framework. Implements
 - `rn-architect` consults `docs/project/components.md` before proposing new screens,
   components, or hooks, and states for each element whether it is reusing an existing one
   (by path) or introducing a new one (and why nothing existing fits).
+- **The shared standards became platform-neutral** (SHARED-002) —
+  `standards/shared/mobile-security.md`, `accessibility.md`, and `i18n-rtl.md` were
+  rewritten so each rule states a platform-neutral requirement with **labelled**
+  React Native / iOS / Android / React examples, rather than React Native prop and library
+  names presented as if they were the requirement itself. A rule that only ever showed an
+  RN example was unusable evidence for an iOS or Android reviewer.
+- **A single confirmed platform, and a design reference of any supported type**
+  (SHARED-008). Two changes across the feature flow. First, `/analyze-feature` now
+  **presents the detected platform and device type and requires human confirmation** —
+  always, even at high confidence — and the confirmed context resolves to exactly one
+  platform and one device type, carried in frontmatter thereafter; no stage re-detects,
+  and there is no `mixed` authoritative platform. Second, **Figma is no longer required**:
+  a design reference is mandatory only when a feature introduces or changes user-facing
+  UI, and any supported type satisfies it — a Figma link, a specification document,
+  exported mockups, or an existing screen to mirror. Behaviour-preserving work
+  (migrations, refactors, dependency upgrades, infrastructure, performance) records
+  `design_reference_status: not_required` and is asked for nothing. The four
+  `design_reference_*`/`figma_link` fields are carried by every template and every
+  architect and feature-developer agent.
 
 ### Unchanged (deliberately)
 - **Behavior with no `.ono/repo-knowledge.json` is designed to be identical to 0.3.0** —

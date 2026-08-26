@@ -105,6 +105,41 @@ Every command starts by inspecting the repo (via the `repo-analyst` agent) befor
 
 The `platform` value — exactly one of `react-native` / `ios` / `android` / `react`, never `mixed` — is recorded in `templates/feature-analysis-template.md`'s frontmatter by `/analyze-feature` (detection may surface several candidates, but the user confirms one) and carried forward through every later stage — `/dev-design-start`, `/dev-feature-start`, `/implement-task`, and the rest read it rather than re-detecting.
 
+### Mobile vs. TV
+
+Alongside `platform`, every feature carries a **device type** — exactly one of `mobile`
+or `tv`. There is no `mixed` device type.
+
+**TV is a context inside a platform, never another platform.** Android TV is `android`
+with `device_type: tv`; Apple TV is `ios` with `device_type: tv`; Smart TV is `react`
+with `device_type: tv`. There is no fifth platform value, and no TV-specific command,
+agent, or skill — one agent and one skill serve both device types per lane.
+**React Native is deliberately mobile-only**: that lane has no TV branch.
+
+`device_type` is resolved by `repo-analyst` from packaging and framework markers, then
+**confirmed by you** at `/analyze-feature` step 2 — the same gate that confirms the
+platform. From there it is carried in frontmatter through every stage and never
+re-detected. It is **never inferred from repository signals** later in the pipeline;
+`docs/planning-doc-contract.md` records why, including the fact that this organisation's
+Android TV surface uses a custom in-house framework, so the conventional markers do not
+identify it. When a repository contains both a mobile and a TV target and which one the
+work targets cannot be determined, the plugin **stops and asks** rather than assuming
+`mobile`.
+
+Where the detail lives, rather than repeated here: the resolution algorithm and TV
+markers in [`agents/repo-analyst.md`](agents/repo-analyst.md) (Step 6.5), the frontmatter
+contract in [`docs/planning-doc-contract.md`](docs/planning-doc-contract.md), and the
+per-lane TV handling in each platform's `*-dev-planning` skill (§14) and `*-code-review`
+skill.
+
+**Current TV coverage — routing and discovery exist; guidance does not.** `device_type`
+flows end to end, and the iOS and Android planning lanes each run a TV discovery pass
+that inspects the repository's actual focus handling, remote/D-pad input, navigation and
+TV component set. But **no tvOS or Android-TV rules exist in any standards document yet**,
+so those lanes can discover the existing implementation and avoid regressing it — they
+cannot cite TV guidance. Authoring that guidance is open work: `ATV-001`/`ATV-002` for
+Apple TV, `ANDROID-003` for Android TV, `REACT-003` for Smart TV.
+
 ## How shared vs. platform-specific context loads
 
 - **Shared context always loads.** Repo/platform detection, security review taxonomy, accessibility/i18n principles, release-readiness checklist criteria, and QA-handoff criteria are platform-agnostic and used on every task regardless of platform.
