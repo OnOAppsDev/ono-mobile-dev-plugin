@@ -88,6 +88,7 @@ const PHASES: Phase[] = [
       "rn-implementation-contract",
       "release-metadata",
       "repo-knowledge-orchestration",
+      "device-type-contract",
     ],
   },
   {
