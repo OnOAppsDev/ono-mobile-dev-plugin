@@ -17,7 +17,7 @@ It is not orchestration. The shared `dev-design-start` and `dev-feature-start` s
 
 ## Inputs this skill requires (resolved, never invented)
 
-Obtain and **verify the existence of** the inputs below. They are passed by the invoking command/agent or deterministically resolved from the feature name and repo layout — this skill **never guesses or fabricates a path** to a feature document.
+Obtain and **verify the existence of** the inputs below. They are resolved and passed by the invoking command — artifact resolution is `commands/dev-design-start.md`'s, not this skill's. This skill **never guesses or fabricates a path** to a feature document.
 
 - The confirmed **`platform`** (must be `ios`) and **`device_type`** (`mobile` or `tv`). **At Analyze these come from the user confirmation at `/analyze-feature` step 2**, because no feature analysis exists yet; from Design onward they are read from the upstream document's frontmatter. Never re-detected here.
 - The target **repository root**, and the Xcode project, workspace, or package manifest the feature lands in.
@@ -25,7 +25,7 @@ Obtain and **verify the existence of** the inputs below. They are passed by the 
 - **At Design:** the absolute path to the **approved Feature Analysis**, plus the four resolved design-reference fields.
 - **At Feature-start:** the absolute path to the **approved Detailed Design (DD)**.
 
-If a required input for the current stage is missing or cannot be resolved deterministically, **stop and report exactly which one** — do not proceed against an assumed location. If `platform` is not `ios`, stop: this skill does not run for another platform. If `device_type` is missing, empty, or any value other than `mobile`/`tv` (including `mixed`), **stop and report it** — never default to `mobile`.
+If a required input for the current stage is missing, **stop and report exactly which one** — do not proceed against an assumed location. If `platform` is not `ios`, stop: this skill does not run for another platform. If `device_type` is missing, empty, or any value other than `mobile`/`tv` (including `mixed`), **stop and report it** — never default to `mobile`.
 
 **A React Native repository whose confirmed platform is `react-native` does not route here**, even when the change touches its `ios/` tree — that work is planned by `rn-dev-planning` against the RN standards, and only file-level *review* attribution loads `standards/ios/*`. This skill runs when `ios` is the confirmed platform.
 
@@ -37,31 +37,24 @@ This skill grounds every iOS-specific rule in an authored `IOS-*` standard under
 
 ## 1. Source-of-truth hierarchy
 
-When sources disagree, this order decides — highest first:
+Defined once in `skills/dev-design-start/SKILL.md` § *Shared planning rules → Source-of-truth hierarchy*. Apply it as written; it is not restated here.
 
-| Rank | Source | Authoritative for |
-|---|---|---|
-| 1 | **Approved upstream documents** (Feature Analysis → DD) | Scope, requirements, and decisions the document records as decided |
-| 2 | **Inspected repository evidence** | What the codebase actually does today |
-| 3 | **Canonical repository knowledge** (`docs/project/*.md`, `CLAUDE.md`) | Repository-wide conventions, as citations |
-| 4 | **Ono standards** (`standards/ios/*`, `standards/shared/*`) | The bar new work must meet |
-| 5 | **Apple documentation** | Supporting guidance only |
+iOS's parameters for the two parameterised ranks:
 
-Hard rules:
+- **Rank 4** — `standards/ios/*` plus `standards/shared/*`.
+- **Rank 5** — Apple documentation.
 
-- **Rank 5 never overrides rank 2.** A valid existing implementation is not a defect because Apple now recommends something else. Note the divergence as an *optional* suggestion, never as required work.
-- **Rank 1 governs scope and requirements, not the technical approach.** A feature analysis's *Proposed* Technical Approach is advisory input that DD §19 refines, deepens, or supersedes — refining it is this stage's job, not a violation. What may not be reinterpreted is an approved scope, requirement, or explicitly recorded decision; if the plan must expand one, stop and request approval.
+One hard rule is iOS-specific and applies in addition to the shared ones:
+
 - **Applicability is decided by the baseline, not by the rule.** Check the baseline found in [§3](#3-repository-evidence-collection) before citing a rule that depends on a particular API.
-- **Never resolve conflicting evidence silently.** Report the conflict and ask. If the Feature Analysis and DD conflict, stop and report — do not pick one.
 
 ## 2. Repository-knowledge reuse
 
-Apply the `repo-knowledge-consumer` skill before deriving anything. **Never read or parse `.ono/repo-knowledge.json` directly** — that skill is the only component that understands the manifest, and it reports each document's actual path.
+Repository knowledge is resolved by the invoking command and consumed through the `repo-knowledge-consumer` skill, which owns the resolution procedure, what may be reused, and the citation shape. Apply it as written; it is not restated here.
 
-- Reuse every category in `usableCategories` by **reading the cited document and citing it by path plus anchor** — conventionally `docs/project/patterns.md` for conventions, `docs/project/components.md` for existing screens and views, `docs/project/integrations.md` for services and SDKs, and the `CLAUDE.md` structure pointers for the target/package map, but always at the path the consumer skill reports. Reuse means read and cite, never paste.
-- Derive live exactly the categories in `deriveLive`, plus the feature-specific detail no repository-wide document could contain — the actual signatures, state shape, isolation, and call sites of the types *this feature* touches. That reading is required and is not duplication.
-- **Knowledge unavailable is the normal path.** Say so in one line and derive everything live. Never stop, never ask permission.
-- `device_type` is **never** reused from the manifest — the manifest carries no device information.
+What this lane adds on top of it:
+
+- **Derive live the iOS detail no repository-wide document can hold** — the actual signatures, state shape, isolation, and call sites of the types *this feature* touches, alongside the categories the consumer reports as `deriveLive`. That reading is required and is not duplication of the manifest.
 
 ## 3. Repository evidence collection
 
@@ -253,26 +246,17 @@ Run this discovery pass **before** proposing anything, recording evidence for ea
 
 ## 15. Classification: Existing, Required, Recommended, Unresolved
 
-Every statement in the plan is exactly one of these four, explicitly labelled. Merging them is the failure this section prevents:
-
-| Class | Meaning | Rule |
-|---|---|---|
-| **Existing project pattern** | What the repository already does | Cite the evidence path. Followed by default. |
-| **Required feature-specific extension** | What this feature genuinely needs | Must trace to a requirement in the approved upstream document. |
-| **Recommended deviation with justification** | A departure from the existing pattern this feature warrants | Requires an explicit justification and an approval gate. Never applied silently. |
-| **Unresolved decision requiring human approval** | A question the evidence cannot settle | Stated with options and implications. Blocks decomposition when it affects scope or contracts. |
-
-**Optional modernisation suggestions are always the third or fourth class, never the second.** "The repo uses X, but Y is now recommended" is never required work.
+Defined once in `skills/dev-design-start/SKILL.md` § *Shared planning rules → Classification*. Every statement in an iOS plan carries one of those four labels; the taxonomy is not restated here.
 
 ## 16. Risk classification and applicability stage
 
-Classify each risk by impact and by whether it blocks:
+The three risk classes are defined once in `skills/dev-design-start/SKILL.md` § *Shared planning rules → Risk classification*. Apply them as written; they are not restated here.
 
-- **Blocking** — decomposition cannot proceed: an unconfirmed backend contract, an unresolved architectural decision, a missing design reference for UI work, ambiguous evidence on a load-bearing dimension, or a required deployment-target or language-mode change.
-- **Non-blocking, must be tracked** — a known risk with a mitigation, recorded in the DD's Risks section.
-- **Needs measurement or investigation** — a suspected issue inspection cannot confirm → `IOS-PERF-MEASURE-1`.
+Three additions are iOS-specific:
 
-**Respect the applicability stage** defined in `standards/ios/swift-standards.md` § *Applicability stage*. Planning happens before anything is built, so any rule its own document marks *(Build stage.)* or *(Release stage.)* is recorded as something the plan **requires to be verified later**, never as something the design asserts is satisfied.
+- **An additional blocking condition:** a required deployment-target or language-mode change.
+- **The third class is tied to a measurement rule:** a suspected issue inspection cannot confirm → `IOS-PERF-MEASURE-1`.
+- **The verify-later mechanism for iOS is the applicability stage** defined in `standards/ios/swift-standards.md` § *Applicability stage*. Planning happens before anything is built, so any rule its own document marks *(Build stage.)* or *(Release stage.)* is recorded as something the plan requires to be verified later. This is how the shared verify-later principle is discharged in this lane; the principle itself is not restated here.
 
 ## 17. Traceability and output requirements
 
@@ -291,7 +275,7 @@ Exactly one confirmed platform always applies, so these sections are **always fl
 
 ## 18. Approval gates and failure behaviour
 
-- The Feature Analysis must be `approved` before it is designed against; the DD must be `approved` before it is decomposed. This skill never flips a status, and documents remain `draft` until a human approves them.
+- Approval gating is owned by `commands/dev-design-start.md` and `commands/dev-feature-start.md`. **This skill never flips a status.**
 - A UI-changing feature requires a design reference of any supported type; `not_required` is never a valid outcome for one. The gate itself is owned by `/analyze-feature`.
 - **Stop and report** — never work around — on any condition in the Red flags section below.
 

@@ -1,4 +1,25 @@
+---
+feature: # feature name/slug — must match the Task Breakdown's `feature` for this feature
+platform: # react-native | ios | android | react — carried over verbatim from the Task Breakdown, never re-detected here
+device_type: # mobile | tv — carried over verbatim from the Task Breakdown, never re-detected here
+dd_link: # path to the approved DD, carried over from the Task Breakdown's dd_link
+task_breakdown_link: # path to the approved Task Breakdown this handoff was written from (the generated feature artifact, NOT templates/task-breakdown-template.md)
+status: draft # draft | ready-for-qa — /create-dev-qa-notes always writes `draft`. A human reviews the notes and flips it to `ready-for-qa`; until then the handoff is not dev-signed-off and QA-side tooling should treat it as incomplete.
+generated_by: create-dev-qa-notes
+date: # YYYY-MM-DD
+---
+
 # QA Handoff
+
+<!--
+Written by /create-dev-qa-notes to docs/qa/{FEATURE-NAME}-qa-handoff.md under the resolved repository root, per QA-FILE-1 in standards/shared/qa-handoff.md. The Task Breakdown records the written path in its `qa_handoff_link` field (QA-LINK-1), so a later command discovers this document by following that link rather than by searching the filesystem.
+
+The frontmatter above is **delimited** (`---`), not a fenced ` ```yaml ` block: these fields exist to be read by tooling, and a fence is document content rather than frontmatter. `delimited` is also the encoding docs/planning-doc-contract.md resolves first when both forms could match, so this document is read the same way as every other artifact in the pipeline. The file therefore does NOT open with `# QA Handoff` — ono-plugin-qa's /check-qa-coverage currently identifies a dev handoff by that opening heading and must be updated to read the frontmatter (preferably via the breakdown's `qa_handoff_link`) instead.
+
+The section headings below are a contract /check-qa-coverage reads section-by-section — do not rename or reorder them without changing that plugin in step.
+
+There is deliberately no `doc_schema_version` here. That field belongs to the four kinds registered in docs/planning-doc-contract.md, each of which carries a version history and a migration chain; the QA handoff is not one of them and adding it would claim a contract that has no chain behind it.
+-->
 
 <!-- One paragraph: what was built, for which feature, and why — written for someone who did not see the dev plan. -->
 ## Feature Summary
