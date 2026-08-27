@@ -17,6 +17,8 @@ The planning **methodology it follows lives in `skills/rn-dev-planning/SKILL.md`
 
 **React Native is mobile-only in this lane.** `device_type` is carried in frontmatter by the pipeline; there is no TV branch here.
 
+**If the confirmed context is `platform: react-native` with `device_type: tv`, report the unsupported context and stop** — per `skills/rn-dev-planning/SKILL.md`'s Overview, which owns the rule. Never plan it as mobile, and never invent an RN TV branch or standard.
+
 ## Inputs
 
 - **Confirmed `platform: react-native`**, user-confirmed at `/analyze-feature` step 2 and carried in frontmatter thereafter. Treat it as authoritative; **never re-detect it**.

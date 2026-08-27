@@ -97,7 +97,7 @@ onto that run's terminal write, so repeated runs of the same task are distinguis
 {
   "taskStateSchemaVersion": 1,
   "feature": "biometric-login",
-  "producedBy": { "plugin": "ono-mobile-dev-plugin", "version": "0.6.0" },
+  "producedBy": { "plugin": "ono-mobile-dev-plugin", "version": "0.5.0" },
   "tasks": {
     "T1": {
       "state": "complete",

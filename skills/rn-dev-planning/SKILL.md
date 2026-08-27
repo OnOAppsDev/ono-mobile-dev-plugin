@@ -19,6 +19,14 @@ This skill is the methodology the `rn-architect` agent follows when planning Rea
 
 **React Native is mobile-only here.** There is no TV branch in this lane; `device_type` is carried in frontmatter by the shared pipeline and is not a planning variable for React Native.
 
+**`platform: react-native` with `device_type: tv` is unsupported — report the unsupported context and stop.** The combination is reachable: `repo-analyst` treats `react-native-tvos` as a decisive TV marker, and a developer can select `tv` at `/analyze-feature`'s confirmation gate. When it reaches this lane, **stop and report that React Native TV is not supported by this plugin**, naming the confirmed `platform` and `device_type` so the developer sees exactly which context was rejected.
+
+- **Never plan it as mobile.** Touch targets, gestures, and phone navigation patterns do not transfer to a D-pad/remote model, and proceeding silently would ship a mobile design for a TV surface.
+- **Never invent an RN TV branch, an RN TV standard, or an RN TV convention.** No `standards/react-native/*` document carries TV rules, so there is nothing to cite and nothing to detect against.
+- **Do not route elsewhere.** This is not a placeholder lane awaiting authoring and it is not another platform's work — Apple TV is `ios` + `tv` and Android TV is `android` + `tv`, each handled by its own authored lane. There is no equivalent React Native lane to fall back to.
+
+Supporting React Native TV would be a separate product and architecture decision, deliberately outside this plugin's current scope. Until such a decision exists, this stop **is** the defined behaviour — not a gap to work around.
+
 ## What this skill does not own
 
 Referencing these is correct; restating them is duplication.
@@ -104,7 +112,7 @@ Cite only IDs that exist in these files and genuinely apply to the point being m
 
 | Area | Standard file | ID roots |
 |---|---|---|
-| TypeScript, components, hooks, naming, props, constants, styling, lint, testing | `standards/react-native/react-native-coding-standards.md` | `RN-TS-*`, `RN-FC-*`, `RN-NAME-*`, `RN-PROPS-*`, `RN-CONST-*`, `RN-STYLE-*`, `RN-LINT-*`, `RN-TEST-*` |
+| TypeScript, components, hooks, naming, props, constants, styling, lint, testing | `standards/react-native/rn-coding-standards.md` | `RN-TS-*`, `RN-FC-*`, `RN-NAME-*`, `RN-PROPS-*`, `RN-CONST-*`, `RN-STYLE-*`, `RN-LINT-*`, `RN-TEST-*` |
 | Layering, structure, dependency direction, composition, reuse, architecture mode | `standards/react-native/rn-architecture.md` | `ARCH-LAYERS-*`, `ARCH-STRUCT-*`, `ARCH-FOLDERS-*`, `ARCH-TYPE-*`, `ARCH-DEPS-*`, `ARCH-LOGIC-*`, `ARCH-COMPOSE-*`, `ARCH-REUSE-*`, `ARCH-NEW-*`, `ARCH-LEGACY-*` |
 | Data fetching, cache, errors, pagination, cancellation | `standards/react-native/rn-api-service-layer.md` | `API-ORG-*`, `API-ERR-*`, `API-PAGE-*`, `API-CANCEL-*`, `API-CACHE-*`, `API-BASEQ-*` |
 | State, selectors, boundaries, serialisation, persistence | `standards/react-native/rn-state-management.md` | `STATE-SELECT-*`, `STATE-BOUNDARY-*`, `STATE-SERIAL-*`, `STATE-PERSIST-*`, `STATE-SLICE-*`, `STATE-ENTITY-*` |
