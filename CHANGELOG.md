@@ -7,6 +7,209 @@ and this plugin adheres to [Semantic Versioning](https://semver.org/). The
 version below is the plugin's own `version` in
 [`plugin.json`](.claude-plugin/plugin.json).
 
+## [Unreleased]
+
+REACT-001 — the six React (web) standards. REACT-002 — the four React agents and
+three React skills. REACT-003 — React Smart TV via `device_type: tv`. Each epic carries an
+independent adversarial review and the fixes it produced.
+
+### Added
+- `standards/react/react-smart-tv.md` (REACT-003) — the standalone React Smart TV
+  standard, a seventh React standards document. **54 rules** across
+  `REACT-TV-FOCUS-1..8`, `REACT-TV-INPUT-1..8`, `REACT-TV-UI-1..7`,
+  `REACT-TV-MEDIA-1..7`, `REACT-TV-LIFECYCLE-1..5`, `REACT-TV-API-1..4`,
+  `REACT-TV-PERF-1..7`, and `REACT-TV-PKG-1..8`. **Purely additive** — a new root that
+  renumbers nothing, so every REACT-001 ID frozen on 2026-08-16 keeps its number and
+  meaning (verified byte-identical). Smart TV is `device_type: tv` **inside** the `react`
+  platform: no `react-tv` value, no TV-specific agent, skill, or command.
+  Covers 10-foot UI and overscan, D-pad spatial navigation with a never-lose-focus
+  guarantee, remote and Back-key handling, platform cursor mode and the on-screen
+  keyboard, media playback including screensaver suppression, app lifecycle, network and
+  auth transport, an explicit constrained-runtime memory budget, and vendor
+  packaging/manifest/signing. Vendor-neutral across Tizen, webOS, and browser-based TV:
+  the repository's existing focus model, key map, player, transport, and packaging
+  toolchain are findings, never defaults.
+  Because a standalone `REACT-TV-*` root does not resolve under the lane's "the ID's own
+  root decides the filer" rule, the document carries the routing table itself
+  (`REACT-TV-PERF-*` to `react-performance-reviewer`, every other family to
+  `react-code-reviewer`), a **Stages** table assigning each family the scope that can
+  actually reach it, an **Unestablished facts** rule for vendor facts an agent cannot
+  fetch at review time, a **Missing conventions** ladder that distinguishes a greenfield
+  repository from one whose model cannot be identified, and a 10-row **One defect, one
+  finding** collision table whose rows are mutually exclusive by mechanism. Closes with
+  18 rank-5 external references, each fetched and confirmed to resolve.
+- `agents/react-architect.md` + `skills/react-dev-planning/SKILL.md` (REACT-002-1),
+  `agents/react-feature-developer.md` + `skills/react-feature-implementation/SKILL.md`
+  (REACT-002-2), and `agents/react-code-reviewer.md` +
+  `agents/react-performance-reviewer.md` + `skills/react-code-review/SKILL.md`
+  (REACT-002-3) — the React (web) planning, implementation, and review lanes, replacing
+  the structure-only placeholders. Thin agents, thick skills, mirroring the React Native
+  and Android lanes. Every lane opens with a standards-readiness gate that stops on a
+  placeholder standard, assumes no bundler/framework/router/state/data library, honors
+  `device_type` (`mobile`/`tv`) with no silent default, and cites only the frozen
+  `REACT-*` IDs plus the shared `A11Y-*`/`I18N-*`/`SEC-*` rules — never React Native's
+  `RN-*` or the bare `ARCH-*`/`API-*`/`STATE-*`/`NAV-*` families. The review lane adds
+  the four-category filing gate (repository convention / architecture / a `REACT-*`
+  standard / a shared standard), lane separation by ID root (`REACT-PERF-*` to the
+  performance reviewer, everything else to the code reviewer), and performance magnitude
+  written as a measurement request rather than an asserted number. Security defers
+  entirely to the shared `mobile-security-reviewer`. Flipping these markers opens the
+  React routes in `/analyze-feature`, `/dev-design-start`, `/dev-feature-start`,
+  `/implement-task`, `/fix-review-comments`, `/create-dev-qa-notes`, `/review-code`, and
+  `/prepare-mobile-release`.
+- `standards/react/react-coding-standards.md`, `react-architecture.md`,
+  `react-api-service-layer.md`, `react-routing.md`, `react-state-management.md`,
+  `react-performance.md` — the React (web) standards, replacing the structure-only
+  placeholders. 111 rules across the `REACT-TS/FC/NAME/PROPS/LINT`, `REACT-ARCH-*`,
+  `REACT-API-*`, `REACT-ROUTE-*`, `REACT-STATE-*`, and `REACT-PERF-*` families; every
+  family carries the `REACT-` prefix so IDs never collide with the React Native,
+  Android, or iOS modules. Repository-first and framework-neutral (no assumed stack),
+  citing the shared `SEC-WEB-*`/`SEC-COOKIE-*`/`A11Y-*` rules for web security and
+  accessibility. The lane ID skeleton is frozen (REACT-001-7), which is what let the
+  REACT-002 agents and skills above cite stable IDs.
+
+### Changed
+- **REACT-002 independent adversarial review, and the fixes it produced.** REACT-002 was
+  the only epic without its acceptance-bar item 9 review — its entry recorded a mechanical
+  verification only. Four independent agents (pipeline wiring, self-consistency,
+  executability, contract compliance and precedent parity), each blocked from both
+  planning docs and with Smart TV scoped out, returned ~55 findings. Recorded in
+  `docs/planning/REACT-002-independent-review-findings.md`. It confirmed the
+  Inputs-vs-Constraints defect was a **pattern, not an instance**. All React-lane items
+  are fixed; the cross-lane section is logged for its owners.
+  - **Live contradictions removed.** "Never suppress an observation" is now scoped to the
+    *One defect, one finding* collision cases, so it no longer contradicts the same
+    skill's cross-lane section. A red flag that stopped `react-code-reviewer` for
+    **citing** an ID it is elsewhere told to cite as context now stops only on **filing**
+    it. `react-performance.md` and `mobile-security.md` are declared **read-only inputs**
+    — readable for routing and context, never filable.
+  - **One assembler, one merger.** `react-performance-reviewer` hands its findings to
+    `react-code-reviewer` and no longer claims to merge or write the review document.
+  - **`REACT-FC-1` no longer files compliant code as Blocking** — the rubric example now
+    carries the rule's authored error-boundary exception.
+  - **An unconfirmed backend contract is record-and-continue at Design**, removed from
+    both stop lists; it blocks decomposition at Feature-start, not the design.
+  - **`QA-A11Y-1` is satisfiable from React's own output.** The completion report gains
+    `device_type` and the two manual walkthrough results, which are now explicit
+    validation candidates — nothing else in the pipeline produced that evidence.
+  - **A design reference that exists but cannot be read is now a stop-and-report path** in
+    the architect, the developer, and both skills, matching all three precedents; only
+    absence was handled before.
+  - **`react-feature-developer` gains Inputs, Output format, and Red flags sections** and
+    `mobile-security.md` in its standards list — it was thin by design on methodology but
+    underspecified on contract surface.
+  - **The rendering model is identified per surface, not per repository**, in the
+    implementation skill and the performance reviewer.
+  - Also: a 16th discovery dimension for environment and config supply (the load-bearing
+    fact for the bundle-secrets rules); Testing, Logging & Analytics, and Build & Config
+    slots in the architect's output; "Optional" renamed **Recommended** carrying its
+    justification and approval gate; grouped rather than per-file N/A output plus a
+    **Large diffs** protocol with explicit coverage reporting; the repository-re-read
+    clause restored as the source of the task breakdown's `files touched`; `A11Y-SR-1`
+    given a web reading; the `AND-*`/`IOS-*` prohibition extended from one file to all
+    seven; and `commands/implement-task.md`'s `react` row flipped to **active** with the
+    placeholder-marker rule scoped to iOS and defined precisely, since React's own gate
+    prose contained the phrase the scan matched on.
+  - **Recorded, not silently resolved:** testing and logging have no `REACT-TEST-*` or
+    `REACT-LOG-*` family, so a test-quality or logging defect fits none of the review
+    filing gate's four categories. Both skills now state this as a known lane gap and
+    forbid inventing an ID; authoring the families is a standards-owner decision.
+- **REACT-003 independent adversarial review, and the fixes it produced.** Four
+  independent reviewer agents (contract compliance, TV technical correctness with vendor
+  verification, executability, neutrality/density), each blocked from reading the prior
+  in-context review's conclusions, returned ~45 findings against that pass's 9 — and
+  every P0 was one the in-context pass had missed. Recorded in
+  `docs/planning/REACT-003-independent-review-findings.md`. The functional blockers are
+  now fixed:
+  - **The TV standard was uncitable by the agents that owned it.** Both reviewers' and
+    the developer's Inputs lists omitted `react-smart-tv.md` while their constraints
+    forbade citing standards not listed there — `react-performance-reviewer` said
+    outright "No other `standards/react/*` file is an input". All three Inputs lists now
+    include it, scoped to an established TV surface.
+  - **`REACT-TV-PKG-5`/`-6` came back to the React lane.** Routing them to the shared
+    `mobile-security-reviewer` left a committed signing certificate filable by nobody,
+    because that lane has zero TV awareness. They are filed by `react-code-reviewer`
+    citing `SEC-SECRETS-*` as supporting rules, and the divergence is recorded. (The
+    REACT-002 review below later found this fix had not reached
+    `react-code-review/SKILL.md`, which still routed them to the security lane; that is
+    now corrected too.)
+  - **The false release-stage claim is gone.** The document previously asserted
+    `/prepare-mobile-release` was `REACT-TV-PKG-*`'s real enforcement point; the release
+    chain has no TV awareness and invokes only the performance reviewer for React. The
+    family is now reachable at Diff when packaging config is in scope, and the release
+    gap is stated as a cross-lane item rather than assumed to work.
+  - **The collision table's rows are now mutually exclusive by mechanism**, with a
+    precedence line and three added rows; `react-code-reviewer` is named as the agent
+    that executes the dedup, since it assembles the document.
+  - **TV rows added to the review skill's triage and rule-selection tables**, without
+    which a TV file exited review before the `device_type` section was reached, and a
+    vendor manifest in a diff was skipped as "config-only".
+  - **A greenfield path** for a repository with no TV surface yet, distinguished from one
+    whose model cannot be identified — previously the first TV feature in any repository
+    could not be planned, with the skill and its red flags contradicting each other.
+  - **`REACT-TV-API-*` wired into planning and implementation** (a transport discovery
+    item, and the unqualified "prefer `httpOnly` cookies" guidance now conditional on TV).
+  - Factual corrections: `tizen:allow-origin` **does not exist** (the real mechanism is
+    W3C WARP `<access origin>` plus the internet privilege); a manifest memory
+    declaration is a **minimum to launch**, not a budget to match; a TV platform **can**
+    present an on-screen cursor with mouse events, so the D-pad is the only *guaranteed*
+    input rather than the only one — with new rules for cursor-mode transitions
+    (`REACT-TV-INPUT-7`), the platform IME (`REACT-TV-INPUT-8`), and screensaver
+    suppression during playback (`REACT-TV-MEDIA-7`); graphics resolution is per-model
+    and manifest-declared; TLS version bears on connectivity, not on `Secure` cookies;
+    and the colour-alone requirement is authored in `REACT-TV-UI-5`'s own text rather
+    than under a borrowed `A11Y-ROLES-3`, which contains no colour rule.
+  - Density: the five base-document branches were cut from ~2,165 to ~1,562 words, the
+    review skill's `device_type` section from 619 to ~290, and the standard's own prose
+    trimmed — while three rules and four governance sections were *added* to fix the
+    blockers above, so words-per-rule fell only from 134 to 118.
+- `standards/react/react-api-service-layer.md` — gains a Smart TV branch (added after the
+  adversarial review, outside 003-2's original four documents) qualifying the two premises
+  of this document that are browser premises: `REACT-API-BASEQ-2`'s cookie-first auth
+  transport and `REACT-API-BASEQ-5`'s CORS model. Neither frozen rule's text changed;
+  the branch routes to `REACT-TV-API-1..4`, which own establishing the transport and the
+  cross-origin model from vendor documentation for the actual target and app type.
+- `standards/react/react-coding-standards.md`, `react-architecture.md`, `react-routing.md`,
+  `react-performance.md` (REACT-003-2) — each gains an additive
+  `## Smart TV context (device_type: tv)` branch routing every TV obligation to the
+  `REACT-TV-*` rule that owns it. **The branches author no rules**, so a TV finding is
+  filed once under its owner and never duplicated into a base document, and each repeats
+  the applicability gate (no TV surface → the section is N/A). Verified additive: every
+  frozen REACT-001 rule ID across all six base documents is byte-identical to the
+  previous commit — 111 rules, nothing renumbered, dropped, or added to a frozen family.
+  The branches record where a base rule's *premise* weakens on TV rather than glossing
+  it: a packaged app's URLs are generally not shareable, so `REACT-ROUTE-URL-5` and
+  `REACT-ROUTE-STABILITY-2` rest on reload-survival instead and a shareability-based
+  finding must not be raised; `REACT-ROUTE-STABILITY-3`, `REACT-ROUTE-SSR-*`,
+  `REACT-ARCH-BOUNDARY-*`, `REACT-PERF-HYDRATION-1`, and `REACT-NAME-6` are normally
+  N/A on a packaged app and are recorded Not Applicable with a reason rather than passed;
+  `REACT-PERF-CWV-1` is reinterpreted rather than deleted, with key-press responsiveness
+  replacing INP's pointer model. `react-coding-standards.md` additionally states the
+  lane-level `device_type` contract (enum `mobile`/`tv`, no `mixed`, no silent default,
+  TV is a context signal and not a platform) and records that adding a root is the only
+  sanctioned way to extend the lane after an ID freeze — correcting its own now-false
+  claim that six React standards are authored.
+- `agents/react-architect.md`, `react-feature-developer.md`, `react-code-reviewer.md`,
+  `react-performance-reviewer.md`, `skills/react-dev-planning/SKILL.md`,
+  `react-feature-implementation/SKILL.md`, `react-code-review/SKILL.md` (REACT-003-3) —
+  the `device_type` contract now states that Smart TV is authored and citable. All 17
+  lines that told an agent `REACT-TV-*` was unauthored and not citable are replaced with
+  the positive contract: on `device_type: tv`, cite `REACT-TV-*` **in addition to** the
+  base `REACT-*` rules, which all still apply. Each standards-readiness gate now counts
+  **seven** `standards/react/*` files and covers `react-smart-tv.md`. The two review
+  agents and the code-review skill carry the `REACT-TV-*` routing table, since a
+  standalone TV root has no owner under the lane's "the ID's own root decides the filer"
+  rule: `REACT-TV-PERF-*` to `react-performance-reviewer`, every other TV family to
+  `react-code-reviewer`, with `REACT-TV-UI-6` and `REACT-TV-MEDIA-3` called out by name
+  as code-reviewer-owned despite being performance-adjacent. Because review has no
+  confirmed `device_type`, both reviewers must establish the TV surface from evidence
+  before citing any TV rule — a TV dependency in `package.json` does not make a reviewed
+  file a TV file — and where no TV surface is established the TV rules are Not
+  Applicable rather than passed or violated.
+- `README.md` — the React standards, skills, and agents are no longer described as
+  placeholders; the React (web) summary now states that the platform is complete end to
+  end, including Smart TV support via `device_type: tv`.
+
 ## [0.6.0] - 2026-08-19
 
 ### Added
