@@ -66,6 +66,7 @@ const PHASES: Phase[] = [
       "assess-dd-complexity",
       "migrate-planning-doc",
       "task-state",
+      "figma-theme-tokens",
     ],
   },
   {
@@ -87,6 +88,8 @@ const PHASES: Phase[] = [
       "dd-orchestration-contract",
       "rn-implementation-contract",
       "release-metadata",
+      "repo-knowledge-orchestration",
+      "device-type-contract",
     ],
   },
   {
