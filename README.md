@@ -24,7 +24,7 @@ claude --plugin-dir /path/to/ono-mobile-dev-plugin
 - **React Native** — the plugin's original, most fully-built-out platform. Full standards, skills, and agents.
 - **Native iOS** — routing, platform detection, and folder structure are fully wired up. The five iOS **standards are authored** (IOS-001) with citable `IOS-*` IDs, and the **planning lane is authored** (IOS-002) — `ios-architect` plus the `ios-dev-planning` skill, so `/analyze-feature`, `/dev-design-start`, and `/dev-feature-start` produce grounded, standards-cited iOS output. The **implementation lane is authored** (IOS-003) — `ios-feature-developer` plus the `ios-feature-implementation` skill, so `/implement-task` produces grounded, standards-cited iOS work and the iOS halves of `/fix-review-comments` and `/create-dev-qa-notes` are served. The **review lane is authored** (IOS-004) — `ios-code-reviewer` and `ios-performance-reviewer` plus the `ios-code-review` skill, so `/review-code` and the iOS perf sign-off in `/prepare-mobile-release` produce grounded, standards-cited output. tvOS-context sections are pending ATV-001/002.
 - **Native Android** — routing, platform detection, and folder structure are fully wired up, and the lane is **authored**: ten `standards/android/` documents with citable `AND-*` IDs (ANDROID-001), the planning lane (`android-architect` + `android-dev-planning`, ANDROID-002), the implementation lane (`android-feature-developer` + `android-feature-implementation`), and the review lane (`android-code-reviewer`, `android-performance-reviewer` + `android-code-review`). Device types `mobile` and `tv` are both handled.
-- **React (web)** — a plain browser SPA (Vite/CRA/Next.js), not React Native for Web. **The only lane still a structure-only placeholder** — its four agents, three skills, and six `standards/react/` documents are scaffolding, and every command that could route to them carries a readiness gate, so the lane is never invoked silently. Kept as a fully separate module from React Native despite overlapping JS/TS/React fundamentals, since the two target genuinely different runtimes (browser vs. native shell).
+- **React (web)** — a plain browser SPA (Vite/CRA/Next.js), not React Native for Web. **Complete end to end.** The six base React **standards are authored** (REACT-001) with citable `REACT-*` IDs (111 rules, ID skeleton frozen), and all three lanes are authored (REACT-002) — planning (`react-architect` + `react-dev-planning`), implementation (`react-feature-developer` + `react-feature-implementation`), and review (`react-code-reviewer` + `react-performance-reviewer` + `react-code-review`) — so the full pipeline produces grounded, `REACT-*`-cited output. **Smart TV is supported as `device_type: tv`** (REACT-003): a seventh standard, `react-smart-tv.md`, adds 54 `REACT-TV-*` rules covering focus and D-pad spatial navigation, remote input (including cursor mode and the platform IME), 10-foot UI, playback and screensaver handling, app lifecycle, network and auth transport, a constrained-runtime memory budget, and Tizen/webOS packaging — vendor-neutral, and additive over the frozen base IDs. TV is a **context signal inside this platform**, not a platform of its own: there is no `react-tv` value and no TV-specific agent, skill, or command. Kept as a fully separate module from React Native despite overlapping JS/TS/React fundamentals, since the two target genuinely different runtimes (browser vs. native shell).
 - **Mixed repos** — a React Native repo with native iOS and/or Android changes, or a native monorepo containing both an iOS and an Android project, or a monorepo pairing a React web app with an RN/native app.
 
 The shared layer keeps its `mobile-*` naming (`mobile-repo-analysis`, `mobile-security-review`, `/prepare-mobile-release`, etc.) even though React (web) isn't literally mobile — Ono Apps is a mobile division that also owns a React web app, so the umbrella name stayed put rather than triggering a broader rename.
@@ -104,6 +104,41 @@ Every command starts by inspecting the repo (via the `repo-analyst` agent) befor
 4. **If detection isn't confident, the plugin asks.** A single-marker tie, no verdict at all, or an inconclusive linkage check stops the command and asks you to pick the platform explicitly — it never guesses a default.
 
 The `platform` value — exactly one of `react-native` / `ios` / `android` / `react`, never `mixed` — is recorded in `templates/feature-analysis-template.md`'s frontmatter by `/analyze-feature` (detection may surface several candidates, but the user confirms one) and carried forward through every later stage — `/dev-design-start`, `/dev-feature-start`, `/implement-task`, and the rest read it rather than re-detecting.
+
+### Mobile vs. TV
+
+Alongside `platform`, every feature carries a **device type** — exactly one of `mobile`
+or `tv`. There is no `mixed` device type.
+
+**TV is a context inside a platform, never another platform.** Android TV is `android`
+with `device_type: tv`; Apple TV is `ios` with `device_type: tv`; Smart TV is `react`
+with `device_type: tv`. There is no fifth platform value, and no TV-specific command,
+agent, or skill — one agent and one skill serve both device types per lane.
+**React Native is deliberately mobile-only**: that lane has no TV branch.
+
+`device_type` is resolved by `repo-analyst` from packaging and framework markers, then
+**confirmed by you** at `/analyze-feature` step 2 — the same gate that confirms the
+platform. From there it is carried in frontmatter through every stage and never
+re-detected. It is **never inferred from repository signals** later in the pipeline;
+`docs/planning-doc-contract.md` records why, including the fact that this organisation's
+Android TV surface uses a custom in-house framework, so the conventional markers do not
+identify it. When a repository contains both a mobile and a TV target and which one the
+work targets cannot be determined, the plugin **stops and asks** rather than assuming
+`mobile`.
+
+Where the detail lives, rather than repeated here: the resolution algorithm and TV
+markers in [`agents/repo-analyst.md`](agents/repo-analyst.md) (Step 6.5), the frontmatter
+contract in [`docs/planning-doc-contract.md`](docs/planning-doc-contract.md), and the
+per-lane TV handling in each platform's `*-dev-planning` skill (§14) and `*-code-review`
+skill.
+
+**Current TV coverage — routing and discovery exist; guidance does not.** `device_type`
+flows end to end, and the iOS and Android planning lanes each run a TV discovery pass
+that inspects the repository's actual focus handling, remote/D-pad input, navigation and
+TV component set. But **no tvOS or Android-TV rules exist in any standards document yet**,
+so those lanes can discover the existing implementation and avoid regressing it — they
+cannot cite TV guidance. Authoring that guidance is open work: `ATV-001`/`ATV-002` for
+Apple TV, `ANDROID-003` for Android TV, `REACT-003` for Smart TV.
 
 ## How shared vs. platform-specific context loads
 
@@ -216,7 +251,7 @@ Every agent works against the org's written standards rather than assumed defaul
 - **`standards/react-native/`** — React Native/TypeScript coding standards, navigation, state management, API service layer, architecture, and performance. The most fully authored module.
 - **`standards/ios/`** — Swift language and style, SwiftUI/UIKit conventions, architecture, performance, and Xcode build/signing. Authored (IOS-001); every rule carries a citable `IOS-SWIFT-*`, `IOS-UI-*`, `IOS-ARCH-*`, `IOS-PERF-*`, or `IOS-BUILD-*` ID, and `swift-standards.md` defines the lane table that routes each root to exactly one reviewer.
 - **`standards/android/`** — Kotlin language and style, Compose/XML conventions, architecture, navigation, networking, persistence, logging/analytics, testing, performance, and Gradle build/signing. Authored (ANDROID-001); every rule carries a citable `AND-*` ID (`AND-KT-*`, `AND-UI-*`, `AND-ARCH-*`, `AND-VM-*`, `AND-NAV-*`, `AND-NET-*`, `AND-DATA-*`, `AND-LOG-*`, `AND-TEST-*`, `AND-PERF-*`, `AND-REL-*`, `AND-DI-*`).
-- **`standards/react/`** — structure-only placeholders (coding standards, routing, state management, architecture, API service layer, and performance) mirroring the react-native set, ready to be authored.
+- **`standards/react/`** — React coding standards, architecture, routing, state management, API service layer, and performance. Authored (REACT-001); every rule carries a citable `REACT-*` ID (111 rules across `REACT-TS/FC/NAME/PROPS/LINT`, `REACT-ARCH-*`, `REACT-API-*`, `REACT-ROUTE-*`, `REACT-STATE-*`, `REACT-PERF-*`), repository-first and framework-neutral, citing the shared `SEC-WEB-*`/`A11Y-*` rules for web security and accessibility. `react-smart-tv.md` adds the Smart TV standard (REACT-003-1) — 54 `REACT-TV-*` rules for `device_type: tv`, purely additive over the frozen REACT-001 IDs, vendor-neutral across Tizen/webOS/browser-TV.
 - **`templates/`** — one structured template per pipeline artifact: feature analysis, detailed design (DD), feature plan, task breakdown, code review, security review, QA handoff, and release checklist. Stages communicate exclusively through these filled-in templates. Every template that needs to know the platform carries a `platform` field (frontmatter or a per-row column), and the code-review/release-checklist templates support platform-tagged findings/subsections for mixed-platform work.
 
 Reviews cite standard IDs in their findings.
@@ -306,14 +341,14 @@ skills/                             (flat, one level — prefix = scope)
                                      diffing, and rendering are decided by scripts/figma-theme-tokens.ts; no dedicated agent)
   ios-dev-planning/ ios-feature-implementation/ ios-code-review/      (authored)
   android-dev-planning/ android-feature-implementation/ android-code-review/  (authored)
-  react-dev-planning/   react-feature-implementation/   react-code-review/    (placeholders)
+  react-dev-planning/   react-feature-implementation/   react-code-review/    (authored, REACT-002)
 
 agents/                             (flat)
   repo-analyst.md  mobile-security-reviewer.md  mobile-release-engineer.md
   rn-architect.md  rn-feature-developer.md  rn-code-reviewer.md  rn-performance-reviewer.md
   ios-architect.md ios-feature-developer.md ios-code-reviewer.md ios-performance-reviewer.md      (authored)
   android-architect.md android-feature-developer.md android-code-reviewer.md android-performance-reviewer.md  (authored)
-  react-architect.md   react-feature-developer.md   react-code-reviewer.md   react-performance-reviewer.md    (placeholders)
+  react-architect.md   react-feature-developer.md   react-code-reviewer.md   react-performance-reviewer.md    (authored, REACT-002)
 
 standards/
   shared/       mobile-security.md, accessibility.md, i18n-rtl.md, release-readiness.md, qa-handoff.md
@@ -326,7 +361,8 @@ standards/
                 android-logging-analytics.md, android-testing.md,
                 gradle-build-signing.md, android-performance.md          (authored, AND-* IDs)
   react/        react-coding-standards.md, react-routing.md, react-state-management.md,
-                react-performance.md, react-architecture.md, react-api-service-layer.md  (placeholders)
+                react-performance.md, react-architecture.md, react-api-service-layer.md  (authored, REACT-* IDs)
+                react-smart-tv.md                                       (authored, REACT-TV-* IDs, REACT-003-1)
 
 templates/                          (flat — shared pipeline artifacts, now platform-aware)
   feature-analysis-template.md, dd-template.md, dev-plan-template.md (feature plan),
