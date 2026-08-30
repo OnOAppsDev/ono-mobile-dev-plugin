@@ -2,6 +2,7 @@
 doc_schema_version: 1
 feature: biometric-login
 feature_analysis_link: docs/biometric-login-feature-analysis.md
+source_fingerprint: sha256:cb5552e12022a97ebc4c9599fc617b234aa53ddf6c3997019de77dddfd778358
 dd_link: docs/biometric-login-DD.md
 dev_plan_link: docs/biometric-login-dev-plan.md
 qa_handoff_link:

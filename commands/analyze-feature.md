@@ -83,4 +83,8 @@ Analyze the feature described in `$ARGUMENTS` (a feature description, product re
    - Any open questions/risks. When the status is `not_required`, record in "Open Questions & Risks" why the feature has no user-facing UI change.
 
    Every downstream stage reads these fields rather than re-asking or re-detecting.
+7a. **If a feature analysis already exists for this feature**, ask how to handle it — `Overwrite` / `Update` (merge new findings) / `Preserve` (write to a new filename) / `Version` (rename the existing file, e.g. append its date) — the same four options `/dev-design-start` offers for a DD. This is the chain root, so it is where an upstream requirement change re-enters the pipeline.
+
+   **The plugin never edits the requirements itself and never confers or revokes approval.** A human amends the analysis and re-approves it; this command only writes the document it is asked to write and leaves `status: proposed`. When downstream artifacts already exist, say so plainly: a regenerated analysis makes the DD's `source_fingerprint` mismatch, which is what sends the next stage back through `/dev-design-start`.
+
 8. This is a proposal, not a design. A human reviews the populated feature analysis and flips its status to `approved` before `/dev-design-start` turns it into a Detailed Design (DD).

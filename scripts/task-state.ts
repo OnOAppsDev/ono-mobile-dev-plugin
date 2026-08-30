@@ -45,6 +45,7 @@ import {
 } from "fs";
 import { join, dirname } from "path";
 import { createHash } from "crypto";
+import { fingerprintBody } from "./migrate-planning-doc.ts";
 
 /** Highest schema version this helper understands. Pinned by docs/task-state-contract.md. */
 export const CURRENT_SCHEMA_VERSION = 1;
@@ -282,6 +283,105 @@ function isRecord(v: unknown): v is Record<string, unknown> {
 
 function strArray(v: unknown): string[] {
   return Array.isArray(v) ? v.filter((x): x is string => typeof x === "string") : [];
+}
+
+/** One step on a dependency path, for a stop message that names the exact chain. */
+export interface DependencyProblem {
+  /** `["T7","T3","T1"]` — requested task first, offending task last. */
+  path: string[];
+  reason: "stale" | "removed" | "in-progress" | "missing" | "cycle" | "unproven";
+}
+
+/**
+ * Walk the requested task's TRANSITIVE dependency closure and return every problem that
+ * must block it, each with the exact path that reached it.
+ *
+ * Why transitive: T1 -> T3 -> T7. If T1's row changes, T3's own row is untouched and T3
+ * still reports `deterministicProof: true`, so a direct-only check lets T7 proceed on a
+ * foundation that moved. Direct checking cannot see that.
+ *
+ * Cycles are detected defensively with three-colour marking rather than a depth cap: a
+ * cycle in an approved breakdown is a defect, and dependency proof inside one is
+ * undecidable, so it is reported as a stop with the cycle path rather than being walked
+ * forever.
+ *
+ * No persisted graph and no new state: `dependsOn` is read from the breakdown row on
+ * every call, exactly as the store's contract already requires, and this result is
+ * thrown away when the command exits.
+ */
+export function walkDependencies(
+  tasks: Record<string, TaskView>,
+  requested: string,
+): DependencyProblem[] {
+  const problems: DependencyProblem[] = [];
+  const state = new Map<string, "visiting" | "done">();
+
+  const visit = (id: string, path: string[]): void => {
+    const mark = state.get(id);
+    if (mark === "done") return;
+    if (mark === "visiting") {
+      problems.push({ path: [...path, id], reason: "cycle" });
+      return;
+    }
+    state.set(id, "visiting");
+
+    const view = tasks[id];
+    if (view === undefined) {
+      problems.push({ path: [...path, id], reason: "missing" });
+      state.set(id, "done");
+      return;
+    }
+
+    // The requested task's own condition is judged by the caller; this walk reports
+    // only what its dependencies contribute.
+    if (id !== requested) {
+      if (view.stale === true && view.dependsOn === null) {
+        problems.push({ path: [...path, id], reason: "removed" });
+      } else if (view.stale === true) {
+        problems.push({ path: [...path, id], reason: "stale" });
+      } else if (view.state === "in-progress") {
+        problems.push({ path: [...path, id], reason: "in-progress" });
+      } else if (!view.deterministicProof) {
+        problems.push({ path: [...path, id], reason: "unproven" });
+      }
+    }
+
+    for (const dep of view.dependsOn ?? []) visit(dep, [...path, id]);
+    state.set(id, "done");
+  };
+
+  visit(requested, []);
+  return problems;
+}
+
+export interface ImpactReport {
+  unchanged: string[];
+  modified: string[];
+  removed: string[];
+  unrecorded: string[];
+}
+
+/**
+ * Classify every task in the feature by comparing current rows against the fingerprints
+ * already stored in the state file. Deterministic set-and-hash arithmetic over data the
+ * reader has already produced — no regeneration, which could not be deterministic
+ * because decomposing a DD into rows is model work.
+ *
+ * `unrecorded` deliberately conflates "newly introduced by the upstream change" with
+ * "existed all along, never implemented": both are simply absent from the store, and
+ * neither has work to invalidate. Distinguishing them would require persisting the whole
+ * prior row set.
+ */
+export function impactReport(tasks: Record<string, TaskView>): ImpactReport {
+  const out: ImpactReport = { unchanged: [], modified: [], removed: [], unrecorded: [] };
+  for (const id of Object.keys(tasks).sort()) {
+    const v = tasks[id];
+    if (v.state === "unknown" && v.attempt === null) out.unrecorded.push(id);
+    else if (v.stale === true && v.dependsOn === null) out.removed.push(id);
+    else if (v.stale === true) out.modified.push(id);
+    else out.unchanged.push(id);
+  }
+  return out;
 }
 
 export function readTaskState(
@@ -622,6 +722,32 @@ function main(): void {
   const root = flag("root") ?? process.cwd();
   const feature = flag("feature") ?? "";
   const breakdown = flag("breakdown");
+
+  // SHARED-013: the upstream body fingerprint a command compares against a downstream
+  // document's recorded `source_fingerprint`. Always exits 0 and always prints one JSON
+  // object, like every other mode here, so a caller branches on `status` not exit code.
+  if (mode === "fingerprint") {
+    const file = flag("file");
+    if (file === undefined) {
+      process.stdout.write(`${JSON.stringify({ status: "invalid", detail: "--file is required" }, null, 2)}\n`);
+      process.exit(0);
+    }
+    if (!existsSync(file)) {
+      process.stdout.write(`${JSON.stringify({ status: "absent", path: file, fingerprint: null }, null, 2)}\n`);
+      process.exit(0);
+    }
+    const fp = fingerprintBody(readFileSync(file));
+    process.stdout.write(
+      `${JSON.stringify(
+        fp === null
+          ? { status: "unparseable", path: file, fingerprint: null, detail: "no recognizable frontmatter block" }
+          : { status: "ok", path: file, fingerprint: fp },
+        null,
+        2,
+      )}\n`,
+    );
+    process.exit(0);
+  }
 
   if (mode === "read") {
     process.stdout.write(`${JSON.stringify(readTaskState(root, feature, breakdown), null, 2)}\n`);
