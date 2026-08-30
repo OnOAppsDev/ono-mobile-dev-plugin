@@ -385,7 +385,7 @@
           <tr><td contenteditable="">Android TV</td><td contenteditable="" class="tint o-guy">Guy Gur Arie</td><td contenteditable="">❌ No</td></tr>
           <tr><td contenteditable="">iOS Mobile</td><td contenteditable="" class="tint o-tom">Tom Zion</td><td contenteditable="">❌ No</td></tr>
           <tr><td contenteditable="">Apple TV</td><td contenteditable="" class="tint o-noam">Noam Haba</td><td contenteditable="">❌ No</td></tr>
-          <tr><td contenteditable="">React Web + Smart TV</td><td contenteditable="" class="tint o-boris">Boris Molotsky</td><td contenteditable="">❌ No</td></tr>
+          <tr><td contenteditable="">React Web + Smart TV</td><td contenteditable="" class="tint o-boris">Boris Molotsky</td><td contenteditable="">✅ Yes</td></tr>
         </tbody>
       </table>
     </div>
@@ -632,18 +632,18 @@
             <td contenteditable="">Implemented 2026-08-16. All 6 React (web) standards authored — 111 REACT-* rules across REACT-TS/FC/NAME/PROPS/LINT, REACT-ARCH-*, REACT-API-*, REACT-ROUTE-*, REACT-STATE-*, REACT-PERF-* — replacing the placeholders. Lane conventions set here: REACT- prefix on every family (collision-free vs RN/AND/IOS), a strict no-aside stance, and a rank-5 External-references section per doc. Repository-first and framework-neutral; cites shared SEC-WEB-*/SEC-COOKIE-*/A11Y-* for web security &amp; accessibility. Each doc adversarially reviewed; ID skeleton frozen and all cross-references reconciled (REACT-001-7). REACT-TV-* reserved for REACT-003. Unblocks REACT-002.</td>
             <td contenteditable="">SHARED-002 ✓, SHARED-003 ✓</td><td contenteditable="">4</td><td contenteditable="">Week 1</td><td contenteditable="">Week 1 ✓</td>
           </tr>
-          <tr data-priority="blocker" class="">
-            <td contenteditable="">REACT-002<span class="pflag">Blocker</span></td><td contenteditable="" class="tint o-boris">Boris Molotsky</td><td contenteditable="">React</td><td contenteditable="">Agent + Skill</td>
+          <tr data-priority="done" class="">
+            <td contenteditable="">REACT-002<span class="pflag">Done</span></td><td contenteditable="" class="tint o-boris">Boris Molotsky</td><td contenteditable="">React</td><td contenteditable="">Agent + Skill</td>
             <td contenteditable="">react-architect.md, react-feature-developer.md, react-code-reviewer.md, react-performance-reviewer.md (agents) + react-dev-planning, react-feature-implementation, react-code-review (skills)</td>
-            <td contenteditable="" class="tint t-placeholder">Exists as placeholder</td><td contenteditable="">Complete placeholder</td>
-            <td contenteditable="">Author all React agents and skills. Largest single item and the program's critical path.</td>
+            <td contenteditable="" class="tint t-done">Complete</td><td contenteditable="">Complete placeholder</td>
+            <td contenteditable="">Implemented 2026-08-20. All four React agents and all three React skills authored — <code>react-architect</code>, <code>react-feature-developer</code>, <code>react-code-reviewer</code>, <code>react-performance-reviewer</code>, plus <code>react-dev-planning</code>, <code>react-feature-implementation</code> and <code>react-code-review</code> — replacing the structure-only placeholders. The lane consumes canonical repository knowledge through <code>repo-knowledge-consumer</code> like iOS and Android, and every command route to it now passes the platform-neutral readiness gate. Independent adversarial review recorded in <code>docs/planning/REACT-002-independent-review-findings.md</code>.</td>
             <td contenteditable="">REACT-001</td><td contenteditable="">8</td><td contenteditable="">Week 2</td><td contenteditable="">Week 4</td>
           </tr>
-          <tr data-priority="high" class="">
-            <td contenteditable="">REACT-003<span class="pflag">High</span></td><td contenteditable="" class="tint o-boris">Boris Molotsky</td><td contenteditable="">React (Smart TV context)</td><td contenteditable="">Standard + Skill + Agent</td>
+          <tr data-priority="done" class="">
+            <td contenteditable="">REACT-003<span class="pflag">Done</span></td><td contenteditable="" class="tint o-boris">Boris Molotsky</td><td contenteditable="">React (Smart TV context)</td><td contenteditable="">Standard + Skill + Agent</td>
             <td contenteditable="">React standards + react-* skills/agents — Smart TV context</td>
-            <td contenteditable="" class="tint t-missing">Missing — must be created</td><td contenteditable="">Add mobile/TV context handling</td>
-            <td contenteditable="">Add React Smart TV knowledge via the mobile-vs-TV context: remote/focus navigation, TV runtime &amp; memory constraints, vendor packaging (Tizen/webOS).</td>
+            <td contenteditable="" class="tint t-done">Complete</td><td contenteditable="">Add mobile/TV context handling</td>
+            <td contenteditable="">Implemented 2026-08-20. <code>standards/react/react-smart-tv.md</code> — 226 lines, 54 rules across <code>REACT-TV-FOCUS/INPUT/UI/PERF/MEDIA/PKG/API/LIFECYCLE</code> — covering the three named deliverables: remote/focus navigation, TV runtime and memory constraints, and vendor packaging (Tizen/webOS). Wired rather than orphaned: all seven React components carry <code>device_type</code> and six cite the standard directly. Independent adversarial review (<code>docs/planning/REACT-003-independent-review-findings.md</code>) closed <strong>every P0 and P1</strong> plus all in-lane P2/P3 items. <strong>Shared-lane follow-ups — still open, deliberately outside this ticket, recorded here so they are not lost with the finding document.</strong> Each needs an owner outside the React lane: (1) wire TV into <code>/review-code</code>'s merge step; (2) wire TV into <code>/prepare-mobile-release</code>; (3) give the shared <code>mobile-security-reviewer</code> TV awareness (vendor manifests, keystores, <code>.wgt</code>/<code>.ipk</code>); (4) add a colour-contrast rule to <code>standards/shared/accessibility.md</code> and a TV-surface field to <code>templates/code-review-template.md</code>. <strong>None is a blocker</strong> — every React rule was re-scoped to be enforceable without them, so these are improvements, not dependencies.</td>
             <td contenteditable="">REACT-001, REACT-002, SHARED-001 ✓</td><td contenteditable="">4</td><td contenteditable="">Week 4</td><td contenteditable="">Week 5</td>
           </tr>
         </tbody>
@@ -666,15 +666,15 @@
       <table class="editable" id="t-ready">
         <thead><tr><th>Lifecycle stage</th><th>React Native (Pavel)</th><th>iOS (Tom) + Apple TV (Noam)</th><th>Android (Guy) — Mobile + TV</th><th>React (Boris) — Web + Smart TV</th></tr></thead>
         <tbody>
-          <tr><td contenteditable="">Analyze</td><td contenteditable="">Ready</td><td contenteditable="">Ready (mobile) / Blocked (Apple TV)</td><td contenteditable="">Ready (mobile) / Blocked (Android TV)</td><td contenteditable="">Placeholder</td></tr>
-          <tr><td contenteditable="">Design</td><td contenteditable="">Ready</td><td contenteditable="">Ready (mobile) / Blocked (Apple TV)</td><td contenteditable="">Ready (mobile) / Blocked (Android TV)</td><td contenteditable="">Placeholder</td></tr>
-          <tr><td contenteditable="">Feature-start</td><td contenteditable="">Ready</td><td contenteditable="">Ready (mobile) / Blocked (Apple TV)</td><td contenteditable="">Ready (mobile) / Blocked (Android TV)</td><td contenteditable="">Placeholder</td></tr>
-          <tr><td contenteditable="">Implement</td><td contenteditable="">Ready</td><td contenteditable="">Ready (mobile) / Blocked (Apple TV)</td><td contenteditable="">Ready (mobile) / Blocked (Android TV)</td><td contenteditable="">Placeholder</td></tr>
-          <tr><td contenteditable="">Review-code</td><td contenteditable="">Ready</td><td contenteditable="">Ready (mobile) / Blocked (Apple TV)</td><td contenteditable="">Ready (mobile) / Blocked (Android TV)</td><td contenteditable="">Placeholder</td></tr>
+          <tr><td contenteditable="">Analyze</td><td contenteditable="">Ready</td><td contenteditable="">Ready (mobile) / Blocked (Apple TV)</td><td contenteditable="">Ready (mobile) / Blocked (Android TV)</td><td contenteditable="">Ready</td></tr>
+          <tr><td contenteditable="">Design</td><td contenteditable="">Ready</td><td contenteditable="">Ready (mobile) / Blocked (Apple TV)</td><td contenteditable="">Ready (mobile) / Blocked (Android TV)</td><td contenteditable="">Ready</td></tr>
+          <tr><td contenteditable="">Feature-start</td><td contenteditable="">Ready</td><td contenteditable="">Ready (mobile) / Blocked (Apple TV)</td><td contenteditable="">Ready (mobile) / Blocked (Android TV)</td><td contenteditable="">Ready</td></tr>
+          <tr><td contenteditable="">Implement</td><td contenteditable="">Ready</td><td contenteditable="">Ready (mobile) / Blocked (Apple TV)</td><td contenteditable="">Ready (mobile) / Blocked (Android TV)</td><td contenteditable="">Ready</td></tr>
+          <tr><td contenteditable="">Review-code</td><td contenteditable="">Ready</td><td contenteditable="">Ready (mobile) / Blocked (Apple TV)</td><td contenteditable="">Ready (mobile) / Blocked (Android TV)</td><td contenteditable="">Ready</td></tr>
           <tr><td contenteditable="">Review-security</td><td contenteditable="">Ready</td><td contenteditable="">Ready</td><td contenteditable="">Ready</td><td contenteditable="">Ready</td></tr>
-          <tr><td contenteditable="">Fix</td><td contenteditable="">Ready</td><td contenteditable="">Ready (mobile) / Blocked (Apple TV)</td><td contenteditable="">Ready (mobile) / Blocked (Android TV)</td><td contenteditable="">Placeholder</td></tr>
-          <tr><td contenteditable="">QA handoff</td><td contenteditable="">Ready</td><td contenteditable="">Ready (mobile) / Blocked (Apple TV)</td><td contenteditable="">Ready (mobile) / Blocked (Android TV)</td><td contenteditable="">Placeholder</td></tr>
-          <tr><td contenteditable="">Release</td><td contenteditable="">Ready</td><td contenteditable="">Ready (mobile) / Blocked (Apple TV)</td><td contenteditable="">Ready (mobile) / Blocked (Android TV)</td><td contenteditable="">Placeholder</td></tr>
+          <tr><td contenteditable="">Fix</td><td contenteditable="">Ready</td><td contenteditable="">Ready (mobile) / Blocked (Apple TV)</td><td contenteditable="">Ready (mobile) / Blocked (Android TV)</td><td contenteditable="">Ready</td></tr>
+          <tr><td contenteditable="">QA handoff</td><td contenteditable="">Ready</td><td contenteditable="">Ready (mobile) / Blocked (Apple TV)</td><td contenteditable="">Ready (mobile) / Blocked (Android TV)</td><td contenteditable="">Ready</td></tr>
+          <tr><td contenteditable="">Release</td><td contenteditable="">Ready</td><td contenteditable="">Ready (mobile) / Blocked (Apple TV)</td><td contenteditable="">Ready (mobile) / Blocked (Android TV)</td><td contenteditable="">Ready</td></tr>
         </tbody>
       </table>
     </div>
