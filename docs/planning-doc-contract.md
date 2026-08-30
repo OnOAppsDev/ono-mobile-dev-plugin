@@ -421,6 +421,54 @@ still single.
 | `/dev-feature-start` | `dd` | **Yes** — wired when `dd` gained a chain at v2 |
 | `/implement-task` | all four | Deferred — see below |
 
+## `source_fingerprint` — upstream-change detection
+
+SHARED-013. Answers one question mechanically: **was this document generated from the
+version of its upstream document that is on disk now?**
+
+| Document | Field records the body fingerprint of | Written by | Verified by |
+|---|---|---|---|
+| `dd` | the approved feature analysis | `/dev-design-start` | `/dev-feature-start` |
+| `task-breakdown` | the approved DD | `/dev-feature-start` | `/implement-task` |
+
+`dev-plan` deliberately **does not** carry the field. It has no independent generation
+point — `/dev-feature-start` step 6 writes it in the same run that writes the breakdown,
+from the same DD read — so the two cannot diverge, and there is no command that could
+verify a fingerprint on it. A field with no verifier would be decoration.
+
+**Value.** `sha256:` plus the hex digest of the upstream document's **body**, computed by
+`fingerprintBody()` in `scripts/migrate-planning-doc.ts`, which reuses `splitDocument()`
+so there is exactly one definition of where frontmatter ends. The bytes are hashed as
+they are — there is no second normalization algorithm to keep in step with `normalizeRow`.
+
+**Frontmatter is excluded, all of it.** Not a convenience:
+
+- `status` flips `draft` → `approved` *after* a downstream document may already exist.
+  Including it would make every approval look like a content change.
+- `doc_schema_version`, `migrated_from_version`, `migrated_by`, `migration_inputs` are
+  written by the migration framework; including them would make a *shape* migration
+  masquerade as a *content* change.
+- `repo_knowledge_*` re-resolve on every run and have their own freshness fingerprint.
+
+This also makes the value **provably migration-stable**: `migratePlanningDoc` already
+asserts the body is byte-identical before writing, so a migration cannot move it.
+
+The cost of that choice, stated plainly: a change confined to frontmatter is invisible
+here. Those fields have their own gates — `status` the approval gate,
+`doc_schema_version` this framework, and the four design-reference fields a direct
+verbatim comparison between the downstream copy and its upstream original.
+
+**Verification outcomes.** Equal → continue. Different → **stop**, name both values, and
+name the one command that re-enters the pipeline. **Absent → `unknown`, reported in one
+line, never `mismatch`.**
+
+**Additive, and outside the version chain** — the same class as `qa_handoff_link` below.
+No `doc_schema_version` was bumped for it, no migration step was authored, and none
+should be: a legacy document has no recoverable true value, so a migration could only
+fabricate provenance. `dd` stays at 2 and `task-breakdown` at 1. The field is written by a
+command at generation, extra fields never participate in version detection, and untouched
+frontmatter lines are re-emitted byte-verbatim, so neither overwrite path is involved.
+
 ## Known limitations
 
 Recorded so a later author does not discover them the hard way.

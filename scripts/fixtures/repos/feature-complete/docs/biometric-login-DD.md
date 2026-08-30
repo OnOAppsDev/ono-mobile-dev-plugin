@@ -1,6 +1,7 @@
 ```yaml
 doc_schema_version: 2
 feature: biometric-login
+source_fingerprint: sha256:5b25bbeff9138dd0f117186becfc5c043b0fc7c82399330e63bb06b4ee5f5318
 feature_analysis_link: docs/biometric-login-feature-analysis.md
 design_reference_status: provided
 design_reference_type: existing_ui

@@ -67,6 +67,24 @@ Confirm **all** of the following before going further. On any failure, stop, nam
 - For UI-touching work, a **design reference** is available (breakdown/Dev Plan/DD): either `figma_link` (`design_reference_type: figma`) or `design_reference` (type `document` / `screenshots` / `existing_ui` / `other`). If the task touches UI and neither is present → **stop and ask for a design reference.** Figma specifically is not required — any recorded reference type satisfies this check. `design_reference_status: not_required` is only valid for a task that changes no user-facing UI; if a UI-touching task carries it, stop and report the contradiction.
 - Branch is **not** `main`/`master` (the `block-main-branch-changes` hook enforces this on write; check it up front too) and repository policy allows edits.
 
+## 5a. Consistency preflight (runs on every invocation)
+
+Before any of the checks below, confirm this breakdown was derived from the DD that is on disk **now**. This runs on every invocation, so a change made between two task runs is caught at the next one — there is no background monitor and none is needed. It uses documents you already read, so it costs no extra work.
+
+**Upstream fingerprint.** Compute the DD's body fingerprint and compare it to the `source_fingerprint` recorded in the Task Breakdown's frontmatter:
+
+```
+node --no-warnings "${CLAUDE_PLUGIN_ROOT}/scripts/task-state.ts" fingerprint --file "<absolute DD path>"
+```
+
+- **Equal** → continue.
+- **Different** → **hard stop.** Every row in this breakdown, including the one you were asked to implement, was derived from a DD that has since changed, so no row's validity is known. Report both values and say: **"The DD changed after this breakdown was generated. Re-approve the DD, then run `/dev-feature-start` to regenerate the breakdown."**
+- **Absent** on the breakdown (a document written before SHARED-013) → report `source_fingerprint: unknown` in one line and continue. **Absent is never a mismatch.**
+
+**Design reference.** Compare the four design-reference fields carried in the Task Breakdown against the same four in the DD. They are contractually carried byte-verbatim, so any difference means the reference was re-pointed after the breakdown was generated. On a difference, **hard stop** and say: **"The design reference changed after this breakdown was generated. Run `/dev-design-start` to rebuild the DD against the current reference."**
+
+Figma content that changed behind an unchanged URL cannot be detected — the Figma MCP exposes no version, revision or content hash. For a UI-touching task, ask the developer to confirm the reference is still current, and record that as an attestation, never as verification.
+
 ## 6. Task state and dependency completeness (read the store, then decide)
 
 Read the feature's lifecycle state through the plugin's helper — do not read or write the state file directly, and do not reimplement its rules:
@@ -92,6 +110,37 @@ It always exits 0 and always prints one JSON object; branch on `status`, never o
 - **Anything else** — `unknown`, `in-progress`, `blocked`, `failed`, a `stale` completion, or a `human-attested` completion — is **not** proof. **Stop and ask the user for explicit evidence or confirmation** (e.g. merged commits/PRs), exactly as this step always did.
 - A `human-attested` record is surfaced as an attestation, never as verification. Do **not** treat it as equivalent to a task that passed step 10.
 - Do **not** silently assume a dependency is complete, and do **not** implement dependency tasks yourself.
+
+**Walk the whole transitive closure, not just the direct `depends-on` list.** Consider `T1 → T3 → T7`: if T1's row changes, T3's own row is untouched, so T3 still reports `deterministicProof: true` and a direct-only check would let T7 proceed on a foundation that moved. Follow `dependsOn` from the requested task through every level.
+
+For each problem found, **hard stop and report the exact dependency path** — `T7 → T3 → T1 (stale: row changed)` — never a bare "a dependency is not proven":
+
+| What the walk finds | Recovery command to name |
+|---|---|
+| a task in the closure is **stale** (its row changed) | `/implement-task <that task>` |
+| a task in the closure was **removed** from the breakdown | `/dev-feature-start` — the dependency graph itself is wrong |
+| a task in the closure is **in-progress** | `/implement-task <that task>` — finish or reset it first |
+| a `depends-on` names a task with **no row** | `/dev-feature-start` — the graph references a task that does not exist |
+| a **dependency cycle** (`T3 → T5 → T3`) | `/dev-feature-start` — proof is undecidable inside a cycle and an approved breakdown should not contain one |
+
+Detect cycles defensively rather than following the graph indefinitely; report the repeated task in the path.
+
+## 6a. Feature-wide impact report (always printed, blocks only what it must)
+
+The store read above already returns **every** task in the feature, not just the one requested. Classify all of them and show the result before implementing:
+
+| Bucket | Meaning |
+|---|---|
+| **Unchanged** | recorded, row fingerprint still matches — prior work valid, still dependency proof |
+| **Modified** | recorded, row fingerprint differs — the recorded work no longer describes the row |
+| **Removed** | recorded, no row in the breakdown — the record is kept, and is never proof |
+| **Unrecorded** | a row with no record — nothing to invalidate |
+
+Then state the recommended actions, ordered: the upstream mismatch first if there is one, then each blocking item in the requested task's closure with the command that resolves it, then the tasks that need no action.
+
+**A stale or removed task outside the requested task's transitive closure is reported, never blocking.** Implementing an unrelated task is safe, and stopping for it would teach the developer to override every stop — including the ones that matter. Say plainly which tasks are affected and which are not.
+
+Never say "safe to continue" while an upstream fingerprint mismatch is unresolved: in that state nothing is known to be safe.
 
 When the store is `absent`, `unparseable`, `invalid`, `schema-too-new` or `feature-mismatch`, every task reads `unknown` and this step behaves exactly as it did before the store existed — say so in one line and fall back to asking. **A missing store never blocks the command.**
 
