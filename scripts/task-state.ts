@@ -82,6 +82,57 @@ export interface ValidationEntry {
   result: string;
 }
 
+/**
+ * SHARED-014. A mechanically verifiable accessibility check. Tier is constrained to 1|2
+ * by construction: Tier 3 has no representation here, so a Tier 3 "pass" is not a value
+ * this type can hold. See `standards/shared/verification.md` (`VERIFY-1`).
+ */
+export interface AccessibilityCheck {
+  ruleId: string;
+  tier: 1 | 2;
+  result: "pass" | "fail";
+  evidence?: string;
+}
+
+/**
+ * SHARED-014. Accessibility as a recorded completion dimension.
+ *
+ * `applicable: false` is a positive statement with a required reason — a TV task, or a
+ * task that touches no accessibility-relevant surface. It is NOT what an absent block
+ * means: absence reads as `notRecorded` (see `accessibilityStatus`), never as a pass and
+ * never as "not applicable".
+ */
+export interface AccessibilityBlock {
+  applicable: boolean;
+  reason: string | null;
+  deviceType: string | null;
+  standardIds: string[];
+  checks: AccessibilityCheck[];
+}
+
+/**
+ * SHARED-014. Generic verification debt: an obligation the plugin cannot discharge.
+ *
+ * Deliberately domain-tagged rather than accessibility-specific — performance, battery
+ * and device-capability domains are expected to use the same field without a migration.
+ * SHARED-014 populates only `domain: "accessibility"`.
+ *
+ * There is no `result` field, and `status` is only ever written as `pending`. Neither
+ * omission is an oversight: it makes "the plugin recorded this as verified" unrepresentable,
+ * which is the structural form of `VERIFY-2`.
+ */
+export interface VerificationDebtEntry {
+  domain: string;
+  ruleId: string;
+  requiredVerification: string;
+  whyNotAutomatable: string;
+  owner: string;
+  status: "pending";
+}
+
+/** Absent block vs. a recorded decision — three distinct readings, never collapsed. */
+export type AccessibilityStatus = "notRecorded" | "applicable" | "notApplicable";
+
 export interface TaskRecord {
   state: TaskState;
   provenance: Provenance;
@@ -96,6 +147,10 @@ export interface TaskRecord {
   acceptanceCriteria: AcceptanceCriterion[];
   deviations: string[];
   blockers: string[];
+  /** SHARED-014. Absent on records written before it — read via `accessibilityStatus`. */
+  accessibility?: AccessibilityBlock;
+  /** SHARED-014. Absent on records written before it; absence is not "no debt". */
+  verificationDebt?: VerificationDebtEntry[];
 }
 
 export interface TaskStateFile {
@@ -118,6 +173,60 @@ export interface TaskView {
   dependsOn: string[] | null;
   filesChanged: string[];
   standardIds: string[];
+  /** SHARED-014. `notRecorded` for legacy records: never conflated with `notApplicable`. */
+  accessibilityStatus: AccessibilityStatus;
+  /** Null when the block is absent — distinct from a recorded block with no checks. */
+  accessibility: AccessibilityBlock | null;
+  /** Empty for a legacy record; `accessibilityStatus` says whether that means anything. */
+  verificationDebt: VerificationDebtEntry[];
+}
+
+/**
+ * SHARED-014. Reads the accessibility dimension off a raw record.
+ *
+ * The load-bearing case is the legacy record written before SHARED-014: the block is
+ * absent, and absence must read as `notRecorded`. It is NOT `notApplicable` (which is a
+ * recorded decision with a reason) and NOT a pass. Collapsing those three would let a
+ * record that never considered accessibility look like one that cleared it.
+ */
+function readAccessibility(raw: Record<string, unknown>): {
+  accessibilityStatus: AccessibilityStatus;
+  accessibility: AccessibilityBlock | null;
+  verificationDebt: VerificationDebtEntry[];
+} {
+  const debtRaw = Array.isArray(raw.verificationDebt) ? raw.verificationDebt : [];
+  const verificationDebt = debtRaw.filter(isRecord).map((d) => ({
+    domain: String(d.domain ?? ""),
+    ruleId: String(d.ruleId ?? ""),
+    requiredVerification: String(d.requiredVerification ?? ""),
+    whyNotAutomatable: String(d.whyNotAutomatable ?? ""),
+    owner: String(d.owner ?? ""),
+    status: "pending" as const,
+  }));
+
+  const a = raw.accessibility;
+  if (!isRecord(a) || typeof a.applicable !== "boolean") {
+    return { accessibilityStatus: "notRecorded", accessibility: null, verificationDebt };
+  }
+
+  const checksRaw = Array.isArray(a.checks) ? a.checks : [];
+  const block: AccessibilityBlock = {
+    applicable: a.applicable,
+    reason: typeof a.reason === "string" ? a.reason : null,
+    deviceType: typeof a.deviceType === "string" ? a.deviceType : null,
+    standardIds: strArray(a.standardIds),
+    checks: checksRaw.filter(isRecord).map((c) => ({
+      ruleId: String(c.ruleId ?? ""),
+      tier: (c.tier === 2 ? 2 : 1) as 1 | 2,
+      result: (c.result === "fail" ? "fail" : "pass") as "pass" | "fail",
+      ...(typeof c.evidence === "string" ? { evidence: c.evidence } : {}),
+    })),
+  };
+  return {
+    accessibilityStatus: block.applicable ? "applicable" : "notApplicable",
+    accessibility: block,
+    verificationDebt,
+  };
 }
 
 export interface ReadResult {
@@ -242,6 +351,9 @@ function unknownView(dependsOn: string[] | null): TaskView {
     dependsOn,
     filesChanged: [],
     standardIds: [],
+    accessibilityStatus: "notRecorded",
+    accessibility: null,
+    verificationDebt: [],
   };
 }
 
@@ -485,6 +597,7 @@ export function readTaskState(
       dependsOn: breakdownRows === null ? null : (breakdownRows[id]?.dependsOn ?? null),
       filesChanged: strArray(raw.filesChanged),
       standardIds: strArray(raw.standardIds),
+      ...readAccessibility(raw),
     };
   }
 
@@ -552,6 +665,62 @@ export interface WritePayload {
   acceptanceCriteria?: AcceptanceCriterion[];
   deviations?: string[];
   blockers?: string[];
+  accessibility?: AccessibilityBlock;
+  verificationDebt?: VerificationDebtEntry[];
+}
+
+/**
+ * SHARED-014. Validates the accessibility block and verification debt.
+ *
+ * Returns null when the payload is acceptable, or the refusal reason. Called for every
+ * write, not only `complete`: a malformed block is a malformed record whatever the state.
+ *
+ * The rules enforced here are the ones that must not be left to prose, because prose is
+ * what a caller can quietly not follow:
+ *   - Tier 3 cannot appear as a check at all (the type says 1|2; this enforces it at runtime).
+ *   - A Tier 1/2 check cannot claim to satisfy a manual-only rule (`VERIFY-2`).
+ *   - Debt is only ever written `pending` — the plugin cannot mark it discharged.
+ *   - `applicable: false` requires a reason and forbids citing rules anyway.
+ */
+export const MANUAL_ONLY_RULE_IDS = ["A11Y-SR-1"] as const;
+
+export function accessibilityProblem(payload: WritePayload): string | null {
+  const a = payload.accessibility;
+  const debt = payload.verificationDebt ?? [];
+
+  for (const d of debt) {
+    if (!d.domain || !d.ruleId || !d.requiredVerification || !d.whyNotAutomatable || !d.owner) {
+      return "Refused: every verificationDebt entry requires domain, ruleId, requiredVerification, whyNotAutomatable and owner.";
+    }
+    if (d.status !== "pending") {
+      return `Refused: verificationDebt status may only be written as "pending" — the plugin cannot record an obligation it did not discharge as "${d.status}".`;
+    }
+  }
+
+  if (a === undefined) return null;
+
+  if (a.applicable === false) {
+    if (typeof a.reason !== "string" || a.reason.trim() === "") {
+      return "Refused: accessibility.applicable=false requires a non-empty reason.";
+    }
+    if (a.standardIds.length > 0 || a.checks.length > 0) {
+      return "Refused: accessibility.applicable=false must cite no standard IDs and record no checks.";
+    }
+    return null;
+  }
+
+  for (const c of a.checks) {
+    if (c.tier !== 1 && c.tier !== 2) {
+      return `Refused: accessibility check "${c.ruleId}" declares tier ${String(c.tier)}. Only Tier 1 and Tier 2 are recordable checks; a Tier 3 requirement is recorded as verificationDebt (VERIFY-1).`;
+    }
+    if (c.result !== "pass" && c.result !== "fail") {
+      return `Refused: accessibility check "${c.ruleId}" has result "${String(c.result)}"; expected "pass" or "fail".`;
+    }
+    if ((MANUAL_ONLY_RULE_IDS as readonly string[]).includes(c.ruleId)) {
+      return `Refused: "${c.ruleId}" requires assistive-technology validation and cannot be satisfied by Tier ${c.tier} evidence (VERIFY-2). Record it as verificationDebt instead.`;
+    }
+  }
+  return null;
 }
 
 /**
@@ -563,7 +732,18 @@ export interface WritePayload {
 export function verificationSatisfied(payload: WritePayload): boolean {
   const ac = payload.acceptanceCriteria ?? [];
   const val = payload.validation ?? [];
-  return ac.length > 0 && ac.every((c) => c.met === true) && val.length > 0;
+  if (!(ac.length > 0 && ac.every((c) => c.met === true) && val.length > 0)) return false;
+
+  // SHARED-014. Accessibility gates completion only where it applies, and only on the
+  // evidence the plugin actually produced: a failing Tier 1/2 check is a proven defect
+  // and blocks. Outstanding verification debt does NOT block — the plugin proved nothing
+  // either way, and blocking would make completion depend on device availability.
+  const a = payload.accessibility;
+  if (a !== undefined && a.applicable === true) {
+    if (a.standardIds.length === 0 || a.checks.length === 0) return false;
+    if (a.checks.some((c) => c.result === "fail")) return false;
+  }
+  return true;
 }
 
 export function writeTaskState(
@@ -587,6 +767,17 @@ export function writeTaskState(
   }
   const nextState = state as TaskState;
 
+  const a11yProblem = accessibilityProblem(payload);
+  if (a11yProblem !== null) {
+    return {
+      status: "refused",
+      path,
+      taskId,
+      reason: "invalid-accessibility",
+      summary: a11yProblem,
+    };
+  }
+
   if (nextState === "complete" && !verificationSatisfied(payload)) {
     return {
       status: "refused",
@@ -594,7 +785,7 @@ export function writeTaskState(
       taskId,
       reason: "complete-without-verification",
       summary:
-        "Refused: a terminal `complete` requires every acceptance criterion recorded and met, plus at least one validation entry. Record `failed` or `blocked` instead.",
+        "Refused: a terminal `complete` requires every acceptance criterion recorded and met, plus at least one validation entry; and where accessibility applies, cited standard IDs, at least one recorded check, and no failing Tier 1/2 check. Record `failed` or `blocked` instead.",
     };
   }
 
@@ -678,6 +869,8 @@ export function writeTaskState(
     acceptanceCriteria: payload.acceptanceCriteria ?? [],
     deviations: payload.deviations ?? [],
     blockers: payload.blockers ?? [],
+    ...(payload.accessibility !== undefined ? { accessibility: payload.accessibility } : {}),
+    ...(payload.verificationDebt !== undefined ? { verificationDebt: payload.verificationDebt } : {}),
   };
 
   const ordered: Record<string, TaskRecord> = {};

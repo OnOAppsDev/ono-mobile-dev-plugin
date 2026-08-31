@@ -23,6 +23,8 @@ These standards apply to any QA handoff written via `/create-dev-qa-notes`, rega
 ## i18n / Accessibility Verification
 
 - `QA-A11Y-1` i18n/RTL and accessibility are confirmed as actually checked, not just implemented — cite the specific `I18N-*`/`A11Y-*` standard IDs applied, and whether the required manual walkthroughs (e.g. a bidirectional-layout check, a screen-reader/assistive-tech check) were performed. A generic "looks fine" is not sufficient.
+- `QA-A11Y-2` Accessibility evidence in a handoff is **read from the recorded task state, never reconstructed** — the cited rule IDs, the mechanical checks and their results, and every outstanding `verificationDebt` entry. A task whose accessibility status is `notRecorded` is reported as exactly that: not as "not applicable", and not as a pass.
+- `QA-A11Y-3` Verification the plugin could not perform is listed for QA with its domain, rule ID, required verification, why it was not automatable, and its owner, per `VERIFY-3` in `standards/shared/verification.md`. Mechanical evidence is never presented as proof that a VoiceOver or TalkBack walkthrough succeeded (`VERIFY-2`).
 
 ## Completeness
 

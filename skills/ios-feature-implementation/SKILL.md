@@ -278,6 +278,8 @@ Detect the repository's conventions before writing; introduce nothing app-wide f
 
 Determine which tier a check falls in **before** reporting it. Overclaiming is the failure mode this section exists to prevent.
 
+The tier vocabulary itself is owned by `standards/shared/verification.md` (`VERIFY-1`..`VERIFY-3`) and is not redefined here; what follows is only which **iOS mechanisms** land in which tier. Tier 3 items are recorded as `verificationDebt` with `domain: "accessibility"`, never as passed checks (`VERIFY-2`).
+
 **Tier 1 — mechanical; may gate the task.**
 
 - `try app.performAccessibilityAudit()` in a UI test, run **once per new or changed screen** — the audit is screen-scoped, so one call is not coverage. It fails the test by itself. Requires an **OS version of iOS 17 / tvOS 17 / watchOS 10 / macOS 14 or later** — the floor is the OS the test runs against, simulator or device, not the Xcode version.
