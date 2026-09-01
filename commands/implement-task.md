@@ -85,6 +85,33 @@ node --no-warnings "${CLAUDE_PLUGIN_ROOT}/scripts/task-state.ts" fingerprint --f
 
 Figma content that changed behind an unchanged URL cannot be detected — the Figma MCP exposes no version, revision or content hash. For a UI-touching task, ask the developer to confirm the reference is still current, and record that as an attestation, never as verification.
 
+## 5b. Accessibility applicability (decide once, from the confirmed context)
+
+Decide here whether the mobile accessibility flow applies to this task, and carry the
+decision into steps 8 and 10. `device_type` was resolved in step 5 — **never re-detect it
+here, and never default it.**
+
+- **`device_type: tv` → skip this flow, explicitly.** Record `applicable: false` with a
+  reason naming `device_type: tv`. Cite **no** `A11Y-*` rules: the shared accessibility
+  standard is a mobile standard, and applying it to a TV surface asserts requirements
+  (touch targets, mobile screen-reader gestures) that do not hold there. Do **not** cite
+  `REACT-TV-*` in the accessibility block either — TV accessibility belongs to the TV
+  workstreams and is out of scope here. A silent skip is the failure mode this rule exists
+  to prevent: the skip must appear in the record.
+- **`device_type: mobile` → the flow applies whenever the task touches an
+  accessibility-relevant surface.** That is broader than "renders a screen". It includes
+  shared UI primitives, design tokens, theming, navigation and focus infrastructure, list
+  and collection containers, and any component other screens compose. A task that changes
+  a primitive every screen uses is accessibility-relevant even though it renders nothing
+  by itself. **Do not equate "non-UI" with "not applicable" by reflex** — ask whether the
+  change can alter what assistive technology perceives anywhere downstream.
+- **Genuinely not accessibility-relevant** (a build script, a networking helper, a pure
+  data transform) → `applicable: false` with a reason saying so. Never omit the block.
+
+When the flow applies, the platform lane's accessibility rules apply alongside the shared
+ones: `AND-UI-A11Y-*` (Android), `RN-A11Y-*` (React Native), `IOS-UI-A11Y-*` (iOS). The
+shared standard states the requirement; the platform standard states how it is met.
+
 ## 6. Task state and dependency completeness (read the store, then decide)
 
 Read the feature's lifecycle state through the plugin's helper — do not read or write the state file directly, and do not reimplement its rules:
@@ -212,6 +239,9 @@ After the platform skill finishes, require its structured completion report and 
 - files changed,
 - applied standard IDs,
 - deviations and blockers,
+- the **accessibility outcome** decided in step 5b — the applicability decision and, where
+  it applies, the rules cited, the mechanical checks run with their tier and result, and
+  the manual verification that remains outstanding,
 - confirmation that no unrelated scope was added,
 - confirmation that the writes landed inside `TARGET_ROOT` (not in `.claude/worktrees/…`).
 
@@ -227,10 +257,62 @@ After the platform skill finishes, require its structured completion report and 
   ```
 
   **A terminal `complete` may only be written after the verification above succeeds.** The helper enforces this structurally: it refuses `complete` unless every acceptance criterion is recorded and met and at least one validation entry is present, returning `refused: complete-without-verification`. If it refuses, report that verbatim and record `failed` instead.
+
+**Accessibility and verification debt.** `standards/shared/verification.md` owns the
+Tier 1 / Tier 2 / Tier 3 vocabulary; do not restate it here or in a platform skill.
+
+- **Tier 1 and Tier 2 checks** — what the plugin actually ran and read a result from — go
+  in `accessibility.checks`. A **failing** Tier 1/2 check blocks `complete`: record
+  `failed`.
+- **Tier 3 requirements** — a VoiceOver or TalkBack walkthrough, whether a label is
+  *meaningful*, whether an announcement is actually heard, focus restoration after a modal
+  dismiss, carousel behaviour with a screen reader active — have **no headless mechanism**
+  and are never recorded as checks. Each becomes a `verificationDebt` entry with
+  `domain: "accessibility"`, the rule it serves, the verification required, why the plugin
+  cannot perform it, and `owner: "qa"`. **Outstanding debt does not block `complete`** —
+  making it block would tie completion to device availability rather than to the state of
+  the code.
+- **Never present automated evidence as screen-reader proof.** A green audit means no
+  detected defect on the surfaces the run reached. It is not evidence that VoiceOver or
+  TalkBack was run, and `A11Y-SR-1` can never be satisfied by a Tier 1 or Tier 2 check
+  (`VERIFY-2`). The helper refuses this structurally rather than trusting the report.
+
+The payload carries both fields; keep the shape exactly as below (the helper validates it
+and refuses a malformed block whatever the state):
+
+```json
+{
+  "accessibility": {
+    "applicable": true,
+    "reason": null,
+    "deviceType": "mobile",
+    "standardIds": ["A11Y-ROLES-1", "A11Y-COLLECTION-1", "AND-UI-A11Y-7"],
+    "checks": [
+      { "ruleId": "A11Y-ROLES-1", "tier": 1, "result": "pass", "evidence": "<what was run>" }
+    ]
+  },
+  "verificationDebt": [
+    {
+      "domain": "accessibility",
+      "ruleId": "A11Y-SR-1",
+      "requiredVerification": "TalkBack walkthrough of the changed flow",
+      "whyNotAutomatable": "TalkBack cannot be driven headlessly; announcement audibility is not observable in an instrumented run",
+      "owner": "qa",
+      "status": "pending"
+    }
+  ]
+}
+```
+
+Choose validation commands from the repository's own tooling. Do **not** assume or
+introduce a particular automation framework; if the repository has no mechanical
+accessibility check, say so and record the requirement as debt rather than inventing a
+tool to satisfy it.
+
 - **Verification failed** → record `failed` with the failing criteria and validation results in `blockers`.
 - **A blocker or unproven dependency stopped the run** → record `blocked` with the blocker text.
 
-The recorded `filesChanged`, `standardIds`, `validation` and `acceptanceCriteria` are what `/create-dev-qa-notes` later reads, so a QA handoff no longer depends on a session transcript.
+The recorded `filesChanged`, `standardIds`, `validation`, `acceptanceCriteria`, `accessibility` and `verificationDebt` are what `/create-dev-qa-notes` later reads, so a QA handoff — including the list of accessibility verification still owed — no longer depends on a session transcript.
 
 Do not report success if any acceptance criterion failed, required validation failed, a dependency is unproven, a blocker remains, the implementation deviates from the DD without approval, or changes exist only inside a worktree. **Approval is unaffected: recording lifecycle state neither confers nor revokes any document's `status`.**
 
