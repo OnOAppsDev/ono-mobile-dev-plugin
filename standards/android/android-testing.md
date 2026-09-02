@@ -19,6 +19,7 @@ These standards govern automated tests for native Android app code — unit test
 ## Instrumentation & UI Tests
 
 - `AND-TEST-INSTR-1` Instrumentation/UI tests are added where the repo already tests that surface and the task's acceptance criteria are UI-observable; they are not required where the repo has no UI-test harness (state that gap instead of inventing one).
+- `AND-TEST-INSTR-2` Where an instrumentation harness exists, backgrounding a TV playback screen is asserted to stop playback, release the player, and clear the keep-screen-on flag.
 - `AND-TEST-COMPOSE-1` Compose UI tests use `createComposeRule`/`createAndroidComposeRule` and select nodes by semantics (text, content description, test tag) rather than by brittle tree position.
 - `AND-TEST-COMPOSE-2` UI tests assert accessibility-relevant semantics (roles, state, labels) where the acceptance criteria include them, reinforcing `A11Y-*`.
 
@@ -26,4 +27,5 @@ These standards govern automated tests for native Android app code — unit test
 
 - Android testing guidance, `kotlinx-coroutines-test`, Turbine, Espresso, and Compose testing documentation.
 - Migration tests tie to `standards/android/android-persistence.md` (`AND-DATA-MIGRATE-3`); accessibility assertions tie to `standards/shared/accessibility.md`.
+- Performance numbers must not be taken from an emulator: Macrobenchmark treats an emulator run as an error to be suppressed "with extreme caution", so a green CI benchmark on emulated hardware is not evidence of device performance. This is why there is no `AND-TEST-TV-*` family — Android publishes no TV testing guidance to ground one, and its TV memory budget is documented as an Android Studio profiler activity with no assertion API or CI mechanism, so `AND-TEST-INSTR-2` covers the one TV behaviour an ordinary instrumentation harness can assert.
 - This document is a living baseline; flag standards gaps found during implementation or review rather than working around them silently.

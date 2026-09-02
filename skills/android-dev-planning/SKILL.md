@@ -31,7 +31,7 @@ Referencing these is correct; restating them is duplication.
 
 ## 0. Standards readiness gate
 
-Every Android rule cited lives in one of the ten `standards/android/*` files listed in [§8](#8-android-standards-citation) — **145 `AND-*` rules** between them. Before planning, confirm each is **present** and not a structure-only placeholder. If one is missing, renamed away or unauthored, **stop and report that Android planning is blocked until it is authored**; never fall back to an assumed default. All ten are authored today; the gate exists so the skill fails loudly if that regresses.
+Every Android rule cited lives in one of the ten `standards/android/*` files listed in [§8](#8-android-standards-citation) — **188 `AND-*` rules** between them, including the `AND-*TV-*` families [§6](#6-device_type-handling) cites on a TV surface. Before planning, confirm each is **present** and not a structure-only placeholder. If one is missing, renamed away or unauthored, **stop and report that Android planning is blocked until it is authored**; never fall back to an assumed default. All ten are authored today; the gate exists so the skill fails loudly if that regresses.
 
 ## 1. Source-of-truth hierarchy
 
@@ -43,7 +43,7 @@ Android's two parameterised ranks: **rank 4** — `standards/android/*` plus `st
 
 ## 2. Repository-knowledge reuse
 
-Resolution, reuse and citation belong to `skills/repo-knowledge-consumer/SKILL.md`. Two facts this lane holds: repository knowledge arrives **already resolved for this run**, so the manifest is never parsed directly and a reusable category never re-derived; and **`device_type` never comes from repository knowledge** — the manifest carries no device information (`skills/repo-knowledge-consumer/SKILL.md:154`) — it arrives confirmed from the command, per [§6](#6-device_type-handling).
+Repository knowledge is resolved by the invoking command and consumed through the `repo-knowledge-consumer` skill, which owns the resolution procedure, what may be reused, and the citation shape. Apply it as written; it is not restated here. Two facts this lane adds on top: repository knowledge arrives **already resolved for this run**, so the manifest is never parsed directly and a reusable category never re-derived; and **`device_type` never comes from repository knowledge** — the manifest carries no device information (`skills/repo-knowledge-consumer/SKILL.md:154`) — it arrives confirmed from the command, per [§6](#6-device_type-handling).
 
 This lane adds: **derive live the Android detail no repository-wide document can hold** — actual signatures, state shape and call sites of the classes *this feature* touches, alongside the categories the consumer reports as `deriveLive`. That reading is required, not manifest duplication.
 
@@ -88,7 +88,7 @@ Each names the naive check and the reliable signal.
 - **`app/src/main/AndroidManifest.xml` is not the app's manifest** — merge priority runs variant → app main → library, and `tools:node="remove"`/`tools:replace` can delete or override entries — a library can inject a permission or provider invisibly. Signal: `module/build/outputs/logs/manifest-merger-<variant>-report.txt`; otherwise `[unknown — requires merged manifest]`.
 - **`targetSdk` silently rewrites behaviour** — edge-to-edge is enforced once the app targets 35; at 36 `onBackPressed` is no longer called and orientation/resizability declarations go inert on displays whose smallest width is >= 600dp. Signal: read `targetSdk` **before** deciding whether an insets, back or orientation rule applies at all.
 - **`src/main/` is not the code that ships** — for `demoDebug` Gradle resolves `src/demoDebug/` → `src/debug/` → `src/demo/` → `src/main/`, and for `res/` qualifier **precedence** beats the number of matching qualifiers. Signal: resolve the variant's source-set and qualifier winners before citing a file.
-- **Grepping `minifyEnabled` reads a modern project as un-minified** — from AGP 9.3 R8 is enabled by `optimization { enable = true }` and keep rules live in a `keepRules` source set. Signal: read the AGP version, then that version's DSL and both keep-rule locations.
+- **Grepping `minifyEnabled` alone can read a modern project as un-minified** — AGP 9.3 **added** an `optimization { enable = true }` DSL covering code and resources together, and a `keepRules` source set; it **replaced nothing**, so the legacy `minifyEnabled` / `proguardFiles(...)` form is still supported and **either DSL may be in use**. Signal: read the AGP version, then check both DSLs and both keep-rule locations.
 - **Four single-signal reads that are wrong on their own** — an XML layout can be a Compose screen (`ComposeView` is declarable in XML); "it has ViewModels" is not the state-holder finding (Android documents two kinds with opposite lifecycles); a hardcoded `Dispatchers.IO` may be the violation rather than the convention; "no `androidTest/`" is not "no Android coverage" (Robolectric is a *local* test). Read the call site, per surface.
 
 ## 4. Technical Implementation Approach (DD §19)
@@ -116,9 +116,9 @@ Every path must be evidence-backed. Mark an undetermined location `[unknown — 
 
 ## 6. device_type handling
 
-`device_type` arrives confirmed and authoritative from the command (`agents/repo-analyst.md:113-114`, `templates/feature-analysis-template.md:12`). It is a **context signal, never a separate platform**: there is no TV platform value and no TV-specific agent, skill or command. **Never re-detect it, never accept `mixed`, and stop rather than defaulting to `mobile`** if it is missing, empty, or any value other than `mobile`/`tv`.
+`device_type` arrives confirmed and authoritative from the command (`agents/repo-analyst.md:113-114`, `templates/feature-analysis-template.md:12`). **It is a context signal, never a separate platform**: there is no TV platform value and no TV-specific agent, skill or command. **Never re-detect it, never accept `mixed`, and stop rather than defaulting to `mobile`** if it is missing, empty, or any value other than `mobile`/`tv`.
 
-### device_type: mobile
+### `device_type: mobile`
 
 The mobile-only decisions a plan must settle:
 
@@ -128,15 +128,36 @@ The mobile-only decisions a plan must settle:
 - State across configuration change and process death (`AND-VM-LIFECYCLE-2`, `AND-UI-XML-7`).
 - Any runtime-permission path the feature opens, with the denial and rationale UI states it needs (`SEC-PERMS-1..3`).
 
-### device_type: tv
+### `device_type: tv`
 
-**This repository's `standards/android/` carries no Android TV rules, so this lane's TV responsibility is discovery and non-regression, not guidance.**
+**On `device_type: tv`, cite the `AND-*TV-*` rules in addition to the base `AND-*` rules, which all still apply on a TV surface unchanged** — nothing here relaxes or forks one. Each host document carries its TV rules in its own `## Android TV Context (device_type: tv)` section, so the cited ID's root still decides which file owns it; the families and their files are the TV rows of [§8](#8-android-standards-citation).
 
-- **Any implementation model may be in use** — a standard Android TV framework, a **custom in-house framework**, or another repository-specific solution. Compose for TV is the current recommended approach; an existing **Leanback** surface is a legitimate baseline, and a deprecated-but-present framework is **never** migrated off unless the feature asks for it. Detect which is in use; assume none.
-- **One framework-independent detection anchor:** a launcher activity carrying `android.intent.category.LEANBACK_LAUNCHER`. **Never read a leanback-named manifest token as evidence that the UI is Leanback-based** — it confirms a TV target and implies nothing about the UI framework. It is the entry point to discovery, not TV guidance.
-- **Apply the existing platform-neutral `AND-*` rules unchanged**, exactly as for `mobile`. **No Android-specific TV rule ID exists** — there is no `AND-*TV*` of any kind, so never invent one. But two shared rules do carry explicit TV clauses and **must** be cited rather than reported as a gap: `A11Y-TOUCH-1` ("on TV form factors there is no touch target — the equivalent requirement is a reliably focusable element with a clearly visible focus state"; its Android example reads "TV: no touch — ensure D-pad focusability and a visible focus highlight") and `A11Y-TOUCH-2` (enough separation that D-pad focus moves predictably). Focusability and a visible focus state are therefore **already standardised**; do not file them against `ANDROID-003`.
-- **Never silently carry touch or phone assumptions into a TV plan.** Most TV devices have no touchscreen or pointer input and rely on a D-pad remote; a few support pointer remotes, so a D-pad path is always required and touch is never assumed.
-- **Record a needed-but-missing TV rule as an unresolved decision naming `ANDROID-003`**, the task that owns Android TV knowledge. This skill authors no TV standards.
+**Run this discovery pass before proposing anything**, recording the evidence for each item that exists and marking the rest `[unknown]`. Identifying what the repository actually does comes **first**; architectural and planning decisions come after.
+
+1. **Focus handling** — how focus moves, is tracked and restored; any custom focus engine or manager. → `AND-UI-TV-FOCUS-*`
+2. **D-pad and remote input** — where key events are received and dispatched; custom key handling; media and remote buttons. → `AND-NAV-TV-DPAD-*`, `AND-NAV-TV-AXIS-1`
+3. **Navigation abstractions** — the TV navigation mechanism, which may differ from any mobile one in the same repository. → `AND-NAV-TV-BACK-*`, `AND-NAV-TV-FOCUS-1`
+4. **TV UI components** — the component set actually in use: framework widgets, an in-house set, or something else. → `AND-UI-TV-COMP-1`, `AND-UI-TV-LAYOUT-1`
+5. **Playback integration** — the player, who owns its lifecycle, surface handling and playback-state model, where the feature touches playback. → `AND-PERF-TV-4`
+6. **Screen lifecycle** — TV-specific background and resume behaviour, and the stop path. → `AND-ARCH-TV-1`, `AND-ARCH-TV-2`
+7. **Reusable base classes and framework modules** — the TV base screen types and in-house modules the feature should extend, and their public surface. → `AND-ARCH-TV-1`, `AND-ARCH-TV-3`
+
+Two more the plan needs even though the brief lists them separately: **launcher and banner configuration** (`AND-REL-TV-LAUNCH-1`, `AND-REL-TV-FEATURE-1/2`, `AND-REL-TV-BANNER-1`) and **TV packaging and release configuration** (`AND-REL-TV-TRACK-1`, `AND-REL-TV-BUILD-1`).
+
+- **Cite the TV families as well as the base rules, never instead of them.** `AND-UI-TV-*`, `AND-NAV-TV-*`, `AND-PERF-TV-*` and `AND-ARCH-TV-*` apply **only** once a TV surface is established; where none is, they are N/A and may not be raised. **`AND-REL-TV-*` is the exception** — `standards/android/gradle-build-signing.md`'s TV section is deliberately scoped to the shipping artefact rather than to an established surface, because the declarations it governs are what establish one, so those nine are in play wherever the repository ships or has been asked to ship a TV target, including the greenfield case below. `AND-PERF-TV-1`'s memory budget travels with its own assumption — no active bindings, a single video stream — and tightens without it; **Android publishes no TV figure for start-up, playback start or navigation latency**, so a plan asserts none.
+- **Any implementation model may be in use** — this organisation's Android TV surface uses a **custom in-house framework**, so the conventional framework signals are absent or actively misleading, and no rule cited here names a TV framework as required. Detect what the repository actually has; assume nothing. A deprecated-but-present framework is **never** migrated off unless the feature asks for it — that is optional modernization, never required feature work (`AND-ARCH-TV-5`), and `AND-ARCH-TV-4` requires the proposal to separate existing implementation, required feature work and optional modernization.
+- **Framework-independent detection anchors, and they are not equal.** **Either of two confirms a TV target on its own:** a launcher activity carrying `android.intent.category.LEANBACK_LAUNCHER` (`AND-REL-TV-LAUNCH-1`), or a `<uses-feature android:name="android.software.leanback">` declaration (`AND-REL-TV-FEATURE-1`) — Android defines that feature as *"the app is designed to run on Android TV devices"*. **`android.hardware.touchscreen` declared `android:required="false"` (`AND-REL-TV-FEATURE-2`) and a banner (`AND-REL-TV-BANNER-1`) corroborate but never confirm alone** — the touchscreen declaration also serves fake-touch and D-pad-only devices such as Chromebooks, so a phone app carrying it is not thereby a TV app. **Never read a leanback-named manifest token as evidence that the UI is Leanback-based** — these confirm a TV *target* and imply nothing about the UI framework, which only reading the repository settles.
+- **Focusability and a visible focus state stay credited to the shared rules**, not to any `AND-*TV-*` ID: `A11Y-TOUCH-1` ("on TV form factors there is no touch target — the equivalent requirement is a reliably focusable element with a clearly visible focus state"; its Android example reads "TV: no touch — ensure D-pad focusability and a visible focus highlight") and `A11Y-TOUCH-2` (enough separation that D-pad focus moves predictably). Cite those two directly; `AND-UI-TV-FOCUS-1/2/3` add distinct obligations and deliberately do not duplicate them.
+- **Never silently carry touch or phone assumptions into a TV plan.** Most TV devices have no touchscreen or pointer input and rely on a D-pad remote; a few support pointer remotes, so a D-pad path is always required and touch is never assumed (`AND-NAV-TV-DPAD-1`).
+- **A genuinely unstandardised TV question is still recorded as an unresolved decision**, naming what is missing rather than stretching an adjacent rule to cover it. This skill cites TV standards; it authors none.
+
+**When the repository has no TV convention to follow.** Many `AND-*TV-*` rules are phrased against *the repository's existing* TV convention. Resolve an absence in this order — never by supplying a preference:
+
+1. **A convention exists** — follow it. It is rank 2 and outranks these rules; a rule is not a reason to change working code.
+2. **No TV surface exists yet — the greenfield case.** `/analyze-feature` can confirm `device_type: tv` on a repository with no TV code, and *"add TV support"* is a legitimate feature. **Absence here is a gap to fill, not an ambiguity to stop on.** Propose the required TV extensions **once, at application level, as approval-gated unresolved decisions** — the entry point and manifest declarations, the focus and D-pad model, the base screen type, and the packaging target — then plan the feature on top of what that decision settles. Each is *required feature work*, never *optional modernization* (`AND-ARCH-TV-4`).
+3. **A TV surface exists but its convention cannot be read** — mark it `[unknown]`, record an unresolved decision naming the evidence sought, and **cap any finding that rests on it at the lowest severity**. Do not infer a convention from one file. **Planning continues on this case**; it is a labelled gap in the plan, not a refusal to plan.
+
+**None of the three refuses to plan.** Case 3 is the only one that can *escalate* to the red flag below, and only when the TV model cannot be identified **at all** — not merely when one convention is unclear. Greenfield is planned, not refused.
 
 ## 7. Verify-later mechanism for Android
 
@@ -176,20 +197,22 @@ Cite only IDs that exist in these files and genuinely apply. Never invent an ID,
 | Area | Standard file | IDs |
 |---|---|---|
 | Kotlin, coroutines, lint | `standards/android/kotlin-standards.md` | `AND-KT-NULL-*`, `AND-KT-TYPE-*`, `AND-KT-SEALED-*`, `AND-KT-COROUTINE-*`, `AND-KT-LINT-*` |
-| Layering, modules, ViewModel/state, DI | `standards/android/android-architecture.md` | `AND-ARCH-LAYERS-*`, `AND-ARCH-DEPS-*`, `AND-ARCH-MODULE-*`, `AND-VM-STATE-*`, `AND-VM-EVENT-*`, `AND-VM-LIFECYCLE-*`, `AND-DI-*` |
-| Compose, XML/Views, lists, resources | `standards/android/compose-xml-standards.md` | `AND-UI-COMPOSE-*`, `AND-UI-XML-*`, `AND-UI-LIST-*`, `AND-UI-RES-*` |
-| Performance & memory | `standards/android/android-performance.md` | `AND-PERF-THREAD-*`, `AND-PERF-LIST-*`, `AND-PERF-IMAGE-*`, `AND-PERF-MEM-*`, `AND-PERF-SIZE-*` |
+| Layering, modules, ViewModel/state, DI | `standards/android/android-architecture.md` | `AND-ARCH-LAYERS-*`, `AND-ARCH-DEPS-*`, `AND-ARCH-MODULE-*`, `AND-VM-STATE-*`, `AND-VM-EVENT-*`, `AND-VM-LIFECYCLE-*`, `AND-DI-*`, `AND-ARCH-TV-*` ⁺ |
+| Compose, XML/Views, lists, resources | `standards/android/compose-xml-standards.md` | `AND-UI-COMPOSE-*`, `AND-UI-XML-*`, `AND-UI-LIST-*`, `AND-UI-RES-*`, `AND-UI-TV-FOCUS-*`, `AND-UI-TV-OVERSCAN-*`, `AND-UI-TV-LAYOUT-*`, `AND-UI-TV-SCALE-*`, `AND-UI-TV-COMP-*`, `AND-UI-TV-IME-*` ⁺ |
+| Performance & memory | `standards/android/android-performance.md` | `AND-PERF-THREAD-*`, `AND-PERF-LIST-*`, `AND-PERF-IMAGE-*`, `AND-PERF-MEM-*`, `AND-PERF-SIZE-*`, `AND-PERF-TV-*` ⁺ |
 | Networking & API | `standards/android/android-networking.md` | `AND-NET-CLIENT-*`, `AND-NET-CONTRACT-*`, `AND-NET-DTO-*`, `AND-NET-AUTH-*`, `AND-NET-ERR-*` |
 | Persistence | `standards/android/android-persistence.md` | `AND-DATA-STORE-*`, `AND-DATA-MIGRATE-*`, `AND-DATA-THREAD-*`, `AND-DATA-CACHE-*`, `AND-DATA-SEC-*` |
-| Gradle build, variants, signing, R8 | `standards/android/gradle-build-signing.md` | `AND-REL-VARIANT-*`, `AND-REL-DEP-*`, `AND-REL-SIGN-*`, `AND-REL-R8-*` |
-| Navigation | `standards/android/android-navigation.md` | `AND-NAV-DEST-*`, `AND-NAV-ARGS-*`, `AND-NAV-STACK-*`, `AND-NAV-LAYER-*` |
+| Gradle build, variants, signing, R8 | `standards/android/gradle-build-signing.md` | `AND-REL-VARIANT-*`, `AND-REL-DEP-*`, `AND-REL-SIGN-*`, `AND-REL-R8-*`, `AND-REL-TV-LAUNCH-*`, `AND-REL-TV-FEATURE-*`, `AND-REL-TV-BANNER-*`, `AND-REL-TV-STORE-*`, `AND-REL-TV-TRACK-*`, `AND-REL-TV-BUILD-*`, `AND-REL-TV-SIGN-*` ⁺ |
+| Navigation | `standards/android/android-navigation.md` | `AND-NAV-DEST-*`, `AND-NAV-ARGS-*`, `AND-NAV-STACK-*`, `AND-NAV-LAYER-*`, `AND-NAV-TV-BACK-*`, `AND-NAV-TV-DPAD-*`, `AND-NAV-TV-FOCUS-*`, `AND-NAV-TV-AXIS-*` ⁺ |
 | Testing | `standards/android/android-testing.md` | `AND-TEST-UNIT-*`, `AND-TEST-VM-*`, `AND-TEST-INSTR-*`, `AND-TEST-COMPOSE-*` |
 | Logging & analytics | `standards/android/android-logging-analytics.md` | `AND-LOG-HYGIENE-*`, `AND-LOG-ANALYTICS-*`, `AND-LOG-PII-*` |
 | Security & privacy (shared) | `standards/shared/mobile-security.md` | `SEC-SECRETS-*`, `SEC-STORAGE-*`, `SEC-EXPOSURE-*`, `SEC-NET-*`, `SEC-AUTH-*`, `SEC-DEEPLINK-*`, `SEC-WEBVIEW-*`, `SEC-BRIDGE-*`, `SEC-DEPS-*`, `SEC-PERMS-*`, `SEC-HARDEN-*`, `SEC-LOG-*` |
 | Accessibility (shared) | `standards/shared/accessibility.md` | `A11Y-ROLES-*`, `A11Y-TOUCH-*`, `A11Y-FONT-*`, `A11Y-SR-*` |
 | Localization & RTL (shared) | `standards/shared/i18n-rtl.md` | `I18N-COPY-*`, `I18N-RTL-*`, `I18N-FMT-*`, `I18N-TEST-*` |
 
-Four boundary rules, each otherwise a source of false IDs:
+Five boundary rules, each otherwise a source of false IDs:
+
+- **The `⁺` roots are TV-only and additive.** Citable alongside the base roots in the same row, never instead of them. All but one require an established `device_type: tv` surface ([§6](#6-device_type-handling)); **`AND-REL-TV-*` is scoped to the shipping artefact instead**, so it is also citable in the greenfield case. One TV rule carries no `TV` segment — `AND-TEST-INSTR-2`, inside `AND-TEST-INSTR-*` — and **there is no `AND-TEST-TV-*` family**, no TV root outside the five rows marked above, and no separate TV standards file.
 
 - **Lane boundary.** Never use React Native's unprefixed `ARCH-*`/`API-*`/`STATE-*`/`NAV-*` or iOS's `IOS-*` for Android; the equivalents are `AND-ARCH-*`, `AND-NET-*`, `AND-VM-STATE-*`, `AND-NAV-*`.
 - **`AND-REL-*` is not shared `REL-*`.** `AND-REL-*` is Gradle build, variants, signing, R8; `REL-*` in `standards/shared/release-readiness.md` is release readiness. Segments do not transfer between them.
@@ -201,7 +224,7 @@ Four boundary rules, each otherwise a source of false IDs:
 The Android-specific conditions; generic stops belong to the command and the shared skill.
 
 - `device_type` fails [§6](#6-device_type-handling)'s check — anything but exactly `mobile` or `tv`.
-- `device_type: tv` and the TV implementation model cannot be identified from evidence.
+- `device_type: tv`, a TV surface **exists**, and its implementation model cannot be identified from evidence (§6 case 3). **A repository with no TV surface at all is not this red flag** — that is §6 case 2, and it is planned rather than refused.
 - Two UI toolkits, two navigation mechanisms, two persistence stores or two DI mechanisms in active use with no discernible primary, and the feature must choose.
 - The feature cannot be built without a new module, dependency edge, build type, flavor or library — report it as an unresolved decision rather than deciding it (`AND-ARCH-MODULE-3`, `AND-REL-VARIANT-1`).
 - The AGP version cannot be determined and the plan must say something about R8, keep rules or the build DSL.
@@ -241,4 +264,7 @@ Consult when a planning question is genuinely open, not routinely. None override
 | §3.18 — what "tested" means per module and source set; fakes over mocks; what a local test cannot reach | [Testing fundamentals](https://developer.android.com/training/testing/fundamentals) · [Test doubles](https://developer.android.com/training/testing/fundamentals/test-doubles) · [Robolectric](https://developer.android.com/training/testing/local-tests/robolectric) |
 | §3.20 — does an existing profile need a new critical journey, before a startup claim | [Baseline Profiles](https://developer.android.com/topic/performance/baselineprofiles/overview) |
 | [§6](#6-device_type-handling) — a permission's class and the runtime obligations it creates | [Permissions](https://developer.android.com/guide/topics/permissions/overview) |
+| [§6](#6-device_type-handling) — what the platform requires of a TV app before the plan assumes it | [TV app quality](https://developer.android.com/docs/quality-guidelines/tv-app-quality) · [Build TV apps](https://developer.android.com/training/tv/start/start) · [TV navigation](https://developer.android.com/training/tv/get-started/navigation) |
+| [§6](#6-device_type-handling) — the TV memory budget's figures and the assumptions they carry, before citing `AND-PERF-TV-1` | [Memory optimization for TV](https://developer.android.com/training/tv/playback/memory) |
+| [§6](#6-device_type-handling) — the manifest declarations that make an app a TV app, before treating one as missing | [Get started with TV apps](https://developer.android.com/training/tv/get-started/create) · [`uses-feature`](https://developer.android.com/guide/topics/manifest/uses-feature-element) |
 | Whether a Jetpack library exists, its version and stability — the explorer carries no versions, so the release notes are the authority; a topic hub; Kotlin language or formatting | [Jetpack explorer](https://developer.android.com/jetpack/androidx/explorer) · per-library release notes · [Develop for Android](https://developer.android.com/develop) · [Kotlin style guide](https://developer.android.com/kotlin/style-guide) |

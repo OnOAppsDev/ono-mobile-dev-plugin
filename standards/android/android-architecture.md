@@ -37,8 +37,23 @@ These principles govern how native Android app code is layered, organized into G
 - `AND-DI-3` A narrower dependency is injected in preference to a broad one — inject the specific collaborator or a scoped resource rather than `Context` where `Context` is not actually required.
 - `AND-DI-4` Constructor injection is preferred over field/property injection where the framework and existing code allow it, keeping dependencies explicit and the type testable.
 
+## Android TV Context (device_type: tv)
+
+**[Applies only on an established TV surface — `device_type: tv` arrives confirmed and is never
+re-detected here. Where no TV surface is established this section is entirely N/A and none of its rules
+may be raised. Every rule below is additive: the base `AND-ARCH-*` rules apply on a TV surface unchanged,
+and nothing here relaxes or forks one.]**
+
+- `AND-ARCH-TV-1` TV screens extend the framework's existing base screen type so the stop-path contract — end playback, release buffers and decoders, clear the screen-on flag — is implemented once, not per screen.
+- `AND-ARCH-TV-2` Every resource a screen acquires is released on the matching lifecycle event: acquire after start pairs with release after stop, resume with pause; an asymmetric pair is a defect. **Playback resources are `AND-PERF-TV-4`'s, not this rule's** — file the pairing defect here, the unreleased player there, never both.
+- `AND-ARCH-TV-3` TV-specific behaviour is selected by a runtime capability check (the TV system feature, `isLowRamDevice()`) inside the existing module structure, not by forking a parallel TV codebase (ties to `AND-ARCH-MODULE-3`).
+- `AND-ARCH-TV-4` By repository convention rather than platform mandate, every proposed TV change is labelled existing implementation, required feature work, or optional modernization, and the three are never combined.
+- `AND-ARCH-TV-5` Replacing a deprecated TV UI toolkit is optional modernization, never required feature work — deprecated and current toolkits coexist, so any migration is proposed as its own DD.
+- `AND-ARCH-TV-6` By repository convention rather than platform mandate, playback, focus handling and navigation stay on the existing in-house TV framework; a task adds no second player abstraction without DD approval.
+
 ## References
 
 - Guide to Android app architecture (developer.android.com) and the Android Hilt/Dagger guidance.
 - This document is a living baseline; where a repo's existing structure predates these principles, `repo-analyst`'s detected conventions take precedence for that repo until a migration is planned.
 - Kotlin language rules for coroutines/Flow live in `standards/android/kotlin-standards.md`; UI-framework specifics live in `standards/android/compose-xml-standards.md`.
+- Two TV rules — `AND-ARCH-TV-4` and `AND-ARCH-TV-6` — have **no official Android source** and are recorded as this repository's conventions, not platform requirements; cite them as house rules and never present them as Android mandates. The three-way separation carries a corollary: code that already works is not rewritten to satisfy a required outcome, and a modernization suggestion stays a suggestion. This document names no TV UI framework as required; the organisation's Android TV surface uses a custom in-house framework, so a rule that assumed Leanback, `androidx.tv` or Compose for TV would be unusable here.

@@ -30,7 +30,7 @@ Referencing these is correct; restating them is duplication.
 
 ## 0. Standards readiness gate
 
-Android's rules live in **ten files under `standards/android/`, carrying 145 `AND-*` IDs**, plus the two shared files — the routing table is [§ Standards citation](#standards-citation). Before reviewing, confirm that the files **this pass will cite** are authored and not structure-only placeholders: Pass A's eight plus the two shared files, or Pass B's two ([§6](#6-the-two-passes)).
+Android's rules live in **ten files under `standards/android/`, carrying 188 `AND-*` IDs**, plus the two shared files — the routing table is [§ Standards citation](#standards-citation). Before reviewing, confirm that the files **this pass will cite** are authored and not structure-only placeholders: Pass A's eight plus the two shared files, or Pass B's two ([§6](#6-the-two-passes)).
 
 A **structure-only placeholder** is a standards file that carries its headings but not its rules — it declares itself unauthored rather than listing `AND-*` bullets. If a file this pass cites is missing or is one, **stop and report that Android review is blocked until it is authored.** Never fall back to unwritten expectations, and never substitute another platform's standard for a missing Android one. **Perform the check — do not assume the answer from a previous run.**
 
@@ -41,12 +41,12 @@ Use the Android-attributed file list or diff handed in by the caller — **do no
 | Invocation | Scope | What is live |
 |---|---|---|
 | `/review-code` | **Diff-scoped** — only code introduced or modified within the resolved scope | Pass A in full; Pass B's `AND-PERF-*`. **`AND-REL-*` is not live here** — see below |
-| `/prepare-mobile-release` | **Release-scoped** — the shipping build, not a diff | **Pass B only — Pass A does not run at this stage.** `AND-PERF-*` stays live and `AND-REL-*` goes live in full ([§13](#13-release-stage-pass-b-only)); the diff-oriented rules below do not apply, and neither does per-rule Not Applicable bookkeeping over unchanged files |
+| `/prepare-mobile-release` | **Release-scoped** — the shipping build, not a diff | **Pass B only — Pass A does not run at this stage.** `AND-PERF-*` stays live and `AND-REL-*` goes live in full ([§15](#15-release-stage-pass-b-only)); the diff-oriented rules below do not apply, and neither does per-rule Not Applicable bookkeeping over unchanged files |
 
 **`AND-REL-*` is release-scoped only, and a changed build file is still reviewed.** `standards/android/gradle-build-signing.md:5` names `mobile-release-engineer` / `android-performance-reviewer` **in `/prepare-mobile-release`**, and no reviewer at `/review-code`; those rules are *applied by the feature developer* during implementation and *audited* at release. What a changed `build.gradle.kts` does and does not get at diff scope, stated exactly rather than reassuringly:
 
 - **Covered here:** a dependency addition that grows APK/AAB size or method count — `AND-PERF-SIZE-2`, a Pass B root, live at review. Committed signing credentials are covered too, but by **another lane**: `SEC-SECRETS-1` names signing credentials explicitly and is `mobile-security-reviewer`'s via `/review-security`.
-- **Not covered here:** `AND-REL-VARIANT-1`…`-4` and `AND-REL-DEP-1` — **five rules with no diff-time reviewer.** They are applied by `agents/android-feature-developer.md` at implementation and audited at [§13](#13-release-stage-pass-b-only). **The rule moved; it did not vanish — but the independent second look at diff time is genuinely absent.** Record such a file in Not Applicable / Skipped with that reason, rather than implying it was reviewed.
+- **Not covered here:** `AND-REL-VARIANT-1`…`-4` and `AND-REL-DEP-1` — **five rules with no diff-time reviewer.** They are applied by `agents/android-feature-developer.md` at implementation and audited at [§15](#15-release-stage-pass-b-only). **The rule moved; it did not vanish — but the independent second look at diff time is genuinely absent.** Record such a file in Not Applicable / Skipped with that reason, rather than implying it was reviewed.
 
 Two rules operate together at diff scope; neither is correct alone:
 
@@ -62,7 +62,7 @@ The first two cite the ID. The other two carry a citation in the same slot — `
 **A written rule is what makes a finding assertable; anything outside one is preference.** Where a point is in no written standard and is neither a design nor a convention violation, it is **not a finding and is not filed** — not in Findings, not as an aside, nowhere in the output. **Design is the named exception** — aspects of software design are almost never pure style or personal preference, so an architecture, layering or dependency-direction finding is assertable without a line-level rule behind it.
 
 - **Never file a modernization suggestion.** A deprecated-but-present toolkit, DI approach, async model or persistence stack is a **legitimate baseline, not a defect**. `standards/android/compose-xml-standards.md` states the same rule from the standards' side: do not migrate a surface unless the DD explicitly approves it.
-- **Modernization must appear nowhere in the output** — not in Findings, not in Not Applicable / Skipped, not in the Verdict, and **not in the release sign-off** ([§13](#13-release-stage-pass-b-only)). Performance is where it leaks in most easily: a newer library, a newer image loader or a newer profiling technique is not a finding unless the change concretely violates a rule.
+- **Modernization must appear nowhere in the output** — not in Findings, not in Not Applicable / Skipped, not in the Verdict, and **not in the release sign-off** ([§15](#15-release-stage-pass-b-only)). Performance is where it leaks in most easily: a newer library, a newer image loader or a newer profiling technique is not a finding unless the change concretely violates a rule.
 - **Nit is not an exemption.** A Nit carries a citation like any other finding, or it is not filed.
 - **Comment on the code and name the mechanism** — what breaks, and when. *"Why did you use threads here"* is not a finding; *"this concurrency model adds complexity with no performance benefit"* is.
 
@@ -93,7 +93,7 @@ The one that does not — ***One reader***, contract **item 2** — **binds the 
 
 Record the categories used in one line under Standards Checked. `templates/code-review-template.md` has no repo-knowledge section, and adding one is a cross-platform change this skill does not own.
 
-**Never read `device_type` off the manifest — it carries none** ([§10](#10-device_type-handling-at-review)).
+**Never read `device_type` off the repository-knowledge manifest — it carries none.** The **Android** manifest is still the primary *evidence* for a TV surface ([§11](#11-establishing-a-tv-surface-from-evidence)); it is not a delivered field ([§12](#12-device_type-handling-at-review)).
 
 Still required: **read enough surrounding code to judge the change before filing.** A finding drawn from the hunk alone, without checking the file's existing pattern, is the characteristic review defect — and on Android the deciding line is usually in another file: the scope a coroutine is launched in, whether a dispatcher is injected, whether a Fragment's binding is cleared in `onDestroyView`, which DI component a binding is declared in.
 
@@ -107,7 +107,12 @@ Still required: **read enough surrounding code to judge the change before filing
 | An XML/Fragment/Activity screen, ViewBinding or DataBinding | `AND-UI-XML-*` |
 | A `RecyclerView`-backed list | `AND-UI-LIST-*` — written for adapters; its diffing, stable-identity and per-row-state rules apply to a lazy list item as much as to a dequeued holder |
 | Strings, dimensions, colours, drawables, typography | `AND-UI-RES-*` — surface-neutral |
+| A screen built on a **custom or in-house UI layer** — neither Compose nor XML/Views | **`AND-UI-COMPOSE-*` and `AND-UI-XML-*` are not citable against it.** The surface-neutral families are: `AND-UI-RES-*`, `AND-UI-LIST-*` where a list is involved, and the `AND-*TV-*` families on a TV surface. **A custom layer is an expected surface here — this organization's TV app is one — and is never a finding in itself** |
+| A screen on an **established TV surface** ([§11](#11-establishing-a-tv-surface-from-evidence)) | its toolkit family above **plus** `AND-UI-TV-*` — additive, never instead of. Where the toolkit is custom, the row above governs which base families apply |
+| TV focus movement, D-pad handling, Back, or destination entry focus | `AND-NAV-TV-*` — additive over `AND-NAV-*` |
+| A TV base screen type, framework module, or capability gate | `AND-ARCH-TV-*` — additive over `AND-ARCH-*` |
 
+- **The TV families are additive, never a fork.** Each `standards/android/*` TV section opens with the same bracket: the base family applies on a TV surface unchanged, and nothing in the TV section relaxes or replaces it. Citing `AND-UI-TV-*` *instead of* `AND-UI-COMPOSE-*` on a TV Compose screen is the characteristic error.
 - **Never cross-apply a family-restricted rule.** An `AND-UI-XML-*` rule cited against a Compose file is a false finding, and the reverse likewise.
 - **"Should have used Compose" is never a finding.** `standards/android/compose-xml-standards.md` is explicit: **never migrate a surface unless the DD approved it.**
 - Introducing a **new** toolkit, DI approach, async model or persistence stack into a file that does not use it **is** reviewable — as a convention and `AND-ARCH-*`/`AND-UI-*` consistency violation.
@@ -128,7 +133,8 @@ Still required: **read enough surrounding code to judge the change before filing
 | `AND-PERF-LIST-3` | the surface | its **view-hierarchy-depth** clause is officially retired for Compose — the UI tree is laid out in a single pass regardless of nesting — so it is **not citable against a Compose surface**, and stays apt for `AND-UI-XML-*`. Its overdraw and scroll-critical-layout clauses are unaffected |
 | `A11Y-ROLES-4` | the surface | on Compose cite the Compose API (`hideFromAccessibility`, `contentDescription = null`); the rule's View-attribute example stays apt for `AND-UI-XML-*` |
 | `A11Y-TOUCH-1` | the surface | the 48x48dp threshold is verbatim official and always applies, but the rule's View-system **remedy** is not the test on Compose, which expands the touch target outside the composable's bounds. A finding from **visual size alone** is false there — with the inverse trap that `onCheckedChange = null` removes that expansion |
-| `AND-REL-R8-1` | the AGP version | see [§13](#13-release-stage-pass-b-only) |
+| `AND-REL-R8-1` | the AGP version — **either DSL may be in use** | see [§15](#15-release-stage-pass-b-only) |
+| Any `AND-*TV-*` rule | that a TV surface is established, and the repository's own TV inset, scale and components | unestablished ⇒ the rule is **not raised at all** ([§11](#11-establishing-a-tv-surface-from-evidence)); the traps that most often defeat this are tabled there |
 
 ## 6. The two passes
 
@@ -136,11 +142,11 @@ Still required: **read enough surrounding code to judge the change before filing
 
 | Pass | Files | Roots | IDs |
 |---|---|---|---|
-| **A** — `android-code-reviewer` | `android-architecture.md`, `kotlin-standards.md`, `compose-xml-standards.md`, `android-networking.md`, `android-persistence.md`, `android-navigation.md`, `android-logging-analytics.md`, `android-testing.md` | `AND-ARCH-*`, `AND-VM-*`, `AND-DI-*`, `AND-KT-*`, `AND-UI-*`, `AND-NET-*`, `AND-DATA-*`, `AND-NAV-*`, `AND-LOG-*`, `AND-TEST-*` | **118** |
+| **A** — `android-code-reviewer` | `android-architecture.md`, `kotlin-standards.md`, `compose-xml-standards.md`, `android-networking.md`, `android-persistence.md`, `android-navigation.md`, `android-logging-analytics.md`, `android-testing.md` | `AND-ARCH-*`, `AND-VM-*`, `AND-DI-*`, `AND-KT-*`, `AND-UI-*`, `AND-NET-*`, `AND-DATA-*`, `AND-NAV-*`, `AND-LOG-*`, `AND-TEST-*` — **including `AND-UI-TV-*`, `AND-NAV-TV-*`, `AND-ARCH-TV-*`** | **144** |
 | **A**, shared | `standards/shared/accessibility.md`, `standards/shared/i18n-rtl.md` | `A11Y-*`, `I18N-*` | **26** |
-| **B** — `android-performance-reviewer` | `android-performance.md`, `gradle-build-signing.md` | `AND-PERF-*` (16), `AND-REL-*` (11) | **27** |
+| **B** — `android-performance-reviewer` | `android-performance.md`, `gradle-build-signing.md` | `AND-PERF-*` (24, incl. `AND-PERF-TV-*`), `AND-REL-*` (20, incl. `AND-REL-TV-*`) | **44** |
 
-118 + 27 = **145**, the full `AND-*` total — the split is complete and has no overlap. **Each of the ten files states its own reviewer binding on its own line 5: this split is read from the repository, not chosen here.** The two shared files name `android-code-reviewer` the same way.
+144 + 44 = **188**, the full `AND-*` total — the split is complete and has no overlap. **Each of the ten files states its own reviewer binding on its own line 5: this split is read from the repository, not chosen here.** The two shared files name `android-code-reviewer` the same way.
 
 ### Pass A triage — what a changed file puts in scope
 
@@ -160,9 +166,16 @@ keeps a review free of manufactured noise.
 | a logging or analytics call site | `AND-LOG-*` |
 | a user-facing interactive surface | `A11Y-*` |
 | user-visible copy, formatting, or layout direction | `I18N-*` |
+| any of the above **on an established TV surface** | the bucket's own family **plus** `AND-UI-TV-*` / `AND-NAV-TV-*` / `AND-ARCH-TV-*` as [§5](#5-framework-neutral-family-selection) selects |
+| the **TV manifest** — launcher intent filter, `uses-feature`, `android:banner` — or the banner drawable | Pass B's `AND-REL-TV-*` **at release** ([§15](#15-release-stage-pass-b-only)); at diff scope it is recorded Not Applicable naming that stage |
+
+**A TV file never exits triage in one line.** A config-only or manifest-only change is exactly where a
+TV surface hides, so the manifest row above is mandatory: skipping it as "config only" drops the five
+manifest-and-banner `AND-REL-TV-*` rules and, worse, discards the evidence [§11](#11-establishing-a-tv-surface-from-evidence) needs.
 
 **`AND-PERF-*` and `AND-REL-*` are deliberately absent from this table** — both are Pass B's
-([§11](#11-lane-ownership-and-the-merge-contract)).
+([§13](#13-lane-ownership-and-the-merge-contract)), and `AND-PERF-TV-*` and `AND-REL-TV-*` inherit that
+placement unchanged.
 
 **Preserve `android-testing.md`'s weaker verb.** Seven Pass A files say the code reviewer *reviews* them; `standards/android/android-testing.md` says the code reviewer **references** `AND-TEST-*` — it is applied by the feature developer and referenced by the reviewer and by QA handoff. So Pass A cites `AND-TEST-*` for a missing, non-deterministic or framework-inconsistent test **inside the reviewed change**, and does not audit the repository's test suite.
 
@@ -176,7 +189,7 @@ keeps a review free of manufactured noise.
 
 | Level | The consequence in this change | Anchored to |
 |---|---|---|
-| **Blocking** | Data loss, a categorical violation the platform itself rejects, or an unshippable build: a schema change with no migration, destructive migration on real user data, a database call on the main thread, PII or a token in a log or analytics property; and **at release only** ([§13](#13-release-stage-pass-b-only)), a distributable signed with the debug config | `AND-DATA-MIGRATE-1`, `AND-DATA-MIGRATE-2`, `AND-DATA-THREAD-1`, `AND-LOG-PII-1`, `AND-REL-SIGN-2` |
+| **Blocking** | Data loss, a categorical violation the platform itself rejects, or an unshippable build: a schema change with no migration, destructive migration on real user data, a database call on the main thread, PII or a token in a log or analytics property; and **at release only** ([§15](#15-release-stage-pass-b-only)), a distributable signed with the debug config | `AND-DATA-MIGRATE-1`, `AND-DATA-MIGRATE-2`, `AND-DATA-THREAD-1`, `AND-LOG-PII-1`, `AND-REL-SIGN-2` |
 | **Major** | Likely to cause a real bug or meaningfully hurt maintainability, and reachable by a user in a normal flow: a leaked `Activity` or view, a duplicate analytics event on configuration change or from an off-screen composition, an unscoped coroutine, a collector still running while the UI is stopped, a transport model leaking into UI state | `AND-PERF-MEM-1`, `AND-LOG-ANALYTICS-2`, `AND-KT-COROUTINE-1`, `AND-VM-LIFECYCLE-3`, `AND-NET-DTO-1` |
 | **Minor** | A standards deviation with no immediate functional risk, or reachable only by a future maintainer: a hardcoded user-visible string, a bare suppression, an unexplained `!!`, a duplicated dimension resource | `AND-UI-RES-1`, `AND-KT-LINT-2`, `AND-KT-NULL-1`, `AND-UI-RES-4` |
 | **Nit** | Hygiene with no behavioural consequence: naming, ordering, a redundant construct | the nearest applicable `AND-*` ID — **a Nit with no citable rule is not filed** ([§2](#2-the-filing-gate--what-may-be-filed)) |
@@ -192,6 +205,8 @@ Nine of the ten `standards/android/*` files phrase rules against *the repository
 3. **Nothing to compare against** — no logging abstraction, no dispatcher-injection convention, no established navigation mechanism. **Apply the platform default the rule itself states, cite that rule, and append `— unverified-convention`.** The label does the work: it caps the finding at **Minor**, states that the antecedent could not be established, and **asks the author to confirm** rather than asserting a settled violation. Record the absent convention in Not Applicable / Skipped as a **standards gap** in the same pass.
 
 **Case 3 files a real, citable finding — it is not a suggestion with an empty citation slot**, which [§2](#2-the-filing-gate--what-may-be-filed) forbids. This matches the resolution the shipped iOS lane uses for the identical ladder — `standards/ios/swift-standards.md` § *When the repository has no convention* — so the two lanes behave the same way where their standards are silent.
+
+4. **The rule defers to a repository value that does not exist yet** — `AND-UI-TV-OVERSCAN-2`, `AND-UI-TV-SCALE-1` and `AND-UI-TV-COMP-1` deliberately state **no** default, because Android's own guidance conflicts or offers none. Case 3's "apply the platform default the rule itself states" has nothing to apply. **Record an unresolved decision naming the value the repository must define, capped at the lowest severity. Never invent the default, and never file it as a violation** — there is no antecedent to violate.
 
 **State which case applied.** The reasoning behind the ladder: where no other rule applies, an author should maintain consistency with the existing code — so with no existing code to be consistent with, the rule's own stated default is the only remaining antecedent, and it is offered as *unverified* rather than enforced. **An absent convention is never, by itself, compliance.**
 
@@ -229,6 +244,9 @@ A claim a diff cannot settle is filed as a **request** — never as a verdict, a
 | Confirming what a Baseline or Startup Profile does, and which build must have R8 off | [Baseline Profiles](https://developer.android.com/topic/performance/baselineprofiles/overview) |
 | Establishing which optimization DSL a repo's AGP version uses | [Enable app optimization](https://developer.android.com/topic/performance/app-optimization/enable-app-optimization) |
 | Confirming Lint's CI position and its severity vocabulary | [Improve your code with lint checks](https://developer.android.com/studio/write/lint) |
+| Confirming a TV requirement's **tier** before blocking on it — TV Ready is baseline, TV Differentiated is not | [TV app quality](https://developer.android.com/docs/quality-guidelines/tv-app-quality) |
+| Confirming the TV memory figures and their no-bindings/single-stream assumption before a measurement request | [Memory optimization for TV](https://developer.android.com/training/tv/playback/memory) |
+| Confirming a TV manifest declaration's exact literal before filing its absence | [Get started with TV apps](https://developer.android.com/training/tv/get-started/create) · [`uses-feature`](https://developer.android.com/guide/topics/manifest/uses-feature-element) |
 
 **Name the mechanism; do not run it**, and never name a tool the repository has not adopted.
 
@@ -236,19 +254,104 @@ A claim a diff cannot settle is filed as a **request** — never as a verdict, a
 - The static-analysis and formatting tools themselves are **`AND-KT-LINT-1`'s list, cited by ID and not restated here**.
 - **Check ktlint's major version before saying anything about its Maven coordinate**: ktlint is no longer Pinterest-affiliated, and while **1.x — the current stable line — still publishes `com.pinterest.ktlint`**, the move to `io.github.ktlint` is announced in the **2.0.0 alpha** line, which is pre-release. So the coordinate is a finding on neither line by default: on 1.x it is correct as-is, and on a 2.0 pre-release it has genuinely moved.
 
-## 10. device_type handling at review
+## 10. Android TV rule families and their review stages
 
-Review has **no confirmed `device_type`**, and the repository-knowledge manifest cannot supply one — it carries no such field ([§4](#4-repository-knowledge)).
+Six additions arrive at once. A two-pass review must say where each is decidable, because a rule with no
+stage is silently never checked. **All of them are additive over their base family** ([§5](#5-framework-neutral-family-selection)).
 
-- **Infer, never demand.** The signals are in the reviewed files themselves: a `<uses-feature android:name="android.software.leanback">` declaration, an `android.intent.category.LEANBACK_LAUNCHER` intent filter on a launcher activity, a TV module or source set, or TV base classes. **The manifest declarations are what make an app a TV app — the Leanback UI *library* is optional and separate**, so its absence is not evidence against a TV surface. Note a TV surface in Scope; **never block a review to ask.**
-- **Suppress inapplicable mobile rules rather than invent TV rules.** A touch-target remedy has nothing to mean where there is no touch, and **touch or gesture assumptions are never carried into a TV surface.**
-- **Never file against a rule that does not exist.** **There is no `AND-*TV*` ID of any kind**, so a TV-specific Android finding has nothing to cite — and a finding with nothing to cite is not filed (§2).
-- `A11Y-TOUCH-1` and `A11Y-TOUCH-2` **already carry explicit Android-TV clauses** — D-pad focusability with a visible focus highlight, and enough separation that focus moves predictably. **Honouring them is reading the standard, not filling a TV gap, and they must never be reported as one.**
-- A TV rule that is genuinely needed and genuinely absent is **recorded against `ANDROID-003`**, which owns Android TV guidance. It is not invented here.
+| Family · host file | Pass | Decidable from the diff | Needs more than the diff |
+|---|---|---|---|
+| `AND-UI-TV-*` (10) · `compose-xml-standards.md` | A | `AND-UI-TV-FOCUS-1/-2/-3`, `AND-UI-TV-OVERSCAN-1`, `AND-UI-TV-LAYOUT-1`, `AND-UI-TV-SCALE-2`, `AND-UI-TV-IME-1` — behaviours visible in the changed screen | `AND-UI-TV-OVERSCAN-2`, `AND-UI-TV-SCALE-1` and `AND-UI-TV-COMP-1` need the repository's declared inset, TV scale and component set |
+| `AND-NAV-TV-*` (9) · `android-navigation.md` | A | `AND-NAV-TV-BACK-1/-2/-3`, `AND-NAV-TV-DPAD-2/-3/-4`, `AND-NAV-TV-FOCUS-1` — handler shape and declared focus targets | `AND-NAV-TV-DPAD-1` and `AND-NAV-TV-AXIS-1` are whole-app traversal claims: **unreachable** without a D-pad walkthrough |
+| `AND-ARCH-TV-*` (6) · `android-architecture.md` | A | `AND-ARCH-TV-1/-2/-3/-5/-6` — base type, lifecycle pairing, capability gate, no second player abstraction | `AND-ARCH-TV-4` governs planning output, not code: at review it is **Not Applicable — planning lane** |
+| `AND-TEST-INSTR-2` · `android-testing.md` | A | a TV playback test inside the reviewed change | **referenced, not audited** ([§6](#6-the-two-passes)) |
+| `AND-PERF-TV-*` (8) · `android-performance.md` | B | `AND-PERF-TV-2` … `-8` are mechanisms | `AND-PERF-TV-1`'s memory budget is a **magnitude** — a measurement request ([§9](#9-measurement-requests)), never asserted from reading code |
+| `AND-REL-TV-*` (9) · `gradle-build-signing.md` | B | — | **release-scoped in full** ([§15](#15-release-stage-pass-b-only)), like every other `AND-REL-*` |
 
-**No focus-handling, D-pad, launcher-banner or Play TV-track checklist belongs in this skill.**
+**An unreachable rule is recorded Not Applicable with its reason — never as passed, and never as a
+finding.** The legitimate reasons are: its stage is elsewhere; its evidence needs a run; no TV surface is
+established ([§11](#11-establishing-a-tv-surface-from-evidence)); the surface is `[unknown]`; or the rule
+defers to a repository value that does not exist yet (§8's last rung). **"Not observed" is none of them.**
 
-## 11. Lane ownership and the merge contract
+## 11. Establishing a TV surface from evidence
+
+`device_type` never arrives at review ([§12](#12-device_type-handling-at-review)), so the surface is
+settled here — before any `AND-*TV-*` rule is raised, and before triage discards the file.
+
+**The evidence, and it is not all equal.** **Either of these two settles the surface as `tv` on its
+own**, because both are TV-specific: an `android.intent.category.LEANBACK_LAUNCHER` intent filter on a
+launcher activity (`AND-REL-TV-LAUNCH-1`), or a `<uses-feature android:name="android.software.leanback">`
+declaration (`AND-REL-TV-FEATURE-1`) — Android defines that feature as *"the app is designed to run on
+Android TV devices"*. **A TV source set, module, product flavour, variant, target or base screen type
+settles it too** — each is TV-specific, and at release scope the whole artefact is in view so the build
+configuration is readable ([§15](#15-release-stage-pass-b-only)); within a diff such a signal settles it
+whenever it is actually in the changed files, which for a flavour declaration is uncommon. **The list is
+open, not exhaustive.**
+
+**Corroborating-only, and never sufficient alone:** `android.hardware.touchscreen` declared
+`android:required="false"`, and a banner. Both also serve non-TV form factors — see the paragraph below.
+
+**`android.hardware.touchscreen` declared `android:required="false"` is corroborating evidence only and
+never settles it alone.** Android documents that declaration as also serving *"devices that provide a
+fake touch interface, or even on devices that provide only a D-pad controller"* — Chromebooks and
+desktop form factors included. A phone app declaring it for Chromebook reach is **not** a TV app, and
+reading it as one is the characteristic false positive here. `AND-REL-TV-FEATURE-2` still *requires* it
+on a TV build, because Play filters the app off every TV device without it; requiring it and detecting
+from it are different jobs. **They identify a TV *target*; nothing identifies the UI framework except
+reading the repository** — this organization's is a custom in-house one, so the absence of `androidx.tv`,
+Leanback or Compose for TV is not evidence against a TV surface, and never a reason to propose one.
+
+**A circularity nothing catches automatically.** `AND-REL-TV-LAUNCH-1` and `AND-REL-TV-FEATURE-1` govern
+**the two strings this section settles on**, so an app breaking both reads as non-TV and skips this
+section entirely — and `AND-REL-TV-FEATURE-2` is then never reached either. **At release the whole
+shipping artefact is in scope, not a diff** ([§15](#15-release-stage-pass-b-only)), and a TV product
+flavour, variant or target settles the surface independently of the manifest. Check all three there,
+where their absence is itself the finding — never by inference from a diff that omits the manifest.
+
+| State | Reached when | Consequence |
+|---|---|---|
+| `tv` | a **settling** signal is in scope — the leanback launcher category or the `android.software.leanback` declaration — or a TV source set, module, flavour or base screen type. **Corroborating evidence alone does not reach this state**: `android.hardware.touchscreen required="false"` and a banner both also serve non-TV form factors | TV families live and additive; record surface and evidence in Scope |
+| `mobile` | positive mobile-only evidence | TV families entirely N/A; no `AND-*TV-*` rule may be raised |
+| `[unknown]` | neither settles it — a shared module, a diff with no manifest | **Raise no `AND-*TV-*` rule and no touch-specific mobile remedy.** Record it in Not Applicable / Skipped naming the evidence sought, and ask in the output. **`[unknown]` is not `mobile`** — defaulting it there silently applies touch assumptions, the one forbidden outcome. Never block the review to ask |
+
+**Traps — each is a wrong finding reached with high confidence.**
+
+| The wrong call | What settles it |
+|---|---|
+| Manifest says leanback ⇒ the UI is Leanback-based | the dependency graph and real class usage; those tokens are Play and device identifiers |
+| No `androidx.tv`, Leanback or `BrowseSupportFragment` ⇒ not a TV app | the two manifest declarations; a library's absence outweighs nothing |
+| A shared component meets 48dp ⇒ it is a mobile component | its module's reachability; reachable from both, both `A11Y-TOUCH-1` clauses bind |
+| A `TV-xx` criterion requires some **UI** focus behaviour | no TV app-quality criterion states a UI-focus requirement — `TV-DP` covers reachability only. The one criterion mentioning "focus" is about **audio** focus, not focus traversal |
+| `TV-TO` makes hover or pointer support mandatory | its tier — `TV-TO` is aspirational, not the baseline gate |
+| A TV app ⇒ click listeners are dead code | click **is** the D-pad select path; only a gesture-*only* path is the defect |
+| The inset is 48dp (or 58dp), so this is wrong | the repository's declared inset; the platform requires no visible clipping, not a number |
+| Content bleeds to the edge ⇒ overscan violated | interactive or text to read? decorative background bleeding is correct |
+| No `nextFocus*` ⇒ focus order is unhandled | the positional default is recommended — and its presence proves nothing: an unlooped override is a dead end |
+| `configChanges="keyboard\|keyboardHidden\|navigation"` is over-broad | on a TV activity that exact value is prescribed; a broader value is a different claim |
+| A back handler exists ⇒ back is correct | repeated presses must terminate at the TV home screen, via no handler that both opens and closes |
+| Focus is visible ⇒ the focus story is done | focus must also be *placed*, be *unique*, and read distinctly from selected and pressed |
+| `sp` units everywhere ⇒ font scaling is right | can the box grow? `sp` in a pinned component clips or pushes past the inset |
+| No TalkBack on TV ⇒ `A11Y-SR-1` is unsatisfiable | it does exist on Android TV; the rule is satisfiable there as written |
+| `screenOrientation="landscape"` ⇒ layout is met | how non-16:9 content scales, and whether the theme is opaque and full-screen, are separate conditions |
+
+## 12. `device_type` handling at review
+
+Review has **no confirmed `device_type`**, and the repository-knowledge manifest cannot supply one — it
+carries no such field ([§4](#4-repository-knowledge)). [§11](#11-establishing-a-tv-surface-from-evidence)
+establishes the surface; this section governs what follows from it.
+
+- **Infer, never demand.** Read the evidence out of the reviewed files. Note a TV surface, and the evidence that established it, in Scope; **never block a review to ask.**
+- **Suppress inapplicable mobile rules rather than fork a rule.** A touch-target remedy has nothing to mean where there is no touch. **Never apply touch or gesture assumptions to a TV surface** — and never the converse either: an `AND-*TV-*` rule is raised on an established TV surface only.
+- **Never file a TV finding against a rule that does not exist.** The `AND-*TV-*` IDs are real now, and confined to the six host documents [§10](#10-android-tv-rule-families-and-their-review-stages) tables; an ID outside that set is invented. Confirm it in `standards/android/` before filing — a finding with nothing to cite is not filed ([§2](#2-the-filing-gate--what-may-be-filed)).
+- `A11Y-TOUCH-1` and `A11Y-TOUCH-2` **already carry explicit Android-TV clauses** — D-pad focusability with a visible focus highlight, and enough separation that focus moves predictably. The `AND-UI-TV-FOCUS-*` rules are additive to them and deliberately do not restate them, so **honouring the shared pair is reading the standard, not filling a TV gap.**
+- A TV concern with no rule behind it is still not invented here. Record it in Not Applicable / Skipped as a standards gap ([§8](#8-when-the-repository-has-no-convention)) — the same treatment any other absent antecedent gets.
+
+**Focus handling, D-pad traversal, the launcher banner and the Play TV track are in scope for this
+skill**, each with a pass and a stage assigned in [§10](#10-android-tv-rule-families-and-their-review-stages).
+The former blanket exclusion is **withdrawn**: it was written when no `AND-*TV-*` ID existed, and keeping
+it would leave the five manifest-and-banner `AND-REL-TV-*` rules filable by nobody at any stage.
+
+## 13. Lane ownership and the merge contract
 
 **The ID's own root decides the owner, not the file the ID appears in.** Android standards cross-reference each other's roots freely — that is pointing at another lane, not taking it over. Three files do it, and each case resolves the same way:
 
@@ -271,9 +374,9 @@ This is what stops the two passes double-filing one issue from two directions.
 
 **The `SEC-*` asymmetry is deliberate, not an inconsistency to fix.** A *planner* proposing a technical approach may cite a security standard as a constraint on the design; **a *reviewer* may not file a security finding.** Citable in one activity, filable only in another. Where an Android rule ties to a `SEC-*` rule, file the `AND-*` half and leave the `SEC-*` half to its owner.
 
-**Out-of-lane strictness.** If a performance, security or release issue is noticed incidentally in Pass A — or a correctness issue in Pass B — it is **not filed here and not noted here.** No aside, no parenthetical, nowhere in the document. **This is deliberately stricter than `rn-code-reviewer`, which permits a one-line out-of-lane aside: do not restore symmetry with it.** Both Android passes merge into one document, so an aside there duplicates the other pass's work rather than adding coverage. **The merge itself is the caller's** ([§12](#12-what-each-pass-returns)).
+**Out-of-lane strictness.** If a performance, security or release issue is noticed incidentally in Pass A — or a correctness issue in Pass B — it is **not filed here and not noted here.** No aside, no parenthetical, nowhere in the document. **This is deliberately stricter than `rn-code-reviewer`, which permits a one-line out-of-lane aside: do not restore symmetry with it.** Both Android passes merge into one document, so an aside there duplicates the other pass's work rather than adding coverage. **The merge itself is the caller's** ([§14](#14-what-each-pass-returns)).
 
-## 12. What each pass returns
+## 14. What each pass returns
 
 Each pass returns **only its own** material, to the caller. Neither writes a document, and neither can see the other's findings. Write an explicit **"None found"** for an empty section.
 
@@ -296,17 +399,18 @@ Append `— unverified-convention` where case 3 applied. A measurement request c
 
 **The verdict inputs**, applied by the caller across every pass and platform: any **Blocking** → **`Blocked`**; else any **Major** → **`Approved with follow-ups`**; else **`Approved`**. **Never write over `templates/code-review-template.md`** — it is the blank template every platform's review is built from; a persisted review goes to the path the caller names.
 
-## 13. Release stage (Pass B only)
+## 15. Release stage (Pass B only)
 
 At `/prepare-mobile-release` the scope is the shipping release, not a diff, and the diff-oriented rules of §§1–3 do not apply. **`skills/mobile-release-readiness/SKILL.md` owns the checklist**; this section governs only the Android performance and build material inside it. **`agents/mobile-release-engineer.md` owns the verdict, and consumes this pass's sign-off rather than re-auditing performance** — so a concern this pass does not surface is a concern the release never sees.
 
 - **`AND-REL-*` is live here in full**: variant and flavour structure, `minSdk`/`targetSdk`/`compileSdk` changes, config supply, debug-only configuration confined to debug, dependency declaration style and pinning, signing, minification and keep rules.
 - Return **one `[android]` sign-off block** into `templates/release-checklist-template.md`'s **Perf Sign-off** section — APK/AAB size delta, the Android performance concerns for this release, and a verdict of **pass / pass-with-follow-ups / fail**.
+- **`AND-REL-TV-*` is live here, and this stage establishes the TV surface itself.** Nothing upstream supplies a confirmed `device_type` — `/prepare-mobile-release` has no device step — so do not wait for one. **At this stage the whole shipping artefact is in scope rather than a diff**, so apply [§11](#11-establishing-a-tv-surface-from-evidence)'s evidence to the artefact's own manifest and build configuration: a TV product flavour, variant or target, or a **settling** manifest declaration — the leanback launcher category or the `android.software.leanback` feature — establishes it. **`android.hardware.touchscreen required="false"` does not**: it is required on a TV build but also serves fake-touch and D-pad-only devices, so an artefact carrying only that is not thereby a TV release. **This is the one stage that can settle the circularity** — where a declaration is absent, its absence is the finding rather than a reason to skip the section. If the artefact genuinely carries no TV target, record `AND-REL-TV-*` as Not Applicable with that reason; if it is a TV release, all nine are live: the launcher intent filter, the `uses-feature` declarations, the **in-app** `android:banner` drawable, the **separate** store-listing TV asset, the form-factor and TV-track decision, the bundle and TV target-API floor, and the signing identity. **This is the only stage at which those nine are filable**, so a TV release that skips it leaves them unreviewed by anyone.
 - **An item that cannot be verified is not silently passed.** It is a no-go by default, surfaced to the human.
 
 Three Android facts this section must not get wrong:
 
-- **Establish the repository's AGP version before asserting which optimization flag is missing.** `AND-REL-R8-1` is written to the pre-9.3 DSL — `isMinifyEnabled` and `isShrinkResources` plus a `proguardFiles(...)` list; from AGP 9.3 that is a single `optimization { enable = true }` block covering **both code and resources**, with keep rules moved to a file suffixed `.keep` in a `src/<variant>/keepRules` source set. The rule is not wrong for the legacy DSL — it is **silent about the current one**. `AND-REL-R8-2` survives unchanged, but the expected file location moves.
+- **Establish the repository's AGP version before asserting which optimization flag is missing, because either DSL may be in use.** `AND-REL-R8-1` **names no DSL, flag or filename** — it is outcome-shaped, and is satisfied under either. AGP 9.3 *added* an `optimization { }` DSL covering code and resources together, with keep rules in a file suffixed `.keep` under a `src/<variant>/keepRules` source set; it **replaced nothing** — the legacy `isMinifyEnabled` / `isShrinkResources` / `proguardFiles(...)` form is still supported. So the finding is never "the wrong DSL"; it is that the release variant does not reach the optimized outcome in whichever DSL this repository uses. `AND-REL-R8-2` survives unchanged; both DSLs support the `keepRules` source set, so a keep rule is looked for in either location.
 - **Checking only "minification is on" checks half the requirement.** Baseline and Startup Profile *generation* requires R8 **off**, while the shipped release requires R8 **on**. Both are correct, in different builds — so verify both states, not one flag.
 - **Keep-rule sufficiency is not statically decidable.** The filable finding is *"reflective, serialization or native-interop code arrived with no keep rule"* — never *"these keep rules are insufficient"*.
 
@@ -314,7 +418,8 @@ Three Android facts this section must not get wrong:
 
 - A `standards/android/*` or shared standards file this pass cites is missing or is a structure-only placeholder.
 - You cannot name which filing-gate category a finding violates, or its citation slot is empty.
-- You are about to cite an ID you have not confirmed exists — in particular an `AND-*TV*`, `AND-A11Y-*` or `AND-SEC-*` ID, none of which exist in this repository.
+- You are about to cite an ID you have not confirmed exists — in particular an `AND-A11Y-*` or `AND-SEC-*` ID, neither of which exists in this repository. **`AND-*TV-*` IDs now do exist**, in the six host documents [§10](#10-android-tv-rule-families-and-their-review-stages) lists; confirm the exact ID there rather than composing one from a root.
+- You are about to raise an `AND-*TV-*` rule with no TV surface established, or to treat `device_type: [unknown]` as `mobile` ([§11](#11-establishing-a-tv-surface-from-evidence)); or to cite a TV rule *instead of* its base family rather than in addition to it.
 - You are about to file `SEC-*`, generic `REL-*` or `QA-*`, or to note an out-of-lane issue as an aside.
 - You are about to file a modernization, a migration, a toolkit/library/architecture preference, or a finding against pre-existing code outside the resolved scope.
 - You are about to assert a magnitude from reading a diff, or to name a measurement without device model, OS version, build type and compilation state.
@@ -324,7 +429,7 @@ Three Android facts this section must not get wrong:
 
 ## Relationship with command, agents, skills
 
-- **`/review-code`** — scope resolution, platform attribution, standards loading, invoking both agents, and the merge. **`/prepare-mobile-release`** — the release-scoped invocation ([§13](#13-release-stage-pass-b-only)).
+- **`/review-code`** — scope resolution, platform attribution, standards loading, invoking both agents, and the merge. **`/prepare-mobile-release`** — the release-scoped invocation ([§15](#15-release-stage-pass-b-only)).
 - **`agents/android-code-reviewer.md`** — Pass A. **`agents/android-performance-reviewer.md`** — Pass B, and the Android release sign-off.
 - **This skill** — the methodology both follow, declared in their `skills:` frontmatter so it loads with them. **They apply it and do not restate it.**
 - **`skills/repo-knowledge-consumer/SKILL.md`** — the only component permitted to parse the repository-knowledge manifest.
@@ -341,22 +446,23 @@ Three Android facts this section must not get wrong:
 
 | Area | Standard file | IDs |
 |---|---|---|
-| Layering, modules, ViewModel & UI state, DI | `standards/android/android-architecture.md` | `AND-ARCH-*`, `AND-VM-*`, `AND-DI-*` (21) |
+| Layering, modules, ViewModel & UI state, DI | `standards/android/android-architecture.md` | `AND-ARCH-*`, `AND-VM-*`, `AND-DI-*` (27, incl. `AND-ARCH-TV-*` 6) |
 | Kotlin language, null-safety, coroutines & Flow, static analysis | `standards/android/kotlin-standards.md` | `AND-KT-*` (19) |
-| Compose, XML/Views, lists, resources | `standards/android/compose-xml-standards.md` | `AND-UI-*` (26) |
+| Compose, XML/Views, lists, resources | `standards/android/compose-xml-standards.md` | `AND-UI-*` (36, incl. `AND-UI-TV-*` 10) |
 | Networking, contracts, DTOs, auth, errors | `standards/android/android-networking.md` | `AND-NET-*` (14) |
 | Persistence, migrations, threading, cache | `standards/android/android-persistence.md` | `AND-DATA-*` (11) |
-| Navigation, arguments, deep links, back stack | `standards/android/android-navigation.md` | `AND-NAV-*` (9) |
+| Navigation, arguments, deep links, back stack | `standards/android/android-navigation.md` | `AND-NAV-*` (18, incl. `AND-NAV-TV-*` 9) |
 | Logging, analytics, PII in both | `standards/android/android-logging-analytics.md` | `AND-LOG-*` (9) |
-| Tests — **referenced, not audited** ([§6](#6-the-two-passes)) | `standards/android/android-testing.md` | `AND-TEST-*` (9) |
+| Tests — **referenced, not audited** ([§6](#6-the-two-passes)) | `standards/android/android-testing.md` | `AND-TEST-*` (10, incl. `AND-TEST-INSTR-2`) |
 | Accessibility (shared) | `standards/shared/accessibility.md` | `A11Y-*` (13) |
 | Localization & RTL (shared) | `standards/shared/i18n-rtl.md` | `I18N-*` (13) |
-| Performance — threading, lists, images, memory, startup, size | `standards/android/android-performance.md` | `AND-PERF-*` (16) — **Pass B** |
-| Gradle variants, dependencies, signing, R8 | `standards/android/gradle-build-signing.md` | `AND-REL-*` (11) — **Pass B** |
+| Performance — threading, lists, images, memory, startup, size | `standards/android/android-performance.md` | `AND-PERF-*` (24, incl. `AND-PERF-TV-*` 8) — **Pass B** |
+| Gradle variants, dependencies, signing, R8 | `standards/android/gradle-build-signing.md` | `AND-REL-*` (20, incl. `AND-REL-TV-*` 9) — **Pass B** |
 
-Four boundary rules, each factual rather than stylistic:
+**188 `AND-*` across the ten Android files, plus 26 shared** — counted, not estimated. Five boundary rules, each factual rather than stylistic:
 
 - **`AND-REL-*` (Gradle build, variants, signing, R8) and shared `REL-*` (release readiness) are unrelated families.** Conflating them is a factual error, not a naming quibble.
 - **`AND-DI-*` has no topic segment** — the IDs are `AND-DI-1` through `AND-DI-4`. Do not invent one.
 - **No `AND-*` family exists for accessibility or i18n/RTL** — cite the shared roots, and never write an `AND-A11Y-*` or `AND-I18N-*` ID. **Security is narrower than it looks:** there is no `AND-SEC-*` root and shared `SEC-*` is `mobile-security-reviewer`'s, **but `AND-DATA-SEC-1`/`-2`/`-3` do exist** inside `standards/android/android-persistence.md` — data-at-rest security — and they are **Pass A's to file**. Do not mistake them for the other lane's.
 - **`AND-*` and those two shared roots only.** Never cite an `IOS-*` root, and never React Native's generically-named `ARCH-*`/`API-*`/`STATE-*`/`NAV-*`.
+- **The TV rules take host-document roots, not a family of their own.** There is no `AND-TV-*` root and no TV standards file: `AND-UI-TV-*` lives in the Compose/XML standard, `AND-NAV-TV-*` in navigation, and so on, so **the cited ID's root still decides its owning pass** ([§13](#13-lane-ownership-and-the-merge-contract)). `AND-TEST-TV-*` deliberately does not exist — the single TV testing obligation is `AND-TEST-INSTR-2`.

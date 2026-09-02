@@ -42,6 +42,23 @@ These standards govern the Android UI layer — Jetpack Compose, XML/View-based 
 - `AND-UI-RES-4` Resource names are semantic (`ic_back`, `spacing_medium`), and dimensions/colors/typography reuse the existing token resources rather than duplicating near-identical values.
 - `AND-UI-RES-5` No PII or placeholder personal data is hardcoded into layouts, previews, or sample data shipped in the build.
 
+## Android TV Context (device_type: tv)
+
+**[Applies only on an established TV surface — `device_type: tv` arrives confirmed and is never re-detected here. Where no TV surface is established this section is entirely N/A and none of its rules may be raised. Every rule below is additive: the base `AND-UI-*` rules apply on a TV surface unchanged, and nothing here relaxes or forks one.]**
+
+Focusability itself and a visible focus highlight are already owned by `A11Y-TOUCH-1` and `A11Y-TOUCH-2` in `standards/shared/accessibility.md`; the rules below add distinct obligations and do not restate them. This organization's TV surface uses a custom in-house framework, so every rule states a behavior, never an API or library. A rule tagged *(derived)* or *(repo-convention)* is this repository's own policy — Android publishes no requirement behind it.
+
+- `AND-UI-TV-FOCUS-1` Focus rests on an actionable element whenever a TV screen appears or goes idle; nothing holding focus is a defect, not an acceptable transient.
+- `AND-UI-TV-FOCUS-2` When the focused element disappears or its container reloads, focus moves to a fallback the screen named in advance rather than being left unrecoverable. *(derived)*
+- `AND-UI-TV-FOCUS-3` Exactly one element carries the focused treatment, and focused, pressed, selected, and disabled read as distinct states rather than one reused highlight.
+- `AND-UI-TV-OVERSCAN-1` Text, controls, and always-visible elements stay inside the repository's overscan-safe inset; decorative background may bleed past it, never clipped to it.
+- `AND-UI-TV-OVERSCAN-2` Android's own guidance gives conflicting insets, so the repository defines one dimension with its reference resolution, and every TV screen references it. *(derived)*
+- `AND-UI-TV-LAYOUT-1` TV surfaces are landscape and fill the screen with an opaque background; portrait-only layouts, translucent themes, and non-black letterbox bars are not introduced.
+- `AND-UI-TV-SCALE-1` Type, icon, and control sizing follows the repository's TV scale rather than the phone ramp, validated at its stated TV reference resolution and density.
+- `AND-UI-TV-SCALE-2` Components that cannot flex are not sized in `sp`, and font-scale growth is absorbed inside the overscan-safe area rather than past the screen edge (`A11Y-FONT-2`/`A11Y-FONT-3`).
+- `AND-UI-TV-COMP-1` TV screens reuse the repository's existing TV components and their focus treatment; a one-off focusable widget is not added where a component covers the interaction. *(repo-convention)*
+- `AND-UI-TV-IME-1` A TV text field declares an input type the platform keyboard supports and places that keyboard clear of the field it is filling.
+
 ## References
 
 - Jetpack Compose guidance and the Android Views/Fragments lifecycle documentation (developer.android.com).

@@ -1,6 +1,6 @@
 ---
 name: android-feature-implementation
-description: Methodology for implementing exactly one planned task in a native Android (Kotlin/Compose/XML) codebase per org standards. Used by /implement-task via the android-feature-developer agent.
+description: Methodology for implementing exactly one planned task in a native Android (Kotlin/Compose/XML) codebase per org standards. Handles device_type mobile and tv, adding the AND-*TV-* families on a TV surface without replacing the base families. Used by /implement-task via the android-feature-developer agent.
 ---
 
 # Android Feature Implementation
@@ -9,7 +9,9 @@ description: Methodology for implementing exactly one planned task in a native A
 
 This skill is the methodology the `android-feature-developer` agent follows to implement **exactly one** task from an approved development workflow in a native Android codebase. It owns *how* Android work is understood, grounded in the repo, executed, validated, self-reviewed, and reported.
 
-It is not orchestration. `/implement-task` resolves the task id, reads its `platform`, and routes here; the `require-approval-before-code` and `block-main-branch-changes` hooks gate code writes. This skill does not re-implement any of that — it assumes those gates are active and focuses on doing the implementation correctly. See [Relationship with command, agent, hooks](#relationship-with-command-agent-hooks).
+It is not orchestration. `/implement-task` resolves the task id, reads its `platform` and `device_type`, and routes here; the `require-approval-before-code` and `block-main-branch-changes` hooks gate code writes. This skill does not re-implement any of that — it assumes those gates are active and focuses on doing the implementation correctly. See [Relationship with command, agent, hooks](#relationship-with-command-agent-hooks).
+
+`device_type` is a **context signal, not a platform**: it changes which standards apply, never the routing. A `tv` task runs on this same skill and the same `android-feature-developer` agent as a `mobile` one (`commands/implement-task.md:139`), so there is no TV skill, TV agent or TV command to hand off to.
 
 ## Inputs this skill requires (resolved, never invented)
 
@@ -20,6 +22,7 @@ Before anything else, obtain and **verify the existence of** the concrete inputs
 - Absolute path to the approved **Dev Plan** (`dev-plan-template.md` output).
 - Absolute path to the **Task Breakdown** (`task-breakdown-template.md` output).
 - The **task id** to implement, and the target **repository / module** root.
+- The confirmed **`device_type`** — exactly `mobile` or `tv`, already resolved and hard-validated by `/implement-task` (`:66`) and passed through as authoritative (`:139`). Take it as given: **never re-detect it, never accept `mixed`, and never default a missing one to `mobile`** — stop and report instead.
 
 If any of these paths is not provided and cannot be resolved deterministically, **stop and report exactly which input is missing** — do not proceed against an assumed location. (When `/implement-task` does not yet pass these paths explicitly, resolving them and confirming they exist is part of this step; report the gap rather than inventing.)
 
@@ -55,7 +58,7 @@ Hard rules:
 
 ## 2. Task resolution & readiness checks
 
-Resolve the task by id in the Task Breakdown and read its: id, title/description, objective, `platform`, files expected to be touched, acceptance criteria, `depends-on`, blockers, estimated size, explicit out-of-scope items, and any linked DD sections / standard IDs.
+Resolve the task by id in the Task Breakdown and read its: id, title/description, objective, `platform`, `device_type`, files expected to be touched, acceptance criteria, `depends-on`, blockers, estimated size, explicit out-of-scope items, and any linked DD sections / standard IDs.
 
 Confirm **all** of the following before editing. If any fails, **stop and report exactly what is missing** — do not work around it:
 
@@ -65,6 +68,9 @@ Confirm **all** of the following before editing. If any fails, **stop and report
 - [ ] Every `depends-on` task is complete (with evidence, not assumption).
 - [ ] No blocking open question remains for this task.
 - [ ] The task's `platform` is `android` or explicitly includes Android.
+- [ ] `device_type` is present and is exactly `mobile` or `tv`. Missing, empty, `mixed`, or anything else → **stop and report the exact condition**; never default it to `mobile` and never re-detect it here.
+- [ ] On `device_type: tv`, the repository's own TV implementation model is identified from the code ([§3](#3-repository-grounding)) before any TV code is written, and the TV families in [§12](#12-standards-citation) are added to the base families for this task — never substituted for them. See [Android TV surfaces](#android-tv-surfaces-device_type-tv).
+- [ ] **On `device_type: tv` where the repository has no TV surface at all, this is not a stop.** The plan should already carry the app-level TV decisions as approved unresolved decisions — the entry point and manifest declarations, the focus and D-pad model, the base screen type, the packaging target (`skills/android-dev-planning/SKILL.md` §6, case 2). **Implement against those approved decisions and nothing else.** If the plan does *not* carry them, that is the stop: report the missing decisions rather than inventing a TV convention here, because a convention invented at implementation time is the one thing no later review can distinguish from an existing one.
 - [ ] The task is small enough for one implementation run (if not, report it should be split).
 - [ ] For UI work, the required design reference exists (Dev Plan / DD `figma_link` or `design_reference` — any supported type; Figma is not required specifically). If neither is set, stop and ask — do not guess spacing/color/typography. A task that changes no user-facing UI (`design_reference_status: not_required`) needs none.
 - [ ] The repository and target module are known.
@@ -88,6 +94,7 @@ Inspect the actual Android codebase before proposing or writing code. **Detect �
 - Analytics, logging, feature flags, remote config; localization and RTL support.
 - Testing setup; lint/detekt/ktlint/Android Lint/formatting/static analysis.
 - `minSdk`/`targetSdk`/`compileSdk`, AGP and Kotlin versions.
+- On `device_type: tv`, the repository's **own** TV implementation model: base screen types, focus and D-pad key handling, playback ownership, TV source sets, modules and resource qualifiers. A manifest declaration identifies a TV **target**; **nothing identifies the TV UI framework except reading the repository**, so a well-known TV library's absence is evidence of nothing. This organisation's TV surface uses a custom in-house framework — implement into it.
 
 ## 4. Context loading before edits
 
@@ -162,6 +169,18 @@ Implement the exact loading/empty/partial/error/retry/blocked states the DD defi
 ### Analytics & logging
 Reuse existing analytics conventions; add only the events the DD requires; avoid duplicate events from recomposition/lifecycle re-entry; no PII in analytics; keep debug logging removable and gated. → `AND-LOG-ANALYTICS-*`, `AND-LOG-HYGIENE-*`, `AND-LOG-PII-*`, `SEC-LOG-*`.
 
+### Android TV surfaces (device_type: tv)
+
+Live **only** on a `tv` task, and then **in addition to** every subsection above — the base `AND-*` rules apply on a TV surface unchanged, and nothing here relaxes or forks one. Implement into the TV model [§3](#3-repository-grounding) actually found: **never introduce or require Leanback, `androidx.tv` or Compose for TV, and never migrate an existing TV surface onto one.** A deprecated-but-present TV toolkit is a legitimate baseline; replacing it is optional modernization needing its own DD, never part of this task (`AND-ARCH-TV-5`, `AND-ARCH-TV-6`).
+
+- **Focus, overscan and layout** — focus rests on an actionable element and stays recoverable, one distinct focused treatment, text and controls inside the repository's declared overscan inset, landscape and opaque, sized on the repository's TV scale, keyboard clear of the field it fills. → `AND-UI-TV-FOCUS-1`/`-2`/`-3`, `AND-UI-TV-OVERSCAN-1`/`-2`, `AND-UI-TV-LAYOUT-1`, `AND-UI-TV-SCALE-1`/`-2`, `AND-UI-TV-COMP-1`, `AND-UI-TV-IME-1`. Focusability itself and the visible highlight stay credited to `A11Y-TOUCH-1`/`A11Y-TOUCH-2`, which already carry Android-TV clauses — cite those two, do not restate them as a TV rule.
+- **D-pad traversal and Back** — every control reachable and actionable on up/down/left/right/select/Back/Home, select handled by intent rather than one keycode, consistent axis meaning, no dead-end focus override; Back steps one destination, repositions focus on the restored destination, and consecutively reaches the TV home screen. → `AND-NAV-TV-DPAD-1`/`-2`/`-3`/`-4`, `AND-NAV-TV-BACK-1`/`-2`/`-3`, `AND-NAV-TV-FOCUS-1`, `AND-NAV-TV-AXIS-1`.
+- **Lifecycle, memory and playback** — extend the framework's existing base screen type, pair every acquire with its release, gate TV behaviour on a runtime capability check inside the existing modules rather than a forked TV codebase, decode at UI resolution, bound buffers, release player and surface when visible playback ends, drop foreground services and cross-app bindings on leave, hold keep-screen-on only while playing, keep blocking work off the first frame. → `AND-ARCH-TV-1`/`-2`/`-3`, and `AND-PERF-TV-2` through `AND-PERF-TV-8`. The `AND-PERF-TV-1` memory budget travels with its own assumption — no active bindings, a single video stream — and tightens without it; **Android publishes no TV figure for start-up, playback start or navigation latency**, so assert none.
+- **Manifest and release shaping that lives in the repository** — leanback launcher category, the `uses-feature` set including `android.hardware.touchscreen` not required, the **in-app** 320x180 xhdpi `android:banner` drawable, bundle output and the TV target-API floor. → `AND-REL-TV-LAUNCH-1`, `AND-REL-TV-FEATURE-1`/`-2`/`-3`, `AND-REL-TV-BANNER-1`, `AND-REL-TV-BUILD-1`. The string `android.software.leanback` is a **feature declaration, not a library** — declaring it requires and proposes no UI framework.
+- **Three `AND-REL-TV-*` rules have no repository file to change and are therefore never "applied" here.** `AND-REL-TV-STORE-1` (the 1280x720 Play store-listing banner and TV screenshots) and `AND-REL-TV-TRACK-1` (the form-factor opt-in and the irreversible track choice) are **Play Console artefacts**; `AND-REL-TV-SIGN-1` records that no TV-specific signing requirement exists. **Never report them as applied** — a false *applied* entry misleads the reviewers who read this trace. Where the task's TV work implies one, raise it as a release-stage note for the human.
+- **Tests** — where an instrumentation harness exists, assert that backgrounding a TV playback screen stops playback, releases the player and clears the keep-screen-on flag. → `AND-TEST-INSTR-2`. **No `AND-TEST-TV-*` family exists**; do not cite one.
+- **Report the three classes separately** — existing TV implementation · required feature work · optional modernization — and never fold the third into the second (`AND-ARCH-TV-4`).
+
 ## 7. Scope control & deviation rules
 
 - Implement **only** the selected task. Do not opportunistically fix unrelated issues, refactor unrelated modules, absorb another task, change approved API contracts or business rules, update the DD/plan silently, mark dependencies complete without evidence, or introduce speculative abstractions.
@@ -225,6 +244,9 @@ Record which standard IDs were **applied** (not merely reviewed) — this is the
 | Accessibility (shared) | `standards/shared/accessibility.md` | `A11Y-*` |
 | Localization & RTL (shared) | `standards/shared/i18n-rtl.md` | `I18N-*` |
 | Security & privacy (shared) | `standards/shared/mobile-security.md` | `SEC-*` |
+| **Android TV context** ⁺ | the rows above — a TV ID's root still names its own host file | `AND-UI-TV-*`, `AND-NAV-TV-*`, `AND-ARCH-TV-*`, `AND-PERF-TV-*`, `AND-REL-TV-*`, and `AND-TEST-INSTR-2` |
+
+⁺ **The TV row is live only when `device_type: tv`**, and only once [§3](#3-repository-grounding) has established the TV surface. It is then cited **in addition to every row above, never instead of one** — a TV surface is still governed by the base `AND-UI-*`, `AND-NAV-*`, `AND-ARCH-*`, `AND-PERF-*` and `AND-REL-*` rules in full. On `device_type: mobile` the whole row is N/A and none of its IDs may be recorded. Each `AND-*TV-*` rule lives in its host file's own `## Android TV Context (device_type: tv)` section, so the cited ID's root still names the file that owns it. **`AND-TEST-INSTR-2` is the exception:** no `TV` segment, and it sits in `android-testing.md`'s existing `## Instrumentation & UI Tests` section, since no `AND-TEST-TV-*` family was opened. There is no separate TV standards file and no TV root outside this row. See [Android TV surfaces](#android-tv-surfaces-device_type-tv).
 
 Do not use React Native's generically-named `ARCH-*`/`API-*`/`STATE-*`/`NAV-*` IDs for Android — those are RN-specific. Android architecture/state/navigation cite the `AND-*` roots above.
 
@@ -239,6 +261,9 @@ Do not use React Native's generically-named `ARCH-*`/`API-*`/`STATE-*`/`NAV-*` I
 - Completing the task requires touching files outside its approved scope.
 - You are about to claim a build/test/manual check passed that you did not actually run.
 - A cited `standards/android/*` file is a placeholder (see [§0](#0-standards-readiness-gate)).
+- `device_type` is missing, empty, `mixed`, or any value other than exactly `mobile` or `tv`.
+- The task is `device_type: tv`, a TV surface **exists**, and the repository's TV implementation model cannot be identified from evidence — implementing against a guessed model, or against an assumed TV framework, is the failure this stops. **A repository with no TV surface at all is not this stop** — that is the greenfield case in §2, implemented against the plan's approved app-level decisions. The stop there is a plan that does not carry them.
+- You are about to cite an `AND-*TV-*` rule on a `mobile` task, apply a touch or gesture assumption to a TV surface, or introduce or migrate to a TV UI framework the task did not explicitly request.
 
 ## Relationship with command, agent, hooks
 
