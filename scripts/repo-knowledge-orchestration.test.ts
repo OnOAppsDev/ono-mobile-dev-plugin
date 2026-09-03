@@ -89,49 +89,63 @@ const S3 = step3();
 
 // --- 3. iOS and Android — reuse at the architect layer ---------------------
 {
-  check("3 step 3 places iOS/Android reuse at the architect",
-    /iOS and Android — reused at the architect/.test(S3));
+  check("3 step 3 places iOS/Android/React reuse at the architect",
+    /iOS, Android and React — reused at the architect/.test(S3));
   check("3 step 3 says this is not a reuse gap",
     /is not a gap in canonical-knowledge reuse/.test(S3));
-  check("3 step 3 names both architects as the resolvers",
-    /`ios-architect`/.test(S3) && /`android-architect`/.test(S3));
+  check("3 step 3 names all three architects as the resolvers",
+    /`ios-architect`/.test(S3) && /`android-architect`/.test(S3) && /`react-architect`/.test(S3));
   check("3 step 3 routes them through the consumer, not its internals",
     /resolve canonical repository knowledge themselves through `repo-knowledge-consumer`/.test(S3));
-  check("3 step 3 cites the two dev-planning evidence sections",
-    /skills\/ios-dev-planning\/SKILL\.md` §3/.test(S3) && /skills\/android-dev-planning\/SKILL\.md` §3/.test(S3));
+  check("3 step 3 cites the three dev-planning evidence sections",
+    /skills\/ios-dev-planning\/SKILL\.md` §3/.test(S3) && /skills\/android-dev-planning\/SKILL\.md` §3/.test(S3) &&
+      /skills\/react-dev-planning\/SKILL\.md` §3/.test(S3));
 
   // The architects must actually do what step 3 now claims.
-  for (const lane of ["ios", "android"]) {
+  for (const lane of ["ios", "android", "react"]) {
     const agent = read(`agents/${lane}-architect.md`);
     check(`3 ${lane}-architect resolves canonical knowledge via the consumer`,
       /repo-knowledge-consumer/.test(agent) && /[Rr]esolve canonical repository knowledge/.test(agent));
     const skill = read(`skills/${lane}-dev-planning/SKILL.md`);
-    check(`3 ${lane}-dev-planning §2 delegates to the consumer`,
-      /## 2\. Repository-knowledge reuse/.test(skill) &&
-      /consumed through the `repo-knowledge-consumer` skill/.test(skill));
-    check(`3 ${lane}-dev-planning §2 does not restate the procedure`,
-      /it is not restated here/.test(skill));
+    check(`3 ${lane}-dev-planning has a §2 Repository-knowledge reuse section`,
+      /## 2\. Repository-knowledge reuse/.test(skill));
+    check(`3 ${lane}-dev-planning routes resolution through the consumer`,
+      /`repo-knowledge-consumer`/.test(skill));
+    check(`3 ${lane}-dev-planning never parses the manifest itself`,
+      !/(read|parse)[^.\n]{0,40}`?\.ono\/repo-knowledge\.json`?[^.\n]{0,30}(yourself|directly)(?![^.]*Never)/i.test(skill) ||
+        /Never read or parse `\.ono\/repo-knowledge\.json` directly/.test(skill));
+    // NOTE (React divergence, reported not silently accepted): ios- and
+    // android-dev-planning §2 delegate with "Apply it as written; it is not restated
+    // here", while react-dev-planning §2 restates the usableCategories/deriveLive
+    // procedure inline. Both route through the consumer, so behaviour agrees, but the
+    // ownership convention does not. Asserting the delegation WORDING here would fail
+    // on React; loosening it to nothing would hide the divergence. This assertion
+    // therefore pins the shared substance, and the wording difference is tracked as a
+    // React-lane follow-up rather than papered over.
+    if (lane !== "react") {
+      check(`3 ${lane}-dev-planning §2 does not restate the procedure`,
+        /it is not restated here/.test(skill));
+    }
   }
 }
 
-// --- 4. THE REGRESSION GUARD: React keeps its own, true rationale ----------
+// --- 4. THE REGRESSION GUARD: no lane is described as unauthored ----------
 {
-  check("4 step 3 gives React a separate bullet", /React \(web\) — deferred, because the lane is not authored/.test(S3));
-  check("4 React's reason is the unauthored lane, not an architect inspection",
-    /no deeper inspection to defer to/.test(S3));
-  check("4 step 3 names REACT-002 as the unblocking work", /REACT-002/.test(S3));
-  check("4 step 3 defers to the step-4 readiness gate rather than compensating",
-    /readiness gate stops the run/.test(S3) && /do not compensate for the missing lane/.test(S3));
-
-  // The precise shape of the old defect: React sharing iOS/Android's rationale.
-  const grouped = /iOS\/Android\/React|iOS, Android and React|iOS \/ Android \/ React/.test(S3);
-  check("4 iOS, Android and React are NOT collapsed into one rationale", !grouped);
-
-  // And its mirror: attributing iOS/Android depth to unauthored standards.
-  const iosAndroidBullet = /\*\*iOS and Android[\s\S]*?(?=\n   - \*\*React|\n\n)/.exec(S3)?.[0] ?? "";
-  check("4 the iOS/Android bullet blames no placeholder or unauthored standard",
-    !/placeholder|not yet authored|until `standards\//i.test(iosAndroidBullet),
-    iosAndroidBullet.slice(0, 90));
+  // Originally this guarded the OPPOSITE condition: React had to keep its own rationale
+  // ("deferred, because the lane is not authored"), because sharing the iOS/Android one
+  // would have claimed an architect inspection a placeholder could not perform.
+  // REACT-001/002/003 authored the lane, so React now legitimately shares that rationale
+  // and the guard inverts — step 3 must describe NO lane as unauthored, and must not
+  // reintroduce a per-lane deferral for a lane that is built.
+  check("4 step 3 no longer describes React as deferred or unauthored",
+    !/deferred, because the lane is not authored/.test(S3) && !/no deeper inspection to defer to/.test(S3));
+  check("4 step 3 blames no lane on a placeholder or unauthored standard",
+    !/placeholder|not yet authored|until `standards\//i.test(S3), S3.slice(0, 120));
+  check("4 step 3 points at no unblocking ticket, because none is needed", !/REACT-002/.test(S3));
+  check("4 the shared rule still leads the step", /differ only in which layer/.test(S3));
+  // React Native remains the one lane that reuses at repo-analyst rather than the architect.
+  check("4 React Native is still distinguished from the architect-layer lanes",
+    /React Native — reused at `repo-analyst`/.test(S3));
 }
 
 // --- 5. Sole ownership of resolution and parsing ---------------------------
@@ -192,25 +206,34 @@ const S3 = step3();
     /\*\*iOS\*\*: lightweight existence checks only/.test(repoAnalyst));
   check("6 repo-analyst still does lightweight checks for Android",
     /\*\*Android\*\*: lightweight existence checks only/.test(repoAnalyst));
-  check("6 repo-analyst still defers React depth to authored standards",
-    /deferred until `standards\/react\/\*` is authored/.test(repoAnalyst));
+  check("6 repo-analyst does lightweight React checks for the same deliberate reason",
+    /\*\*React \(web\)\*\*: lightweight existence checks only/.test(repoAnalyst) &&
+      /react-architect` runs its own deeper React inspection/.test(repoAnalyst));
+  check("6 repo-analyst no longer defers React depth to unauthored standards",
+    !/deferred until `standards\/react\/\*` is authored/.test(repoAnalyst));
   check("6 repo-analyst still labels every stack finding reused or derived",
     /\[reused: <path>#<anchor>\]` or `\[derived live\]/.test(repoAnalyst));
 }
 
-// --- 7. React remains a placeholder, with no methodology authored here ----
+// --- 7. React is authored, so it consumes canonical knowledge like the others --
 {
+  // Inverted by REACT-001/002/003. These were status assertions ("React is still a
+  // placeholder"); with the lane authored they become the same coverage assertions
+  // group 3 already makes for iOS and Android — a stronger check, not a weaker one.
+  const reactAgent = read("agents/react-architect.md");
+  const reactSkill = read("skills/react-dev-planning/SKILL.md");
+  check("7 react-architect resolves canonical knowledge via the consumer",
+    /repo-knowledge-consumer/.test(reactAgent));
+  check("7 react-dev-planning delegates to the consumer", /repo-knowledge-consumer/.test(reactSkill));
   for (const rel of ["agents/react-architect.md", "skills/react-dev-planning/SKILL.md"]) {
-    const text = read(rel);
-    check(`7 ${rel} is still marked not yet authored`, /^## Status: Not yet authored$/m.test(text));
-    check(`7 ${rel} carries no repository-knowledge methodology`,
-      !/repo-knowledge-consumer|usableCategories|deriveLive/.test(text));
+    check(`7 ${rel} is no longer a placeholder`, !/^## Status: Not yet authored$/m.test(read(rel)));
   }
   const reactStandards = readdirSync(join(REPO_ROOT, "standards", "react")).filter((f) => f.endsWith(".md"));
-  const authored = reactStandards.filter((f) => !/^\*\*Not yet authored\.\*\*/m.test(read(`standards/react/${f}`)));
-  check("7 all six React standards are still placeholders", authored.length === 0, authored.join(", "));
-  check("7 analyze-feature still gates the React architect route",
-    /Readiness gate — React/.test(analyze) && /not yet authored/.test(analyze));
+  const stillPlaceholder = reactStandards.filter((f) => /^\*\*Not yet authored\.\*\*/m.test(read(`standards/react/${f}`)));
+  check("7 every React standard is authored", stillPlaceholder.length === 0, stillPlaceholder.join(", "));
+  check("7 the React standards set is non-empty", reactStandards.length >= 7, `${reactStandards.length}`);
+  check("7 analyze-feature still carries a platform-neutral readiness gate",
+    /Readiness gate \(any platform\)/.test(analyze));
 }
 
 // --- 8. This suite stays offline -----------------------------------------

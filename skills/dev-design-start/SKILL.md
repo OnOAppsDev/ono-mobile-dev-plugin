@@ -43,6 +43,53 @@ This table is enforceable, not advisory. Step 7 applies it.
 
 ## Shared planning rules
 
+### Synchronization flow after an upstream change
+
+The one canonical sequence for re-synchronizing the document chain when an upstream
+artifact changes after approval. It applies to every platform and is defined once here.
+
+Detection stops the work; **a human act re-opens the chain**; regeneration then flows back
+down. Two properties hold at every step: **the plugin never edits upstream requirements,
+and approval is never revoked automatically.** A `source_fingerprint` mismatch is
+information for a person, not a licence for the plugin to rewrite a decision someone made.
+
+```
+Feature Analysis amended (by a human, outside the plugin)
+  │   detected at /dev-design-start entry: the DD's source_fingerprint no longer
+  │   matches the analysis body
+  ↓
+1. A HUMAN re-approves the amended feature analysis
+     The plugin does not flip `status` and does not edit the analysis body.
+  ↓
+2. /dev-design-start   →  Overwrite | Update | Preserve | Version
+     Re-stamps the DD's source_fingerprint from the amended analysis.
+     Leaves the DD at `status: draft`.
+  ↓
+3. A HUMAN re-approves the DD
+  ↓
+4. /dev-feature-start
+     Shows the unchanged / modified / removed impact report BEFORE rewriting rows,
+     then re-stamps the breakdown's source_fingerprint from the re-approved DD.
+     Leaves the breakdown at `status: draft`.
+  ↓
+5. A HUMAN re-approves the task breakdown
+  ↓
+6. /implement-task
+     The preflight is clean again. Completed records, their attempt counters and
+     their runIds were never discarded; affected rows show as Modified.
+```
+
+Entering in the middle is normal — if only the DD changed, start at step 3. The rule is
+that every stage between the change and the work must be re-approved by a person, and each
+stop names exactly one recovery command so nobody has to guess where to re-enter.
+
+Recorded task work is never erased by any of this. A row that changed makes its completion
+`stale`, which withdraws deterministic proof while keeping the record, its `filesChanged`,
+its `standardIds` and its `runId` intact; re-implementing increments `attempt` so the new
+run sits beside the old one rather than replacing it.
+
+
+
 These three rules are platform-independent and are defined **here, once**. Every platform dev-planning skill applies them and may reference them; none may restate them. A platform lane supplies only its own parameters where a rule is parameterised, and any genuinely platform-specific addition alongside it.
 
 ### Classification: Existing, Required, Recommended, Unresolved

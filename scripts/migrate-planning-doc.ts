@@ -376,6 +376,30 @@ const EXCLUSIVE_MARKERS: Array<{ kind: DocKind; fields: string[] }> = [
   { kind: "task-breakdown", fields: ["dev_plan_link"] },
 ];
 
+/**
+ * SHA-256 of a planning document's BODY — frontmatter excluded — for SHARED-013's
+ * `source_fingerprint`. Reuses `splitDocument` so there is exactly one definition of
+ * "where the frontmatter ends", and no second normalization algorithm: the bytes are
+ * hashed as they are.
+ *
+ * Frontmatter is excluded on purpose. `status` flips draft->approved AFTER a downstream
+ * document may already exist; `doc_schema_version`/`migrated_*` are written by this
+ * framework; `repo_knowledge_*` re-resolve per run. Including any of them would make an
+ * approval or a migration look like a content change.
+ *
+ * This is provably migration-stable: `migratePlanningDoc` already asserts the body is
+ * byte-identical before writing (the bodySha256 before/after check), so a migration can
+ * never move this value.
+ *
+ * Returns null when the document has no recognizable frontmatter block — the caller
+ * reports `unknown`, never `mismatch`.
+ */
+export function fingerprintBody(buf: Buffer): string | null {
+  const split = splitDocument(buf);
+  if ("error" in split) return null;
+  return `sha256:${createHash("sha256").update(split.body).digest("hex")}`;
+}
+
 export function detectVersion(kind: DocKind, entries: Entry[]): number | null {
   const filled = new Set(entries.filter((e) => e.key && !isBlank(e.value)).map((e) => e.key as string));
   for (const marker of MARKERS[kind]) {
