@@ -102,8 +102,11 @@ const live = validate(REPO_ROOT);
   const placeholders = live.components.filter((c) => c.readiness === "placeholder").map((c) => c.rel).sort();
   const deferred = live.components.filter((c) => c.readiness === "deferred").map((c) => c.name).sort();
 
-  check("4 exactly 13 components are placeholders", placeholders.length === 13, `${placeholders.length}: ${placeholders.join(", ")}`);
-  check("4 every placeholder is in the react lane", placeholders.every((r) => /react/.test(r) && !/react-native/.test(r)), placeholders.join(", "));
+  // Every lane is authored as of REACT-001/002/003. This is a census, not a
+  // tautology: it fails the moment any component regresses to placeholder state, which
+  // is exactly what it did when React was still scaffolding.
+  check("4 no component is a placeholder — every lane is authored",
+    placeholders.length === 0, `${placeholders.length}: ${placeholders.join(", ")}`);
   check("4 the deferred set is exactly the two DD partition skills",
     deferred.join(",") === "dd-consolidation,dd-orchestration", deferred.join(","));
 
@@ -118,17 +121,42 @@ const live = validate(REPO_ROOT);
   check("4 the ios lane is authored", ios.length > 0 && ios.every((c) => c.readiness === "active"));
   const rn = live.components.filter((c) => c.lane === "react-native");
   check("4 the react-native lane is authored", rn.length > 0 && rn.every((c) => c.readiness === "active"));
-  check("4 the react lane is entirely placeholder", laneReadiness(live.components, "react") === "placeholder");
+  const react = live.components.filter((c) => c.lane === "react");
+  check("4 the react lane is authored", react.length > 0 && react.every((c) => c.readiness === "active"),
+    react.filter((c) => c.readiness !== "active").map((c) => c.rel).join(", "));
+  check("4 every lane classifies as authored", LANES.every((l) => laneReadiness(live.components, l.lane) === "active"),
+    LANES.filter((l) => laneReadiness(live.components, l.lane) !== "active").map((l) => l.lane).join(", "));
 }
 
 // --- 5. Every route-bearing command gates its placeholder routes ----------
 {
   const placeholderRoutes = live.routes.filter((r) => r.target.readiness === "placeholder");
-  check("5 placeholder routes still exist to be gated", placeholderRoutes.length >= 8, `${placeholderRoutes.length}`);
+  check("5 no live route reaches a placeholder — every lane is authored",
+    placeholderRoutes.length === 0, placeholderRoutes.map((r) => `${r.command}->${r.target.name}`).join(", "));
+
+  // The C3 rule is no longer exercised by the live repository, because nothing is a
+  // placeholder any more. The guard against testing it vacuously therefore moves to the
+  // fixtures, which exercise it deterministically and always will: `placeholder-target`
+  // must report the defect and `valid-placeholder-lane` must stay silent. Deleting this
+  // guard instead of moving it would retire C3's only remaining live subject.
+  const gateFixtures = ["placeholder-target", "valid-placeholder-lane"];
+  for (const dir of gateFixtures) {
+    const root = join(REPO_ROOT, "scripts", "fixtures", "reference-integrity", dir);
+    check(`5 the gating rule is still exercised by fixture ${dir}`, existsSync(root));
+    const report = validate(root);
+    const ph = report.components.filter((c) => c.readiness === "placeholder");
+    check(`5 fixture ${dir} still contains a placeholder to gate`, ph.length > 0, `${ph.length}`);
+    if (dir === "placeholder-target") {
+      check("5 an ungated placeholder route is still caught",
+        report.defects.some((d) => d.rule === "C3-placeholder-route-gated"));
+    } else {
+      check("5 a gated placeholder route is still silent", report.defects.length === 0, rules(report.defects));
+    }
+  }
 
   const commandsWithPlaceholderRoutes = [...new Set(placeholderRoutes.map((r) => r.command))].sort();
-  check("5 exactly eight commands route to a placeholder",
-    commandsWithPlaceholderRoutes.length === 8, commandsWithPlaceholderRoutes.join(", "));
+  check("5 no command routes to a placeholder", commandsWithPlaceholderRoutes.length === 0,
+    commandsWithPlaceholderRoutes.join(", "));
 
   for (const cmd of commandsWithPlaceholderRoutes) {
     const text = readFileSync(join(REPO_ROOT, "commands", `${cmd}.md`), "utf-8");
@@ -257,8 +285,8 @@ const live = validate(REPO_ROOT);
     !/\*\*Native Android\*\*[^\n]*placeholder/.test(readme));
   check("11 README no longer calls standards/android a placeholder",
     !/\*\*`standards\/android\/`\*\*[^\n]*placeholder/.test(readme));
-  check("11 README still calls the react lane a placeholder",
-    /\*\*React \(web\)\*\*[^\n]*placeholder/.test(readme));
+  check("11 README no longer calls the react lane a placeholder",
+    !/\*\*React \(web\)\*\*[^\n]*placeholder/.test(readme));
   check("11 README documents the deterministic check", /node scripts\/check\.ts/.test(readme));
   check("11 README documents strict mode", /--strict/.test(readme));
   check("11 no README annotation contradicts disk", live.defects.filter((d) => d.group === "D").length === 0);
@@ -321,8 +349,13 @@ const CASES: Expectation[] = [
   // strip the gate lines from each gated command in memory and confirm the rule fires.
   const components = loadComponents(REPO_ROOT);
   const routes = buildRoutes(REPO_ROOT, components);
-  const gated = [...new Set(routes.filter((r) => r.target.readiness === "placeholder").map((r) => r.command))];
-  check("13 eight commands are protected by a gate", gated.length === 8, gated.join(", "));
+  // No live route reaches a placeholder any more, so "commands protected by a gate" is
+  // measured by the gate being present, not by a placeholder target existing.
+  // Match the gate's own heading, not the words "readiness gate" — /rn-sync-figma-theme
+  // legitimately mentions a "NativeWind readiness gate", which is an unrelated concept.
+  const gated = [...new Set(routes.map((r) => r.command))].filter((cmd) =>
+    /\*\*Readiness gate \(any platform\)/.test(readFileSync(join(REPO_ROOT, "commands", `${cmd}.md`), "utf-8"))).sort();
+  check("13 every route-bearing command still carries a readiness gate", gated.length >= 8, gated.join(", "));
   for (const cmd of gated) {
     const text = readFileSync(join(REPO_ROOT, "commands", `${cmd}.md`), "utf-8");
     const stripped = text.split("\n").filter((l) => !/not yet authored|structure-only placeholder|check readiness/i.test(l)).join("\n");

@@ -2,7 +2,7 @@
 
 **Owner:** Boris Molotsky · **Platform:** `react` (web) + `device_type:tv` (Smart TV) · **Prepared:** 2026-08-13
 **Source of truth:** `docs/planning/PLUGIN_COMPLETION_PLAN.html` (REACT-001, REACT-002, REACT-003)
-**Reference to mirror:** the React Native module (`standards/react-native/`, `skills/rn-*`, `agents/rn-*`)
+**Reference to mirror:** the React Native module (`standards/react-native/`, `skills/rn-*/SKILL.md`, `agents/rn-*.md`)
 **Completed precedents (quality bar):** ANDROID-001/002 ✓, IOS-001/002 ✓
 
 > This breakdown was produced by fanning research across the RN reference, the Android/iOS precedents, and the shared contracts, then reconciled against three adversarial reviews (completeness, correctness, executability). The review notes are folded into the acceptance criteria below.

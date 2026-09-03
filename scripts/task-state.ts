@@ -45,6 +45,7 @@ import {
 } from "fs";
 import { join, dirname } from "path";
 import { createHash } from "crypto";
+import { fingerprintBody } from "./migrate-planning-doc.ts";
 
 /** Highest schema version this helper understands. Pinned by docs/task-state-contract.md. */
 export const CURRENT_SCHEMA_VERSION = 1;
@@ -81,6 +82,57 @@ export interface ValidationEntry {
   result: string;
 }
 
+/**
+ * SHARED-014. A mechanically verifiable accessibility check. Tier is constrained to 1|2
+ * by construction: Tier 3 has no representation here, so a Tier 3 "pass" is not a value
+ * this type can hold. See `standards/shared/verification.md` (`VERIFY-1`).
+ */
+export interface AccessibilityCheck {
+  ruleId: string;
+  tier: 1 | 2;
+  result: "pass" | "fail";
+  evidence?: string;
+}
+
+/**
+ * SHARED-014. Accessibility as a recorded completion dimension.
+ *
+ * `applicable: false` is a positive statement with a required reason — a TV task, or a
+ * task that touches no accessibility-relevant surface. It is NOT what an absent block
+ * means: absence reads as `notRecorded` (see `accessibilityStatus`), never as a pass and
+ * never as "not applicable".
+ */
+export interface AccessibilityBlock {
+  applicable: boolean;
+  reason: string | null;
+  deviceType: string | null;
+  standardIds: string[];
+  checks: AccessibilityCheck[];
+}
+
+/**
+ * SHARED-014. Generic verification debt: an obligation the plugin cannot discharge.
+ *
+ * Deliberately domain-tagged rather than accessibility-specific — performance, battery
+ * and device-capability domains are expected to use the same field without a migration.
+ * SHARED-014 populates only `domain: "accessibility"`.
+ *
+ * There is no `result` field, and `status` is only ever written as `pending`. Neither
+ * omission is an oversight: it makes "the plugin recorded this as verified" unrepresentable,
+ * which is the structural form of `VERIFY-2`.
+ */
+export interface VerificationDebtEntry {
+  domain: string;
+  ruleId: string;
+  requiredVerification: string;
+  whyNotAutomatable: string;
+  owner: string;
+  status: "pending";
+}
+
+/** Absent block vs. a recorded decision — three distinct readings, never collapsed. */
+export type AccessibilityStatus = "notRecorded" | "applicable" | "notApplicable";
+
 export interface TaskRecord {
   state: TaskState;
   provenance: Provenance;
@@ -95,6 +147,10 @@ export interface TaskRecord {
   acceptanceCriteria: AcceptanceCriterion[];
   deviations: string[];
   blockers: string[];
+  /** SHARED-014. Absent on records written before it — read via `accessibilityStatus`. */
+  accessibility?: AccessibilityBlock;
+  /** SHARED-014. Absent on records written before it; absence is not "no debt". */
+  verificationDebt?: VerificationDebtEntry[];
 }
 
 export interface TaskStateFile {
@@ -117,6 +173,60 @@ export interface TaskView {
   dependsOn: string[] | null;
   filesChanged: string[];
   standardIds: string[];
+  /** SHARED-014. `notRecorded` for legacy records: never conflated with `notApplicable`. */
+  accessibilityStatus: AccessibilityStatus;
+  /** Null when the block is absent — distinct from a recorded block with no checks. */
+  accessibility: AccessibilityBlock | null;
+  /** Empty for a legacy record; `accessibilityStatus` says whether that means anything. */
+  verificationDebt: VerificationDebtEntry[];
+}
+
+/**
+ * SHARED-014. Reads the accessibility dimension off a raw record.
+ *
+ * The load-bearing case is the legacy record written before SHARED-014: the block is
+ * absent, and absence must read as `notRecorded`. It is NOT `notApplicable` (which is a
+ * recorded decision with a reason) and NOT a pass. Collapsing those three would let a
+ * record that never considered accessibility look like one that cleared it.
+ */
+function readAccessibility(raw: Record<string, unknown>): {
+  accessibilityStatus: AccessibilityStatus;
+  accessibility: AccessibilityBlock | null;
+  verificationDebt: VerificationDebtEntry[];
+} {
+  const debtRaw = Array.isArray(raw.verificationDebt) ? raw.verificationDebt : [];
+  const verificationDebt = debtRaw.filter(isRecord).map((d) => ({
+    domain: String(d.domain ?? ""),
+    ruleId: String(d.ruleId ?? ""),
+    requiredVerification: String(d.requiredVerification ?? ""),
+    whyNotAutomatable: String(d.whyNotAutomatable ?? ""),
+    owner: String(d.owner ?? ""),
+    status: "pending" as const,
+  }));
+
+  const a = raw.accessibility;
+  if (!isRecord(a) || typeof a.applicable !== "boolean") {
+    return { accessibilityStatus: "notRecorded", accessibility: null, verificationDebt };
+  }
+
+  const checksRaw = Array.isArray(a.checks) ? a.checks : [];
+  const block: AccessibilityBlock = {
+    applicable: a.applicable,
+    reason: typeof a.reason === "string" ? a.reason : null,
+    deviceType: typeof a.deviceType === "string" ? a.deviceType : null,
+    standardIds: strArray(a.standardIds),
+    checks: checksRaw.filter(isRecord).map((c) => ({
+      ruleId: String(c.ruleId ?? ""),
+      tier: (c.tier === 2 ? 2 : 1) as 1 | 2,
+      result: (c.result === "fail" ? "fail" : "pass") as "pass" | "fail",
+      ...(typeof c.evidence === "string" ? { evidence: c.evidence } : {}),
+    })),
+  };
+  return {
+    accessibilityStatus: block.applicable ? "applicable" : "notApplicable",
+    accessibility: block,
+    verificationDebt,
+  };
 }
 
 export interface ReadResult {
@@ -241,6 +351,9 @@ function unknownView(dependsOn: string[] | null): TaskView {
     dependsOn,
     filesChanged: [],
     standardIds: [],
+    accessibilityStatus: "notRecorded",
+    accessibility: null,
+    verificationDebt: [],
   };
 }
 
@@ -282,6 +395,105 @@ function isRecord(v: unknown): v is Record<string, unknown> {
 
 function strArray(v: unknown): string[] {
   return Array.isArray(v) ? v.filter((x): x is string => typeof x === "string") : [];
+}
+
+/** One step on a dependency path, for a stop message that names the exact chain. */
+export interface DependencyProblem {
+  /** `["T7","T3","T1"]` — requested task first, offending task last. */
+  path: string[];
+  reason: "stale" | "removed" | "in-progress" | "missing" | "cycle" | "unproven";
+}
+
+/**
+ * Walk the requested task's TRANSITIVE dependency closure and return every problem that
+ * must block it, each with the exact path that reached it.
+ *
+ * Why transitive: T1 -> T3 -> T7. If T1's row changes, T3's own row is untouched and T3
+ * still reports `deterministicProof: true`, so a direct-only check lets T7 proceed on a
+ * foundation that moved. Direct checking cannot see that.
+ *
+ * Cycles are detected defensively with three-colour marking rather than a depth cap: a
+ * cycle in an approved breakdown is a defect, and dependency proof inside one is
+ * undecidable, so it is reported as a stop with the cycle path rather than being walked
+ * forever.
+ *
+ * No persisted graph and no new state: `dependsOn` is read from the breakdown row on
+ * every call, exactly as the store's contract already requires, and this result is
+ * thrown away when the command exits.
+ */
+export function walkDependencies(
+  tasks: Record<string, TaskView>,
+  requested: string,
+): DependencyProblem[] {
+  const problems: DependencyProblem[] = [];
+  const state = new Map<string, "visiting" | "done">();
+
+  const visit = (id: string, path: string[]): void => {
+    const mark = state.get(id);
+    if (mark === "done") return;
+    if (mark === "visiting") {
+      problems.push({ path: [...path, id], reason: "cycle" });
+      return;
+    }
+    state.set(id, "visiting");
+
+    const view = tasks[id];
+    if (view === undefined) {
+      problems.push({ path: [...path, id], reason: "missing" });
+      state.set(id, "done");
+      return;
+    }
+
+    // The requested task's own condition is judged by the caller; this walk reports
+    // only what its dependencies contribute.
+    if (id !== requested) {
+      if (view.stale === true && view.dependsOn === null) {
+        problems.push({ path: [...path, id], reason: "removed" });
+      } else if (view.stale === true) {
+        problems.push({ path: [...path, id], reason: "stale" });
+      } else if (view.state === "in-progress") {
+        problems.push({ path: [...path, id], reason: "in-progress" });
+      } else if (!view.deterministicProof) {
+        problems.push({ path: [...path, id], reason: "unproven" });
+      }
+    }
+
+    for (const dep of view.dependsOn ?? []) visit(dep, [...path, id]);
+    state.set(id, "done");
+  };
+
+  visit(requested, []);
+  return problems;
+}
+
+export interface ImpactReport {
+  unchanged: string[];
+  modified: string[];
+  removed: string[];
+  unrecorded: string[];
+}
+
+/**
+ * Classify every task in the feature by comparing current rows against the fingerprints
+ * already stored in the state file. Deterministic set-and-hash arithmetic over data the
+ * reader has already produced — no regeneration, which could not be deterministic
+ * because decomposing a DD into rows is model work.
+ *
+ * `unrecorded` deliberately conflates "newly introduced by the upstream change" with
+ * "existed all along, never implemented": both are simply absent from the store, and
+ * neither has work to invalidate. Distinguishing them would require persisting the whole
+ * prior row set.
+ */
+export function impactReport(tasks: Record<string, TaskView>): ImpactReport {
+  const out: ImpactReport = { unchanged: [], modified: [], removed: [], unrecorded: [] };
+  for (const id of Object.keys(tasks).sort()) {
+    const v = tasks[id];
+    if (v.state === "unknown" && v.attempt === null) out.unrecorded.push(id);
+    else if (v.stale === true && v.dependsOn === null) out.removed.push(id);
+    else if (v.stale === true) out.modified.push(id);
+    else out.unchanged.push(id);
+  }
+  return out;
 }
 
 export function readTaskState(
@@ -385,6 +597,7 @@ export function readTaskState(
       dependsOn: breakdownRows === null ? null : (breakdownRows[id]?.dependsOn ?? null),
       filesChanged: strArray(raw.filesChanged),
       standardIds: strArray(raw.standardIds),
+      ...readAccessibility(raw),
     };
   }
 
@@ -452,6 +665,62 @@ export interface WritePayload {
   acceptanceCriteria?: AcceptanceCriterion[];
   deviations?: string[];
   blockers?: string[];
+  accessibility?: AccessibilityBlock;
+  verificationDebt?: VerificationDebtEntry[];
+}
+
+/**
+ * SHARED-014. Validates the accessibility block and verification debt.
+ *
+ * Returns null when the payload is acceptable, or the refusal reason. Called for every
+ * write, not only `complete`: a malformed block is a malformed record whatever the state.
+ *
+ * The rules enforced here are the ones that must not be left to prose, because prose is
+ * what a caller can quietly not follow:
+ *   - Tier 3 cannot appear as a check at all (the type says 1|2; this enforces it at runtime).
+ *   - A Tier 1/2 check cannot claim to satisfy a manual-only rule (`VERIFY-2`).
+ *   - Debt is only ever written `pending` — the plugin cannot mark it discharged.
+ *   - `applicable: false` requires a reason and forbids citing rules anyway.
+ */
+export const MANUAL_ONLY_RULE_IDS = ["A11Y-SR-1"] as const;
+
+export function accessibilityProblem(payload: WritePayload): string | null {
+  const a = payload.accessibility;
+  const debt = payload.verificationDebt ?? [];
+
+  for (const d of debt) {
+    if (!d.domain || !d.ruleId || !d.requiredVerification || !d.whyNotAutomatable || !d.owner) {
+      return "Refused: every verificationDebt entry requires domain, ruleId, requiredVerification, whyNotAutomatable and owner.";
+    }
+    if (d.status !== "pending") {
+      return `Refused: verificationDebt status may only be written as "pending" — the plugin cannot record an obligation it did not discharge as "${d.status}".`;
+    }
+  }
+
+  if (a === undefined) return null;
+
+  if (a.applicable === false) {
+    if (typeof a.reason !== "string" || a.reason.trim() === "") {
+      return "Refused: accessibility.applicable=false requires a non-empty reason.";
+    }
+    if (a.standardIds.length > 0 || a.checks.length > 0) {
+      return "Refused: accessibility.applicable=false must cite no standard IDs and record no checks.";
+    }
+    return null;
+  }
+
+  for (const c of a.checks) {
+    if (c.tier !== 1 && c.tier !== 2) {
+      return `Refused: accessibility check "${c.ruleId}" declares tier ${String(c.tier)}. Only Tier 1 and Tier 2 are recordable checks; a Tier 3 requirement is recorded as verificationDebt (VERIFY-1).`;
+    }
+    if (c.result !== "pass" && c.result !== "fail") {
+      return `Refused: accessibility check "${c.ruleId}" has result "${String(c.result)}"; expected "pass" or "fail".`;
+    }
+    if ((MANUAL_ONLY_RULE_IDS as readonly string[]).includes(c.ruleId)) {
+      return `Refused: "${c.ruleId}" requires assistive-technology validation and cannot be satisfied by Tier ${c.tier} evidence (VERIFY-2). Record it as verificationDebt instead.`;
+    }
+  }
+  return null;
 }
 
 /**
@@ -463,7 +732,18 @@ export interface WritePayload {
 export function verificationSatisfied(payload: WritePayload): boolean {
   const ac = payload.acceptanceCriteria ?? [];
   const val = payload.validation ?? [];
-  return ac.length > 0 && ac.every((c) => c.met === true) && val.length > 0;
+  if (!(ac.length > 0 && ac.every((c) => c.met === true) && val.length > 0)) return false;
+
+  // SHARED-014. Accessibility gates completion only where it applies, and only on the
+  // evidence the plugin actually produced: a failing Tier 1/2 check is a proven defect
+  // and blocks. Outstanding verification debt does NOT block — the plugin proved nothing
+  // either way, and blocking would make completion depend on device availability.
+  const a = payload.accessibility;
+  if (a !== undefined && a.applicable === true) {
+    if (a.standardIds.length === 0 || a.checks.length === 0) return false;
+    if (a.checks.some((c) => c.result === "fail")) return false;
+  }
+  return true;
 }
 
 export function writeTaskState(
@@ -487,6 +767,17 @@ export function writeTaskState(
   }
   const nextState = state as TaskState;
 
+  const a11yProblem = accessibilityProblem(payload);
+  if (a11yProblem !== null) {
+    return {
+      status: "refused",
+      path,
+      taskId,
+      reason: "invalid-accessibility",
+      summary: a11yProblem,
+    };
+  }
+
   if (nextState === "complete" && !verificationSatisfied(payload)) {
     return {
       status: "refused",
@@ -494,7 +785,7 @@ export function writeTaskState(
       taskId,
       reason: "complete-without-verification",
       summary:
-        "Refused: a terminal `complete` requires every acceptance criterion recorded and met, plus at least one validation entry. Record `failed` or `blocked` instead.",
+        "Refused: a terminal `complete` requires every acceptance criterion recorded and met, plus at least one validation entry; and where accessibility applies, cited standard IDs, at least one recorded check, and no failing Tier 1/2 check. Record `failed` or `blocked` instead.",
     };
   }
 
@@ -578,6 +869,8 @@ export function writeTaskState(
     acceptanceCriteria: payload.acceptanceCriteria ?? [],
     deviations: payload.deviations ?? [],
     blockers: payload.blockers ?? [],
+    ...(payload.accessibility !== undefined ? { accessibility: payload.accessibility } : {}),
+    ...(payload.verificationDebt !== undefined ? { verificationDebt: payload.verificationDebt } : {}),
   };
 
   const ordered: Record<string, TaskRecord> = {};
@@ -622,6 +915,32 @@ function main(): void {
   const root = flag("root") ?? process.cwd();
   const feature = flag("feature") ?? "";
   const breakdown = flag("breakdown");
+
+  // SHARED-013: the upstream body fingerprint a command compares against a downstream
+  // document's recorded `source_fingerprint`. Always exits 0 and always prints one JSON
+  // object, like every other mode here, so a caller branches on `status` not exit code.
+  if (mode === "fingerprint") {
+    const file = flag("file");
+    if (file === undefined) {
+      process.stdout.write(`${JSON.stringify({ status: "invalid", detail: "--file is required" }, null, 2)}\n`);
+      process.exit(0);
+    }
+    if (!existsSync(file)) {
+      process.stdout.write(`${JSON.stringify({ status: "absent", path: file, fingerprint: null }, null, 2)}\n`);
+      process.exit(0);
+    }
+    const fp = fingerprintBody(readFileSync(file));
+    process.stdout.write(
+      `${JSON.stringify(
+        fp === null
+          ? { status: "unparseable", path: file, fingerprint: null, detail: "no recognizable frontmatter block" }
+          : { status: "ok", path: file, fingerprint: fp },
+        null,
+        2,
+      )}\n`,
+    );
+    process.exit(0);
+  }
 
   if (mode === "read") {
     process.stdout.write(`${JSON.stringify(readTaskState(root, feature, breakdown), null, 2)}\n`);

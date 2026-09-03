@@ -170,6 +170,45 @@ The helper refuses a write rather than recording something untrue:
 
 The helper never writes `provenance: human-attested`.
 
+## Accessibility and verification debt (SHARED-014)
+
+Two additive record fields. Both are **optional**: a record written before SHARED-014
+carries neither, and the reader reports that state distinctly rather than guessing.
+
+`accessibility` — the recorded accessibility decision for the task:
+
+| Field | Meaning |
+| --- | --- |
+| `applicable` | Whether the mobile accessibility flow applied to this task. |
+| `reason` | Required when `applicable` is `false`; why it did not apply (e.g. `device_type: tv`). |
+| `deviceType` | The confirmed device type the decision was made under. |
+| `standardIds` | The accessibility rules cited — shared `A11Y-*` plus the lane's platform IDs. |
+| `checks` | Tier 1 and Tier 2 checks only, each `{ ruleId, tier, result, evidence? }`. |
+
+`verificationDebt` — an array of obligations the plugin could not discharge, each
+`{ domain, ruleId, requiredVerification, whyNotAutomatable, owner, status }`. The field is
+**domain-tagged and generic**: SHARED-014 populates only `domain: "accessibility"`, and
+performance or device-capability domains can use the same field without a migration.
+
+**Three readings that are never collapsed.** The reader reports `accessibilityStatus`:
+
+- `notRecorded` — the block is absent. Nothing is known. This is **not** "not applicable"
+  and **not** a pass; a legacy record must never look like one that cleared accessibility.
+- `applicable` — the flow applied; `standardIds` and `checks` carry the evidence.
+- `notApplicable` — a positive recorded decision, with a reason.
+
+**Writer preconditions.** The writer refuses, in any state, a `verificationDebt` entry
+missing a required field or carrying a `status` other than `pending`; an `applicable: false`
+block with no reason or that cites rules anyway; a check outside Tier 1/2; and any Tier 1/2
+check against a manual-only rule (`A11Y-SR-1`) per `VERIFY-2`. For `complete` specifically,
+an applicable block must cite at least one rule, record at least one check, and contain no
+failing check. **Outstanding verification debt never blocks `complete`** — the plugin proved
+nothing either way, and blocking would tie completion to device availability.
+
+The plugin only ever writes `status: "pending"`, and the record has no field in which a
+plugin-recorded discharge could be expressed. Evidence produced by a human stays
+human-attested; it never becomes `plugin-verified`.
+
 ## Known limitations
 
 - **No locking.** `in-progress` is an advisory marker, not a lock. Two concurrent runs against the

@@ -3,6 +3,7 @@
 ```yaml
 doc_schema_version: 2 # the frontmatter contract version this document was written against. Set by /dev-design-start at generation; upgraded only by scripts/migrate-planning-doc.ts. See docs/planning-doc-contract.md — never edit by hand.
 feature: # feature name
+source_fingerprint: # sha256: of the approved feature analysis BODY (frontmatter excluded) at the moment this DD was generated — SHARED-013. Written by /dev-design-start; verified by /dev-feature-start. A mismatch means the analysis changed after this DD was built: stop and re-enter at /dev-design-start. Absent (legacy document) means unknown, never mismatch
 feature_analysis_link: # path to the approved templates/feature-analysis-template.md this DD was built from
 design_reference_status: # provided | not_required — carried over from the feature analysis. `provided` is mandatory for a feature with new or changed user-facing UI; `not_required` is valid only when there is no UI change.
 design_reference_type: # figma | document | screenshots | existing_ui | other | none — carried over from the feature analysis
