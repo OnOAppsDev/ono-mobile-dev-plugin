@@ -42,6 +42,24 @@ These standards govern the Android UI layer — Jetpack Compose, XML/View-based 
 - `AND-UI-RES-4` Resource names are semantic (`ic_back`, `spacing_medium`), and dimensions/colors/typography reuse the existing token resources rather than duplicating near-identical values.
 - `AND-UI-RES-5` No PII or placeholder personal data is hardcoded into layouts, previews, or sample data shipped in the build.
 
+## Accessibility
+
+Android-specific implementation of the shared `A11Y-*` requirements, which
+`standards/shared/accessibility.md` owns and this section does not restate. These rules
+say **how** the requirement is met on Android; the requirement itself, and whether it
+applies, is settled there.
+
+- `AND-UI-A11Y-1` Non-text content carries a `contentDescription`; decorative content passes `null` rather than a placeholder string. In Compose set roles through `Modifier.semantics { role = Role.Button }` (or the `clickable`/`toggleable` overload that takes one); in Views set them through the accessibility delegate.
+- `AND-UI-A11Y-2` State is exposed programmatically, not through styling: `stateDescription`, `heading()`, `error(...)`, `progressBarRangeInfo` and `ProgressBarRangeInfo` in `Modifier.semantics`, and `toggleable`/`selectable` for controls that carry a state. A `Modifier.clickable` on a styled `Box` announces nothing about what it is.
+- `AND-UI-A11Y-3` Text uses `sp` and interactive targets meet the platform minimum of **48dp** — `Modifier.minimumInteractiveComponentSize()` in Compose, `minWidth`/`minHeight` or a `TouchDelegate` in Views. Layouts do not pin heights that clip when the font scale increases.
+- `AND-UI-A11Y-4` Where visual order and composition order disagree, traversal is declared with `isTraversalGroup = true` on the container and `traversalIndex` (a `Float`, default `0f`, lower first) on its children; in Views, `accessibilityTraversalBefore`/`accessibilityTraversalAfter`.
+- `AND-UI-A11Y-5` Focus lifecycle is explicit: `requestFocus` on screen entry, a `TYPE_WINDOW_STATE_CHANGED` event (or `paneTitle` in `Modifier.semantics`) on a pane change, and focus returned to the invoking control after a dialog or sheet is dismissed.
+- `AND-UI-A11Y-6` Content that is present but not currently perceivable is hidden with `Modifier.clearAndSetSemantics {}` or `importantForAccessibility="no-hide-descendants"`. `alpha = 0f` and zero-size layouts do not remove a node from the semantics tree.
+- `AND-UI-A11Y-7` Collections supply `collectionInfo = CollectionInfo(rowCount, columnCount)` on the container and `collectionItemInfo = CollectionItemInfo(...)` on each item, so position is announced rather than inferred. This applies to `LazyColumn`, `LazyVerticalGrid` and `RecyclerView` alike.
+- `AND-UI-A11Y-8` Recycled views reset accessibility state. In Views, clear `contentDescription`, state and custom actions in `onViewRecycled` or on rebind; in Compose, give `LazyColumn`/`LazyRow` items a stable `key` so semantics are not carried across items. Stale semantics on a recycled row is the usual source of phantom TalkBack nodes.
+- `AND-UI-A11Y-9` Dynamic updates use `liveRegion = LiveRegionMode.Polite` — `Assertive` only for content that must interrupt — or `announceForAccessibility` in Views. Continuously changing values are coalesced rather than announced per change.
+- `AND-UI-A11Y-10` A merged container re-exposes its children's actions through `customActions = listOf(CustomAccessibilityAction(label, action))` in `Modifier.semantics`, or `ViewCompat.addAccessibilityAction` in Views. Timer-driven advancement is suspended while `AccessibilityManager.isTouchExplorationEnabled` reports an active touch-exploration service.
+
 ## Android TV Context (device_type: tv)
 
 **[Applies only on an established TV surface — `device_type: tv` arrives confirmed and is never re-detected here. Where no TV surface is established this section is entirely N/A and none of its rules may be raised. Every rule below is additive: the base `AND-UI-*` rules apply on a TV surface unchanged, and nothing here relaxes or forks one.]**
@@ -62,5 +80,6 @@ Focusability itself and a visible focus highlight are already owned by `A11Y-TOU
 ## References
 
 - Jetpack Compose guidance and the Android Views/Fragments lifecycle documentation (developer.android.com).
-- Accessibility and i18n/RTL rules are owned by `standards/shared/accessibility.md` and `standards/shared/i18n-rtl.md`; this document points at them rather than restating them.
+- Accessibility *requirements* (`A11Y-*`) and i18n/RTL rules are owned by `standards/shared/accessibility.md` and `standards/shared/i18n-rtl.md`; this document points at them rather than restating them. The `AND-UI-A11Y-*` rules above add only the Android implementation path for those requirements.
+- [Compose accessibility](https://developer.android.com/develop/ui/compose/accessibility), [semantics](https://developer.android.com/develop/ui/compose/accessibility/semantics) and [traversal order](https://developer.android.com/develop/ui/compose/accessibility/traversal) — the sources the `AND-UI-A11Y-*` APIs are grounded in.
 - This document is a living baseline; flag standards gaps found during implementation or review rather than working around them silently.

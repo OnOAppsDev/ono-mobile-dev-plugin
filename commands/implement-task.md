@@ -67,6 +67,51 @@ Confirm **all** of the following before going further. On any failure, stop, nam
 - For UI-touching work, a **design reference** is available (breakdown/Dev Plan/DD): either `figma_link` (`design_reference_type: figma`) or `design_reference` (type `document` / `screenshots` / `existing_ui` / `other`). If the task touches UI and neither is present → **stop and ask for a design reference.** Figma specifically is not required — any recorded reference type satisfies this check. `design_reference_status: not_required` is only valid for a task that changes no user-facing UI; if a UI-touching task carries it, stop and report the contradiction.
 - Branch is **not** `main`/`master` (the `block-main-branch-changes` hook enforces this on write; check it up front too) and repository policy allows edits.
 
+## 5a. Consistency preflight (runs on every invocation)
+
+Before any of the checks below, confirm this breakdown was derived from the DD that is on disk **now**. This runs on every invocation, so a change made between two task runs is caught at the next one — there is no background monitor and none is needed. It uses documents you already read, so it costs no extra work.
+
+**Upstream fingerprint.** Compute the DD's body fingerprint and compare it to the `source_fingerprint` recorded in the Task Breakdown's frontmatter:
+
+```
+node --no-warnings "${CLAUDE_PLUGIN_ROOT}/scripts/task-state.ts" fingerprint --file "<absolute DD path>"
+```
+
+- **Equal** → continue.
+- **Different** → **hard stop.** Every row in this breakdown, including the one you were asked to implement, was derived from a DD that has since changed, so no row's validity is known. Report both values and say: **"The DD changed after this breakdown was generated. Re-approve the DD, then run `/dev-feature-start` to regenerate the breakdown."**
+- **Absent** on the breakdown (a document written before SHARED-013) → report `source_fingerprint: unknown` in one line and continue. **Absent is never a mismatch.**
+
+**Design reference.** Compare the four design-reference fields carried in the Task Breakdown against the same four in the DD. They are contractually carried byte-verbatim, so any difference means the reference was re-pointed after the breakdown was generated. On a difference, **hard stop** and say: **"The design reference changed after this breakdown was generated. Run `/dev-design-start` to rebuild the DD against the current reference."**
+
+Figma content that changed behind an unchanged URL cannot be detected — the Figma MCP exposes no version, revision or content hash. For a UI-touching task, ask the developer to confirm the reference is still current, and record that as an attestation, never as verification.
+
+## 5b. Accessibility applicability (decide once, from the confirmed context)
+
+Decide here whether the mobile accessibility flow applies to this task, and carry the
+decision into steps 8 and 10. `device_type` was resolved in step 5 — **never re-detect it
+here, and never default it.**
+
+- **`device_type: tv` → skip this flow, explicitly.** Record `applicable: false` with a
+  reason naming `device_type: tv`. Cite **no** `A11Y-*` rules: the shared accessibility
+  standard is a mobile standard, and applying it to a TV surface asserts requirements
+  (touch targets, mobile screen-reader gestures) that do not hold there. Do **not** cite
+  `REACT-TV-*` in the accessibility block either — TV accessibility belongs to the TV
+  workstreams and is out of scope here. A silent skip is the failure mode this rule exists
+  to prevent: the skip must appear in the record.
+- **`device_type: mobile` → the flow applies whenever the task touches an
+  accessibility-relevant surface.** That is broader than "renders a screen". It includes
+  shared UI primitives, design tokens, theming, navigation and focus infrastructure, list
+  and collection containers, and any component other screens compose. A task that changes
+  a primitive every screen uses is accessibility-relevant even though it renders nothing
+  by itself. **Do not equate "non-UI" with "not applicable" by reflex** — ask whether the
+  change can alter what assistive technology perceives anywhere downstream.
+- **Genuinely not accessibility-relevant** (a build script, a networking helper, a pure
+  data transform) → `applicable: false` with a reason saying so. Never omit the block.
+
+When the flow applies, the platform lane's accessibility rules apply alongside the shared
+ones: `AND-UI-A11Y-*` (Android), `RN-A11Y-*` (React Native), `IOS-UI-A11Y-*` (iOS). The
+shared standard states the requirement; the platform standard states how it is met.
+
 ## 6. Task state and dependency completeness (read the store, then decide)
 
 Read the feature's lifecycle state through the plugin's helper — do not read or write the state file directly, and do not reimplement its rules:
@@ -92,6 +137,37 @@ It always exits 0 and always prints one JSON object; branch on `status`, never o
 - **Anything else** — `unknown`, `in-progress`, `blocked`, `failed`, a `stale` completion, or a `human-attested` completion — is **not** proof. **Stop and ask the user for explicit evidence or confirmation** (e.g. merged commits/PRs), exactly as this step always did.
 - A `human-attested` record is surfaced as an attestation, never as verification. Do **not** treat it as equivalent to a task that passed step 10.
 - Do **not** silently assume a dependency is complete, and do **not** implement dependency tasks yourself.
+
+**Walk the whole transitive closure, not just the direct `depends-on` list.** Consider `T1 → T3 → T7`: if T1's row changes, T3's own row is untouched, so T3 still reports `deterministicProof: true` and a direct-only check would let T7 proceed on a foundation that moved. Follow `dependsOn` from the requested task through every level.
+
+For each problem found, **hard stop and report the exact dependency path** — `T7 → T3 → T1 (stale: row changed)` — never a bare "a dependency is not proven":
+
+| What the walk finds | Recovery command to name |
+|---|---|
+| a task in the closure is **stale** (its row changed) | `/implement-task <that task>` |
+| a task in the closure was **removed** from the breakdown | `/dev-feature-start` — the dependency graph itself is wrong |
+| a task in the closure is **in-progress** | `/implement-task <that task>` — finish or reset it first |
+| a `depends-on` names a task with **no row** | `/dev-feature-start` — the graph references a task that does not exist |
+| a **dependency cycle** (`T3 → T5 → T3`) | `/dev-feature-start` — proof is undecidable inside a cycle and an approved breakdown should not contain one |
+
+Detect cycles defensively rather than following the graph indefinitely; report the repeated task in the path.
+
+## 6a. Feature-wide impact report (always printed, blocks only what it must)
+
+The store read above already returns **every** task in the feature, not just the one requested. Classify all of them and show the result before implementing:
+
+| Bucket | Meaning |
+|---|---|
+| **Unchanged** | recorded, row fingerprint still matches — prior work valid, still dependency proof |
+| **Modified** | recorded, row fingerprint differs — the recorded work no longer describes the row |
+| **Removed** | recorded, no row in the breakdown — the record is kept, and is never proof |
+| **Unrecorded** | a row with no record — nothing to invalidate |
+
+Then state the recommended actions, ordered: the upstream mismatch first if there is one, then each blocking item in the requested task's closure with the command that resolves it, then the tasks that need no action.
+
+**A stale or removed task outside the requested task's transitive closure is reported, never blocking.** Implementing an unrelated task is safe, and stopping for it would teach the developer to override every stop — including the ones that matter. Say plainly which tasks are affected and which are not.
+
+Never say "safe to continue" while an upstream fingerprint mismatch is unresolved: in that state nothing is known to be safe.
 
 When the store is `absent`, `unparseable`, `invalid`, `schema-too-new` or `feature-mismatch`, every task reads `unknown` and this step behaves exactly as it did before the store existed — say so in one line and fall back to asking. **A missing store never blocks the command.**
 
@@ -163,6 +239,9 @@ After the platform skill finishes, require its structured completion report and 
 - files changed,
 - applied standard IDs,
 - deviations and blockers,
+- the **accessibility outcome** decided in step 5b — the applicability decision and, where
+  it applies, the rules cited, the mechanical checks run with their tier and result, and
+  the manual verification that remains outstanding,
 - confirmation that no unrelated scope was added,
 - confirmation that the writes landed inside `TARGET_ROOT` (not in `.claude/worktrees/…`).
 
@@ -178,10 +257,62 @@ After the platform skill finishes, require its structured completion report and 
   ```
 
   **A terminal `complete` may only be written after the verification above succeeds.** The helper enforces this structurally: it refuses `complete` unless every acceptance criterion is recorded and met and at least one validation entry is present, returning `refused: complete-without-verification`. If it refuses, report that verbatim and record `failed` instead.
+
+**Accessibility and verification debt.** `standards/shared/verification.md` owns the
+Tier 1 / Tier 2 / Tier 3 vocabulary; do not restate it here or in a platform skill.
+
+- **Tier 1 and Tier 2 checks** — what the plugin actually ran and read a result from — go
+  in `accessibility.checks`. A **failing** Tier 1/2 check blocks `complete`: record
+  `failed`.
+- **Tier 3 requirements** — a VoiceOver or TalkBack walkthrough, whether a label is
+  *meaningful*, whether an announcement is actually heard, focus restoration after a modal
+  dismiss, carousel behaviour with a screen reader active — have **no headless mechanism**
+  and are never recorded as checks. Each becomes a `verificationDebt` entry with
+  `domain: "accessibility"`, the rule it serves, the verification required, why the plugin
+  cannot perform it, and `owner: "qa"`. **Outstanding debt does not block `complete`** —
+  making it block would tie completion to device availability rather than to the state of
+  the code.
+- **Never present automated evidence as screen-reader proof.** A green audit means no
+  detected defect on the surfaces the run reached. It is not evidence that VoiceOver or
+  TalkBack was run, and `A11Y-SR-1` can never be satisfied by a Tier 1 or Tier 2 check
+  (`VERIFY-2`). The helper refuses this structurally rather than trusting the report.
+
+The payload carries both fields; keep the shape exactly as below (the helper validates it
+and refuses a malformed block whatever the state):
+
+```json
+{
+  "accessibility": {
+    "applicable": true,
+    "reason": null,
+    "deviceType": "mobile",
+    "standardIds": ["A11Y-ROLES-1", "A11Y-COLLECTION-1", "AND-UI-A11Y-7"],
+    "checks": [
+      { "ruleId": "A11Y-ROLES-1", "tier": 1, "result": "pass", "evidence": "<what was run>" }
+    ]
+  },
+  "verificationDebt": [
+    {
+      "domain": "accessibility",
+      "ruleId": "A11Y-SR-1",
+      "requiredVerification": "TalkBack walkthrough of the changed flow",
+      "whyNotAutomatable": "TalkBack cannot be driven headlessly; announcement audibility is not observable in an instrumented run",
+      "owner": "qa",
+      "status": "pending"
+    }
+  ]
+}
+```
+
+Choose validation commands from the repository's own tooling. Do **not** assume or
+introduce a particular automation framework; if the repository has no mechanical
+accessibility check, say so and record the requirement as debt rather than inventing a
+tool to satisfy it.
+
 - **Verification failed** → record `failed` with the failing criteria and validation results in `blockers`.
 - **A blocker or unproven dependency stopped the run** → record `blocked` with the blocker text.
 
-The recorded `filesChanged`, `standardIds`, `validation` and `acceptanceCriteria` are what `/create-dev-qa-notes` later reads, so a QA handoff no longer depends on a session transcript.
+The recorded `filesChanged`, `standardIds`, `validation`, `acceptanceCriteria`, `accessibility` and `verificationDebt` are what `/create-dev-qa-notes` later reads, so a QA handoff — including the list of accessibility verification still owed — no longer depends on a session transcript.
 
 Do not report success if any acceptance criterion failed, required validation failed, a dependency is unproven, a blocker remains, the implementation deviates from the DD without approval, or changes exist only inside a worktree. **Approval is unaffected: recording lifecycle state neither confers nor revokes any document's `status`.**
 

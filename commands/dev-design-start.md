@@ -15,9 +15,26 @@ Turn an approved feature analysis into a Detailed Design (DD).
    Also read the six `repo_knowledge_*` fields and the analysis's repository-context section, then re-resolve current knowledge with the `repo-knowledge-consumer` skill so the DD is built against what the repository knows **now**, not only what it knew when the analysis was approved. If the fingerprint has moved since, note it in one line and continue — the consumer skill has already routed affected categories to live derivation.
 
    **When step 1 reported a migration, record it in the DD's §23 Assumptions:** the version the analysis was migrated from; that any field listed in its `migration_inputs` was supplied by a human at migration time rather than at approval time; and — for an analysis migrated from below v3 — that its `## Repo Conventions Detected` section is an embedded point-in-time observation rather than a citation, since the framework never rewrites bodies. Prefer canonical knowledge over that embedded snapshot where the two disagree, and note the disagreement there too.
+2a. **Consistency preflight — has the feature analysis moved since this DD was generated?** If a DD already exists for this feature, compute the analysis's body fingerprint and compare it to the DD's recorded `source_fingerprint`:
+
+   ```
+   node --no-warnings "${CLAUDE_PLUGIN_ROOT}/scripts/task-state.ts" fingerprint --file "<absolute feature analysis path>"
+   ```
+
+   A mismatch means the analysis changed after this DD was built. That is the expected entry point for an upstream change, not an error — report it and continue into the re-entry choice below. Absent means unknown, never mismatch. If the analysis itself needs amending first, say so and name the recovery: **"Amend and re-approve the feature analysis, then run `/analyze-feature` if it must be regenerated."**
+
+2b. **Before the re-entry choice, surface what already exists downstream.** If a Task Breakdown exists for this feature, read its lifecycle state and report the one-line summary — how many tasks are recorded, how many are `complete`, how many would become `Modified` or `Removed`:
+
+   ```
+   node --no-warnings "${CLAUDE_PLUGIN_ROOT}/scripts/task-state.ts" read \
+     --root "<TARGET_ROOT>" --feature "<feature>" --breakdown "<absolute Task Breakdown path>"
+   ```
+
+   The skill's Step 2 then asks whether to `Overwrite` / `Update` / `Preserve` / `Version` the existing DD. That decision is materially different when eight tasks are already implemented, so it must not be made blind.
+
 3. Apply the `dev-design-start` skill methodology (shared mechanics) together with the matching platform-specific dev-planning skill(s) — `rn-dev-planning` / `ios-dev-planning` / `android-dev-planning` / `react-dev-planning` — via the architect agent for the confirmed platform, to build the DD's Technical Implementation Approach and Impacted Modules. The platform was already confirmed by the user during `/analyze-feature` and is carried in the approved feature analysis's frontmatter — invoke **exactly one** architect matching that confirmed platform. Never re-detect the platform here, and never split the feature across multiple platforms. What follows for the document's shape is the skill's Step 6.
 
-   - **Readiness gate — React.** Before invoking, check the target dev-planning skill and architect agent for a "not yet authored / structure-only placeholder" marker. If present, **stop with: "Platform design methodology for `<platform>` is not yet authored"** — do not invoke a placeholder, do not substitute the shared skill alone for the missing platform vocabulary, and do not author it here. (When that lane is later authored and the marker is gone, the route opens automatically.) React (web) is the only lane still gated — `react-native`, `ios` and `android` are authored.
+   - **Readiness gate (any platform).** Before invoking, check the target dev-planning skill and architect agent for the placeholder marker — a frontmatter `description` ending "not yet authored, currently a structure-only placeholder" **and** a `## Status: Not yet authored` heading. Match on those markers only, never on the phrase appearing in ordinary prose (an authored skill may legitimately mention "structure-only placeholder" when telling an agent to stop if a *standards* file is one). If present, **stop with: "Platform design methodology for `<platform>` is not yet authored"** — do not invoke a placeholder, do not substitute the shared skill alone for the missing platform vocabulary, and do not author it here. (When a lane is later authored and the marker is gone, the route opens automatically.) **No lane is gated today** — `react-native`, `ios`, `android` and `react` are all authored. The gate is retained because it is the invariant, not a note about any one platform: a lane added or reverted to placeholder state is caught here automatically, with no edit to this command.
 3a. **Measure the feature's complexity, report it, and change nothing.** While the architect performs the repository sweep in step 3, apply the `dd-complexity-assessment` skill to record its eleven signals and score them with `scripts/assess-dd-complexity.ts`. Show the developer the returned `summary` line.
 
    **This is a measurement, not a decision.** Generation always continues on the single-DD path below, for every band including `high` and `unclassified`. Do not branch on the band, do not ask the developer to confirm it, do not offer an alternative generation mode, and do not let it change the detail level, the section rules, or the contraction pass. Partitioned generation does not exist, and the scoring model is being calibrated against real features before it is allowed to influence anything.
@@ -35,6 +52,7 @@ Turn an approved feature analysis into a Detailed Design (DD).
 
    Pass it the two values this command produced, and let Step 6 place them:
 
+   - the **`source_fingerprint`** of the approved feature analysis's body, so `/dev-feature-start` can later detect that the analysis moved, and
    - the `dd_complexity_band` measured in step 3a (`unassessed` only if the assessment did not run at all), and
    - the six `repo_knowledge_*` values from **this run's** resolution in step 2 — never copied from the feature analysis.
 6. **The skill's Step 7 contraction pass must have run before the DD is handed over — it is mandatory, not optional.** Step 7 owns what it removes and the one-line report it produces; this command's only obligation is not to accept a DD that skipped it.

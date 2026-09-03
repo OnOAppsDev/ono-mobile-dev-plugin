@@ -30,7 +30,7 @@ Referencing these is correct; restating them is duplication.
 
 ## 0. Standards readiness gate
 
-Android's rules live in **ten files under `standards/android/`, carrying 188 `AND-*` IDs**, plus the two shared files — the routing table is [§ Standards citation](#standards-citation). Before reviewing, confirm that the files **this pass will cite** are authored and not structure-only placeholders: Pass A's eight plus the two shared files, or Pass B's two ([§6](#6-the-two-passes)).
+Android's rules live in **ten files under `standards/android/`, carrying 198 `AND-*` IDs**, plus the two shared files — the routing table is [§ Standards citation](#standards-citation). Before reviewing, confirm that the files **this pass will cite** are authored and not structure-only placeholders: Pass A's eight plus the two shared files, or Pass B's two ([§6](#6-the-two-passes)).
 
 A **structure-only placeholder** is a standards file that carries its headings but not its rules — it declares itself unauthored rather than listing `AND-*` bullets. If a file this pass cites is missing or is one, **stop and report that Android review is blocked until it is authored.** Never fall back to unwritten expectations, and never substitute another platform's standard for a missing Android one. **Perform the check — do not assume the answer from a previous run.**
 
@@ -142,11 +142,11 @@ Still required: **read enough surrounding code to judge the change before filing
 
 | Pass | Files | Roots | IDs |
 |---|---|---|---|
-| **A** — `android-code-reviewer` | `android-architecture.md`, `kotlin-standards.md`, `compose-xml-standards.md`, `android-networking.md`, `android-persistence.md`, `android-navigation.md`, `android-logging-analytics.md`, `android-testing.md` | `AND-ARCH-*`, `AND-VM-*`, `AND-DI-*`, `AND-KT-*`, `AND-UI-*`, `AND-NET-*`, `AND-DATA-*`, `AND-NAV-*`, `AND-LOG-*`, `AND-TEST-*` — **including `AND-UI-TV-*`, `AND-NAV-TV-*`, `AND-ARCH-TV-*`** | **144** |
+| **A** — `android-code-reviewer` | `android-architecture.md`, `kotlin-standards.md`, `compose-xml-standards.md`, `android-networking.md`, `android-persistence.md`, `android-navigation.md`, `android-logging-analytics.md`, `android-testing.md` | `AND-ARCH-*`, `AND-VM-*`, `AND-DI-*`, `AND-KT-*`, `AND-UI-*`, `AND-NET-*`, `AND-DATA-*`, `AND-NAV-*`, `AND-LOG-*`, `AND-TEST-*` — **including `AND-UI-TV-*`, `AND-NAV-TV-*`, `AND-ARCH-TV-*`, `AND-UI-A11Y-*`** | **154** |
 | **A**, shared | `standards/shared/accessibility.md`, `standards/shared/i18n-rtl.md` | `A11Y-*`, `I18N-*` | **26** |
 | **B** — `android-performance-reviewer` | `android-performance.md`, `gradle-build-signing.md` | `AND-PERF-*` (24, incl. `AND-PERF-TV-*`), `AND-REL-*` (20, incl. `AND-REL-TV-*`) | **44** |
 
-144 + 44 = **188**, the full `AND-*` total — the split is complete and has no overlap. **Each of the ten files states its own reviewer binding on its own line 5: this split is read from the repository, not chosen here.** The two shared files name `android-code-reviewer` the same way.
+154 + 44 = **198**, the full `AND-*` total — the split is complete and has no overlap. **Each of the ten files states its own reviewer binding on its own line 5: this split is read from the repository, not chosen here.** The two shared files name `android-code-reviewer` the same way.
 
 ### Pass A triage — what a changed file puts in scope
 
@@ -448,7 +448,7 @@ Three Android facts this section must not get wrong:
 |---|---|---|
 | Layering, modules, ViewModel & UI state, DI | `standards/android/android-architecture.md` | `AND-ARCH-*`, `AND-VM-*`, `AND-DI-*` (27, incl. `AND-ARCH-TV-*` 6) |
 | Kotlin language, null-safety, coroutines & Flow, static analysis | `standards/android/kotlin-standards.md` | `AND-KT-*` (19) |
-| Compose, XML/Views, lists, resources | `standards/android/compose-xml-standards.md` | `AND-UI-*` (36, incl. `AND-UI-TV-*` 10) |
+| Compose, XML/Views, lists, resources | `standards/android/compose-xml-standards.md` | `AND-UI-*` (46, incl. `AND-UI-TV-*` 10 and `AND-UI-A11Y-*` 10) |
 | Networking, contracts, DTOs, auth, errors | `standards/android/android-networking.md` | `AND-NET-*` (14) |
 | Persistence, migrations, threading, cache | `standards/android/android-persistence.md` | `AND-DATA-*` (11) |
 | Navigation, arguments, deep links, back stack | `standards/android/android-navigation.md` | `AND-NAV-*` (18, incl. `AND-NAV-TV-*` 9) |
@@ -459,10 +459,10 @@ Three Android facts this section must not get wrong:
 | Performance — threading, lists, images, memory, startup, size | `standards/android/android-performance.md` | `AND-PERF-*` (24, incl. `AND-PERF-TV-*` 8) — **Pass B** |
 | Gradle variants, dependencies, signing, R8 | `standards/android/gradle-build-signing.md` | `AND-REL-*` (20, incl. `AND-REL-TV-*` 9) — **Pass B** |
 
-**188 `AND-*` across the ten Android files, plus 26 shared** — counted, not estimated. Five boundary rules, each factual rather than stylistic:
+**198 `AND-*` across the ten Android files, plus 26 shared** — counted, not estimated. Five boundary rules, each factual rather than stylistic:
 
 - **`AND-REL-*` (Gradle build, variants, signing, R8) and shared `REL-*` (release readiness) are unrelated families.** Conflating them is a factual error, not a naming quibble.
 - **`AND-DI-*` has no topic segment** — the IDs are `AND-DI-1` through `AND-DI-4`. Do not invent one.
-- **No `AND-*` family exists for accessibility or i18n/RTL** — cite the shared roots, and never write an `AND-A11Y-*` or `AND-I18N-*` ID. **Security is narrower than it looks:** there is no `AND-SEC-*` root and shared `SEC-*` is `mobile-security-reviewer`'s, **but `AND-DATA-SEC-1`/`-2`/`-3` do exist** inside `standards/android/android-persistence.md` — data-at-rest security — and they are **Pass A's to file**. Do not mistake them for the other lane's.
+- **Accessibility now has an `AND-*` family; i18n/RTL still does not.** `AND-UI-A11Y-1` … `-10` in `standards/android/compose-xml-standards.md` state **how** a shared `A11Y-*` requirement is met on Android — cite them alongside the shared root, which still owns whether the requirement applies. **There is no `AND-I18N-*` root, and no `AND-A11Y-*` root either** — the family is `AND-UI-A11Y-*`, under `AND-UI-*`; never write the shorter form. **Security is narrower than it looks:** there is no `AND-SEC-*` root and shared `SEC-*` is `mobile-security-reviewer`'s, **but `AND-DATA-SEC-1`/`-2`/`-3` do exist** inside `standards/android/android-persistence.md` — data-at-rest security — and they are **Pass A's to file**. Do not mistake them for the other lane's.
 - **`AND-*` and those two shared roots only.** Never cite an `IOS-*` root, and never React Native's generically-named `ARCH-*`/`API-*`/`STATE-*`/`NAV-*`.
 - **The TV rules take host-document roots, not a family of their own.** There is no `AND-TV-*` root and no TV standards file: `AND-UI-TV-*` lives in the Compose/XML standard, `AND-NAV-TV-*` in navigation, and so on, so **the cited ID's root still decides its owning pass** ([§13](#13-lane-ownership-and-the-merge-contract)). `AND-TEST-TV-*` deliberately does not exist — the single TV testing obligation is `AND-TEST-INSTR-2`.

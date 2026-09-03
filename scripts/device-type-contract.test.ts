@@ -39,7 +39,7 @@
  *   node scripts/check.ts --only device-type-contract
  */
 
-import { readFileSync, readdirSync } from "fs";
+import { readFileSync, readdirSync, existsSync } from "fs";
 import { join, dirname } from "path";
 
 const HERE = import.meta.dirname ?? __dirname;
@@ -167,12 +167,21 @@ const flat = (s: string): string => s.replace(/\s+/g, " ");
 
 // --- 5. Nothing else moved -----------------------------------------------
 {
-  // The React lane stays a placeholder: DOC-002 authored no methodology for it.
-  for (const rel of ["agents/react-architect.md", "skills/react-dev-planning/SKILL.md"]) {
-    const t = read(rel);
-    check(`5 ${rel} is still not yet authored`, /^## Status: Not yet authored$/m.test(t));
-    check(`5 ${rel} carries no device_type methodology`, !/device_type/.test(t));
-  }
+    // Inverted by REACT-001/002/003. DOC-002 asserted React carried no device_type
+    // methodology because the lane was scaffolding; REACT-003 authored the Smart TV
+    // context, so the correct assertion is the one iOS and Android already satisfy.
+    for (const rel of ["agents/react-architect.md", "skills/react-dev-planning/SKILL.md"]) {
+      const t = read(rel);
+      check(`5 ${rel} is no longer a placeholder`, !/^## Status: Not yet authored$/m.test(t));
+      check(`5 ${rel} carries device_type methodology`, /device_type/.test(t));
+    }
+    const reactSkill = flat(read("skills/react-dev-planning/SKILL.md"));
+    check("5 react-dev-planning branches on both device types",
+      /`device_type: mobile`/.test(reactSkill) && /`device_type: tv`/.test(reactSkill));
+    check("5 the React Smart TV standard exists",
+      existsSync(join(REPO_ROOT, "standards", "react", "react-smart-tv.md")));
+    check("5 the React lane cites its Smart TV standard",
+      /react-smart-tv/.test(read("skills/react-dev-planning/SKILL.md")));
   // repo-analyst keeps owning resolution, including the marker that makes RN+tv reachable.
   const ra = flat(read("agents/repo-analyst.md"));
   check("5 repo-analyst still owns device-type resolution",

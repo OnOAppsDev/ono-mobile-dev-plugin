@@ -31,7 +31,7 @@ Referencing these is correct; restating them is duplication.
 
 ## 0. Standards readiness gate
 
-Every Android rule cited lives in one of the ten `standards/android/*` files listed in [§8](#8-android-standards-citation) — **188 `AND-*` rules** between them, including the `AND-*TV-*` families [§6](#6-device_type-handling) cites on a TV surface. Before planning, confirm each is **present** and not a structure-only placeholder. If one is missing, renamed away or unauthored, **stop and report that Android planning is blocked until it is authored**; never fall back to an assumed default. All ten are authored today; the gate exists so the skill fails loudly if that regresses.
+Every Android rule cited lives in one of the ten `standards/android/*` files listed in [§8](#8-android-standards-citation) — **198 `AND-*` rules** between them, including the `AND-*TV-*` families [§6](#6-device_type-handling) cites on a TV surface. Before planning, confirm each is **present** and not a structure-only placeholder. If one is missing, renamed away or unauthored, **stop and report that Android planning is blocked until it is authored**; never fall back to an assumed default. All ten are authored today; the gate exists so the skill fails loudly if that regresses.
 
 ## 1. Source-of-truth hierarchy
 

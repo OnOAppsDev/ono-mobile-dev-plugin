@@ -4,6 +4,7 @@
 doc_schema_version: 1 # the frontmatter contract version this document was written against. Set by /dev-feature-start at generation; upgraded only by scripts/migrate-planning-doc.ts. See docs/planning-doc-contract.md — never edit by hand.
 feature: # feature name/slug — must match the DD and Dev Plan for this feature
 feature_analysis_link: # path to the approved feature analysis (the generated feature file, NOT templates/feature-analysis-template.md)
+source_fingerprint: # sha256: of the approved DD BODY (frontmatter excluded) at the moment this breakdown was generated — SHARED-013. Written by /dev-feature-start; verified by /implement-task. A mismatch means the DD changed after these rows were derived: stop and re-enter at /dev-feature-start. Absent (legacy document) means unknown, never mismatch
 dd_link: # path to the approved DD (the generated {FEATURE-NAME}-DD.md, NOT templates/dd-template.md)
 dev_plan_link: # path to the approved Dev Plan (the generated feature plan file, NOT templates/dev-plan-template.md)
 qa_handoff_link: # path to the QA handoff doc (docs/qa/{FEATURE-NAME}-qa-handoff.md). Left EMPTY at generation and filled by /create-dev-qa-notes once the feature is implemented — /dev-feature-start never invents a value here. See QA-LINK-1 in standards/shared/qa-handoff.md.

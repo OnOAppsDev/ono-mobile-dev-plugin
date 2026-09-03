@@ -65,6 +65,27 @@ These standards apply to all React Native application code reviewed by `rn-code-
 - `RN-TEST-3` [WARNING] Every API module/service layer has unit test coverage for its normalized error shapes (`API-ERR-*` in `standards/react-native/rn-api-service-layer.md`) — network failures and server error responses are each asserted to normalize correctly, not just the happy path.
 - `RN-TEST-4` [WARNING] Global state reducers and selectors (`STATE-*` in `standards/react-native/rn-state-management.md`) have isolated unit test coverage — state transitions and derived/selector output are tested directly, not only indirectly through a component test.
 
+## Accessibility
+
+React Native implementation of the shared `A11Y-*` requirements, which
+`standards/shared/accessibility.md` owns and this section does not restate. These rules
+say **how** the requirement is met in React Native.
+
+The recurring trap in this lane is that several accessibility props are single-platform.
+A rule met with only one of a pair is met on one platform and silently unmet on the other.
+
+- `RN-A11Y-1` Interactive elements set `accessible`, an `accessibilityRole`, and an `accessibilityLabel` describing the action rather than the appearance. A `Pressable` wrapping an icon with no label announces nothing usable.
+- `RN-A11Y-2` State is exposed through `accessibilityState` (`disabled`, `selected`, `checked`, `busy`, `expanded`) and `accessibilityValue` (`min`/`max`/`now`/`text`), never through styling alone.
+- `RN-A11Y-3` Hiding content from assistive technology requires **both** `accessibilityElementsHidden` (iOS-only) **and** `importantForAccessibility="no-hide-descendants"` (Android-only). Setting one leaves the content exposed on the other platform.
+- `RN-A11Y-4` Text scales by default — `allowFontScaling={false}` is used only with a documented reason. Layout that depends on rendered text size reads `PixelRatio.getFontScale()` rather than assuming a fixed height.
+- `RN-A11Y-5` Activation targets that are visually smaller than the platform minimum are expanded with `hitSlop` or padding, not left at their visual size.
+- `RN-A11Y-6` Dynamic updates are announced with `AccessibilityInfo.announceForAccessibility`, or on Android declared with `accessibilityLiveRegion="polite"|"assertive"` (Android-only). Announcements for continuously changing values are throttled rather than posted per change.
+- `RN-A11Y-7` Focus is moved programmatically on screen entry and after a destructive change, using `AccessibilityInfo.sendAccessibilityEvent(handle, 'focus')` with a handle from `findNodeHandle`. `AccessibilityInfo.setAccessibilityFocus` is deprecated and is not used in new code.
+- `RN-A11Y-8` A modal sets `accessibilityViewIsModal` (iOS-only) and hides the background with `importantForAccessibility="no-hide-descendants"` (Android-only); the invoking element's handle is stored on open and focused again on dismiss.
+- `RN-A11Y-9` List items derive every accessibility prop from their own item data, and carry position information in `accessibilityLabel` or `accessibilityValue` — React Native exposes no collection-semantics API, so position that is not stated is not announced. Accessibility props are never held in state shared across rows, which is how a recycled row inherits a previous item's label.
+- `RN-A11Y-10` A row exposed as a single element re-exposes its inner actions through `accessibilityActions` with an `onAccessibilityAction` handler, so grouping does not make an action unreachable.
+- `RN-A11Y-11` Timer-driven advancement is suspended while `AccessibilityInfo.isScreenReaderEnabled()` reports an active screen reader (tracked through the `screenReaderChanged` event), and motion-carried meaning has a still equivalent when `AccessibilityInfo.isReduceMotionEnabled()` is true.
+
 ## References
 
 - This document is a living baseline; reviewers should flag standards gaps found during review rather than working around them silently.
