@@ -143,7 +143,7 @@ Still required: **read enough surrounding code to judge the change before filing
 | Pass | Files | Roots | IDs |
 |---|---|---|---|
 | **A** — `android-code-reviewer` | `android-architecture.md`, `kotlin-standards.md`, `compose-xml-standards.md`, `android-networking.md`, `android-persistence.md`, `android-navigation.md`, `android-logging-analytics.md`, `android-testing.md` | `AND-ARCH-*`, `AND-VM-*`, `AND-DI-*`, `AND-KT-*`, `AND-UI-*`, `AND-NET-*`, `AND-DATA-*`, `AND-NAV-*`, `AND-LOG-*`, `AND-TEST-*` — **including `AND-UI-TV-*`, `AND-NAV-TV-*`, `AND-ARCH-TV-*`, `AND-UI-A11Y-*`** | **154** |
-| **A**, shared | `standards/shared/accessibility.md`, `standards/shared/i18n-rtl.md` | `A11Y-*`, `I18N-*` | **26** |
+| **A**, shared | `standards/shared/accessibility.md`, `standards/shared/i18n-rtl.md` | `A11Y-*`, `I18N-*` | **43** |
 | **B** — `android-performance-reviewer` | `android-performance.md`, `gradle-build-signing.md` | `AND-PERF-*` (24, incl. `AND-PERF-TV-*`), `AND-REL-*` (20, incl. `AND-REL-TV-*`) | **44** |
 
 154 + 44 = **198**, the full `AND-*` total — the split is complete and has no overlap. **Each of the ten files states its own reviewer binding on its own line 5: this split is read from the repository, not chosen here.** The two shared files name `android-code-reviewer` the same way.
@@ -183,7 +183,7 @@ placement unchanged.
 
 **The four levels are fixed by `templates/code-review-template.md`** — Blocking, Major, Minor, Nit — and are not chosen here. **`Nit` is not an invented label**: it is official review vocabulary for a point that technically should be done but will not hugely impact things, which is why the template has that bucket at all.
 
-**`standards/android/` carries no severity vocabulary** — no severity marker on any rule, no applicability-stage heading, no numeric threshold. Severity cannot be read off an Android rule, so this section states the derivation rule; it is deliberately **not** a copy of another platform's category table, whose wording is built on that platform's language and release mechanics.
+**`standards/android/` carries no severity vocabulary** — no severity marker on any rule and no applicability-stage heading. Four rules do state a numeric threshold — `AND-UI-A11Y-3` (48dp), `AND-PERF-TV-1` (280 MB), `AND-REL-TV-BANNER-1` (320x180 px) and `AND-REL-TV-STORE-1` (1280x720 px) — but a threshold is a **magnitude**, not a severity: it says what to measure, never how bad a miss is. Severity cannot be read off an Android rule, so this section states the derivation rule; it is deliberately **not** a copy of another platform's category table, whose wording is built on that platform's language and release mechanics.
 
 **Derive severity from the consequence in the reviewed change**, anchored to a real `AND-*` family:
 
@@ -454,12 +454,12 @@ Three Android facts this section must not get wrong:
 | Navigation, arguments, deep links, back stack | `standards/android/android-navigation.md` | `AND-NAV-*` (18, incl. `AND-NAV-TV-*` 9) |
 | Logging, analytics, PII in both | `standards/android/android-logging-analytics.md` | `AND-LOG-*` (9) |
 | Tests — **referenced, not audited** ([§6](#6-the-two-passes)) | `standards/android/android-testing.md` | `AND-TEST-*` (10, incl. `AND-TEST-INSTR-2`) |
-| Accessibility (shared) | `standards/shared/accessibility.md` | `A11Y-*` (13) |
+| Accessibility (shared) | `standards/shared/accessibility.md` | `A11Y-*` (30) |
 | Localization & RTL (shared) | `standards/shared/i18n-rtl.md` | `I18N-*` (13) |
 | Performance — threading, lists, images, memory, startup, size | `standards/android/android-performance.md` | `AND-PERF-*` (24, incl. `AND-PERF-TV-*` 8) — **Pass B** |
 | Gradle variants, dependencies, signing, R8 | `standards/android/gradle-build-signing.md` | `AND-REL-*` (20, incl. `AND-REL-TV-*` 9) — **Pass B** |
 
-**198 `AND-*` across the ten Android files, plus 26 shared** — counted, not estimated. Five boundary rules, each factual rather than stylistic:
+**198 `AND-*` across the ten Android files, plus 43 shared** — counted, not estimated. Five boundary rules, each factual rather than stylistic:
 
 - **`AND-REL-*` (Gradle build, variants, signing, R8) and shared `REL-*` (release readiness) are unrelated families.** Conflating them is a factual error, not a naming quibble.
 - **`AND-DI-*` has no topic segment** — the IDs are `AND-DI-1` through `AND-DI-4`. Do not invent one.

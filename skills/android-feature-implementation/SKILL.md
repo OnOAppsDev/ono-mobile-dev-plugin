@@ -11,7 +11,7 @@ This skill is the methodology the `android-feature-developer` agent follows to i
 
 It is not orchestration. `/implement-task` resolves the task id, reads its `platform` and `device_type`, and routes here; the `require-approval-before-code` and `block-main-branch-changes` hooks gate code writes. This skill does not re-implement any of that — it assumes those gates are active and focuses on doing the implementation correctly. See [Relationship with command, agent, hooks](#relationship-with-command-agent-hooks).
 
-`device_type` is a **context signal, not a platform**: it changes which standards apply, never the routing. A `tv` task runs on this same skill and the same `android-feature-developer` agent as a `mobile` one (`commands/implement-task.md:139`), so there is no TV skill, TV agent or TV command to hand off to.
+`device_type` is a **context signal, not a platform**: it changes which standards apply, never the routing. A `tv` task runs on this same skill and the same `android-feature-developer` agent as a `mobile` one (`commands/implement-task.md:215`), so there is no TV skill, TV agent or TV command to hand off to.
 
 ## Inputs this skill requires (resolved, never invented)
 
@@ -22,7 +22,7 @@ Before anything else, obtain and **verify the existence of** the concrete inputs
 - Absolute path to the approved **Dev Plan** (`dev-plan-template.md` output).
 - Absolute path to the **Task Breakdown** (`task-breakdown-template.md` output).
 - The **task id** to implement, and the target **repository / module** root.
-- The confirmed **`device_type`** — exactly `mobile` or `tv`, already resolved and hard-validated by `/implement-task` (`:66`) and passed through as authoritative (`:139`). Take it as given: **never re-detect it, never accept `mixed`, and never default a missing one to `mobile`** — stop and report instead.
+- The confirmed **`device_type`** — exactly `mobile` or `tv`, already resolved and hard-validated by `/implement-task` (`:66`) and passed through as authoritative (`:215`). Take it as given: **never re-detect it, never accept `mixed`, and never default a missing one to `mobile`** — stop and report instead.
 
 If any of these paths is not provided and cannot be resolved deterministically, **stop and report exactly which input is missing** — do not proceed against an assumed location. (When `/implement-task` does not yet pass these paths explicitly, resolving them and confirming they exist is part of this step; report the gap rather than inventing.)
 

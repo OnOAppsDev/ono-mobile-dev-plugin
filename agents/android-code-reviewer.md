@@ -59,7 +59,7 @@ If a performance, security or release issue is noticed incidentally, it is **not
 Two boundaries that look like inconsistencies and are not:
 
 - **The `SEC-*` asymmetry is deliberate, not an inconsistency to fix** (skill §13). Where an Android rule ties to a `SEC-*` rule, file the `AND-*` half and leave the other to its owner.
-- **`AND-TEST-*` is referenced, not audited.** `standards/android/android-testing.md` names this agent as *referencing* those rules, where the other seven Pass A files say *reviewed by*. So cite `AND-TEST-*` for a missing, non-deterministic or framework-inconsistent test **inside the reviewed change**, and never audit the repository's test suite.
+- **`AND-TEST-*` is referenced, not audited.** `standards/android/android-testing.md` names this agent as *referencing* those rules, where six of the other seven Pass A files say *reviewed by* — `android-architecture.md` says its principles are *used by* this agent *in* `/review-code`, the same binding in weaker words. So cite `AND-TEST-*` for a missing, non-deterministic or framework-inconsistent test **inside the reviewed change**, and never audit the repository's test suite.
 
 ## Constraints
 

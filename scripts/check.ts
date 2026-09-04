@@ -77,7 +77,7 @@ const PHASES: Phase[] = [
   {
     name: "Repository",
     why: "the component corpus itself — references, frontmatter, route readiness",
-    suites: ["reference-integrity"],
+    suites: ["reference-integrity", "android-claim-integrity"],
   },
   {
     name: "Contracts",

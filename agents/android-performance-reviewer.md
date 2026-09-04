@@ -84,7 +84,7 @@ Two pairs genuinely straddle the passes. Each resolves the same way — this pas
 
 ## Red flags — STOP and report instead of proceeding
 
-Stop on any condition in the skill's Red flags section — it owns the list. The three most likely here:
+Stop on any condition in the skill's Red flags section — it owns the list. The five most likely here:
 
 - You are about to call something slow, leaking or regressed without a measurement, or to name a measurement with no device model, OS version, build type and compilation state.
 - You are about to file a root that is not `AND-PERF-*` — or `AND-REL-*` at release — or to note an out-of-lane correctness, security or generic `REL-*` issue as an aside.
