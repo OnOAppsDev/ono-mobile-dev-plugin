@@ -65,11 +65,17 @@ DD *is* the entry point, exactly as before, and the package metadata rides in
 its existing frontmatter. That is deliberate — discovery and versioning already
 belong to this contract, and a manifest would be a second mechanism for both.
 
-`dd_generation: partitioned` is **reserved and currently unreachable.** Nothing
-writes it, because partitioned generation (the orchestrator and consolidator)
-is not implemented. Every DD this plugin produces today is `single`. A reader
-must therefore treat `single` as the only value it will encounter, and must not
-branch on the field.
+`dd_generation: partitioned` is **reserved and unreachable.** Partitioned
+generation is not implemented and no component of it exists: the orchestrator,
+consolidator and partition specification that once scaffolded it were removed as
+unwired dead code, having never been routed to. The design that described them is
+kept only as a record, in
+[`docs/planning/ADAPTIVE_MULTI_STAGE_DD_GENERATION_DESIGN.md`](planning/ADAPTIVE_MULTI_STAGE_DD_GENERATION_DESIGN.md).
+Nothing writes `partitioned`, and every DD this plugin produces is `single`. A
+reader must therefore treat `single` as the only value it will encounter, and
+must not branch on the field. The value stays in the enum so that implementing
+partitioned generation later would not require a schema bump — it is a reserved
+contract value, never a supported mode.
 
 `dd_complexity_band` is written by the complexity assessment and is **advisory
 only** — it records what the assessment computed, and **never routes anything.**
