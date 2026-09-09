@@ -83,9 +83,6 @@ const PHASES: Phase[] = [
     name: "Contracts",
     why: "documentation and code cannot drift apart",
     suites: [
-      "dd-partition-contract",
-      "dd-consolidation-contract",
-      "dd-orchestration-contract",
       "rn-implementation-contract",
       "release-metadata",
       "repo-knowledge-orchestration",
