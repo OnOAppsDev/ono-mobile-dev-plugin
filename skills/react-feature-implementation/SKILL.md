@@ -1,68 +1,43 @@
 ---
 name: react-feature-implementation
-description: Methodology for implementing exactly one planned task in a React (web) codebase per org standards. Used by /implement-task via the react-feature-developer agent. Assumes no framework, router, state, or data library, and honors device_type mobile and tv.
+description: React (web)-specific implementation methodology — the repository dimensions to inspect, the per-area coding guidance, device_type handling, the validation tooling, and the REACT-* standards-citation map. Used by /implement-task via the react-feature-developer agent, alongside the shared platform-implementation skill, which owns the lifecycle mechanics.
 ---
 
 # React Feature Implementation
 
 ## Overview
 
-This skill is the methodology the `react-feature-developer` agent follows to implement **exactly one** task from an approved development workflow in a React (web) codebase. It owns *how* React work is understood, grounded in the repo, executed, validated, self-reviewed, and reported.
+This skill is the **React half** of implementing one task. It owns what a
+platform-independent layer could not state: which dimensions of a React repository to
+inspect, how React code is actually written here, which tools validate it, and which
+`REACT-*` and shared standard IDs may be cited.
 
-It is not orchestration. `/implement-task` resolves the task id, reads its `platform` and `device_type`, and routes here; the `require-approval-before-code` and `block-main-branch-changes` hooks gate code writes. This skill assumes those gates are active and focuses on doing the implementation correctly. See [Relationship with command, agent, hooks](#relationship-with-command-agent-hooks).
+The workflow half — inputs, the source-of-truth hierarchy, readiness checks, scope
+control, incremental implementation, the validation rules, self-review and the completion
+report — lives in **`skills/platform-implementation/SKILL.md`** and is not restated here.
+Apply both: that skill for *how the task is run*, this one for *how React is written*.
 
-**This skill assumes no technology.** The bundler (Vite, webpack, CRA, esbuild, Turbopack), framework (plain SPA, Next.js Pages/App Router, Remix), language (JS/TS), router, state library, data-fetching library, and styling approach are detected, never assumed. Official React/framework documentation is supporting guidance only and never overrides a valid existing implementation. This is a separate module from React Native and never reuses `RN-*` or the bare `ARCH-*`/`API-*`/`STATE-*`/`NAV-*` IDs, nor Android's `AND-*` or iOS's `IOS-*`.
+**It is not orchestration.** `/implement-task` resolves the task id, verifies the approval
+and readiness gates, reads the row's `platform`, routes here, and records lifecycle state;
+the write hooks gate every edit. This skill does not move command logic into itself.
 
-**This skill never invents repository facts.** It grounds every change in inspected evidence and writes only the selected task's code.
+**This skill never modifies a planning document.** It reads approved artifacts and writes
+application code.
 
-## Inputs this skill requires (resolved, never invented)
+## Standards readiness
 
-Obtain and **verify the existence of** these inputs first. They are passed by `/implement-task` or deterministically resolved — this skill **never guesses or fabricates a path**.
+Every rule this skill applies is grounded in an authored standard under
+`standards/react/`. Before implementing, confirm the seven files cited in
+[Standards citation](#standards-citation) are authored rather than structure-only
+placeholders. If a cited file is missing or is a placeholder, **stop and report that real
+React implementation is blocked until it is authored** — do not fall back to assumed
+defaults.
 
-- Absolute path to the approved **Feature Analysis**, **Detailed Design (DD)**, **Dev Plan**, and **Task Breakdown**.
-- The **task id** to implement, and the target **repository / package** root (the correct workspace in a monorepo).
-- The confirmed **`platform`** (must be `react`) and **`device_type`** (`mobile` or `tv`), read from the task/frontmatter — never re-detected.
-- The four **design-reference fields** (`design_reference_status`, `design_reference_type`, `design_reference`, `figma_link`).
+## Repository dimensions to inspect
 
-If any required input is missing or cannot be resolved deterministically, **stop and report exactly which input is missing**. If `platform` is not `react`, stop. If `device_type` is missing, empty, or any value other than `mobile`/`tv` (including `mixed`), **stop and report it** — never default to `mobile`.
-
-## 0. Standards readiness gate
-
-This skill grounds every React-specific rule in an authored `REACT-*` standard under `standards/react/`. Before implementing, confirm those standards are authored (not placeholders). If any cited `standards/react/*` file is **missing** or is still a structure-only placeholder, **stop and report that real React implementation is blocked until it is authored**. (As of authoring, all **seven** `standards/react/*` files and the shared `A11Y-*`/`I18N-*`/`SEC-*` standards are authored: the six base standards with the `REACT-*` ID skeleton frozen (REACT-001-7), plus `react-smart-tv.md` (`REACT-TV-*`, added additively by REACT-003-1). On a `device_type: tv` task this gate covers `react-smart-tv.md` too.) See [device_type handling](#device_type-handling).
-
-## 1. Source-of-truth hierarchy
-
-Read the complete approved context **before editing any code**, in this order: 1. Feature Analysis → 2. Detailed Design → 3. Dev Plan → 4. Task Breakdown → 5. the specific task row.
-
-| Document | Authoritative for |
-|---|---|
-| Feature Analysis | Business objective, repo findings, platform/device context, original intent |
-| **Detailed Design (DD)** | **Architecture, technical approach, API contracts, state design, impacted modules, risks, every accepted decision** |
-| Dev Plan | Sequencing, dependencies, rollout, rollback |
-| Task Breakdown + selected task row | **Scope of the current implementation** |
-| The task's acceptance criteria | **The completion contract** |
-
-Hard rules: never implement from the original request when approved downstream documents exist (the DD supersedes it); never rely on the task row alone; never reinterpret a decision already approved in the DD; if the documents conflict, stop and report; if the task requires violating or expanding the DD, stop and request approval; if a referenced document is missing/unapproved/stale/draft/dry-run, stop; if the task is blocked or depends on unresolved open questions, do not implement it.
-
-## 2. Task resolution & readiness checks
-
-Resolve the task by id and read its: id, title/description, objective, `platform`, `device_type`, files expected to be touched, acceptance criteria, `depends-on`, blockers, estimated size, explicit out-of-scope items, and linked DD sections / standard IDs.
-
-Confirm **all** before editing; if any fails, **stop and report** — do not work around it:
-
-- [ ] The DD and Dev Plan are `approved` (real implementation, not dry-run).
-- [ ] The selected task is not already complete.
-- [ ] Every `depends-on` task is complete (with evidence, not assumption).
-- [ ] No blocking open question remains for this task.
-- [ ] The task's `platform` is `react`; `device_type` is exactly `mobile` or `tv` (never defaulted).
-- [ ] The task is small enough for one implementation run (else report it should be split).
-- [ ] For UI work, the required design reference exists (any supported type; Figma not required specifically). If neither `figma_link` nor `design_reference` is set, stop and ask — and if a recorded reference **cannot be read** (a dead link, an unreachable MCP server, a missing export), stop and report the exact error. Do not guess spacing/color/typography. A task that changes no user-facing UI (`design_reference_status: not_required`) needs none.
-- [ ] The repository and target package are known.
-- [ ] The current branch and approval hooks allow code changes (not on `main`/`master`).
-
-## 3. Repository grounding
-
-Inspect the actual React codebase before writing code. **Detect — do not assume** — then follow what you find (Vite/webpack/Next/Remix, client SPA/SSR/RSC, JS/TS, React Router/TanStack/framework router, Redux/Zustand/Jotai/Context, TanStack Query/RTK Query/SWR/fetch, CSS Modules/CSS-in-JS/Tailwind are never assumed):
+The shared skill owns the grounding discipline — detect rather than assume, follow the
+nearest analogous feature, reuse before creating. These are the React dimensions that
+discipline is applied to:
 
 - Build tooling and scripts; framework and rendering model (client SPA / SSR / RSC — and which router on Next), identified **per surface, not once for the whole repository** (see `skills/react-dev-planning/SKILL.md#5-rendering-model-identification`); a hybrid repo has more than one answer.
 - Language level (JS vs TS; `strict` via the `tsconfig` `extends` chain).
@@ -76,19 +51,9 @@ Inspect the actual React codebase before writing code. **Detect — do not assum
 
 Apply the React detection traps from `skills/react-dev-planning/SKILL.md#4-react-detection-traps` (build tool from scripts not a stray config; `tsconfig` strict via `extends`; dependency-present ≠ used; App vs Pages Router; the `'use client'` boundary; env inlining; monorepo hoisting; version skew; test runner) so a confident-but-wrong reading of one file does not misdirect the implementation.
 
-## 4. Context loading before edits
+## React implementation methodology
 
-Read, before editing: every file named in the task and every impacted module named in the DD (§20); the nearest analogous implementation in the repo; related components, hooks, store modules, selectors, data/API modules, routes, and their tests; shared components/utilities the DD expects to reuse; relevant API contracts and backend models; the applicable React and shared standards ([§12](#12-standards-citation)).
-
-**Search for an existing implementation before creating any** new component, hook, store module, selector, route, data client, or utility. Prefer reusing and extending existing patterns → `REACT-ARCH-FOLDERS-*`, `REACT-FC-2`, `REACT-API-ORG-*`, `REACT-STATE-SLICE-1`.
-
-## 5. Pre-implementation plan
-
-Before modifying code, produce a concise plan: task objective; acceptance criteria; files expected to change; files reviewed for context; existing patterns to reuse; implementation sequence; validation strategy; risks; possible side effects; rollback considerations; applicable standard IDs. This plan does not require a second user approval when `require-approval-before-code` already governs code writes — but it must be produced before the first edit.
-
-## 6. React implementation methodology
-
-Apply the standards below as you write, grounded in the conventions detected in [§3](#3-repository-grounding). Every React rule cites an authored `REACT-*` ID; accessibility/i18n/security cite the shared `A11Y-*`/`I18N-*`/`SEC-*` docs.
+Apply the standards below as you write, grounded in the conventions detected in [Repository dimensions to inspect](#repository-dimensions-to-inspect). Every React rule cites an authored `REACT-*` ID; accessibility/i18n/security cite the shared `A11Y-*`/`I18N-*`/`SEC-*` docs.
 
 ### TypeScript & language safety
 In a TS repo, keep `strict` intact, no `any` without a justifying comment, explicit return types across module boundaries, no `as` casts that force a mismatched shape. → `REACT-TS-1`, `REACT-TS-2`, `REACT-TS-3`, `REACT-TS-4`.
@@ -126,38 +91,6 @@ Apply the shared web security rules as you write — safe HTML rendering / no XS
 ### Error handling, analytics & logging
 Implement the exact loading/empty/error/retry states the DD defines; never silently swallow an error or expose a raw backend error to users; distinguish a deliberate abort from a failure; reuse existing analytics conventions and add only the events the DD requires; keep debug logging gated and never log PII. → `REACT-API-ERR-1`, `REACT-API-ERR-2`, `REACT-API-ERR-3`, `SEC-LOG-1`.
 
-## 7. Scope control & deviation rules
-
-Implement **only** the selected task. Do not opportunistically fix unrelated issues, refactor unrelated modules, absorb another task, change approved API contracts/business rules, update the DD/plan silently, mark dependencies complete without evidence, or introduce speculative abstractions. If additional work is discovered: **stop** it, **document** the finding, **explain** whether it needs a new task / DD amendment / product or backend answer / security review / migration, and **continue** only within the selected task's approved scope. If the task cannot be completed without expanding scope, **stop and report it as blocked**.
-
-## 8. Incremental implementation
-
-Implement in small logical steps. After each meaningful step: inspect the diff; check imports and type/compilation risks; verify architecture/module boundaries and the server/client boundary on RSC; verify no unrelated files changed; run the narrowest useful validation where practical. Do not wait until the end to discover the package no longer builds or type-checks.
-
-## 9. Validation methodology
-
-Select checks based on the actual repo and affected files. Candidates: install/build with the repo's bundler; TypeScript type-check (`tsc --noEmit` or the repo's script); ESLint and the configured formatter; unit tests (Jest/Vitest); component tests (Testing Library); e2e (Playwright/Cypress) where the repo uses them; a production build for bundle/tree-shaking-sensitive changes; manual acceptance-criteria validation in the running app where practical.
-
-Rules:
-
-- **Do not claim a command passed unless it was actually run successfully.**
-- **Do not claim the app was manually validated unless it was actually run.**
-- If a required tool, environment, credential, or backend is unavailable, **state exactly what could not be validated**.
-- Run the narrowest relevant validation first, then broaden.
-- Distinguish new failures from pre-existing ones; do not fix unrelated pre-existing failures without approval.
-- **Validate every acceptance criterion individually.**
-- **For any UI change, the manual bidirectional (LTR/RTL) and screen-reader walkthroughs are validation candidates, not afterthoughts** — they are the evidence `QA-A11Y-1` needs downstream, and nothing else in the pipeline produces them. Run them where the environment allows and record the result either way.
-
-## 10. Self-review
-
-Before reporting completion, self-review against: task scope · DD compliance · architecture and dependency direction · server/client boundary · naming · readability · duplication · unnecessary abstractions · dead code · type safety · effect cleanup and cancellation · state placement (local/URL/global) · error handling · accessibility · localization/RTL · performance · security · PII logging · test coverage · unintended file changes · backward compatibility · rollback impact. Report any unresolved concern — do not hide it.
-
-## 11. Completion & reporting
-
-Produce a structured final report: 1. Task implemented · 2. Objective · 3. Files changed · 4. Summary · 5. Existing patterns reused · 6. **Acceptance-criteria checklist, one by one** · 7. Dependencies verified · 8. Validation commands run and **exact results** · 9. Tests added/updated · 10. **Applied React and shared standard IDs** · 11. Deviations from the DD/task · 12. Risks and known limitations · 13. Unresolved blockers · 14. Side effects · 15. Follow-up tasks discovered · 16. Confirmation no unrelated scope was added · 17. **`device_type` implemented against** · 18. **The manual walkthrough results the QA handoff requires** — whether the bidirectional LTR/RTL check (`I18N-TEST-1`, `I18N-TEST-2`) and the accessibility/screen-reader check (`A11Y-SR-1` (whose VoiceOver/TalkBack wording has no browser equivalent — its web reading is a walkthrough with a desktop screen reader the team uses, named in the report) were actually performed, and what they showed. State "not performed" plainly when they were not; shared `QA-A11Y-1` is satisfied by a real result, never by a generic "looks fine".
-
-**Do not mark the task complete if** any acceptance criterion failed · required validation failed · a dependency is incomplete · the implementation deviates from the DD without approval · a blocker remains · files outside the approved task scope were modified without justification · the code exists only in an isolated worktree rather than the intended repository.
-
 ## `device_type` handling
 
 `device_type` is inherited context — resolved once at `/analyze-feature` and carried in frontmatter. **Read and honor it; never re-detect it, never default to `mobile`, never treat `tv` as a separate platform.**
@@ -173,7 +106,20 @@ Produce a structured final report: 1. Task implemented · 2. Objective · 3. Fil
   - **Suppress the platform screensaver during playback and restore it on pause/stop**, with the restore as a cleanup obligation (`REACT-TV-MEDIA-7`, `REACT-FC-5`).
   - **Handle the platform IME** — focus restored after dismissal, layout surviving the viewport change (`REACT-TV-INPUT-8`) — and, where the platform has a cursor mode, handle 5-way ↔ cursor transitions (`REACT-TV-INPUT-7`).
 
-## 12. Standards citation
+## Validation tooling
+
+The shared skill owns the validation *rules* — never claim an unrun command passed,
+state exactly what could not be validated, validate every acceptance criterion
+individually. These are the React candidates those rules apply to, selected by what the
+task actually touched:
+
+Select checks based on the actual repo and affected files. Candidates: install/build with the repo's bundler; TypeScript type-check (`tsc --noEmit` or the repo's script); ESLint and the configured formatter; unit tests (Jest/Vitest); component tests (Testing Library); e2e (Playwright/Cypress) where the repo uses them; a production build for bundle/tree-shaking-sensitive changes; manual acceptance-criteria validation in the running app where practical.
+
+## React review points
+
+Added to the shared self-review list: server/client boundary · effect cleanup and cancellation · state placement (local/URL/global) · rollback impact.
+
+## Standards citation
 
 Record which standard IDs were **applied** (not merely reviewed) — this is the trace `react-code-reviewer`, `react-performance-reviewer`, and QA handoff rely on.
 
@@ -194,22 +140,23 @@ Do not use React Native's `RN-*` or the bare `ARCH-*`/`API-*`/`STATE-*`/`NAV-*` 
 
 ## Red flags — STOP and report instead of proceeding
 
-- A referenced document is missing, unapproved, stale, draft, or dry-run only.
-- Feature Analysis, DD, Dev Plan, or task breakdown conflict.
-- The task needs to violate or expand the DD, or change an approved API contract/business rule.
-- A `depends-on` task is not verifiably complete, or a blocker/open question remains.
-- The task depends on an unconfirmed backend contract.
-- A UI task has no design reference of any supported type.
+These are the React-specific conditions. The platform-independent stop conditions belong
+to `skills/platform-implementation/SKILL.md` and are not repeated here.
+
+- A cited `standards/react/*` file is missing or is a structure-only placeholder (see [Standards readiness](#standards-readiness)).
 - `device_type` is absent, empty, or not exactly `mobile`/`tv`.
-- Completing the task requires touching files outside its approved scope.
-- You are about to claim a build/type-check/test/manual check passed that you did not actually run.
-- A cited `standards/react/*` file is a placeholder (see [§0](#0-standards-readiness-gate)).
+- The rendering model (CSR / SSR / RSC) cannot be determined, and the task depends on it.
+- Two competing routing or state libraries are in active use, with no discernible primary.
 
 ## Relationship with command, agent, hooks
 
-- **`commands/implement-task.md`** — task selection, platform/device_type routing, approval gates, invocation.
-- **`agents/react-feature-developer.md`** — the React specialist that runs this methodology.
-- **This skill** — the implementation methodology itself.
-- **Hooks** — `require-approval-before-code`, `block-main-branch-changes`, `protect-secrets`.
+Responsibilities stay separated:
 
-This skill does not move command logic into itself and does not invent paths to feature documents — the resolved absolute paths from [Inputs](#inputs-this-skill-requires-resolved-never-invented) are verified before use.
+- **`commands/implement-task.md`** — task-id resolution, repository-root resolution, document-path resolution, approval/dependency/blocker gates, platform routing, the context handoff, lifecycle state, and verification of the completion report.
+- **`skills/platform-implementation/SKILL.md`** — the platform-independent implementation methodology.
+- **`agents/react-feature-developer.md`** — the React specialist and executor that runs both.
+- **This skill** — the React implementation methodology itself, and nothing a platform-independent layer could state.
+- **Hooks** — `require-approval-before-code`, `block-main-branch-changes`, and `protect-secrets`.
+
+This skill does not move command logic into itself, does not depend on undocumented
+ambient-CWD assumptions, and does not invent paths to the feature documents.

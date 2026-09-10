@@ -1,91 +1,47 @@
 ---
 name: rn-feature-implementation
-description: Methodology for implementing a planned task in a React Native codebase per org standards. Used by /implement-task via the rn-feature-developer agent.
+description: React Native-specific implementation methodology — the repository dimensions to inspect, the per-area coding guidance, the validation tooling, and the RN standards-citation map. Used by /implement-task via the rn-feature-developer agent, alongside the shared platform-implementation skill, which owns the lifecycle mechanics.
 ---
 
 # React Native Feature Implementation
 
 ## Overview
 
-This skill is the methodology the `rn-feature-developer` agent follows to implement **exactly one** task from an approved development workflow in a React Native codebase. It owns *how* React Native work is understood, grounded in the repository, executed, validated, self-reviewed, and reported.
+This skill is the **React Native half** of implementing one task. It owns what a
+platform-independent layer could not state: which dimensions of a React Native repository
+to inspect, how React Native code is actually written here, which tools validate it, and
+which `RN-*` and shared standard IDs may be cited.
 
-It is not orchestration. `/implement-task` resolves the task id, verifies the approval and readiness gates, reads the row's `platform`, and routes here; the `require-approval-before-code`, `block-main-branch-changes`, and `protect-secrets` hooks gate the writes. This skill does not re-implement any of that — it assumes those gates are active and focuses on doing the implementation correctly. See [Relationship with command, agent, hooks](#relationship-with-command-agent-hooks).
+The workflow half — inputs, the source-of-truth hierarchy, readiness checks, scope
+control, incremental implementation, the validation rules, self-review and the completion
+report — lives in **`skills/platform-implementation/SKILL.md`** and is not restated here.
+Apply both: that skill for *how the task is run*, this one for *how React Native is
+written*.
 
-**This skill never modifies a planning document.** It reads the approved artifacts and writes application code.
+**It is not orchestration.** `/implement-task` resolves the task id, verifies the approval
+and readiness gates, reads the row's `platform`, routes here, and records lifecycle state;
+the write hooks gate every edit. This skill does not move command logic into itself.
 
-## Inputs this skill requires (resolved, never invented)
+**This skill never modifies a planning document.** It reads approved artifacts and writes
+application code.
 
-`/implement-task` resolves and verifies these before invoking this skill, and passes them as authoritative. **When they are provided, use them directly** — do not re-resolve them by searching the workspace, and never guess a filename or a path:
+**React Native is mobile-only in this lane.**
 
-- The absolute `TARGET_ROOT` (repository root).
-- The absolute path to the approved **Feature Analysis**.
-- The absolute path to the approved **Detailed Design (DD)**.
-- The absolute path to the approved **Dev Plan**.
-- The absolute path to the approved **Task Breakdown** — the generated feature artifact, never a plugin template under `templates/`.
-- The selected **task id**.
-- The selected **task-row content**.
-- The **platform** (must be `react-native`).
-- The **design reference** — `design_reference_status`, `design_reference_type`, `design_reference`, and `figma_link`, as recorded upstream.
-- The **dependency status** resolved by the command.
-- The **approval status** resolved by the command.
-- The **unresolved-blocker status** resolved by the command.
+## Standards readiness
 
-The command may pass broader context than this skill consumes; take what is listed here and ignore the rest rather than inventing behavior for it.
+Every rule this skill applies is grounded in an authored standard under
+`standards/react-native/`. Before implementing, confirm the six files cited in
+[Standards citation](#standards-citation) are authored rather than structure-only
+placeholders. If a cited file is missing or is a placeholder, **stop and report that real
+React Native implementation is blocked until it is authored** — do not fall back to
+assumed defaults. (All six, and the shared `A11Y-*`/`I18N-*`/`SEC-*` standards, are
+authored today; this gate exists so the skill fails loudly if that regresses.)
 
-If any listed input is missing and cannot be resolved deterministically, **stop and report exactly which input is missing** — do not proceed against an assumed location. If `platform` is not `react-native`, stop: this skill does not run for another platform. Only when the command did not pass these inputs at all may you locate the Task Breakdown yourself, and then from the resolved path — never a guessed one.
+## Repository dimensions to inspect
 
-## 0. Standards readiness gate
-
-This skill grounds every React Native rule in an authored standard under `standards/react-native/`. Before implementing, confirm the six files cited in [§12](#12-standards-citation) are authored, not structure-only placeholders. If a cited file is missing or is a placeholder, **stop and report that real React Native implementation is blocked until it is authored** — do not silently fall back to assumed defaults. (As of authoring, all six `standards/react-native/*` files and the shared `A11Y-*`/`I18N-*`/`SEC-*` standards are authored; this gate exists so the skill fails loudly if that regresses.)
-
-## 1. Source-of-truth hierarchy
-
-Read the complete approved context **before editing any code**, in this order:
-
-1. Feature Analysis → 2. Detailed Design → 3. Dev Plan → 4. Task Breakdown → 5. the specific task row for the task id.
-
-Each document's authority:
-
-| Document | Authoritative for |
-|---|---|
-| Feature Analysis | Business objective, repository findings, platform context, original feature intent |
-| **Detailed Design (DD)** | **Architecture, technical approach, API contracts, state design, impacted modules, risks, and every accepted implementation decision** |
-| Dev Plan | Sequencing, dependencies, rollout, and rollback context |
-| Task Breakdown + selected task row | **Scope of the current implementation** |
-| The task's acceptance criteria | **The completion contract** |
-
-Hard rules:
-
-- Never implement from the original feature request when approved downstream documents exist — the DD supersedes it.
-- Never rely on the task row alone without reading the DD and Dev Plan.
-- Never reinterpret an architectural decision already approved in the DD.
-- If the Feature Analysis, DD, Dev Plan, and Task Breakdown **conflict**, stop and report the conflict — do not pick one silently.
-- If the task requires **violating or expanding the DD**, stop and request approval.
-- If a referenced document is **missing, unapproved, stale, or still marked draft/dry-run**, stop.
-- If the task is marked **blocked** or depends on an unresolved open question, do not implement it.
-
-## 2. Task resolution & readiness checks
-
-Resolve the task by id using the task-row content the command passed, and read its: id, description, `platform`, files expected to be touched, acceptance criteria, `depends-on`, blockers, estimated size, explicit out-of-scope items, and any linked DD sections or standard IDs.
-
-Confirm **all** of the following before editing. If any fails, **stop and report exactly what is missing** — do not work around it:
-
-- [ ] The DD is `approved` (for real implementation, not dry-run).
-- [ ] The Dev Plan is `approved`.
-- [ ] The Task Breakdown is `approved`.
-- [ ] The selected task is not already complete.
-- [ ] Every `depends-on` task is complete — **confirmed from the dependency status the command passed, never re-derived here.** If that status is absent or inconclusive, stop and report it rather than assuming.
-- [ ] No blocking open question remains for this task, per the unresolved-blocker status passed in.
-- [ ] The task's `platform` is `react-native`.
-- [ ] The task is small enough for one implementation run (if not, report that it should be split).
-- [ ] For UI work, the required design reference exists — `figma_link` or `design_reference`, any supported type; Figma specifically is not required. If neither is set, stop and ask, and do not guess spacing, colour, or typography. A task that changes no user-facing UI (`design_reference_status: not_required`) needs none.
-- [ ] The repository root and target workspace/package are known.
-
-**Resolve the design reference before writing UI code.** For a Figma link, pull Dev Mode specs and Code Connect mappings for the relevant frame via the `figma` MCP server and implement to match. For any other recorded type, read what `design_reference` points at — the specification document, the exported mockups/screenshots, or the named existing screen/component's implementation — and implement to match that. **If the reference cannot be accessed, stop with the exact error.**
-
-## 3. Repository grounding
-
-Inspect the actual codebase before writing code. **Detect — do not assume** — and then follow what you find rather than imposing a default:
+The shared skill owns the grounding discipline — detect rather than assume, follow the
+nearest analogous feature, reuse before creating. These are the React Native dimensions
+that discipline is applied to:
 
 - Workspace layout: single package vs. monorepo, and which package this task belongs to.
 - TypeScript configuration: strictness, path aliases, module resolution.
@@ -98,19 +54,7 @@ Inspect the actual codebase before writing code. **Detect — do not assume** �
 - Test setup: runner, component-testing library, and what is actually covered today.
 - Lint and format configuration, and any rules the repository has deliberately disabled.
 
-Follow the nearest analogous feature as the pattern. Reuse an existing component, hook, selector, or endpoint rather than adding a parallel one; naming a "new" component that already exists is the most common defect this step prevents.
-
-**Where a standard's assumed library and the repository's detected library differ, that is a standards question, not an implementation decision.** Follow the approved DD, cite the IDs you actually applied, and record the divergence in the completion report — do not resolve it in code, and never migrate the repository to match a standard as a side effect of a feature.
-
-## 4. Context loading before edits
-
-Before the first edit, read: the DD sections the task references; the files the task row names; the nearest analogous feature; the modules directly upstream and downstream of the change; and the tests covering them. Reading is not writing — this context informs the change, and none of it is restated in the output.
-
-## 5. Pre-implementation plan
-
-Before modifying code, produce a concise plan containing: task objective; acceptance criteria; files expected to change; files reviewed for context; existing patterns and components to reuse; implementation sequence; validation strategy; risks; possible side effects; and the applicable standard IDs.
-
-## 6. React Native implementation methodology
+## React Native implementation methodology
 
 Apply each area's rules to the surfaces the task actually touches. An area the task does not touch is not applicable — do not manufacture work to fill it.
 
@@ -144,77 +88,49 @@ Follow the repository's slice/store conventions; keep state fully typed; mutate 
 
 ### Navigation & deep links
 
-Type every route's params and call navigation through the repository's navigation service rather than the library's API directly, including from non-component code such as interceptors and notification handlers; keep deep links in the documented route table, keep changes backward-compatible or versioned, and treat a new deep-link entry point as security-relevant. → `NAV-TYPED-*`, `NAV-SERVICE-*`, `NAV-DEEPLINK-*`, `SEC-DEEPLINK-*`.
+Use the repository's detected navigation library and its typed-route mechanism; route params carry ids and primitives rather than large objects; declare deep links in the repository's established place and validate their parameters before acting on them; implement the back behaviour the DD specifies rather than accepting a default that contradicts it. → `NAV-TYPED-*`, `NAV-SERVICE-*`, `NAV-DEEPLINK-*`.
 
 ### Copy, localization & RTL
 
-No hardcoded user-facing strings — every user-visible string resolves through the repository's localization lookup, with feature-namespaced keys, parameter interpolation instead of concatenation, plural-category support instead of manual branching, and new keys added to every supported locale in the same change. Use direction-relative spacing, positioning, and text alignment, flip direction-implying icons, and format dates, numbers, and currency through locale-aware formatters. → `I18N-COPY-*`, `I18N-RTL-*`, `I18N-FMT-*`.
+No user-visible string is hardcoded — every one goes through the repository's i18n mechanism with a key in the established namespace; format dates, numbers and currency through the locale-aware helpers rather than manual string building; use start/end (not left/right) for directional layout so RTL mirrors correctly. → `I18N-COPY-*`, `I18N-FMT-*`, `I18N-RTL-*`.
 
 ### Accessibility
 
-Give every interactive element a semantic role and an action-describing label, expose state programmatically rather than through styling alone, hide decorative imagery from assistive technology, group content that should be announced as one unit, meet the platform's minimum activation target, respect OS font scaling with containers that grow with their content, and keep screen-reader focus order matching the visual reading order with modals managing focus. → `A11Y-ROLES-*`, `A11Y-TOUCH-*`, `A11Y-FONT-*`, `A11Y-SR-*`.
-
-Apply those shared requirements through the React Native rules that implement them (`RN-A11Y-1`..`RN-A11Y-11` in `standards/react-native/rn-coding-standards.md`). Several RN accessibility props are single-platform — `accessibilityElementsHidden` and `accessibilityViewIsModal` are iOS-only, `importantForAccessibility` and `accessibilityLiveRegion` are Android-only — so a requirement met with only one of a pair is silently unmet on the other platform. Cover focus placement on screen entry, modal focus restoration to the invoking control, item position in lists (RN exposes no collection-semantics API, so position that is not stated is not announced), deriving item accessibility props from item data so a recycled row cannot inherit a stale label, and suspending timer-driven advancement while a screen reader is active.
-
-**Verification reach.** `standards/shared/verification.md` owns the tier vocabulary — do not restate it. Typecheck, lint and any accessibility assertions the repository's existing test setup supports are Tier 1 and gate the task; a VoiceOver or TalkBack walkthrough is Tier 3 and is recorded as `verificationDebt`, never as a passed check. Do not assume a particular automation framework.
+Interactive elements carry an accessibility role and a meaningful label; touch targets meet the minimum size; text scales with the OS font setting rather than being pinned; focus order follows visual order and modals trap focus. Accessibility applicability for this task was decided by `commands/implement-task.md` §5b — implement what it resolved, and record anything that needs a real screen-reader run as verification debt per `standards/shared/verification.md` rather than claiming it passed. → `A11Y-ROLES-*`, `A11Y-TOUCH-*`, `A11Y-FONT-*`, `A11Y-SR-*`.
 
 ### Performance
 
-Memoize where inspection or profiling shows real re-render cost rather than reflexively; stabilise callbacks and objects passed to expensive children; use a virtualized list with a correct `keyExtractor` for large or unbounded lists; keep heavy synchronous work off the JS thread; size and configure images for their display context; and call out any dependency addition that meaningfully grows the bundle. → `RN-PERF-RERENDER-*`, `RN-PERF-LIST-*`, `RN-PERF-JSTHREAD-*`, `RN-PERF-IMAGE-*`, `RN-PERF-BUNDLE-*`.
+Memoize expensive derivations and stable callbacks where re-render cost is real rather than speculative; give lists a stable `keyExtractor` and virtualize long ones; avoid blocking the JS thread with synchronous work in render or in a gesture handler; size and cache images appropriately. → `RN-PERF-RERENDER-*`, `RN-PERF-LIST-*`, `RN-PERF-JSTHREAD-*`, `RN-PERF-IMAGE-*`, `RN-PERF-BUNDLE-*`.
 
 ### Security & privacy
 
-Never hardcode secrets or commit them; store tokens and sensitive values in the repository's secure storage rather than plain key-value storage; validate external input including deep-link and bridge payloads; keep transport security intact and never weaken certificate validation; harden any WebView surface the task touches; request permissions at the point of need; and never log secrets, tokens, or personal data. → `SEC-SECRETS-*`, `SEC-STORAGE-*`, `SEC-NET-*`, `SEC-DEEPLINK-*`, `SEC-WEBVIEW-*`, `SEC-BRIDGE-*`, `SEC-PERMS-*`, `SEC-LOG-*`.
+No secret, token or key is committed or logged; sensitive values go to the repository's secure-storage mechanism rather than plain async storage; validate anything arriving from a deep link or a WebView before acting on it; keep PII out of logs and analytics events. → `SEC-SECRETS-*`, `SEC-STORAGE-*`, `SEC-NET-*`, `SEC-AUTH-*`, `SEC-DEEPLINK-*`, `SEC-WEBVIEW-*`, `SEC-BRIDGE-*`, `SEC-PERMS-*`, `SEC-LOG-*`.
 
 ### Lint & format
 
-ESLint and Prettier both pass with zero warnings before the change is handed on; any inline disable carries a comment explaining why the rule does not apply; formatting comes from the configured formatter, with no pure-reformatting noise mixed into a functional change. → `RN-LINT-*`.
+The repository's configured lint and format tooling passes with no new warnings; a suppression carries a justification comment rather than silencing a real finding. → `RN-LINT-*`.
 
-## 7. Scope control & deviation rules
+## Validation tooling
 
-- Implement **only** the selected task. Do not opportunistically fix unrelated issues, refactor unrelated modules, absorb another task, change approved API contracts or business rules, update the DD or plan silently, mark dependencies complete without evidence, or introduce speculative abstractions.
+The shared skill owns the validation *rules* — never claim an unrun command passed, state
+exactly what could not be validated, validate every acceptance criterion individually.
+These are the React Native candidates those rules apply to, selected by what the task
+actually touched:
 
-If additional work is discovered:
+TypeScript typecheck (`tsc --noEmit` or the repository's script); ESLint; Prettier check;
+unit and component tests (Jest with React Native Testing Library, or whatever the
+repository uses); the Metro bundle; a native build when the task touches `ios/` or
+`android/`; a bidirectional LTR/RTL walkthrough for UI copy changes (`I18N-TEST-*`); a
+screen-reader walkthrough for new or changed interactive flows (`A11Y-SR-1`); and manual
+acceptance-criteria validation.
 
-1. **Stop** that additional work.
-2. **Document** the finding.
-3. **Explain** whether it needs: a new task · a DD amendment · a product or backend answer · a security review · a migration.
-4. **Continue** only with work that stays within the selected task's approved scope.
+## React Native review points
 
-If the selected task itself cannot be completed without expanding scope, **stop and report it as blocked**.
+Added to the shared self-review list: Rules of Hooks · effect dependency arrays ·
+re-render cost · selector memoization · navigation typing and back behaviour · list and
+image performance.
 
-## 8. Incremental implementation
-
-Implement in small logical steps. After each meaningful step: inspect the diff; check imports and type errors; verify layering and feature-folder boundaries; verify no unrelated files changed; and run the narrowest useful validation where practical. Do not wait until the end to discover the project no longer typechecks.
-
-## 9. Validation methodology
-
-Select checks based on the actual repository and the surfaces touched. Candidates: TypeScript typecheck (`tsc --noEmit` or the repository's script); ESLint; Prettier check; unit and component tests (Jest with React Native Testing Library, or whatever the repository uses); the Metro bundle; a native build when the task touches `ios/` or `android/`; a bidirectional LTR/RTL walkthrough for UI copy changes (`I18N-TEST-*`); a screen-reader walkthrough for new or changed interactive flows (`A11Y-SR-1`); and manual acceptance-criteria validation.
-
-Rules:
-
-- **Do not claim a command passed unless it was actually run successfully.**
-- **Do not claim the app was manually validated unless it was actually run.**
-- If a required tool, simulator, device, credential, environment, or backend is unavailable, **state exactly what could not be validated**.
-- Run the narrowest relevant validation first, then broaden when practical.
-- Do not fix unrelated pre-existing failures unless explicitly approved; distinguish new failures from pre-existing ones.
-- **Validate every acceptance criterion individually.**
-
-## 10. Self-review
-
-Before reporting completion, self-review against: task scope · DD compliance · layering and dependency direction · feature-folder placement · component and hook reuse · Rules of Hooks · effect dependency arrays · re-render cost · state ownership and the local/global boundary · selector memoization · error shape and handling · loading and empty states · navigation typing and back behaviour · localization coverage and RTL · accessibility roles, labels, and focus order · performance of lists and images · security and PII logging · type safety · test coverage · dead code · unintended file changes · backward compatibility.
-
-Report any unresolved concern — do not hide it.
-
-## 11. Completion & reporting
-
-Produce a structured final report with:
-
-1. Task implemented · 2. Objective · 3. **Files changed** · 4. Summary of the implementation · 5. Existing patterns and components reused · 6. **Acceptance-criteria checklist, one by one** · 7. Dependencies verified · 8. **Validation commands run and their exact results** · 9. Tests added or updated · 10. **Applied standard IDs** (React Native and shared) · 11. **Deviations** from the DD or task · 12. Risks and known limitations · 13. Unresolved **blockers** · 14. Side effects · 15. Follow-up tasks discovered · 16. **Confirmation that no unrelated scope was added** · 17. **Confirmation that the writes landed inside `TARGET_ROOT`** and not in a `.claude/worktrees/…` path.
-
-**Do not mark the task complete if** any acceptance criterion failed · required validation failed · a dependency is unproven · the implementation deviates from the DD without approval · a blocker remains · the code exists only in an isolated worktree rather than the intended repository · files outside the approved task scope were modified without justification.
-
-## 12. Standards citation
+## Standards citation
 
 Record which standard IDs were **applied** (not merely reviewed) — this is the trace `rn-code-reviewer`, `rn-performance-reviewer`, and the QA handoff rely on, so they do not have to re-derive it.
 
@@ -234,23 +150,22 @@ Cite only IDs that exist in these files and genuinely apply to the change. Never
 
 ## Red flags — STOP and report instead of proceeding
 
-- A required input is missing, or a referenced document is missing, unapproved, stale, draft, or dry-run only.
-- The Feature Analysis, DD, Dev Plan, and Task Breakdown conflict.
-- The task needs to violate or expand the DD, or change an approved API contract or business rule.
-- A `depends-on` task is not verifiably complete, or a blocker or open question remains.
-- The task depends on an unconfirmed backend contract.
-- A UI task has no design reference of any supported type, or a recorded reference cannot be accessed.
-- Completing the task requires touching files outside its approved scope.
-- You are about to claim a typecheck, lint, test, build, or manual check passed that you did not actually run.
-- A cited `standards/react-native/*` file is missing or is a structure-only placeholder (see [§0](#0-standards-readiness-gate)).
+These are the React Native-specific conditions. The platform-independent stop conditions belong to `skills/platform-implementation/SKILL.md` and are not repeated here.
+
+- A cited `standards/react-native/*` file is missing or is a structure-only placeholder (see [Standards readiness](#standards-readiness)).
+- The repository's navigation, state-management, or data-fetching library cannot be determined, and the task must integrate with it.
+- The repository has two competing libraries in active use for a layer this task touches, with no discernible primary.
+- The task requires touching a native module or custom native view and the architecture mode (New vs. Legacy) cannot be established.
+- A standard assumes a library the repository does not use, and following the standard would mean migrating the repository.
 
 ## Relationship with command, agent, hooks
 
 Responsibilities stay separated:
 
-- **`commands/implement-task.md`** — task-id resolution, repository-root resolution, document-path resolution, approval/dependency/blocker gates, platform routing, the context handoff, and verification of the completion report.
-- **`agents/rn-feature-developer.md`** — the React Native specialist and executor that runs this methodology.
-- **This skill** — the implementation methodology itself.
+- **`commands/implement-task.md`** — task-id resolution, repository-root resolution, document-path resolution, approval/dependency/blocker gates, platform routing, the context handoff, lifecycle state, and verification of the completion report.
+- **`skills/platform-implementation/SKILL.md`** — the platform-independent implementation methodology: inputs, source-of-truth hierarchy, readiness checks, grounding discipline, scope control, incremental implementation, validation rules, self-review, and the completion report.
+- **`agents/rn-feature-developer.md`** — the React Native specialist and executor that runs both.
+- **This skill** — the React Native implementation methodology itself, and nothing a platform-independent layer could state.
 - **Hooks** — `require-approval-before-code` (approval before any code write), `block-main-branch-changes` (feature-branch enforcement), and `protect-secrets`.
 
-This skill does not move command logic into itself, does not depend on undocumented ambient-CWD assumptions, and does not invent paths to the feature documents — the resolved absolute paths from [Inputs](#inputs-this-skill-requires-resolved-never-invented) are verified before use.
+This skill does not move command logic into itself, does not depend on undocumented ambient-CWD assumptions, and does not invent paths to the feature documents — the resolved absolute paths the command passes are verified before use.

@@ -1,78 +1,43 @@
 ---
 name: android-feature-implementation
-description: Methodology for implementing exactly one planned task in a native Android (Kotlin/Compose/XML) codebase per org standards. Used by /implement-task via the android-feature-developer agent.
+description: Android-specific implementation methodology — the repository dimensions to inspect, the per-area coding guidance, the validation tooling, and the AND-* standards-citation map. Used by /implement-task via the android-feature-developer agent, alongside the shared platform-implementation skill, which owns the lifecycle mechanics.
 ---
 
 # Android Feature Implementation
 
 ## Overview
 
-This skill is the methodology the `android-feature-developer` agent follows to implement **exactly one** task from an approved development workflow in a native Android codebase. It owns *how* Android work is understood, grounded in the repo, executed, validated, self-reviewed, and reported.
+This skill is the **Android half** of implementing one task. It owns what a
+platform-independent layer could not state: which dimensions of a Android repository to
+inspect, how Android code is actually written here, which tools validate it, and which
+`AND-*` and shared standard IDs may be cited.
 
-It is not orchestration. `/implement-task` resolves the task id, reads its `platform`, and routes here; the `require-approval-before-code` and `block-main-branch-changes` hooks gate code writes. This skill does not re-implement any of that — it assumes those gates are active and focuses on doing the implementation correctly. See [Relationship with command, agent, hooks](#relationship-with-command-agent-hooks).
+The workflow half — inputs, the source-of-truth hierarchy, readiness checks, scope
+control, incremental implementation, the validation rules, self-review and the completion
+report — lives in **`skills/platform-implementation/SKILL.md`** and is not restated here.
+Apply both: that skill for *how the task is run*, this one for *how Android is written*.
 
-## Inputs this skill requires (resolved, never invented)
+**It is not orchestration.** `/implement-task` resolves the task id, verifies the approval
+and readiness gates, reads the row's `platform`, routes here, and records lifecycle state;
+the write hooks gate every edit. This skill does not move command logic into itself.
 
-Before anything else, obtain and **verify the existence of** the concrete inputs below. They are passed by the invoking command/agent or deterministically resolved from the feature name and repo layout — this skill **never guesses or fabricates a path** to a feature document.
+**This skill never modifies a planning document.** It reads approved artifacts and writes
+application code.
 
-- Absolute path to the approved **Feature Analysis** (`feature-analysis-template.md` output).
-- Absolute path to the approved **Detailed Design (DD)** (`dd-template.md` output).
-- Absolute path to the approved **Dev Plan** (`dev-plan-template.md` output).
-- Absolute path to the **Task Breakdown** (`task-breakdown-template.md` output).
-- The **task id** to implement, and the target **repository / module** root.
+## Standards readiness
 
-If any of these paths is not provided and cannot be resolved deterministically, **stop and report exactly which input is missing** — do not proceed against an assumed location. (When `/implement-task` does not yet pass these paths explicitly, resolving them and confirming they exist is part of this step; report the gap rather than inventing.)
+Every rule this skill applies is grounded in an authored standard under
+`standards/android/`. Before implementing, confirm the ten files cited in
+[Standards citation](#standards-citation) are authored rather than structure-only
+placeholders. If a cited file is missing or is a placeholder, **stop and report that real
+Android implementation is blocked until it is authored** — do not fall back to assumed
+defaults.
 
-## 0. Standards readiness gate
+## Repository dimensions to inspect
 
-This skill grounds every Android-specific rule in an authored `AND-*` standard under `standards/android/`. Before implementing, confirm those standards are authored (not placeholders). If any cited `standards/android/*` file is still a structure-only placeholder, **stop and report that real Android implementation is blocked until it is authored** — do not silently fall back to assumed defaults. (As of authoring, all ten `standards/android/*` files and the shared `A11Y-*`/`I18N-*`/`SEC-*` standards are authored; this gate exists so the skill fails loudly if that regresses.)
-
-## 1. Source-of-truth hierarchy
-
-Read the complete approved context **before editing any code**, in this order:
-
-1. Feature Analysis → 2. Detailed Design → 3. Dev Plan → 4. Task Breakdown → 5. the specific task row for the task id.
-
-Each document's authority:
-
-| Document | Authoritative for |
-|---|---|
-| Feature Analysis | Business objective, repo findings, platform context, original feature intent |
-| **Detailed Design (DD)** | **Architecture, technical approach, API contracts, state design, impacted modules, risks, and every accepted implementation decision** |
-| Dev Plan | Sequencing, dependencies, rollout, and rollback context |
-| Task Breakdown + selected task row | **Scope of the current implementation** |
-| The task's acceptance criteria | **The completion contract** |
-
-Hard rules:
-
-- Never implement from the original feature request when approved downstream documents exist — the DD supersedes it.
-- Never rely on the task row alone without reading the DD and Dev Plan.
-- Never reinterpret an architectural decision already approved in the DD.
-- If the Feature Analysis, DD, Dev Plan, and task breakdown **conflict**, stop and report the conflict — do not pick one silently.
-- If the task requires **violating or expanding the DD**, stop and request approval.
-- If a referenced document is **missing, unapproved, stale, or still marked dry-run/draft**, stop.
-- If the task is marked **blocked** or depends on unresolved open questions, do not implement it.
-
-## 2. Task resolution & readiness checks
-
-Resolve the task by id in the Task Breakdown and read its: id, title/description, objective, `platform`, files expected to be touched, acceptance criteria, `depends-on`, blockers, estimated size, explicit out-of-scope items, and any linked DD sections / standard IDs.
-
-Confirm **all** of the following before editing. If any fails, **stop and report exactly what is missing** — do not work around it:
-
-- [ ] The DD is `approved` (for real implementation, not dry-run).
-- [ ] The Dev Plan is `approved`.
-- [ ] The selected task is not already complete.
-- [ ] Every `depends-on` task is complete (with evidence, not assumption).
-- [ ] No blocking open question remains for this task.
-- [ ] The task's `platform` is `android` or explicitly includes Android.
-- [ ] The task is small enough for one implementation run (if not, report it should be split).
-- [ ] For UI work, the required design reference exists (Dev Plan / DD `figma_link` or `design_reference` — any supported type; Figma is not required specifically). If neither is set, stop and ask — do not guess spacing/color/typography. A task that changes no user-facing UI (`design_reference_status: not_required`) needs none.
-- [ ] The repository and target module are known.
-- [ ] The current branch and approval hooks allow code changes (not on `main`/`master`).
-
-## 3. Repository grounding
-
-Inspect the actual Android codebase before proposing or writing code. **Detect — do not assume** — and then follow what you find rather than imposing any default (Compose, XML, MVVM, Clean Architecture, Hilt, Retrofit, Room, etc. are never assumed):
+The shared skill owns the grounding discipline — detect rather than assume, follow the
+nearest analogous feature, reuse before creating. These are the Android dimensions that
+discipline is applied to:
 
 - Single-module vs. multi-module structure; app/feature module boundaries.
 - Kotlin and Java usage; Gradle config (Groovy/Kotlin DSL, version catalogs) and build variants/flavors.
@@ -89,27 +54,9 @@ Inspect the actual Android codebase before proposing or writing code. **Detect �
 - Testing setup; lint/detekt/ktlint/Android Lint/formatting/static analysis.
 - `minSdk`/`targetSdk`/`compileSdk`, AGP and Kotlin versions.
 
-## 4. Context loading before edits
+## Android implementation methodology
 
-Read, before editing:
-
-- Every file named in the task; every impacted module named in the DD (§20).
-- The nearest analogous implementation already in the repo.
-- Related ViewModels, repositories, use-cases, models/DTOs/mappers, screens, fragments, composables, adapters, navigation entries, and their tests.
-- Shared components/utilities the DD expects to reuse; relevant API contracts and backend models.
-- The applicable platform and shared standards (see [§12](#12-standards-citation)).
-
-**Search for an existing implementation before creating any** new abstraction, helper, use-case, repository, UI component, navigation pattern, state container, or networking primitive. Prefer reusing and extending existing patterns (`AND-ARCH-*`, `AND-UI-*`, `AND-NET-CLIENT-1`, `AND-NAV-DEST-2`).
-
-## 5. Pre-implementation plan
-
-Before modifying code, produce a concise plan containing: task objective; acceptance criteria; files expected to change; files reviewed for context; existing patterns to reuse; implementation sequence; validation strategy; risks; possible side effects; rollback considerations; applicable standard IDs.
-
-This plan does **not** require a second user approval when the command-level `require-approval-before-code` hook already governs code writes — but it must be produced before the first edit.
-
-## 6. Android implementation methodology
-
-Apply the standards below as you write, grounded in the conventions detected in [§3](#3-repository-grounding). Every Android rule cites an authored `AND-*` ID; accessibility/i18n/security cite the shared `A11Y-*`/`I18N-*`/`SEC-*` docs, applied with Android-native APIs.
+Apply the standards below as you write, grounded in the conventions detected in [Repository dimensions to inspect](#repository-dimensions-to-inspect). Every Android rule cites an authored `AND-*` ID; accessibility/i18n/security cite the shared `A11Y-*`/`I18N-*`/`SEC-*` docs, applied with Android-native APIs.
 
 ### Kotlin & language safety
 Follow the repo's Kotlin style/level. Nullability correct, no unsafe casts or gratuitous `!!`, sealed/data/enum/result types only where consistent with the repo, no hidden side effects in extensions, Java interop kept in mind, no unjustified experimental APIs. → `AND-KT-NULL-*`, `AND-KT-TYPE-*`, `AND-KT-SEALED-*`, `AND-KT-LINT-*`.
@@ -166,51 +113,20 @@ Implement the exact loading/empty/partial/error/retry/blocked states the DD defi
 ### Analytics & logging
 Reuse existing analytics conventions; add only the events the DD requires; avoid duplicate events from recomposition/lifecycle re-entry; no PII in analytics; keep debug logging removable and gated. → `AND-LOG-ANALYTICS-*`, `AND-LOG-HYGIENE-*`, `AND-LOG-PII-*`, `SEC-LOG-*`.
 
-## 7. Scope control & deviation rules
+## Validation tooling
 
-- Implement **only** the selected task. Do not opportunistically fix unrelated issues, refactor unrelated modules, absorb another task, change approved API contracts or business rules, update the DD/plan silently, mark dependencies complete without evidence, or introduce speculative abstractions.
-
-If additional work is discovered:
-
-1. **Stop** that additional work.
-2. **Document** the finding.
-3. **Explain** whether it needs: a new task · a DD amendment · a product/backend answer · a security review · a migration.
-4. **Continue** only with work that stays within the selected task's approved scope.
-
-If the selected task itself cannot be completed without expanding scope, **stop and report it as blocked**.
-
-## 8. Incremental implementation
-
-Implement in small logical steps. After each meaningful step: inspect the diff; check imports and compilation risks; verify architecture/module boundaries; verify no unrelated files changed; run the narrowest useful validation where practical. Do not wait until the end to discover the module no longer builds.
-
-## 9. Validation methodology
+The shared skill owns the validation *rules* — never claim an unrun command passed,
+state exactly what could not be validated, validate every acceptance criterion
+individually. These are the Android candidates those rules apply to, selected by what the
+task actually touched:
 
 Select checks based on the actual repo and affected modules. Candidates: Gradle sync/configuration; compile affected Kotlin; assemble the relevant variant; unit tests; ViewModel/use-case/repository tests; instrumentation tests; Compose UI tests; Android Lint; detekt; ktlint; formatting; dependency/module-boundary checks; screenshot/visual checks where supported; manual acceptance-criteria validation.
 
-Rules:
+## Android review points
 
-- **Do not claim a command passed unless it was actually run successfully.**
-- **Do not claim the app was manually validated unless it was actually run.**
-- If a required tool, emulator, device, credential, environment, or backend is unavailable, **state exactly what could not be validated**.
-- Run the narrowest relevant validation first, then broaden when practical.
-- Do not fix unrelated pre-existing failures unless explicitly approved; distinguish new failures from pre-existing ones.
-- **Validate every acceptance criterion individually.** → `AND-TEST-*`.
+Added to the shared self-review list: nullability · lifecycle safety · coroutine and threading safety · state consistency · memory leaks · migration and rollback impact.
 
-## 10. Self-review
-
-Before reporting completion, self-review against: task scope · DD compliance · architecture consistency · module boundaries · naming · readability · duplication · unnecessary abstractions · dead code · nullability · lifecycle safety · coroutine/threading safety · state consistency · error handling · accessibility · localization/RTL · performance · memory leaks · security · PII logging · test coverage · unintended file changes · backward compatibility · migration and rollback impact.
-
-Report any unresolved concern — do not hide it.
-
-## 11. Completion & reporting
-
-Produce a structured final report with:
-
-1. Task implemented · 2. Business/technical objective · 3. Files changed · 4. Summary of implementation · 5. Existing patterns reused · 6. **Acceptance-criteria checklist, one by one** · 7. Dependencies verified · 8. Validation commands run and **exact results** · 9. Tests added/updated · 10. Applied Android and shared standard IDs · 11. Deviations from the DD/task · 12. Risks and known limitations · 13. Unresolved blockers · 14. Side effects · 15. Follow-up tasks discovered · 16. Confirmation that no unrelated scope was added.
-
-**Do not mark the task complete if** any acceptance criterion failed · required validation failed · a dependency is incomplete · the implementation deviates from the DD without approval · a blocker remains · the code exists only in an isolated worktree and not the intended repository · files outside the approved task scope were modified without justification.
-
-## 12. Standards citation
+## Standards citation
 
 Record which standard IDs were **applied** (not merely reviewed) — this is the trace `android-code-reviewer`, `android-performance-reviewer`, and QA handoff rely on.
 
@@ -234,23 +150,23 @@ Do not use React Native's generically-named `ARCH-*`/`API-*`/`STATE-*`/`NAV-*` I
 
 ## Red flags — STOP and report instead of proceeding
 
-- A referenced document is missing, unapproved, stale, draft, or dry-run only.
-- Feature Analysis, DD, Dev Plan, or task breakdown conflict.
-- The task needs to violate or expand the DD, or change an approved API contract/business rule.
-- A `depends-on` task is not verifiably complete, or a blocker/open question remains.
-- The task depends on an unconfirmed backend contract.
-- A UI task has no design reference of any supported type.
-- Completing the task requires touching files outside its approved scope.
-- You are about to claim a build/test/manual check passed that you did not actually run.
-- A cited `standards/android/*` file is a placeholder (see [§0](#0-standards-readiness-gate)).
+These are the Android-specific conditions. The platform-independent stop conditions belong
+to `skills/platform-implementation/SKILL.md` and are not repeated here.
+
+- A cited `standards/android/*` file is missing or is a structure-only placeholder (see [Standards readiness](#standards-readiness)).
+- The repository's UI toolkit, DI framework, or async model cannot be determined, and the task must integrate with it.
+- Two competing mechanisms are in active use for a layer this task touches, with no discernible primary.
+- A standard assumes a library the repository does not use, and following it would mean migrating the repository.
 
 ## Relationship with command, agent, hooks
 
 Responsibilities stay separated:
 
-- **`commands/implement-task.md`** — task selection, platform routing, approval gates, invocation.
-- **`agents/android-feature-developer.md`** — the Android specialist persona/executor that runs this methodology.
-- **This skill** — the implementation methodology itself.
-- **Hooks** — `require-approval-before-code` (approval before any code write), `block-main-branch-changes` (feature-branch enforcement), `protect-secrets`.
+- **`commands/implement-task.md`** — task-id resolution, repository-root resolution, document-path resolution, approval/dependency/blocker gates, platform routing, the context handoff, lifecycle state, and verification of the completion report.
+- **`skills/platform-implementation/SKILL.md`** — the platform-independent implementation methodology.
+- **`agents/android-feature-developer.md`** — the Android specialist and executor that runs both.
+- **This skill** — the Android implementation methodology itself, and nothing a platform-independent layer could state.
+- **Hooks** — `require-approval-before-code`, `block-main-branch-changes`, and `protect-secrets`.
 
-This skill does not move command logic into itself, does not depend on undocumented ambient-CWD assumptions, and does not invent paths to the feature documents — the resolved absolute paths from [Inputs](#inputs-this-skill-requires-resolved-never-invented) are verified before use.
+This skill does not move command logic into itself, does not depend on undocumented
+ambient-CWD assumptions, and does not invent paths to the feature documents.

@@ -1,56 +1,33 @@
 ---
 name: ios-feature-implementation
-description: Methodology for implementing exactly one planned task in a native iOS codebase (Swift, SwiftUI, UIKit) per org standards, and for proving the result — including the Build-stage evidence a reviewer working from a diff cannot supply. Used by /implement-task via the ios-feature-developer agent, and by /fix-review-comments and /create-dev-qa-notes for their iOS halves.
+description: iOS-specific implementation methodology — the toolchain probe, pre-write availability and isolation checks, the build/test evidence rules, verification reach, and the IOS-* standards-citation map. Used by /implement-task via the ios-feature-developer agent, alongside the shared platform-implementation skill, which owns the lifecycle mechanics.
 ---
 
 # iOS Feature Implementation
 
 ## Overview
 
-This skill is the methodology `ios-feature-developer` follows to implement **exactly one** task in a native iOS codebase, fix a defect in one, and hand the result to QA. It owns *how* iOS work is grounded, written, verified and reported.
+This skill is the **iOS half** of implementing one task. It owns what a
+platform-independent layer could not state: what the installed toolchain permits, what may
+be claimed from a build or a test run, how availability and isolation are checked before
+writing, and which `IOS-*` and shared standard IDs may be cited.
 
-It is not orchestration. `/implement-task` resolves the task, enforces the approval gates and routes here; the `require-approval-before-code`, `block-main-branch-changes` and `protect-secrets` hooks gate the writes. Nor is it planning: `skills/ios-dev-planning` produced the approved technical approach, and this skill starts from the decisions the DD records ([§4](#4-what-design-handed-over-and-drift)).
+The workflow half — inputs, the source-of-truth hierarchy, task readiness, the
+pre-implementation plan, scope control, self-review and the completion report — lives in
+**`skills/platform-implementation/SKILL.md`** and is not restated here. Apply both: that
+skill for *how the task is run*, this one for *how iOS is written and proven*.
 
-**Nothing about the repository's technology is assumed** — UI family, observation model, concurrency mechanism, dependency manager, persistence stack and test framework are possible findings in no order of preference, governed by `standards/ios/swift-standards.md` § *Neutrality, TV, and status*.
+**It is not orchestration.** `/implement-task` resolves the task id, verifies the approval
+and readiness gates, reads the row's `platform`, routes here, and records lifecycle state;
+the write hooks gate every edit. This skill does not move command logic into itself.
 
-Two properties distinguish this stage. It compiles the code, so it can supply **Build-stage evidence** a diff-reading reviewer cannot ([§11](#11-build-stage-evidence)); and it is the stage most able to **overclaim**, so what may and may not be asserted is defined explicitly ([§15](#15-verification-reach--what-you-may-claim)).
+This lane carries more platform content than the others by nature: on iOS the *installed
+toolchain* decides what can be verified, so discovery and evidence are themselves
+platform methodology rather than lifecycle.
 
-## 0. Standards readiness gate
+## Standards readiness
 
 Every iOS rule here is grounded in an authored `standards/ios/*` document. If a cited standards document still carries the same unauthored-placeholder marker `/implement-task` tests for, **stop and report that iOS implementation is blocked** — never fall back to an assumed default. (All five iOS standards and the shared `A11Y-*`/`I18N-*`/`SEC-*`/`QA-*` documents are authored; this gate exists so the skill fails loudly if that regresses.)
-
-## 1. Inputs this skill requires (resolved, never invented)
-
-**Sections 1–4, 7 and 19 govern the Implement stage.** At **Fix** the input is the review-notes path and the platform-attributed, root-caused findings `mobile-debugging` hands over — [§16](#16-fix-stage) governs. At **QA** the input is the feature name and the Implement-stage record — [§17](#17-qa-stage) governs; if no such record exists, say so rather than reconstructing it from the diff.
-
-At Implement, `/implement-task` resolves and verifies these and passes them in. Confirm each exists before acting; **never guess a path to a feature document**, and never re-derive a value that was passed:
-
-- Absolute `TARGET_ROOT`, and absolute paths to the approved **Feature Analysis**, **DD**, **Dev Plan** and **Task Breakdown**.
-- The **task id** and the **selected task row**.
-- **`platform: ios`** and **`device_type`** (`mobile` or `tv`) — authoritative, never re-detected, never `mixed`.
-- The recorded **design reference** fields, and dependency / approval / blocker status.
-
-If a required input is missing or its target does not exist, **stop and report exactly which one**.
-
-## 2. Source-of-truth hierarchy
-
-Read the approved context **before editing any code**: Feature Analysis → DD → Dev Plan → Task Breakdown → the selected task row.
-
-| Document | Authoritative for |
-|---|---|
-| Feature Analysis | Business objective, platform context, original intent |
-| **Detailed Design** | **Architecture, technical approach, API contracts, state design, impacted modules, every approved decision** |
-| Dev Plan | Sequencing, dependencies, rollout, rollback |
-| Task Breakdown + task row | **Scope of this implementation** |
-| The task's acceptance criteria | **The completion contract** |
-
-Never implement from the original request when approved downstream documents exist. Never reinterpret a decision already approved in the DD. If the documents **conflict**, stop and report it rather than picking one. If the task requires violating or expanding the DD, stop and request approval. If a referenced document is missing, unapproved, stale or dry-run only, stop.
-
-## 3. Task readiness
-
-`/implement-task` §5 already gates approval, dependency completeness, blockers, `device_type`, the design reference and the branch, and passes the results in. **Confirm those results were passed rather than re-deriving them** — a second copy of that gate list would drift from the command's.
-
-Read the task row's objective, files expected to change, acceptance criteria, `depends-on`, out-of-scope items and any linked DD sections or standard IDs. Then stop and name the condition if a passed status is absent or negative, or if the task is too large for one run — report that it should be split rather than absorbing it.
 
 ## 4. What Design handed over, and drift
 
@@ -99,7 +76,7 @@ Precedence, highest first: `xcodebuild -showBuildSettings -json` with the contai
 
 ### Availability, before using an unfamiliar API
 
-`xcrun --sdk iphonesimulator swiftc -target arm64-apple-ios<TARGET>-simulator -typecheck Scratch.swift` is sub-second, needs no project, and names the exact version required. **Write the scratch file to a temporary directory, never into `TARGET_ROOT`** — a stray file there contradicts the clean-scope confirmation [§19](#19-completion--reporting) must make. Use it rather than discovering the gate in a full build.
+`xcrun --sdk iphonesimulator swiftc -target arm64-apple-ios<TARGET>-simulator -typecheck Scratch.swift` is sub-second, needs no project, and names the exact version required. **Write the scratch file to a temporary directory, never into `TARGET_ROOT`** — a stray file there contradicts the clean-scope confirmation the shared skill's completion report must make. Use it rather than discovering the gate in a full build.
 
 **`if #available` rescues statements, not declarations.** A runtime check lets you *call* a newer API, but cannot rescue a declaration whose signature or stored-property type names a newer symbol. The compiler distinguishes the two: a note reading *add `@available` attribute to enclosing …* means the declaration is the problem; *add `if #available` version check* means a statement guard suffices. When a repository pins an older Xcode, the installed SDK's `.swiftinterface` is authoritative over any documentation page.
 
@@ -122,10 +99,6 @@ Three failure modes those rules do not cover, each of which **compiles and silen
 ### Previews are not a verification signal
 
 A preview's only headless-observable property is that it **compiles** — which the build already tells you. `xcodebuild` has no preview action, and the external-agent bridge requires the Xcode application to be open. Never claim a preview was rendered or checked. If the repository uses previews, match what its deployment target allows: a plain or named `#Preview` on a SwiftUI view goes back to iOS 13, while `traits:`, `@Previewable` and any UIKit or AppKit `#Preview` require iOS 17 and must be wrapped in `@available` below that.
-
-## 7. Pre-implementation plan
-
-Before the first edit, produce a concise plan: objective; acceptance criteria; files expected to change; files read for context; existing patterns being reused; implementation sequence; validation strategy; risks and side effects; applicable standard IDs. The command-level `require-approval-before-code` hook governs approval — this plan does not need a second one, but it must exist before the first edit.
 
 ## 8. Implementation guidance by area
 
@@ -152,12 +125,6 @@ Apply these as you write, grounded in what [§4](#4-what-design-handed-over-and-
 The rows are a checklist, not a ladder — the file being changed decides which UI family applies (`IOS-UI-FRAMEWORK-1`).
 
 **`device_type: tv`** is a context signal, not a platform — `swift-standards.md` § *Apple TV* governs. Additionally: never silently carry a touch assumption into a TV surface, and never cite a TV standard ID, since those roots stay reserved until `ATV-001`.
-
-## 9. Scope control
-
-Implement **only** the selected task. Do not opportunistically fix unrelated issues, refactor unrelated code, absorb another task, change an approved contract or business rule, edit the DD silently, mark a dependency complete without evidence, or add speculative abstraction.
-
-On discovering additional work: **stop** it, **document** the finding, **explain** what it needs (a new task, a DD amendment, a product or backend answer, a security review, a migration), and **continue** only within the approved scope. If the task itself cannot be completed without expanding scope, stop and report it blocked.
 
 ## 10. The implement loop
 
@@ -338,16 +305,6 @@ Answer `QA-A11Y-1` with the Tier 3 list explicitly rather than leaving it implic
 
 **The logging privacy trap.** The Simulator does not redact dynamic string values; a device does. A check that reads a value out of the log therefore passes in development and silently breaks in device CI unless that value is logged explicitly public. Never make a QA criterion depend on a log value that is not (`SEC-LOG-*`).
 
-## 18. Self-review
-
-Before reporting, review against: task scope · DD compliance · layer and module boundaries · naming and duplication · dead code · lifetime and isolation safety · state consistency · error handling · accessibility · localization and RTL · performance · security and PII in logs · test coverage of the change · unintended file changes · migration and rollback impact. Report every unresolved concern — do not hide one.
-
-## 19. Completion & reporting
-
-Produce a structured report: task implemented · objective · files changed · summary · existing patterns reused · **acceptance criteria checked one by one** · dependencies verified · **validation commands run with their exact results** · Build-stage evidence · tests added or updated · **standard IDs actually applied** · what could not be verified and why · deviations from the DD · risks and limitations · unresolved blockers · follow-up tasks discovered · confirmation that no unrelated scope was added and that writes landed inside `TARGET_ROOT`.
-
-This list is a superset of `/implement-task` §10's required coverage; never drop an item from that list. **Do not mark the task complete** — there is no approved status-mutation mechanism; report for a human to act on. **Do not report success if** any acceptance criterion failed, required validation failed, a dependency is unproven, a blocker remains, the implementation deviates from the DD without approval, or the changes exist only in a worktree.
-
 ## 20. Standards citation
 
 Record which IDs were **applied**, not merely reviewed — this is the trace `ios-code-reviewer`, `ios-performance-reviewer` and the QA handoff rely on.
@@ -365,7 +322,7 @@ Findings are **filed** by lane (`IOS-PERF-*` by `ios-performance-reviewer`, `IOS
 
 ## Red flags — STOP and report
 
-- A cited `standards/ios/*` document is an unauthored stub ([§0](#0-standards-readiness-gate)).
+- A cited `standards/ios/*` document is an unauthored stub ([Standards readiness](#standards-readiness)).
 - A referenced document is missing, unapproved, stale, draft or dry-run only, or the documents conflict.
 - An approved document contradicts the repository as it is now ([§4](#4-what-design-handed-over-and-drift)).
 - The task needs to violate or expand the DD, or change an approved contract or business rule.
@@ -378,12 +335,12 @@ Findings are **filed** by lane (`IOS-PERF-*` by `ios-performance-reviewer`, `IOS
 
 ## Relationship with command, agent, skills, hooks
 
-- **`commands/implement-task.md`** — task selection, repo-root and document resolution, approval gates, platform routing, invocation.
-- **`agents/ios-feature-developer.md`** — the iOS specialist that runs this methodology.
-- **This skill** — the implementation methodology.
-- **`skills/ios-dev-planning`** — produced the DD's technical approach; its recorded model is this skill's starting point.
-- **`skills/mobile-debugging`** — owns Fix-stage finding-parsing and root-causing across platforms.
-- **`skills/mobile-testing-and-qa-handoff`** — owns the QA handoff document.
-- **Hooks** — `require-approval-before-code`, `block-main-branch-changes`, `protect-secrets`.
+Responsibilities stay separated:
 
-This skill does not restate command logic, does not re-run the Design-stage sweep, and does not invent paths to feature documents.
+- **`commands/implement-task.md`** — task-id resolution, repository-root resolution, document-path resolution, approval/dependency/blocker gates, platform routing, the context handoff, lifecycle state, and verification of the completion report.
+- **`skills/platform-implementation/SKILL.md`** — the platform-independent implementation methodology: inputs, source-of-truth hierarchy, task readiness, the pre-implementation plan, scope control, self-review and the completion report.
+- **`skills/ios-dev-planning/SKILL.md`** — the planning lane whose conclusions this skill implements.
+- **`skills/mobile-debugging/SKILL.md`** — owns root-causing at the Fix stage; this skill owns only proving an iOS fix.
+- **`agents/ios-feature-developer.md`** — the iOS specialist and executor that runs both halves.
+- **This skill** — the iOS implementation methodology itself, and nothing a platform-independent layer could state.
+- **Hooks** — `require-approval-before-code`, `block-main-branch-changes`, and `protect-secrets`.
