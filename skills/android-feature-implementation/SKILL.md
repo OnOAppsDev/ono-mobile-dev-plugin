@@ -56,63 +56,32 @@ discipline is applied to:
 
 ## Android implementation methodology
 
-Apply the standards below as you write, grounded in the conventions detected in [Repository dimensions to inspect](#repository-dimensions-to-inspect). Every Android rule cites an authored `AND-*` ID; accessibility/i18n/security cite the shared `A11Y-*`/`I18N-*`/`SEC-*` docs, applied with Android-native APIs.
+Apply each area's authored rules to the surfaces the task actually touches; an area the
+task does not touch is not applicable. The rules themselves live in the standards below —
+read them there rather than from a summary, which is how the severity markers and exact
+formats survive.
 
-### Kotlin & language safety
-Follow the repo's Kotlin style/level. Nullability correct, no unsafe casts or gratuitous `!!`, sealed/data/enum/result types only where consistent with the repo, no hidden side effects in extensions, Java interop kept in mind, no unjustified experimental APIs. → `AND-KT-NULL-*`, `AND-KT-TYPE-*`, `AND-KT-SEALED-*`, `AND-KT-LINT-*`.
-
-### Architecture & dependency direction
-Preserve existing layers and module boundaries; UI does not reach transport/persistence directly where repositories/use-cases exist; domain logic stays out of Activities/Fragments/Views/Composables; no circular deps; respect public/`internal` boundaries; no new architectural pattern for one task; keep business rules testable and Android-independent. → `AND-ARCH-LAYERS-*`, `AND-ARCH-DEPS-*`, `AND-ARCH-MODULE-*`.
-
-### ViewModel & state handling
-Follow the detected ViewModel/state model; immutable UI state where that's the convention; loading/success/empty/error explicit; single source of truth; no Activity/Fragment/View/Context in ViewModels; one-time effects follow the repo's pattern; handle process recreation and config change; prevent stale state, duplicated events, races. → `AND-VM-STATE-*`, `AND-VM-EVENT-1`, `AND-VM-LIFECYCLE-*`.
-
-### Coroutines, Flow, LiveData & threading
-Follow dispatcher-injection conventions; never block the main thread; lifecycle-aware collection; no unscoped coroutines; respect structured concurrency and cancellation; avoid unintended repeated collection; avoid needless Flow/LiveData/callback/Rx conversion; make Shared/StateFlow replay & subscription intentional; surface concurrency/ordering risks. → `AND-KT-COROUTINE-*`, `AND-VM-LIFECYCLE-3`, `AND-PERF-THREAD-1`.
-
-### Dependency injection
-Use the detected DI framework; follow existing scopes/component boundaries; no manual service locator where DI is used; avoid over-scoping; place bindings in the correct module; do not inject `Context` where a narrower dependency suffices. → `AND-DI-1`, `AND-DI-2`, `AND-DI-3`, `AND-DI-4`.
-
-### Networking & API work
-Use the repo's networking/auth layer and shared client; follow approved DD contracts exactly; do not invent paths/fields/enums/response shapes; use existing DTO/mapper conventions and keep transport separate from domain/UI; handle HTTP/parsing/auth/timeout/cancellation/retry/offline consistently; never log tokens/IDs/PII/bodies/photos/sensitive responses; no ad-hoc client instances; update targeted caches/streams, not global refreshes. **If the task depends on an unconfirmed backend contract, stop.** → `AND-NET-CLIENT-*`, `AND-NET-CONTRACT-*`, `AND-NET-DTO-*`, `AND-NET-AUTH-*`, `AND-NET-ERR-*`, `SEC-AUTH-*`, `SEC-LOG-1`.
-
-### Persistence
-Follow the existing Room/DataStore/SharedPreferences/file/cache pattern; migrate on schema changes; never silently clear user data to dodge a migration; keep DB/disk ops off the main thread; preserve encryption/secure-storage; define cache invalidation and source of truth; clean temp files holding sensitive data. → `AND-DATA-STORE-*`, `AND-DATA-MIGRATE-*`, `AND-DATA-THREAD-1`, `AND-DATA-CACHE-1`, `AND-DATA-SEC-*`, `SEC-STORAGE-*`.
-
-### Navigation
-Use the detected mechanism; reuse existing destinations/routes/argument models/helpers; no navigation from domain/data layers; validate route/deep-link inputs; preserve back-stack behavior; do not add a route when the DD specifies an existing screen; keep navigation side effects lifecycle-safe. → `AND-NAV-DEST-*`, `AND-NAV-ARGS-*`, `AND-NAV-STACK-*`, `AND-NAV-LAYER-1`, `SEC-DEEPLINK-*`.
-
-### Jetpack Compose (when the surface uses Compose)
-Use existing design-system components/theme tokens; stateless composables where appropriate; hoist state per repo patterns; no business logic in composables; stable keys in lazy lists; prevent unnecessary recomposition; intentional `remember`/`rememberSaveable`/derived state/effect APIs with correct keys; preserve accessibility semantics, focus order, content descriptions, touch targets; previews only if the project uses them. **Do not introduce Compose into an XML-only feature without DD approval.** → `AND-UI-COMPOSE-*`, `A11Y-*`.
-
-### XML, Views, Fragments & Activities (when the surface uses Views)
-Follow ViewBinding/DataBinding conventions; respect the Fragment view lifecycle and clear binding refs; avoid retaining Views/Activities/Fragments; keep listeners/observers lifecycle-safe; reuse styles/themes/dimensions/drawables/design-system components; avoid deep hierarchies/overdraw; preserve state across config change. **Do not migrate a View screen to Compose unless the DD approves it.** → `AND-UI-XML-*`.
-
-### RecyclerView & lists
-Reuse existing adapters/item models; use `DiffUtil`/`ListAdapter` if consistent; stable IDs only when valid; avoid full-list refreshes without reason; handle empty/loading/error/pagination; prevent recycled-view state leakage; validate accessibility/focus. → `AND-UI-LIST-*`, `AND-PERF-LIST-*`, `A11Y-*`.
-
-### Resources, localization & RTL
-No hardcoded user-visible strings; use existing resource/localization systems; maintain translation-key parity; support RTL layout and mirrored navigation/icon behavior; semantic resource names; reuse dimensions/styles/colors/typography tokens; no duplicated equivalent resources; no hardcoded PII/placeholder personal data. → `AND-UI-RES-*`, `I18N-COPY-*`, `I18N-RTL-*`.
-
-### Accessibility
-Apply the shared requirements (`standards/shared/accessibility.md`) through the Android rules that implement them (`AND-UI-A11Y-1`..`AND-UI-A11Y-10` in `standards/android/compose-xml-standards.md`). The shared standard states **what** is required; the Android standard states **how**.
-
-Beyond labels and targets, cover the behaviour that automated checks cannot see: traversal order (`isTraversalGroup` / `traversalIndex`), focus placement on screen entry and restoration after a dialog dismisses, hiding content that is present but not perceivable (`clearAndSetSemantics`, `no-hide-descendants`), collection position (`collectionInfo` / `collectionItemInfo`), resetting semantics on recycled rows, live-region politeness, and suspending timer-driven advancement while touch exploration is active.
+| Area | Rules |
+|---|---|
+| Kotlin & language safety | `AND-KT-NULL-*`, `AND-KT-TYPE-*`, `AND-KT-SEALED-*`, `AND-KT-LINT-*` |
+| Architecture & dependency direction | `AND-ARCH-LAYERS-*`, `AND-ARCH-DEPS-*`, `AND-ARCH-MODULE-*` |
+| ViewModel & state handling | `AND-VM-STATE-*`, `AND-VM-EVENT-1`, `AND-VM-LIFECYCLE-*` |
+| Coroutines, Flow, LiveData & threading | `AND-KT-COROUTINE-*`, `AND-VM-LIFECYCLE-3`, `AND-PERF-THREAD-1` |
+| Dependency injection | `AND-DI-1`, `AND-DI-2`, `AND-DI-3`, `AND-DI-4` |
+| Networking & API work | `AND-NET-CLIENT-*`, `AND-NET-CONTRACT-*`, `AND-NET-DTO-*`, `AND-NET-AUTH-*`, `AND-NET-ERR-*`, `SEC-AUTH-*`, `SEC-LOG-1` |
+| Persistence | `AND-DATA-STORE-*`, `AND-DATA-MIGRATE-*`, `AND-DATA-THREAD-1`, `AND-DATA-CACHE-1`, `AND-DATA-SEC-*`, `SEC-STORAGE-*` |
+| Navigation | `AND-NAV-DEST-*`, `AND-NAV-ARGS-*`, `AND-NAV-STACK-*`, `AND-NAV-LAYER-1`, `SEC-DEEPLINK-*` |
+| Jetpack Compose (when the surface uses Compose) | `AND-UI-COMPOSE-*` |
+| XML, Views, Fragments & Activities (when the surface uses Views) | `AND-UI-XML-*` |
+| RecyclerView & lists | `AND-UI-LIST-*`, `AND-PERF-LIST-*` |
+| Resources, localization & RTL | `AND-UI-RES-*`, `I18N-COPY-*`, `I18N-RTL-*` |
+| Accessibility | `AND-UI-A11Y-1`, `AND-UI-A11Y-10` |
+| Performance & memory | `AND-PERF-THREAD-*`, `AND-PERF-LIST-*`, `AND-PERF-IMAGE-*`, `AND-PERF-MEM-*`, `AND-PERF-SIZE-*` |
+| Security & privacy | `SEC-SECRETS-*`, `SEC-STORAGE-*`, `SEC-NET-*`, `SEC-DEEPLINK-*`, `SEC-WEBVIEW-*`, `SEC-PERMS-*`, `SEC-LOG-*` |
+| Error handling | `AND-NET-ERR-*`, `AND-VM-STATE-2`, `AND-LOG-HYGIENE-3` |
+| Analytics & logging | `AND-LOG-ANALYTICS-*`, `AND-LOG-HYGIENE-*`, `AND-LOG-PII-*`, `SEC-LOG-*` |
 
 **Verification reach.** `standards/shared/verification.md` owns the tier vocabulary — do not restate it. Mechanical checks the repository already provides (lint, Compose UI tests, an accessibility scan if one is wired) are Tier 1 and gate the task. A TalkBack walkthrough, whether a label is meaningful, and whether an announcement is actually heard are Tier 3: record them as `verificationDebt`, never as passed checks. Do not assume any particular automation framework; if the repository has no mechanical accessibility check, record the requirement as debt rather than inventing a tool.
-
-### Performance & memory
-Avoid main-thread I/O and expensive work; avoid Activity/Fragment/View/Context/callback/observer/coroutine leaks; avoid unnecessary allocations and recompositions; use the repo's image loading/caching; size/compress images; clean temp files; avoid polling where reactive updates exist; consider cold-start/render/list/network/battery/storage impact. → `AND-PERF-THREAD-*`, `AND-PERF-LIST-*`, `AND-PERF-IMAGE-*`, `AND-PERF-MEM-*`, `AND-PERF-SIZE-*`.
-
-### Security & privacy
-Do not log secrets/tokens/IDs/photos/certificate data/PII; use approved secure storage; validate external input; handle exported components/intents/files/deep links safely; use `FileProvider`/content URIs over unsafe file URIs; least-privilege permissions requested at point of need; do not weaken TLS/cert validation/WebView security/cleartext policy; clean shared/downloaded sensitive temp files per the DD. → `SEC-SECRETS-*`, `SEC-STORAGE-*`, `SEC-NET-*`, `SEC-DEEPLINK-*`, `SEC-WEBVIEW-*`, `SEC-PERMS-*`, `SEC-LOG-*`.
-
-### Error handling
-Implement the exact loading/empty/partial/error/retry/blocked states the DD defines; never silently swallow errors; do not expose raw backend errors to users; preserve diagnostics without leaking sensitive data; follow existing retry/token-expiry behavior; ensure a failed write does not leave inconsistent state. → `AND-NET-ERR-*`, `AND-VM-STATE-2`, `AND-LOG-HYGIENE-3`.
-
-### Analytics & logging
-Reuse existing analytics conventions; add only the events the DD requires; avoid duplicate events from recomposition/lifecycle re-entry; no PII in analytics; keep debug logging removable and gated. → `AND-LOG-ANALYTICS-*`, `AND-LOG-HYGIENE-*`, `AND-LOG-PII-*`, `SEC-LOG-*`.
-
 ## Validation tooling
 
 The shared skill owns the validation *rules* — never claim an unrun command passed,
@@ -127,6 +96,11 @@ Select checks based on the actual repo and affected modules. Candidates: Gradle 
 Added to the shared self-review list: nullability · lifecycle safety · coroutine and threading safety · state consistency · memory leaks · migration and rollback impact.
 
 ## Standards citation
+
+The shared skill owns the reuse rule itself. **In Android it is applied by searching for an
+existing implementation before creating any** new abstraction, helper, use-case, repository,
+UI component, navigation pattern, state container or networking primitive, and reusing or
+extending what is there → `AND-ARCH-*`, `AND-UI-*`, `AND-NET-CLIENT-1`, `AND-NAV-DEST-2`.
 
 Record which standard IDs were **applied** (not merely reviewed) — this is the trace `android-code-reviewer`, `android-performance-reviewer`, and QA handoff rely on.
 
@@ -160,13 +134,6 @@ to `skills/platform-implementation/SKILL.md` and are not repeated here.
 
 ## Relationship with command, agent, hooks
 
-Responsibilities stay separated:
-
-- **`commands/implement-task.md`** — task-id resolution, repository-root resolution, document-path resolution, approval/dependency/blocker gates, platform routing, the context handoff, lifecycle state, and verification of the completion report.
-- **`skills/platform-implementation/SKILL.md`** — the platform-independent implementation methodology.
-- **`agents/android-feature-developer.md`** — the Android specialist and executor that runs both.
-- **This skill** — the Android implementation methodology itself, and nothing a platform-independent layer could state.
-- **Hooks** — `require-approval-before-code`, `block-main-branch-changes`, and `protect-secrets`.
-
-This skill does not move command logic into itself, does not depend on undocumented
-ambient-CWD assumptions, and does not invent paths to the feature documents.
+`skills/platform-implementation/SKILL.md` names every owner in this chain; that table is
+not repeated here. This skill adds the Android methodology, the `AND-*` citation map and
+the Android stop conditions, and `agents/android-feature-developer.md` executes both.

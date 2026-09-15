@@ -127,12 +127,6 @@ if (failures === 0) {
   // command's handoff list breaks this suite rather than passing vacuously.
   const handoff = section(cmd, "## 8. Pass explicit resolved context");
   check("6 §8 handoff section found in implement-task.md", handoff.length > 200, `${handoff.length} chars`);
-  // OWNERSHIP MOVED. The declared-inputs contract is platform-independent, so it belongs
-  // to the shared lifecycle skill once the packs are slimmed. Still parsed from the
-  // command, never hardcoded — a change to §8 breaks this suite rather than desyncing it.
-  const inputs = section(shared, "## Inputs this skill requires");
-  check("6 shared skill has an Inputs section", inputs.length > 200, `${inputs.length} chars`);
-
   const probes: Array<[string, RegExp]> = [
     ["TARGET_ROOT", /TARGET_ROOT/],
     ["Feature Analysis", /Feature Analysis/],
@@ -147,44 +141,53 @@ if (failures === 0) {
     ["approval status", /approval status/i],
     ["unresolved-blocker status", /unresolved[- ]blocker status/i],
   ];
+
+  // OWNERSHIP MOVED TWICE. The inputs are declared once, by the command's §8. The shared
+  // skill CITES that section instead of restating it, so this group now asserts both
+  // halves of the contract: §8 still declares every input, and the skill does not carry a
+  // second copy that could drift from it.
   for (const [label, re] of probes) {
     check(`6 §8 still passes "${label}"`, re.test(handoff));
-    check(`6 shared Inputs declares "${label}"`, re.test(inputs));
   }
   check("6 §8 still passes device_type", /device_type/.test(handoff));
-  // The DECLARED input list still omits device_type: the command may pass broader context
-  // than the lifecycle consumes, and a lane that needs it declares it itself. Checked on
-  // the bullet list, because the shared skill legitimately explains the omission in prose.
-  const inputBullets = inputs.split("\n").filter((l) => /^\s*-\s/.test(l)).join("\n");
-  check("6 shared Inputs list has bullets", inputBullets.length > 100, `${inputBullets.length} chars`);
-  check("6 shared Inputs deliberately omits device_type", !/device_type/.test(inputBullets));
-  check("6 shared Inputs stops on a missing input", /stop and report exactly which input is missing/.test(sharedFlat));
+  check("6 shared cites §8 as the authoritative handoff",
+    /`commands\/implement-task\.md`[^.]{0,40}§8|§8[^.]{0,40}handoff/.test(sharedFlat));
+  check("6 shared takes those inputs as authoritative",
+    /Take the inputs .{0,40}§8 passes as authoritative/.test(sharedFlat));
+  check("6 shared does NOT restate the input list",
+    !/## Inputs this skill requires/.test(shared));
+  check("6 shared still stops on a missing input",
+    /stop and report exactly which input is missing/.test(sharedFlat));
+  check("6 shared never re-resolves an input itself",
+    /never re-resolve by searching, never guess a path/.test(sharedFlat));
 
   // --- 7. Skill's completion report satisfies §10 ----------------------------
   const verify = section(cmd, "## 10. Completion handling");
   check("7 §10 completion section found in implement-task.md", verify.length > 200, `${verify.length} chars`);
-  // OWNERSHIP MOVED, same reason as group 6.
-  const report = section(shared, "## 11. Completion & reporting");
-  check("7 shared skill has a Completion & reporting section", report.length > 200, `${report.length} chars`);
-
-  const reportProbes: Array<[string, RegExp, RegExp]> = [
-    ["each acceptance criterion individually", /each acceptance criterion checked individually/i, /[Aa]cceptance-criteria checklist, one by one/],
-    ["validation commands + exact results", /validation commands run and their exact results/i, /[Vv]alidation commands run and their exact results/],
-    ["files changed", /files changed/i, /[Ff]iles changed/],
-    ["applied standard IDs", /applied standard IDs/i, /[Aa]pplied standard IDs/],
-    ["deviations and blockers", /deviations and blockers/i, /[Dd]eviations/],
-    ["no unrelated scope added", /no unrelated scope was added/i, /no unrelated scope was added/],
-    ["writes inside TARGET_ROOT", /writes landed inside `TARGET_ROOT`/, /writes landed inside `TARGET_ROOT`/],
+  const reportProbes: Array<[string, RegExp]> = [
+    ["each acceptance criterion individually", /each acceptance criterion checked individually/i],
+    ["validation commands + exact results", /validation commands run and their exact results/i],
+    ["files changed", /files changed/i],
+    ["applied standard IDs", /applied standard IDs/i],
+    ["deviations and blockers", /deviations and blockers/i],
+    ["no unrelated scope added", /no unrelated scope was added/i],
+    ["writes inside TARGET_ROOT", /writes landed inside `TARGET_ROOT`/],
   ];
-  for (const [label, cmdRe, skillRe] of reportProbes) {
-    check(`7 §10 still requires "${label}"`, cmdRe.test(verify));
-    check(`7 shared report covers "${label}"`, skillRe.test(report));
-  }
-  check("7 shared blocks completion on a failed criterion", /Do not mark the task complete if/.test(shared));
-  check("7 shared has a validation methodology", /## 9\. Validation methodology/.test(shared));
-  check("7 shared forbids claiming an unrun command passed", /Do not claim a command passed unless it was actually run successfully/.test(sharedFlat));
 
-  // --- 8. Skill does not absorb command logic -------------------------------
+  // Same move: §10 owns the report shape, the shared skill cites it.
+  for (const [label, cmdRe] of reportProbes) {
+    check(`7 §10 still requires "${label}"`, cmdRe.test(verify));
+  }
+  check("7 shared returns the report §10 requires",
+    /structured completion report .{0,40}§10 requires/.test(sharedFlat));
+  check("7 shared does NOT restate the report shape",
+    !/## 11\. Completion & reporting/.test(shared));
+  check("7 shared keeps the completion gate", /Do not mark the task complete if/.test(shared));
+  check("7 shared keeps a validation methodology", /## 7\. Validation methodology/.test(shared));
+  check("7 shared forbids claiming an unrun command passed",
+    /Do not claim a command passed unless it was actually run successfully/.test(sharedFlat));
+  check("7 shared still requires applied standard IDs", /standard IDs were \*\*applied\*\*/.test(sharedFlat));
+
   // Property 3 holds for BOTH halves of the methodology, so it is asserted on both.
   for (const [label, doc, docFlat] of [["pack", skill, skillFlat], ["shared", shared, sharedFlat]] as const) {
     check(`8 ${label} does not resolve the repo root`, !/resolve-target-repo-root/.test(doc));
@@ -241,21 +244,24 @@ if (failures === 0) {
   // that stays in the pack. Completeness is now a property of the PAIR, which is what the
   // split architecture means — no section is dropped, only re-homed.
   for (const h of [
-    "## Inputs this skill requires",
+    "## Authoritative owners — cite these, never restate them",
     "## 1. Standards readiness gate",
-    "## 2. Source-of-truth hierarchy",
-    "## 3. Task resolution & readiness checks",
-    "## 4. Repository grounding",
-    "## 5. Context loading before edits",
-    "## 6. Pre-implementation plan",
-    "## 7. Scope control & deviation rules",
-    "## 8. Incremental implementation",
-    "## 9. Validation methodology",
-    "## 10. Self-review",
-    "## 11. Completion & reporting",
+    "## 2. Design reference",
+    "## 3. Repository grounding",
+    "## 4. Pre-implementation plan",
+    "## 5. Scope control & deviation rules",
+    "## 6. Incremental implementation",
+    "## 7. Validation methodology",
+    "## 8. Self-review and completion",
     "## Red flags — STOP and report instead of proceeding",
   ]) {
     check(`12 shared has "${h}"`, shared.includes(h));
+  }
+  // The owners table is the deduplication contract: each authoritative owner named once.
+  for (const owner of ["§8", "§10", "docs/task-state-contract.md",
+                       "standards/shared/verification.md", "standards/shared/accessibility.md",
+                       "skills/repo-knowledge-consumer/SKILL.md"]) {
+    check(`12 shared cites owner ${owner}`, shared.includes(owner));
   }
 
   // Platform content stays in the pack. Matched without the section number so slimming
@@ -272,7 +278,7 @@ if (failures === 0) {
   // files are cited, so the obligation cannot live only in the shared skill.
   check("12 pack has a standards readiness gate", /^#{2,3} (?:\d+\. )?Standards readiness( gate)?\s*$/m.test(skill));
 
-  check("12 shared uses the dependency status the command passed", /never re-derived here/.test(sharedFlat));
+  check("12 shared defers the gates to the command", /never re-derive them here/.test(sharedFlat));
 }
 
 console.log(failures === 0 ? "\nALL TESTS PASSED" : `\n${failures} TEST(S) FAILED`);

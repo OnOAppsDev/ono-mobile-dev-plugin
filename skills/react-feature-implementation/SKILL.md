@@ -26,6 +26,13 @@ application code.
 
 ## Standards readiness
 
+**This lane assumes no technology.** The bundler (Vite, webpack, CRA, esbuild, Turbopack),
+framework (plain SPA, Next.js Pages/App Router, Remix), language (JS/TS), router, state
+library, data-fetching library and styling approach are **detected, never assumed** — the
+shared skill's vendor-documentation rank rule applies here to official React and framework
+documentation. This is a separate module from React Native and never reuses `RN-*` or the
+bare `ARCH-*`/`API-*`/`STATE-*`/`NAV-*` IDs, nor Android's `AND-*` or iOS's `IOS-*`.
+
 Every rule this skill applies is grounded in an authored standard under
 `standards/react/`. Before implementing, confirm the seven files cited in
 [Standards citation](#standards-citation) are authored rather than structure-only
@@ -53,44 +60,25 @@ Apply the React detection traps from `skills/react-dev-planning/SKILL.md#4-react
 
 ## React implementation methodology
 
-Apply the standards below as you write, grounded in the conventions detected in [Repository dimensions to inspect](#repository-dimensions-to-inspect). Every React rule cites an authored `REACT-*` ID; accessibility/i18n/security cite the shared `A11Y-*`/`I18N-*`/`SEC-*` docs.
+Apply each area's authored rules to the surfaces the task actually touches; an area the
+task does not touch is not applicable. The rules themselves live in the standards below —
+read them there rather than from a summary, which is how the severity markers and exact
+formats survive.
 
-### TypeScript & language safety
-In a TS repo, keep `strict` intact, no `any` without a justifying comment, explicit return types across module boundaries, no `as` casts that force a mismatched shape. → `REACT-TS-1`, `REACT-TS-2`, `REACT-TS-3`, `REACT-TS-4`.
-
-### Components & hooks
-Function components + hooks only (a class only where a genuine constraint like an error boundary requires it); extract reusable stateful logic into a custom hook; follow the Rules of Hooks and never disable the hooks lint to work around a violation; keep side effects in effects with complete dependency arrays; return cleanup for every listener/timer/subscription/observer; make effect data-fetching cancellable (`AbortController`); write effects to tolerate StrictMode double-invocation. → `REACT-FC-1`..`REACT-FC-7`.
-
-### Naming & file conventions
-PascalCase components matching file names; `use`-prefixed camelCase hooks; one component per file; utility files named for what they export; follow the repo's styling-file convention; on an RSC surface, place the `'use client'`/`'use server'` directive correctly. → `REACT-NAME-1`..`REACT-NAME-6`.
-
-### Prop typing
-Named `interface`/`type` props; default parameters not `defaultProps`; optional props marked `?`; explicitly-typed callback props; derive intrinsic-element props from React's helper types and forward native/`aria-*`/`data-*` attributes. → `REACT-PROPS-1`..`REACT-PROPS-5`.
-
-### Architecture & dependency direction
-Preserve existing layers (pages/routes → features → services/store) and feature-folder placement; keep dependencies pointing downward; keep business logic out of components; on an RSC surface, respect the server/client boundary (data fetching server-side, interactivity behind `'use client'`, no server-only import in a client module, no secret in client code). → `REACT-ARCH-LAYERS-*`, `REACT-ARCH-FOLDERS-*`, `REACT-ARCH-DEPS-*`, `REACT-ARCH-LOGIC-*`, `REACT-ARCH-BOUNDARY-1`, `REACT-ARCH-BOUNDARY-2`, `REACT-ARCH-BOUNDARY-3`.
-
-### State management
-Follow the detected library; place each piece of state deliberately — local for single-component, the URL for shareable/bookmarkable state, the global store only when shared across routes and not URL-appropriate; typed store modules mutated only through the sanctioned path; derived state via memoized selectors with stable inputs; normalized collections; never persist tokens to script-readable storage. → `REACT-STATE-SLICE-*`, `REACT-STATE-SELECT-*`, `REACT-STATE-ENTITY-*`, `REACT-STATE-BOUNDARY-*`, `REACT-STATE-PERSIST-1`, `REACT-STATE-PERSIST-2`, `SEC-COOKIE-2`, `SEC-STORAGE-3`.
-
-### Routing
-Use the detected router — never a second, parallel one; read typed params from the URL; keep URLs stable/backward-compatible; validate redirect targets taken from user input; on a server-rendering surface keep routing hydration-safe and redirects server-side; use link semantics, scroll restoration, and Back/Forward correctly. → `REACT-ROUTE-URL-*`, `REACT-ROUTE-STABILITY-*`, `REACT-ROUTE-SECURITY-1`, `REACT-ROUTE-SECURITY-2`, `REACT-ROUTE-SSR-*`, `REACT-ROUTE-UX-*`, `REACT-ROUTE-SERVICE-*`, `SEC-WEB-5`, `SEC-WEB-3`.
-
-### Data & API layer
-Use the repo's data-fetching library and shared base client; follow approved DD contracts exactly and never invent endpoints/fields/shapes; carry auth per the repo's transport (prefer `httpOnly` cookies + `credentials:'include'`, never tokens in script-readable storage, CSRF on state-changing requests — **on `device_type: tv` follow the transport the DD established per `REACT-TV-API-1`/`-2` rather than defaulting to the cookie preference, and never fall back to `localStorage` because cookies do not work on the target**); treat CORS as a read boundary, not authorization; never inline a secret into the client bundle; cache precisely and normalize error shapes; cancel in-flight requests on unmount/supersede; on SSR/RSC fetch server-side and hydrate the cache. **If the task depends on an unconfirmed backend contract, stop.** → `REACT-API-ORG-*`, `REACT-API-CACHE-*`, `REACT-API-BASEQ-*`, `REACT-API-ASYNC-1`, `REACT-API-SSR-*`, `REACT-API-ERR-*`, `SEC-COOKIE-1`, `SEC-COOKIE-2`, `SEC-WEB-3`, `SEC-WEB-6`, `SEC-SECRETS-2`, `SEC-LOG-1`.
-
-### Performance
-Avoid unnecessary re-renders and unstable props; virtualize large lists; keep heavy work off the main thread; size images and reserve layout space; code-split and preserve tree-shaking; minimize hydration cost; load third-party scripts without blocking; hold Core Web Vitals as targets. Do not assert a magnitude improvement you did not measure. → `REACT-PERF-RERENDER-*`, `REACT-PERF-LIST-1`, `REACT-PERF-MAINTHREAD-1`, `REACT-PERF-IMAGE-*`, `REACT-PERF-BUNDLE-*`, `REACT-PERF-HYDRATION-1`, `REACT-PERF-THIRDPARTY-1`, `REACT-PERF-CWV-1`, `SEC-WEB-4`.
-
-### Accessibility, i18n & RTL
-Roles/labels for non-text controls, screen-reader support and logical focus order, font scaling, activation targets (on TV, a reliably focusable element with a visible focus state satisfies `A11Y-TOUCH-1`); no hardcoded user-visible strings, correct formatting, RTL layout and mirroring. → `A11Y-ROLES-*`, `A11Y-SR-*`, `A11Y-FONT-*`, `A11Y-TOUCH-1`, `A11Y-TOUCH-2`, `I18N-COPY-1`, `I18N-FMT-*`, `I18N-RTL-*`.
-
-### Security & privacy
-Apply the shared web security rules as you write — safe HTML rendering / no XSS, CSP-compatible code, CSRF on state-changing requests, no open redirects, no secret inlined into the bundle, no tokens/PII in logs. **Security is applied here but owned by the shared `mobile-security-reviewer` at review time — do not treat a self-check as the security review.** → `SEC-WEB-1`, `SEC-WEB-2`, `SEC-WEB-3`, `SEC-WEB-4`, `SEC-WEB-5`, `SEC-COOKIE-1`, `SEC-COOKIE-2`, `SEC-SECRETS-2`, `SEC-LOG-1`.
-
-### Error handling, analytics & logging
-Implement the exact loading/empty/error/retry states the DD defines; never silently swallow an error or expose a raw backend error to users; distinguish a deliberate abort from a failure; reuse existing analytics conventions and add only the events the DD requires; keep debug logging gated and never log PII. → `REACT-API-ERR-1`, `REACT-API-ERR-2`, `REACT-API-ERR-3`, `SEC-LOG-1`.
-
+| Area | Rules |
+|---|---|
+| TypeScript & language safety | `REACT-TS-1`, `REACT-TS-2`, `REACT-TS-3`, `REACT-TS-4` |
+| Components & hooks | `REACT-FC-1`, `REACT-FC-7` |
+| Naming & file conventions | `REACT-NAME-1`, `REACT-NAME-6` |
+| Prop typing | `REACT-PROPS-1`, `REACT-PROPS-5` |
+| Architecture & dependency direction | `REACT-ARCH-LAYERS-*`, `REACT-ARCH-FOLDERS-*`, `REACT-ARCH-DEPS-*`, `REACT-ARCH-LOGIC-*`, `REACT-ARCH-BOUNDARY-1`, `REACT-ARCH-BOUNDARY-2`, `REACT-ARCH-BOUNDARY-3` |
+| State management | `REACT-STATE-SLICE-*`, `REACT-STATE-SELECT-*`, `REACT-STATE-ENTITY-*`, `REACT-STATE-BOUNDARY-*`, `REACT-STATE-PERSIST-1`, `REACT-STATE-PERSIST-2`, `SEC-COOKIE-2`, `SEC-STORAGE-3` |
+| Routing | `REACT-ROUTE-URL-*`, `REACT-ROUTE-STABILITY-*`, `REACT-ROUTE-SECURITY-1`, `REACT-ROUTE-SECURITY-2`, `REACT-ROUTE-SSR-*`, `REACT-ROUTE-UX-*`, `REACT-ROUTE-SERVICE-*`, `SEC-WEB-5`, `SEC-WEB-3` |
+| Data & API layer | `REACT-TV-API-1`, `REACT-API-ORG-*`, `REACT-API-CACHE-*`, `REACT-API-BASEQ-*`, `REACT-API-ASYNC-1`, `REACT-API-SSR-*`, `REACT-API-ERR-*`, `SEC-COOKIE-1`, `SEC-COOKIE-2`, `SEC-WEB-3`, `SEC-WEB-6`, `SEC-SECRETS-2`, `SEC-LOG-1` |
+| Performance | `REACT-PERF-RERENDER-*`, `REACT-PERF-LIST-1`, `REACT-PERF-MAINTHREAD-1`, `REACT-PERF-IMAGE-*`, `REACT-PERF-BUNDLE-*`, `REACT-PERF-HYDRATION-1`, `REACT-PERF-THIRDPARTY-1`, `REACT-PERF-CWV-1`, `SEC-WEB-4` |
+| Accessibility, i18n & RTL | `A11Y-TOUCH-1`, `A11Y-ROLES-*`, `A11Y-SR-*`, `A11Y-FONT-*`, `A11Y-TOUCH-2`, `I18N-COPY-1`, `I18N-FMT-*`, `I18N-RTL-*` |
+| Security & privacy | `SEC-WEB-1`, `SEC-WEB-2`, `SEC-WEB-3`, `SEC-WEB-4`, `SEC-WEB-5`, `SEC-COOKIE-1`, `SEC-COOKIE-2`, `SEC-SECRETS-2`, `SEC-LOG-1` |
+| Error handling, analytics & logging | `REACT-API-ERR-1`, `REACT-API-ERR-2`, `REACT-API-ERR-3`, `SEC-LOG-1` |
 ## `device_type` handling
 
 `device_type` is inherited context — resolved once at `/analyze-feature` and carried in frontmatter. **Read and honor it; never re-detect it, never default to `mobile`, never treat `tv` as a separate platform.**
@@ -115,11 +103,22 @@ task actually touched:
 
 Select checks based on the actual repo and affected files. Candidates: install/build with the repo's bundler; TypeScript type-check (`tsc --noEmit` or the repo's script); ESLint and the configured formatter; unit tests (Jest/Vitest); component tests (Testing Library); e2e (Playwright/Cypress) where the repo uses them; a production build for bundle/tree-shaking-sensitive changes; manual acceptance-criteria validation in the running app where practical.
 
+**For any UI change the manual bidirectional (LTR/RTL) and screen-reader walkthroughs are
+validation candidates, not afterthoughts** — they are the evidence `QA-A11Y-1` needs
+downstream, and nothing else in the pipeline produces it. They are Tier 3 under
+`standards/shared/verification.md`: recorded as verification debt when they cannot be run,
+never as a passed check → `A11Y-SR-1`, `I18N-TEST-1`, `I18N-TEST-2`.
+
 ## React review points
 
 Added to the shared self-review list: server/client boundary · effect cleanup and cancellation · state placement (local/URL/global) · rollback impact.
 
 ## Standards citation
+
+The shared skill owns the reuse rule itself. **In React it is applied by searching for an
+existing implementation before creating any** new component, hook, store module, selector,
+route, data client or utility, and reusing or extending what is there →
+`REACT-ARCH-FOLDERS-*`, `REACT-FC-2`, `REACT-API-ORG-*`, `REACT-STATE-SLICE-1`.
 
 Record which standard IDs were **applied** (not merely reviewed) — this is the trace `react-code-reviewer`, `react-performance-reviewer`, and QA handoff rely on.
 

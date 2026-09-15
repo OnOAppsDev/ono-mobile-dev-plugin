@@ -56,60 +56,30 @@ that discipline is applied to:
 
 ## React Native implementation methodology
 
-Apply each area's rules to the surfaces the task actually touches. An area the task does not touch is not applicable — do not manufacture work to fill it.
+Apply each area's authored rules to the surfaces the task actually touches; an area the
+task does not touch is not applicable. The rules themselves live in the standards below —
+read them there rather than from a summary, which is how the severity markers and exact
+formats survive.
 
-### TypeScript & types
+| Area | Rules |
+|---|---|
+| TypeScript & types | `RN-TS-*` |
+| Components & hooks | `RN-FC-*` |
+| Naming, files & props | `RN-NAME-*`, `RN-PROPS-*` |
+| Constants & styling | `RN-CONST-*`, `RN-STYLE-*` |
+| Architecture, layering & folder placement | `ARCH-LAYERS-*`, `ARCH-FOLDERS-*`, `ARCH-DEPS-*`, `ARCH-LOGIC-*`, `ARCH-REUSE-*` |
+| Data fetching & API layer | `API-ORG-*`, `API-CACHE-*`, `API-BASEQ-*`, `API-ERR-*` |
+| Shared & global state | `STATE-SLICE-*`, `STATE-SELECT-*`, `STATE-ENTITY-*`, `STATE-BOUNDARY-*` |
+| Navigation & deep links | `NAV-TYPED-*`, `NAV-SERVICE-*`, `NAV-DEEPLINK-*` |
+| Copy, localization & RTL | `I18N-COPY-*`, `I18N-FMT-*`, `I18N-RTL-*` |
+| Accessibility | `A11Y-ROLES-*`, `A11Y-TOUCH-*`, `A11Y-FONT-*`, `A11Y-SR-*`, `RN-A11Y-1`, `RN-A11Y-11` |
+| Performance | `RN-PERF-RERENDER-*`, `RN-PERF-LIST-*`, `RN-PERF-JSTHREAD-*`, `RN-PERF-IMAGE-*`, `RN-PERF-BUNDLE-*` |
+| Security & privacy | `SEC-SECRETS-*`, `SEC-STORAGE-*`, `SEC-NET-*`, `SEC-AUTH-*`, `SEC-DEEPLINK-*`, `SEC-WEBVIEW-*`, `SEC-BRIDGE-*`, `SEC-PERMS-*`, `SEC-LOG-*` |
+| Lint & format | `RN-LINT-*` |
 
-Keep `strict` mode intact and never weaken it per file; justify any `any` inline and prefer `unknown` plus narrowing; give exported functions and hooks explicit return types; fix the underlying type rather than forcing a mismatched shape past the compiler. → `RN-TS-*`.
+Apply those shared requirements through the React Native rules that implement them (`RN-A11Y-1`..`RN-A11Y-11` in `standards/react-native/rn-coding-standards.md`). Several RN accessibility props are single-platform — `accessibilityElementsHidden` and `accessibilityViewIsModal` are iOS-only, `importantForAccessibility` and `accessibilityLiveRegion` are Android-only — so a requirement met with only one of a pair is silently unmet on the other platform. Cover focus placement on screen entry, modal focus restoration to the invoking control, item position in lists (RN exposes no collection-semantics API, so position that is not stated is not announced), deriving item accessibility props from item data so a recycled row cannot inherit a stale label, and suspending timer-driven advancement while a screen reader is active.
 
-### Components & hooks
-
-Functional components with hooks only in new or modified code; extract reusable stateful logic into a custom hook instead of duplicating it; follow the Rules of Hooks and restructure rather than disabling the lint rule; keep side effects in effects with complete, accurate dependency arrays rather than in the render body. → `RN-FC-*`.
-
-### Naming, files & props
-
-One component per file with the filename matching the component; `use`-prefixed camelCase hooks; utility files named for what they export; props typed via a named `interface`/`type`, defaults supplied as default parameters, optional props marked `?`, callback props given explicit parameter and return types. → `RN-NAME-*`, `RN-PROPS-*`.
-
-### Constants & styling
-
-Extract values used more than once, or shared across files, into a named constant declared in a file scoped to what it configures rather than repeating inline literals; use one styling method consistently (`StyleSheet.create` or the repository's detected styling library) defined outside the render function rather than inline style objects/arrays; source colors, spacing, and typography from the repository's shared theme/tokens module rather than hardcoding them per component. → `RN-CONST-*`, `RN-STYLE-*`.
-
-### Architecture, layering & folder placement
-
-Keep screens thin, business logic in features, and data access in services/store; colocate a feature's screens, components, state, endpoints, and hooks under one feature folder; keep dependencies pointing downward and avoid reaching into another feature's internals; keep business rules out of components and derive computed values through memoized selectors or hooks; before adding a new component, hook, or utility, check the component inventory and shared modules for one that already covers the need, and extract logic duplicated in two or more places into a shared hook, utility, or component. → `ARCH-LAYERS-*`, `ARCH-FOLDERS-*`, `ARCH-DEPS-*`, `ARCH-LOGIC-*`, `ARCH-REUSE-*`.
-
-### Data fetching & API layer
-
-Follow the repository's existing endpoint organisation and place endpoints alongside the feature they serve; name endpoints for the resource and action; keep cross-cutting concerns (base URL, auth, retry) in the shared query/client layer rather than per endpoint; declare cache tags and invalidation precisely rather than blanket-invalidating; roll back optimistic updates on failure; normalise error shapes so raw transport errors do not leak into UI code, and distinguish network failures from server-returned errors. → `API-ORG-*`, `API-CACHE-*`, `API-BASEQ-*`, `API-ERR-*`.
-
-### Shared & global state
-
-Follow the repository's slice/store conventions; keep state fully typed; mutate state only where the state library sanctions it; read derived state through memoized selectors with stable inputs rather than recomputing in render; store record collections keyed by id rather than as arrays requiring linear scans; and keep state that only one component or screen uses local rather than defaulting it into the global store. → `STATE-SLICE-*`, `STATE-SELECT-*`, `STATE-ENTITY-*`, `STATE-BOUNDARY-*`.
-
-### Navigation & deep links
-
-Use the repository's detected navigation library and its typed-route mechanism; route params carry ids and primitives rather than large objects; declare deep links in the repository's established place and validate their parameters before acting on them; implement the back behaviour the DD specifies rather than accepting a default that contradicts it. → `NAV-TYPED-*`, `NAV-SERVICE-*`, `NAV-DEEPLINK-*`.
-
-### Copy, localization & RTL
-
-No user-visible string is hardcoded — every one goes through the repository's i18n mechanism with a key in the established namespace; format dates, numbers and currency through the locale-aware helpers rather than manual string building; use start/end (not left/right) for directional layout so RTL mirrors correctly. → `I18N-COPY-*`, `I18N-FMT-*`, `I18N-RTL-*`.
-
-### Accessibility
-
-Interactive elements carry an accessibility role and a meaningful label; touch targets meet the minimum size; text scales with the OS font setting rather than being pinned; focus order follows visual order and modals trap focus. Accessibility applicability for this task was decided by `commands/implement-task.md` §5b — implement what it resolved, and record anything that needs a real screen-reader run as verification debt per `standards/shared/verification.md` rather than claiming it passed. → `A11Y-ROLES-*`, `A11Y-TOUCH-*`, `A11Y-FONT-*`, `A11Y-SR-*`.
-
-### Performance
-
-Memoize expensive derivations and stable callbacks where re-render cost is real rather than speculative; give lists a stable `keyExtractor` and virtualize long ones; avoid blocking the JS thread with synchronous work in render or in a gesture handler; size and cache images appropriately. → `RN-PERF-RERENDER-*`, `RN-PERF-LIST-*`, `RN-PERF-JSTHREAD-*`, `RN-PERF-IMAGE-*`, `RN-PERF-BUNDLE-*`.
-
-### Security & privacy
-
-No secret, token or key is committed or logged; sensitive values go to the repository's secure-storage mechanism rather than plain async storage; validate anything arriving from a deep link or a WebView before acting on it; keep PII out of logs and analytics events. → `SEC-SECRETS-*`, `SEC-STORAGE-*`, `SEC-NET-*`, `SEC-AUTH-*`, `SEC-DEEPLINK-*`, `SEC-WEBVIEW-*`, `SEC-BRIDGE-*`, `SEC-PERMS-*`, `SEC-LOG-*`.
-
-### Lint & format
-
-The repository's configured lint and format tooling passes with no new warnings; a suppression carries a justification comment rather than silencing a real finding. → `RN-LINT-*`.
-
+**Verification reach.** `standards/shared/verification.md` owns the tier vocabulary — do not restate it. Typecheck, lint and any accessibility assertions the repository's existing test setup supports are Tier 1 and gate the task; a VoiceOver or TalkBack walkthrough is Tier 3 and is recorded as `verificationDebt`, never as a passed check. Do not assume a particular automation framework.
 ## Validation tooling
 
 The shared skill owns the validation *rules* — never claim an unrun command passed, state
