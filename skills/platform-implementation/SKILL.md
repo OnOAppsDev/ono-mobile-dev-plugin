@@ -1,6 +1,6 @@
 ---
 name: platform-implementation
-description: The platform-independent methodology for implementing exactly one approved task — repository grounding discipline, scope control, incremental implementation, validation workflow and self-review. Orchestration, the input handoff and the completion-report shape belong to /implement-task and are cited, not restated. Used via the feature-implementer agent alongside the resolved platform's implementation skill. NOT YET WIRED — nothing routes to it; every platform still takes its own implementation lane.
+description: The platform-independent methodology for implementing exactly one approved task — repository grounding discipline, scope control, incremental implementation, validation workflow and self-review. Orchestration, the input handoff and the completion-report shape belong to /implement-task and are cited, not restated. Used by /implement-task via the feature-implementer agent, alongside the resolved platform's implementation skill.
 ---
 
 # Platform Implementation

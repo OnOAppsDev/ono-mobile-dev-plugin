@@ -175,14 +175,18 @@ When the store is `absent`, `unparseable`, `invalid`, `schema-too-new` or `featu
 
 Read the `platform` value from the selected task row — do **not** re-run platform detection. Route:
 
-| Row `platform` | Agent | Skill | Status |
-|---|---|---|---|
-| `react-native` | `rn-feature-developer` | `rn-feature-implementation` | active |
-| `android` | `android-feature-developer` | `android-feature-implementation` | active |
-| `ios` | `ios-feature-developer` | `ios-feature-implementation` | active |
-| `react` | `react-feature-developer` | `react-feature-implementation` | active |
+| Row `platform` | Agent | Shared methodology | Platform lane | Status |
+|---|---|---|---|---|
+| `react-native` | `feature-implementer` | `platform-implementation` | `rn-feature-implementation` | active |
+| `android` | `feature-implementer` | `platform-implementation` | `android-feature-implementation` | active |
+| `ios` | `feature-implementer` | `platform-implementation` | `ios-feature-implementation` | active |
+| `react` | `feature-implementer` | `platform-implementation` | `react-feature-implementation` | active |
 
-- **Readiness gate (any platform):** before invoking, check the target skill and agent for the placeholder marker — a frontmatter `description` ending "not yet authored, currently a structure-only placeholder" **and** a `## Status: Not yet authored` heading. Match on those markers only, never on the phrase appearing in ordinary prose (an authored skill may legitimately mention "structure-only placeholder" when telling an agent to stop if a *standards* file is one). If present, **stop with: "Platform implementation methodology for `<platform>` is not yet authored"** — do not pretend the route is production-ready and do not author it here. All four routes above currently pass this gate: the iOS route opened when `ios-feature-implementation` and `ios-feature-developer` were authored (IOS-003), and the React route when `react-feature-implementation` and `react-feature-developer` were authored (REACT-002-2). (`/review-code`'s iOS route opened when `ios-code-review`, `ios-code-reviewer` and `ios-performance-reviewer` were authored (IOS-004).)
+**Exactly one platform lane is ever loaded.** The agent and the shared methodology are
+platform-independent; the lane resolved from the row's `platform` is the only source of
+platform content, and no other platform's lane or standards may be loaded.
+
+- **Readiness gate (any platform):** before invoking, check the **resolved platform lane** for the placeholder marker — a frontmatter `description` ending "not yet authored, currently a structure-only placeholder" **and** a `## Status: Not yet authored` heading. Match on those markers only, never on the phrase appearing in ordinary prose (an authored skill may legitimately mention "structure-only placeholder" when telling an agent to stop if a *standards* file is one). If present, **stop with: "Platform implementation methodology for `<platform>` is not yet authored"** — do not pretend the route is production-ready and do not author it here. The gate is on the lane, not the agent: `feature-implementer` and `platform-implementation` are platform-independent and always authored, so a lane's readiness is the only thing that can gate a route. All four lanes currently pass it. (`/review-code`'s iOS route opened when `ios-code-review`, `ios-code-reviewer` and `ios-performance-reviewer` were authored (IOS-004).)
 - **Multiple platforms on one row:** the task model is single-platform-per-row. If a row lists more than one platform, **stop and require it to be split into one task per platform** at `/dev-feature-start`. Do not invent a cross-platform lead agent, and do not invoke unrelated platform agents.
 
 ## 7a. Record `in-progress` before handing off
@@ -202,7 +206,7 @@ This is what makes an interrupted run visible to the next one: the write advance
 
 ## 8. Pass explicit resolved context to the selected agent + skill
 
-Invoke the routed platform's feature-implementation skill via its feature-developer agent, passing these resolved, verified values as authoritative inputs (the skill must not search ambiently or guess filenames):
+Invoke the `feature-implementer` agent with the shared `platform-implementation` methodology and the resolved platform lane, passing these resolved, verified values as authoritative inputs (the skill must not search ambiently or guess filenames):
 
 - absolute `TARGET_ROOT` (repository root)
 - absolute **Feature Analysis** path
@@ -212,7 +216,7 @@ Invoke the routed platform's feature-implementation skill via its feature-develo
 - selected **task id**
 - selected **task row content**
 - **platform**
-- **device_type** (`mobile` or `tv`) — the resolved mobile-vs-TV context signal from step 5; passed through as authoritative context. It does **not** change platform routing (§7): a `tv` task runs on the same platform feature-developer agent + feature-implementation skill as a `mobile` task.
+- **device_type** (`mobile` or `tv`) — the resolved mobile-vs-TV context signal from step 5; passed through as authoritative context. It does **not** change platform routing (§7): a `tv` task runs on the same agent, the same shared methodology and the same platform lane as a `mobile` task.
 - the **design reference** — `design_reference_status`, `design_reference_type`, `design_reference`, and `figma_link` as recorded upstream
 - **dependency status** (from step 6)
 - **approval status** (from step 5)

@@ -74,8 +74,10 @@ const flat = (s: string): string => s.replace(/\s+/g, " ");
   // P + C at the shared layer: device_type is a separate dimension that does not route.
   check("1 device_type does not change platform routing",
     /does \*\*not\*\* change platform routing/.test(cmd));
-  check("1 a tv task runs on the same platform agent and skill",
-    /a `tv` task runs on the same platform feature-developer agent \+ feature-implementation skill as a `mobile` task/.test(cmd));
+  // Wording follows the Stage-3d route (one role agent + shared methodology + the lane);
+  // the invariant is unchanged — device_type never selects a different route.
+  check("1 a tv task runs on the same agent, methodology and lane",
+    /a `tv` task runs on the same agent, the same shared methodology and the same platform lane as a `mobile` task/.test(cmd));
   check("1 passes device_type to the platform lane as authoritative context",
     /passed through as authoritative context/.test(cmd));
 }

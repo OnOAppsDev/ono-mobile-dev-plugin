@@ -107,11 +107,10 @@ const live = validate(REPO_ROOT);
   // is exactly what it did when React was still scaffolding.
   check("4 no component is a placeholder — every lane is authored",
     placeholders.length === 0, `${placeholders.length}: ${placeholders.join(", ")}`);
-  // Staged migration: the shared lifecycle components land unwired and are flipped to
-  // live one lane at a time. Declaring them NOT YET WIRED is what makes rule C4 protect
-  // the staging — routing to one prematurely becomes a defect rather than a surprise.
-  check("4 the deferred set is exactly the unwired shared lifecycle components",
-    deferred.join(",") === "feature-implementer,platform-implementation", deferred.join(","));
+  // The shared lifecycle route is live as of Stage 3d, so nothing is staged-but-unwired.
+  // C4 stays armed: any future component declaring NOT YET WIRED must remain unrouted.
+  check("4 nothing is deferred — the shared lifecycle route is live",
+    deferred.length === 0, deferred.join(","));
 
   // The trap that would declare an authored lane unbuilt. See the validator header.
   const android = live.components.filter((c) => c.lane === "android");

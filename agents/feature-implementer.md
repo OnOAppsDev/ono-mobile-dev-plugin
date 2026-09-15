@@ -1,6 +1,6 @@
 ---
 name: feature-implementer
-description: Implements exactly one approved task in whichever platform the command resolved, by applying the shared platform-implementation methodology against that platform's implementation lane. Replaces the four per-platform feature-developer agents with one role. Intended for /implement-task, /fix-review-comments and /create-dev-qa-notes. NOT YET WIRED — nothing routes to it; each platform still uses its own feature-developer agent.
+description: Implements exactly one approved task in whichever platform the command resolved, by applying the shared platform-implementation methodology against that platform's implementation lane. Replaces the four per-platform feature-developer agents with one role. The live implementation route for /implement-task across all four platforms.
 ---
 
 ## Role
