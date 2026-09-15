@@ -107,11 +107,13 @@ const live = validate(REPO_ROOT);
   // is exactly what it did when React was still scaffolding.
   check("4 no component is a placeholder — every lane is authored",
     placeholders.length === 0, `${placeholders.length}: ${placeholders.join(", ")}`);
-  // Implementation went live at Stage 3d and review at Stage 4d. The planning route is
-  // staged at Stage 5b and not yet wired, so C4 is doing its job: these two must stay
-  // unrouted until the Stage 5d flip.
-  check("4 the deferred set is exactly the staged planning components",
-    deferred.join(",") === "feature-architect,platform-planning", deferred.join(","));
+  // Implementation went live at Stage 3d, review at Stage 4d and planning at Stage 5d.
+  // Nothing is staged-but-unrouted any more, so the deferred set must be empty. This is a
+  // census, not a tautology: it fails the moment a component is marked NOT YET WIRED and
+  // left that way, or a wired component is reverted to deferred without its route going
+  // with it.
+  check("4 the deferred set is empty — every shared component is routed",
+    deferred.length === 0, deferred.join(","));
 
   // The trap that would declare an authored lane unbuilt. See the validator header.
   const android = live.components.filter((c) => c.lane === "android");

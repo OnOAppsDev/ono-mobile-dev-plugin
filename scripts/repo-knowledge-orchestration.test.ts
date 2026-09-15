@@ -58,7 +58,7 @@ const consumer = read("skills/repo-knowledge-consumer/SKILL.md");
 /** `/analyze-feature` step 3, sliced between its own numbered heading and step 4. */
 function step3(): string {
   const from = analyze.indexOf("\n3. Once the platform is confirmed");
-  const to = analyze.indexOf("\n4. Invoke the confirmed platform's architect", from);
+  const to = analyze.indexOf("\n4. Invoke the `feature-architect`", from);
   return from !== -1 && to !== -1 ? analyze.slice(from, to) : "";
 }
 const S3 = step3();
@@ -93,19 +93,19 @@ const S3 = step3();
     /iOS, Android and React — reused at the architect/.test(S3));
   check("3 step 3 says this is not a reuse gap",
     /is not a gap in canonical-knowledge reuse/.test(S3));
-  check("3 step 3 names all three architects as the resolvers",
-    /`ios-architect`/.test(S3) && /`android-architect`/.test(S3) && /`react-architect`/.test(S3));
-  check("3 step 3 routes them through the consumer, not its internals",
-    /resolve canonical repository knowledge themselves through `repo-knowledge-consumer`/.test(S3));
+  // OWNERSHIP MOVED (Stage 5d). The three per-platform architects were replaced by one
+  // role agent, so step 3 names the resolver once instead of three times. The claim being
+  // pinned is unchanged: resolution happens at the architect layer, through the consumer.
+  check("3 step 3 names the architect-layer resolver",
+    /`feature-architect`/.test(S3));
+  check("3 step 3 routes it through the consumer, not its internals",
+    /resolves canonical repository knowledge itself through `repo-knowledge-consumer`/.test(S3));
   check("3 step 3 cites the three dev-planning evidence sections",
     /skills\/ios-dev-planning\/SKILL\.md` §3/.test(S3) && /skills\/android-dev-planning\/SKILL\.md` §3/.test(S3) &&
       /skills\/react-dev-planning\/SKILL\.md` §3/.test(S3));
 
   // The architects must actually do what step 3 now claims.
   for (const lane of ["ios", "android", "react"]) {
-    const agent = read(`agents/${lane}-architect.md`);
-    check(`3 ${lane}-architect resolves canonical knowledge via the consumer`,
-      /repo-knowledge-consumer/.test(agent) && /[Rr]esolve canonical repository knowledge/.test(agent));
     // OWNERSHIP MOVED (Stage 5c). Repository-knowledge resolution is platform-independent
     // and is owned once by skills/platform-planning; each lane delegates to it rather than
     // carrying a copy. Asserted against the ROUTE — lane plus shared methodology — which is
@@ -134,6 +134,18 @@ const S3 = step3();
         /is not restated here/.test(lanText));
     }
   }
+}
+
+// --- 3b. The routed architect performs the resolution step 3 claims ------
+{
+  // Re-pointed from the four per-platform architects (Stage 5d). They still exist but are
+  // no longer routed from any planning command, so the route's resolver is the assertion
+  // that matters. Not weakened: the same two facts are still required of the live agent.
+  const agent = read("agents/feature-architect.md");
+  check("3b feature-architect resolves canonical knowledge via the consumer",
+    /repo-knowledge-consumer/.test(agent));
+  check("3b feature-architect carries the shared methodology that owns resolution",
+    /platform-planning/.test(agent));
 }
 
 // --- 4. THE REGRESSION GUARD: no lane is described as unauthored ----------

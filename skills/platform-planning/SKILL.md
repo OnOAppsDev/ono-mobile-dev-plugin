@@ -1,6 +1,6 @@
 ---
 name: platform-planning
-description: The platform-independent planning methodology — the confirmed-context rule, repository evidence discipline and its labelling vocabulary, reuse-before-new, repository-knowledge resolution through repo-knowledge-consumer, the competing-mechanism stop, and generic output discipline. Used by the feature-architect agent alongside the resolved platform's dev-planning skill, which supplies the evidence dimensions, vocabulary and standard IDs. NOT YET WIRED — nothing routes to it; every platform still takes its own planning lane.
+description: The platform-independent planning methodology — the confirmed-context rule, repository evidence discipline and its labelling vocabulary, reuse-before-new, repository-knowledge resolution through repo-knowledge-consumer, the competing-mechanism stop, and generic output discipline. Used by the feature-architect agent alongside the resolved platform's dev-planning skill, which supplies the evidence dimensions, vocabulary and standard IDs. The live planning methodology for /analyze-feature, /dev-design-start and /dev-feature-start across all four platforms.
 ---
 
 # Platform Planning
@@ -17,9 +17,6 @@ a platform.
 It is used at all three planning call sites — `/analyze-feature`, `/dev-design-start` and
 `/dev-feature-start` — because the discipline is the same at each; only the shape of the
 output differs, and the command and `dev-design-start` own that.
-
-> **Not yet wired — nothing routes to this skill.** Each platform still uses its own
-> dev-planning skill and architect agent. **Do not invoke it on your own initiative.**
 
 **This skill plans. It never writes code and never modifies a repository file.**
 

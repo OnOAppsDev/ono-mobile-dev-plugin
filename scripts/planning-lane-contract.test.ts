@@ -253,8 +253,10 @@ const route = (p: (typeof PLATFORMS)[number]): string =>
   const a = flat(read(ANALYZE));
   check("8 /analyze-feature stops on an unauthored lane",
     /stop with: "Platform architecture methodology for/.test(a));
-  check("8 /analyze-feature does not fall back to another platform's architect",
-    /do not fall back to another platform's architect/.test(a));
+  // Re-pointed (Stage 5d): the fallback that must not happen is now to another LANE,
+  // because one role agent serves every platform. Same invariant, new owner.
+  check("8 /analyze-feature does not fall back to another platform's lane",
+    /do not fall back to another platform's lane/.test(a));
 }
 
 // ---------------------------------------------------------------------------
@@ -280,8 +282,11 @@ const route = (p: (typeof PLATFORMS)[number]): string =>
   const d = flat(read(DESIGN));
   check("10 /dev-design-start requires an approved feature analysis",
     /approved feature analysis/i.test(d));
-  check("10 it routes exactly one architect for the confirmed platform",
-    /invoke \*\*exactly one\*\* architect matching that confirmed platform/i.test(d));
+  // Re-pointed (Stage 5d): single-platform isolation is now stated once, as the rule that
+  // exactly one lane loads, rather than as "exactly one architect". Not weakened — the
+  // routing table is asserted structurally in property 13b below.
+  check("10 it loads exactly one planning lane for the confirmed platform",
+    /Exactly one planning lane is ever loaded/.test(d));
   check("10 it never splits a feature across platforms",
     /never split the feature across multiple platforms/i.test(d));
   check("10 the DD's section rules stay with the shared design skill",
@@ -290,8 +295,8 @@ const route = (p: (typeof PLATFORMS)[number]): string =>
   const f = flat(read(FEATURE));
   check("11 /dev-feature-start consumes an approved DD",
     /approved \*\*DD\*\*|approved DD/i.test(f));
-  check("11 it invokes exactly one planning skill and one architect",
-    /invoke exactly one planning skill and one architect/i.test(f));
+  check("11 it loads exactly one planning lane for the DD's platform",
+    /Exactly one planning lane is ever loaded/.test(f));
   check("11 every task row is tagged with the confirmed platform",
     /every task row is tagged with that same platform/i.test(f));
   check("11 the DD package fields are not decomposition inputs",
@@ -336,6 +341,37 @@ const route = (p: (typeof PLATFORMS)[number]): string =>
     check(`13 ${p.lane} lane cites ID roots`, roots.size > 0, `${roots.size}`);
   }
   check(`13 the planning lane cites standards at all (${paths})`, paths >= 20, `${paths}`);
+}
+
+// ---------------------------------------------------------------------------
+// 13b. Stage 5d routing: every planning command routes through the one role
+// agent, the one shared methodology, and exactly one platform lane.
+// ---------------------------------------------------------------------------
+{
+  const LANE_ROWS: ReadonlyArray<readonly [string, string]> = [
+    ["react-native", "rn-dev-planning"],
+    ["ios", "ios-dev-planning"],
+    ["android", "android-dev-planning"],
+    ["react", "react-dev-planning"],
+  ];
+  const LEGACY = ["rn-architect", "ios-architect", "android-architect", "react-architect"];
+
+  for (const [label, path] of [["/analyze-feature", ANALYZE], ["/dev-design-start", DESIGN],
+                               ["/dev-feature-start", FEATURE]] as const) {
+    const c = read(path);
+    check(`13b ${label} routes through feature-architect`, /`feature-architect`/.test(c));
+    check(`13b ${label} applies the shared planning methodology`, /`platform-planning`/.test(c));
+    for (const [plat, lane] of LANE_ROWS) {
+      check(`13b ${label} routes ${plat} to ${lane}`,
+        new RegExp(`\\| \`${plat}\` \\| \`feature-architect\` \\| \`platform-planning\` \\| \`${lane}\` \\| active \\|`).test(c));
+    }
+    check(`${label} isolates to one lane`.replace(/^/, "13b "),
+      /Exactly one planning lane is ever loaded/.test(c));
+    // No legacy architect is reachable from a planning command any more.
+    for (const old of LEGACY) {
+      check(`13b ${label} no longer routes \`${old}\``, !new RegExp("`" + old + "`").test(c));
+    }
+  }
 }
 
 // ---------------------------------------------------------------------------

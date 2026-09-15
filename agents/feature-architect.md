@@ -1,6 +1,6 @@
 ---
 name: feature-architect
-description: Designs the technical approach for a feature in whichever platform the command confirmed, by applying the shared platform-planning methodology against that platform's dev-planning lane. Used at /analyze-feature, /dev-design-start and /dev-feature-start. Replaces the four per-platform architect agents with one role. NOT YET WIRED — nothing routes to it; each platform still uses its own architect agent.
+description: Designs the technical approach for a feature in whichever platform the command confirmed, by applying the shared platform-planning methodology against that platform's dev-planning lane. Used at /analyze-feature, /dev-design-start and /dev-feature-start. Replaces the four per-platform architect agents with one role. The live planning agent for /analyze-feature, /dev-design-start and /dev-feature-start across all four platforms.
 ---
 
 ## Role
@@ -9,9 +9,6 @@ description: Designs the technical approach for a feature in whichever platform 
 surfaces, state and data flow, navigation changes and placement it needs. It is a role, not
 a platform specialist — the platform and device type were confirmed by a human at
 `/analyze-feature` step 2 and are passed in, never detected or defaulted here.
-
-> **Not yet wired.** Each platform still uses its own architect agent. **Do not invoke it
-> on your own initiative.**
 
 ## Inputs
 
