@@ -85,6 +85,7 @@ const PHASES: Phase[] = [
     suites: [
       "context-isolation-contract",
       "review-lane-contract",
+      "planning-lane-contract",
       "rn-implementation-contract",
       "release-metadata",
       "repo-knowledge-orchestration",
