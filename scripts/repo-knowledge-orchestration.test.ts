@@ -106,14 +106,21 @@ const S3 = step3();
     const agent = read(`agents/${lane}-architect.md`);
     check(`3 ${lane}-architect resolves canonical knowledge via the consumer`,
       /repo-knowledge-consumer/.test(agent) && /[Rr]esolve canonical repository knowledge/.test(agent));
-    const skill = read(`skills/${lane}-dev-planning/SKILL.md`);
-    check(`3 ${lane}-dev-planning has a §2 Repository-knowledge reuse section`,
-      /## 2\. Repository-knowledge reuse/.test(skill));
-    check(`3 ${lane}-dev-planning routes resolution through the consumer`,
-      /`repo-knowledge-consumer`/.test(skill));
-    check(`3 ${lane}-dev-planning never parses the manifest itself`,
-      !/(read|parse)[^.\n]{0,40}`?\.ono\/repo-knowledge\.json`?[^.\n]{0,30}(yourself|directly)(?![^.]*Never)/i.test(skill) ||
-        /Never read or parse `\.ono\/repo-knowledge\.json` directly/.test(skill));
+    // OWNERSHIP MOVED (Stage 5c). Repository-knowledge resolution is platform-independent
+    // and is owned once by skills/platform-planning; each lane delegates to it rather than
+    // carrying a copy. Asserted against the ROUTE — lane plus shared methodology — which is
+    // what an architect actually loads.
+    const lanText = read(`skills/${lane}-dev-planning/SKILL.md`);
+    const shared = read("skills/platform-planning/SKILL.md");
+    const skill = lanText + "\n" + shared;
+    check(`3 ${lane} route has a repository-knowledge resolution step`,
+      /Repository[- ]knowledge (reuse|before live derivation)/i.test(skill));
+    check(`3 ${lane} route routes resolution through the consumer`,
+      /`?skills\/repo-knowledge-consumer`?|`repo-knowledge-consumer`/.test(skill));
+    check(`3 ${lane} lane delegates rather than restating the procedure`,
+      /platform-planning/.test(lanText));
+    check(`3 ${lane} route never parses the manifest itself`,
+      /Never parse `\.ono\/repo-knowledge\.json` yourself|Never read or parse `\.ono\/repo-knowledge\.json` directly/.test(skill));
     // NOTE (React divergence, reported not silently accepted): ios- and
     // android-dev-planning §2 delegate with "Apply it as written; it is not restated
     // here", while react-dev-planning §2 restates the usableCategories/deriveLive
@@ -123,8 +130,8 @@ const S3 = step3();
     // therefore pins the shared substance, and the wording difference is tracked as a
     // React-lane follow-up rather than papered over.
     if (lane !== "react") {
-      check(`3 ${lane}-dev-planning §2 does not restate the procedure`,
-        /it is not restated here/.test(skill));
+      check(`3 ${lane} lane does not restate the procedure`,
+        /is not restated here/.test(lanText));
     }
   }
 }
@@ -224,7 +231,9 @@ const S3 = step3();
   const reactSkill = read("skills/react-dev-planning/SKILL.md");
   check("7 react-architect resolves canonical knowledge via the consumer",
     /repo-knowledge-consumer/.test(reactAgent));
-  check("7 react-dev-planning delegates to the consumer", /repo-knowledge-consumer/.test(reactSkill));
+  // The React lane delegates via platform-planning, which owns the consumer step.
+  check("7 react-dev-planning delegates repository knowledge to the shared methodology",
+    /platform-planning/.test(reactSkill));
   for (const rel of ["agents/react-architect.md", "skills/react-dev-planning/SKILL.md"]) {
     check(`7 ${rel} is no longer a placeholder`, !/^## Status: Not yet authored$/m.test(read(rel)));
   }

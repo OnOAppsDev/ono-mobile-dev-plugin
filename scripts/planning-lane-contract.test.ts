@@ -77,9 +77,17 @@ const ANALYZE = "commands/analyze-feature.md";
 const DESIGN = "commands/dev-design-start.md";
 const FEATURE = "commands/dev-feature-start.md";
 
-/** Everything a given platform's planning route can load today. */
+/**
+ * Everything a given platform's planning route can load. Includes the shared components
+ * once they exist: each lane's Overview explicitly delegates the methodology to
+ * platform-planning and the DD rules to dev-design-start, so a reader following the lane
+ * loads all of them. Asserting a shared property against the lane alone would demand a
+ * second copy — the duplication this refactor removes.
+ */
+const SHARED_PLANNING = "skills/platform-planning/SKILL.md";
 const route = (p: (typeof PLATFORMS)[number]): string =>
-  read(p.skill) + "\n" + read(p.architect) + "\n" + read("skills/dev-design-start/SKILL.md");
+  read(p.skill) + "\n" + read(p.architect) + "\n" + read("skills/dev-design-start/SKILL.md") +
+  (has(SHARED_PLANNING) ? "\n" + read(SHARED_PLANNING) : "");
 
 // ---------------------------------------------------------------------------
 // 1. One planning lane per confirmed platform

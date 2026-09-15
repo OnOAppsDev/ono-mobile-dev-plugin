@@ -1,60 +1,29 @@
 ---
 name: ios-dev-planning
-description: Repository-first planning methodology for native iOS features — discovers the repo's actual implementation model, then supplies the iOS vocabulary and IOS-*/shared standard IDs for a feature analysis's proposed approach, a Detailed Design's Technical Implementation Approach and Impacted Modules, and the task breakdown. Used by /analyze-feature, /dev-design-start and /dev-feature-start via the ios-architect agent, alongside the shared dev-design-start / dev-feature-start skills, which own the overall mechanics. Assumes no UI framework, architecture pattern, or library, and handles device_type mobile and tv.
+description: iOS-specific planning methodology — the repository evidence dimensions to inspect, the vocabulary a Detailed Design's approach and change surface are written in, iOS detection traps, device_type handling and the IOS-* citation map. Used by /analyze-feature, /dev-design-start and /dev-feature-start via the ios-architect agent, alongside the shared platform-planning skill which owns the planning methodology.
 ---
 
 # iOS Dev Planning
 
 ## Overview
 
-This skill is the methodology the `ios-architect` agent follows when planning native iOS work. It owns *how* an iOS feature is understood, grounded in repository evidence, analysed, classified, and expressed as a design — for `/analyze-feature`'s Proposed Technical Approach, `/dev-design-start`'s DD §19/§20, and `/dev-feature-start`'s task vocabulary.
+This skill is the **iOS half** of planning a feature. It owns what a
+platform-independent layer could not state: which dimensions of a iOS repository must be
+inspected, the vocabulary the approach and change surface are written in, this platform's
+detection traps and device-type handling, and which `IOS-*` and shared standard IDs may be
+cited.
 
-It is not orchestration. The shared `dev-design-start` and `dev-feature-start` skills own the overall mechanics: DD structure and gap discipline; existing-file strategy; task decomposition, dependencies, rollback plan, and draft-until-approved gates. This skill does not re-implement any of that — it supplies the iOS-specific content those mechanics consume.
+The methodology half — the confirmed-context rule, standards readiness, repository-knowledge
+resolution, evidence discipline and its labelling vocabulary, reuse-before-new,
+detected-conventions-govern, output discipline and the generic stop conditions — lives in
+**`skills/platform-planning/SKILL.md`** and is not restated here. The DD's own section
+rules, the statement classification, the risk taxonomy and the source-of-truth hierarchy
+belong to **`skills/dev-design-start/SKILL.md`**. Apply all three.
 
-**This skill assumes no technology.** In no order of precedence: SwiftUI, UIKit, storyboards and xibs, the Observation framework, `ObservableObject`, Combine, RxSwift, Swift Concurrency, GCD, completion handlers, MVC, MVVM, MVP, VIPER, Clean Architecture, TCA, coordinators, storyboard segues, `NavigationStack`, Swift Package Manager, CocoaPods, Carthage, Core Data, SwiftData, a SQLite wrapper, `URLSession` or a wrapper over it, XCTest, Swift Testing, a single app target, and a multi-package workspace are **possible findings, never defaults**. The repository's existing conventions are the source of truth, and Apple documentation never overrides a valid existing implementation — the neutrality principle stated once in `standards/ios/swift-standards.md` § *Neutrality, TV, and status*.
+**This skill assumes no technology.** Everything this lane names is a *possible finding*,
+never a default. What the repository already does is the source of truth.
 
-**This skill never writes code and never modifies repository files.** It plans.
-
-## Inputs this skill requires (resolved, never invented)
-
-Obtain and **verify the existence of** the inputs below. They are resolved and passed by the invoking command — artifact resolution is `commands/dev-design-start.md`'s, not this skill's. This skill **never guesses or fabricates a path** to a feature document.
-
-- The confirmed **`platform`** (must be `ios`) and **`device_type`** (`mobile` or `tv`). **At Analyze these come from the user confirmation at `/analyze-feature` step 2**, because no feature analysis exists yet; from Design onward they are read from the upstream document's frontmatter. Never re-detected here.
-- The target **repository root**, and the Xcode project, workspace, or package manifest the feature lands in.
-- **At Analyze:** the feature description and `repo-analyst`'s findings summary. The four design-reference fields may still be unresolved at this point — `/analyze-feature` step 5 resolves them.
-- **At Design:** the absolute path to the **approved Feature Analysis**, plus the four resolved design-reference fields.
-- **At Feature-start:** the absolute path to the **approved Detailed Design (DD)**.
-
-If a required input for the current stage is missing, **stop and report exactly which one** — do not proceed against an assumed location. If `platform` is not `ios`, stop: this skill does not run for another platform. If `device_type` is missing, empty, or any value other than `mobile`/`tv` (including `mixed`), **stop and report it** — never default to `mobile`.
-
-**A React Native repository whose confirmed platform is `react-native` does not route here**, even when the change touches its `ios/` tree — that work is planned by `rn-dev-planning` against the RN standards, and only file-level *review* attribution loads `standards/ios/*`. This skill runs when `ios` is the confirmed platform.
-
-## 0. Standards readiness gate
-
-This skill grounds every iOS-specific rule in an authored `IOS-*` standard under `standards/ios/`. Before planning, confirm that none of the five `standards/ios/*` files is still scaffolding rather than authored rules — the same unauthored-placeholder marker `/implement-task` tests for. If one is, **stop and report that real iOS planning is blocked until it is authored**; never fall back to assumed defaults.
-
-**One gap is known and deliberate:** no tvOS rules exist in any of the five documents. `ATV-001` owns authoring them and `ATV-002` owns branching the iOS skills and agents deeply on device type. `IOS-UI-TV-*` and `IOS-PERF-TV-*` are reserved roots with no rules behind them, and a bare `IOS-TV-*` root is not permitted at all — **never cite a TV ID.** [§14](#14-device_type-handling) defines what to do instead.
-
-## 1. Source-of-truth hierarchy
-
-Defined once in `skills/dev-design-start/SKILL.md` § *Shared planning rules → Source-of-truth hierarchy*. Apply it as written; it is not restated here.
-
-iOS's parameters for the two parameterised ranks:
-
-- **Rank 4** — `standards/ios/*` plus `standards/shared/*`.
-- **Rank 5** — Apple documentation.
-
-One hard rule is iOS-specific and applies in addition to the shared ones:
-
-- **Applicability is decided by the baseline, not by the rule.** Check the baseline found in [§3](#3-repository-evidence-collection) before citing a rule that depends on a particular API.
-
-## 2. Repository-knowledge reuse
-
-Repository knowledge is resolved by the invoking command and consumed through the `repo-knowledge-consumer` skill, which owns the resolution procedure, what may be reused, and the citation shape. Apply it as written; it is not restated here.
-
-What this lane adds on top of it:
-
-- **Derive live the iOS detail no repository-wide document can hold** — the actual signatures, state shape, isolation, and call sites of the types *this feature* touches, alongside the categories the consumer reports as `deriveLive`. That reading is required and is not duplication of the manifest.
+**This skill plans. It never writes code and never modifies repository files.**
 
 ## 3. Repository evidence collection
 
@@ -67,7 +36,7 @@ Collect evidence for each dimension, recording the path that proves it:
 1. **Project and target structure** — the project, workspace, or package manifest, and whether the project is generated from a manifest. Enumerate the targets and their kinds: app, framework, local package, app extension, widget, tests, UI tests, and any tvOS target.
 2. **Dependency management** — which manager or managers are in use, and whether the resolution artifact the repo commits is committed.
 3. **Build configuration** — where settings actually live, the build configurations and schemes present and which are shared, entitlements, and the mechanism that supplies environment values (base URLs, flags, tenant IDs).
-4. **Language and platform baseline** — the deployment target(s), the Swift language mode, any strict-concurrency and default-isolation configuration, the Swift-and-Objective-C mix, bridging headers, and any interop surface the feature would touch. This baseline decides which rules are *applicable at all* ([§1](#1-source-of-truth-hierarchy)).
+4. **Language and platform baseline** — the deployment target(s), the Swift language mode, any strict-concurrency and default-isolation configuration, the Swift-and-Objective-C mix, bridging headers, and any interop surface the feature would touch. This baseline decides which rules are *applicable at all* (`skills/dev-design-start/SKILL.md` § *Shared planning rules*).
 5. **App and scene lifecycle** — which lifecycle the app actually uses, and where its delegates are wired.
 6. **UI implementation model** — see [§5](#5-ui-implementation-model-identification). Identify it **per surface**, not per repository.
 7. **Existing surfaces and reusable types** — the screens, views, view controllers, base classes, design-system or theme layer, and shared components the feature should reuse rather than recreate. Inspect this directly when no component inventory is available; it is the dimension that prevents proposing a "new" component that already exists.
@@ -180,7 +149,7 @@ Predictable back behaviour, a defined start destination, and a stated back-stack
 
 **Networking** — go through the repo's client layer; no ad-hoc request construction at a call site → `IOS-ARCH-DATA-5`. A session captures its configuration when created, so a feature needing a different *session kind* — ephemeral or background — has that decided up front rather than mutated later. Per-request policy such as cache policy and timeout is set on the request, subject to the session's policy being no more restrictive; **do not propose a second session for those**, since a second client layer would otherwise reach an approval gate it does not need. **State the API contract this design depends on** — endpoint, method, request and response fields, and error cases — because implementation is bound to it exactly and may not invent or change it → `IOS-ARCH-DATA-6`. Preserve the transport-model/domain-model separation → `IOS-ARCH-DATA-2`, and plan decoding tolerant of what the backend actually guarantees → `IOS-ARCH-DATA-3`. Plan the error, timeout, retry and offline behaviour, propagating errors through the repo's mechanism and mapping them to intelligible user-facing text at the presentation boundary → `IOS-SWIFT-ERR-1`, `IOS-SWIFT-ERR-2`, `IOS-SWIFT-ERR-4`, `IOS-SWIFT-ERR-5`. Plan auth and transport security → `SEC-AUTH-1`, `SEC-AUTH-2`, `SEC-NET-1`, `SEC-NET-2`; a transport-security exception is a blocking unresolved decision, not a configuration detail.
 
-**An unconfirmed backend contract is recorded, not worked around.** At Analyze and Design it is a blocking unresolved decision in the document; the plan continues and the gap is visible. It blocks **decomposition** — `/dev-feature-start` does not generate tasks against it ([§16](#16-risk-classification-and-applicability-stage)).
+**An unconfirmed backend contract is recorded, not worked around.** At Analyze and Design it is a blocking unresolved decision in the document; the plan continues and the gap is visible. It blocks **decomposition** — `/dev-feature-start` does not generate tasks against it (`skills/dev-design-start/SKILL.md` § *Shared planning rules → Risk classification*).
 
 ## 11. Testing planning
 
@@ -215,6 +184,8 @@ Touch interaction, touch targets and phone/tablet navigation patterns apply. Thr
 
 **The standards carry no tvOS rules yet, so this skill's TV responsibility is discovery and non-regression, not guidance.** Apply the existing `IOS-*` rules unchanged — they are framework-neutral and none assumes touch. Where TV work needs a rule that does not exist, **record it as an unresolved decision naming the `ATV-001` gap**. A TV plan that rests on the repository's own conventions plus a named standards gap is the correct output at this point, not a deficient one. **This skill does not author TV standards or TV rules — `ATV-001` owns that, and `ATV-002` owns branching this skill deeply on device type.**
 
+**Never cite a TV ID.** `IOS-UI-TV-*` and `IOS-PERF-TV-*` are reserved roots with no rules behind them, and a bare `IOS-TV-*` root is not permitted at all. Cite the existing `IOS-*` rule that actually applies, or name the `ATV-001` gap — never a reserved root.
+
 **An Apple TV application may use any implementation model** — SwiftUI, UIKit, `TVUIKit`, a TV markup framework such as `TVMLKit`, `AVKit` for playback, or an entirely in-house framework. Detect which; assume none.
 
 Run this discovery pass **before** proposing anything, recording evidence for each item that exists:
@@ -233,7 +204,7 @@ Run this discovery pass **before** proposing anything, recording evidence for ea
 
 **A framework-independent anchor:** a tvOS target declares itself in its *build configuration* — it builds against the tvOS SDK, carries a tvOS deployment target, and declares the Apple TV device family. These confirm a TV target **without implying anything about the UI framework.** Use them to orient, never as evidence of which framework the app uses.
 
-**Two TV facts change a design rather than an implementation**, so record them as decisions even though no rule exists yet: whether the feature's data fits the platform's materially tighter device-local storage expectations, or needs the cloud and system-managed asset-download mechanisms instead — which of those the repository is on is itself the decision, since the platform has more than one and they supersede each other over time — and where the repository's current approach conflicts, that conflict is an unresolved decision, not a verdict against the repository; and whether playback adopts the framework's own player interface or a custom one, since a custom player inherits every surface the framework's player supplies. For what a TV surface owes the user irrespective of framework, consult *Designing for tvOS*, *Focus and selection* and `AVPlayerViewController` in [References](#references).
+**Two TV facts change a design rather than an implementation**, so record them as decisions even though no rule exists yet: whether the feature's data fits the platform's materially tighter device-local storage expectations, or needs the cloud and system-managed asset-download mechanisms instead — which of those the repository is on is itself the decision, since the platform has more than one and they supersede each other over time — and where the repository's current approach conflicts, that conflict is an unresolved decision, not a verdict against the repository; and whether playback adopts the framework's own player interface or a custom one, since a custom player inherits every surface the framework's player supplies. For what a TV surface owes the user irrespective of framework, consult *Designing for tvOS*, *Focus and selection* and `AVPlayerViewController` in the lane's cited standards.
 
 **TV planning rules:**
 
@@ -244,63 +215,11 @@ Run this discovery pass **before** proposing anything, recording evidence for ea
 - **Identify gaps or risks in the existing model without redesigning it.** Naming a weakness is in scope; re-architecting around it is not.
 - If the repository contains both mobile and TV surfaces, plan only for the confirmed `device_type`, and never assume the mobile surface's conventions apply to the TV one.
 
-## 15. Classification: Existing, Required, Recommended, Unresolved
-
-Defined once in `skills/dev-design-start/SKILL.md` § *Shared planning rules → Classification*. Every statement in an iOS plan carries one of those four labels; the taxonomy is not restated here.
-
-## 16. Risk classification and applicability stage
-
-The three risk classes are defined once in `skills/dev-design-start/SKILL.md` § *Shared planning rules → Risk classification*. Apply them as written; they are not restated here.
-
-Three additions are iOS-specific:
-
-- **An additional blocking condition:** a required deployment-target or language-mode change.
-- **The third class is tied to a measurement rule:** a suspected issue inspection cannot confirm → `IOS-PERF-MEASURE-1`.
-- **The verify-later mechanism for iOS is the applicability stage** defined in `standards/ios/swift-standards.md` § *Applicability stage*. Planning happens before anything is built, so any rule its own document marks *(Build stage.)* or *(Release stage.)* is recorded as something the plan requires to be verified later. This is how the shared verify-later principle is discharged in this lane; the principle itself is not restated here.
-
-## 17. Traceability and output requirements
-
-Every element traces to something concrete: **repository claims** to a path via `[evidence: …]` or `[reused: …]`; **requirements** to the upstream section they come from; **rules** to a real ID, cited only where it genuinely applies and never merely adjacent to the point; **recommendations** to an explicit justification. **Never use React Native's generically-named `ARCH-*`/`API-*`/`STATE-*`/`NAV-*` IDs, and never use Android's `AND-*` IDs** — iOS cites the `IOS-*` roots.
-
-Output shape, consumed by the shared skills:
-
-- **At Analyze** → the flat "Proposed Technical Approach" section of `templates/feature-analysis-template.md`, holding the implementation model found, the approach, the classification, and the unresolved decisions. The evidence base belongs in that document. A change inventory at DD §20 resolution is **not** produced here; naming the targets and packages the feature is expected to touch is.
-- **At Design** → DD §19 and §20, **as conclusions rather than as a transcript.** The evidence sweep, the labelling, and the [§14](#14-device_type-handling) TV discovery pass are research that grounds the design; they are never pasted into it. §19 receives the decisions and the IDs each follows, §20 the targets, packages and change classes per [§6](#6-target-package-and-dependency-impact). Unresolved decisions go to §24 and recommended deviations to §23 — not into §19 — and optional suggestions are reported to the developer rather than written to the DD, where `dev-design-start` Step 7 would remove them. That skill's Step 6 and Step 7 govern what lands in the document.
-- **At Feature-start** → the iOS vocabulary and standard IDs used in each task's description and acceptance criteria, plus three decomposition hazards specific to this platform:
-  - **Tasks that add files contend for the project file.** Where the project is not generated from a manifest, two tasks that each add a file both edit it and will conflict; sequence them, or note the contention on the `depends-on` edge.
-  - **A new target, scheme, or build configuration is its own task**, never a side effect of the task that needs it → `IOS-BUILD-CONFIG-2`.
-  - **A test that needs a host application depends on the target task that provides it** — that ordering is explicit, not implied.
-
-Exactly one confirmed platform always applies, so these sections are **always flat** — never split into per-platform subsections.
-
-## 18. Approval gates and failure behaviour
-
-- Approval gating is owned by `commands/dev-design-start.md` and `commands/dev-feature-start.md`. **This skill never flips a status.**
-- A UI-changing feature requires a design reference of any supported type; `not_required` is never a valid outcome for one. The gate itself is owned by `/analyze-feature`.
-- **Stop and report** — never work around — on any condition in the Red flags section below.
-
-## Definition of Done
-
-- [ ] `platform: ios` and a valid `device_type` were taken from the confirmed context, not re-detected.
-- [ ] Repository knowledge was resolved through `repo-knowledge-consumer`; reused categories are cited by path and anchor.
-- [ ] Every dimension in [§3](#3-repository-evidence-collection) was inspected, scoped out as `N/A`, or explicitly marked `[unknown]` — at the depth the current stage requires.
-- [ ] The UI implementation model is identified **per affected surface**, or `N/A — [reason]` where the feature touches no surface.
-- [ ] Every repository claim carries an evidence, reuse, inference, or unknown label.
-- [ ] The language and platform baseline was read, and no cited rule depends on an API the baseline does not offer.
-- [ ] Any recorded design reference was read and resolved against existing components.
-- [ ] State ownership, event flow, surface lifecycle, process-death behaviour, isolation, and task lifetime are each stated or marked `N/A — [reason]`.
-- [ ] Navigation, persistence, networking, testing, performance, security, accessibility, i18n and RTL are addressed or marked `N/A — [reason]`.
-- [ ] Build-stage and release-stage rules are recorded as *to be verified later*, never asserted as satisfied.
-- [ ] When `device_type: tv`, the discovery pass ran, no mobile/touch assumption was carried over, and no TV standard ID was cited.
-- [ ] Every statement is classified Existing / Required / Recommended / Unresolved.
-- [ ] Every cited standard ID exists and genuinely applies.
-- [ ] Unresolved decisions are listed with options and implications.
-- [ ] No code was written and no repository file was modified.
-- [ ] No new architecture, dependency, framework migration, deployment-target change, or language-mode change is proposed as required work without an approval gate.
-
 ## Standards citation
 
-Cite only IDs that exist in these files and genuinely apply to the point being made.
+**This lane's parameters for the two parameterised source-of-truth ranks** (`skills/dev-design-start/SKILL.md` § *Shared planning rules → Source-of-truth hierarchy*): **rank 4** is `standards/ios/*` plus `standards/shared/*`; **rank 5** is Apple's official documentation, which is supporting guidance only and never overrides rank 2.
+
+Cite only IDs that exist in these files and genuinely apply to the point being made. **Never use React Native's generically-named `ARCH-*`/`API-*`/`STATE-*`/`NAV-*` IDs for iOS** — those are RN-specific; iOS cites the `IOS-*` roots.
 
 | Area | Standard file | IDs |
 |---|---|---|
@@ -327,23 +246,20 @@ The lane-boundary, severity, no-convention and applicability-stage rules governi
 - A persisted-schema change has no migration path in the plan.
 - The Feature Analysis and DD conflict, or an upstream document is unapproved, stale, or draft.
 - At Feature-start: a blocking unresolved decision remains, including an unconfirmed backend contract.
-- A cited `standards/ios/*` file is missing or is still unauthored scaffolding (see [§0](#0-standards-readiness-gate)).
+- A cited `standards/ios/*` file is missing or is still unauthored scaffolding (see `skills/platform-planning/SKILL.md` §2).
 - You are about to state a repository fact you did not verify.
 
 ## Relationship with commands, agent, skills
 
-- **`commands/analyze-feature.md`** — platform/device-type detection, the user confirmation gate, the design-reference gate, and invoking the architect.
-- **`commands/dev-design-start.md` / `commands/dev-feature-start.md`** — stage orchestration and approval gating.
-- **Shared `dev-design-start` / `dev-feature-start` skills** — the overall mechanics ([Overview](#overview)).
-- **`agents/ios-architect.md`** — the iOS specialist that runs this methodology.
-- **This skill** — the iOS planning methodology itself.
-- **`skills/ios-feature-implementation/SKILL.md`** — the separate methodology used at Implement time, not here.
-
-This skill does not move command logic into itself, does not re-run platform or device-type detection, and does not invent paths to feature documents.
+- **`commands/analyze-feature.md`**, **`commands/dev-design-start.md`**, **`commands/dev-feature-start.md`** — detection, the confirmation gate, artifact resolution, approval gates and routing.
+- **`skills/platform-planning/SKILL.md`** — the platform-independent planning methodology. It names every other owner; that table is not repeated here.
+- **`skills/dev-design-start/SKILL.md`** — the DD section rules, Classification, Risk classification and the source-of-truth hierarchy.
+- **`agents/ios-architect.md`** — the iOS specialist that executes all of it.
+- **This skill** — the iOS planning content itself, and nothing a platform-independent layer could state.
 
 ## References
 
-Consult when a planning question is genuinely open — not routinely. None of these overrides the repository's existing implementation ([§1](#1-source-of-truth-hierarchy)).
+Consult when a planning question is genuinely open — not routinely. None of these overrides the repository's existing implementation (`skills/dev-design-start/SKILL.md` § *Shared planning rules → Source-of-truth hierarchy*).
 
 | Source | When to consult |
 |---|---|

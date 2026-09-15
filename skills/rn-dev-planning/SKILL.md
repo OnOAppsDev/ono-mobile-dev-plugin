@@ -1,21 +1,30 @@
 ---
 name: rn-dev-planning
-description: React Native-specific planning methodology — the repository evidence dimensions to inspect, the vocabulary for a Detailed Design's Technical Implementation Approach and Impacted Modules, and the RN standard-ID citation mapping. Used by /dev-design-start and /dev-feature-start via the rn-architect agent, alongside the shared dev-design-start / dev-feature-start skills, which own the overall mechanics.
+description: React Native-specific planning methodology — the repository evidence dimensions to inspect, the vocabulary a Detailed Design's Technical Implementation Approach and Impacted Modules are written in, the RN+TV unsupported stop, and the RN standard-ID citation map. Used by /analyze-feature, /dev-design-start and /dev-feature-start via the rn-architect agent, alongside the shared platform-planning skill which owns the planning methodology.
 ---
 
 # React Native Dev Planning
 
 ## Overview
 
-This skill is the methodology the `rn-architect` agent follows when planning React Native work. It owns two kinds of content, for two different reasons:
+This skill is the **React Native half** of planning a feature. It owns what a
+platform-independent layer could not state: which dimensions of a React Native repository
+must be inspected, the RN vocabulary the approach and change surface are written in, and
+which RN standard IDs may be cited.
 
-2. **Cite the relevant standard IDs** (`ARCH-*` from `standards/react-native/rn-architecture.md`, `API-*` from `standards/react-native/rn-api-service-layer.md`, `STATE-*` from `standards/react-native/rn-state-management.md`, `NAV-*` from `standards/react-native/rn-navigation.md`) the approach follows.
-- **What a platform-independent layer could not write** — which dimensions of a React Native repository must be inspected, the RN vocabulary for the design's approach and change surface, and which RN standard IDs may be cited.
-- **What the shared layer delegates to each platform lane** — the evidence-labelling vocabulary in [§3](#3-react-native-repository-evidence-collection). That one is not React Native-specific; it lives here because the architecture assigns it here.
+The methodology half — the confirmed-context rule, standards readiness, repository-knowledge
+resolution, evidence discipline and its labelling vocabulary, reuse-before-new,
+detected-conventions-govern, output discipline and the generic stop conditions — lives in
+**`skills/platform-planning/SKILL.md`** and is not restated here. The DD's section rules,
+Classification, the risk taxonomy and the source-of-truth hierarchy belong to
+**`skills/dev-design-start/SKILL.md`**. Apply all three.
 
-**It is not orchestration and it is not generic DD methodology.** The command and the shared skill own everything else — see [What this skill does not own](#what-this-skill-does-not-own). This skill never writes code and never modifies repository files. It plans.
+**This skill assumes no technology.** React Navigation, Expo Router, Redux Toolkit, Zustand,
+MobX, RTK Query, TanStack Query, Apollo, plain `fetch`/axios, `StyleSheet`, a styling
+library, a feature-based layout, a type-based layout, the New Architecture, the Legacy
+Architecture — all are *possible findings, never defaults*.
 
-**This skill assumes no technology.** React Navigation, Expo Router, Redux Toolkit, Zustand, MobX, RTK Query, TanStack Query, Apollo, plain `fetch`/axios, `StyleSheet`, a styling library, a feature-based layout, a type-based layout, the New Architecture, the Legacy Architecture — all are *possible findings, never defaults*. The repository's existing conventions are the source of truth.
+**This skill plans. It never writes code and never modifies repository files.**
 
 **React Native is mobile-only here.** There is no TV branch in this lane; `device_type` is carried in frontmatter by the shared pipeline and is not a planning variable for React Native.
 
@@ -26,32 +35,6 @@ This skill is the methodology the `rn-architect` agent follows when planning Rea
 - **Do not route elsewhere.** This is not a placeholder lane awaiting authoring and it is not another platform's work — Apple TV is `ios` + `tv` and Android TV is `android` + `tv`, each handled by its own authored lane. There is no equivalent React Native lane to fall back to.
 
 Supporting React Native TV would be a separate product and architecture decision, deliberately outside this plugin's current scope. Until such a decision exists, this stop **is** the defined behaviour — not a gap to work around.
-
-## What this skill does not own
-
-Referencing these is correct; restating them is duplication.
-
-| Concern | Owner |
-|---|---|
-| Locating the feature analysis, migration loading, the approval gate, artifact resolution | **`commands/dev-design-start.md`** steps 1–2 |
-| The design-reference branch and its stop conditions | **`commands/dev-design-start.md`** step 4 |
-| Architect routing, complexity-assessment triggering | **`commands/dev-design-start.md`** steps 3, 3a |
-| Repository-knowledge resolution procedure | **`commands/dev-design-start.md`** step 2 and `skills/repo-knowledge-consumer` |
-| DD section rules, the `N/A — [reason]` discipline, the flat-section rule, the frontmatter contract, the §20 change-class resolution rule and its site threshold, the contraction pass | **`skills/dev-design-start/SKILL.md`** Steps 2, 6 and 7 |
-| Statement classification, risk taxonomy, the ranked source-of-truth hierarchy | **`skills/dev-design-start/SKILL.md`** § *Shared planning rules* — defined once there, as Classification, Risk classification and Source-of-truth hierarchy. Apply them as written; do not introduce a React Native copy of any of them. This lane supplies only React Native's rank-4 and rank-5 values: **rank 4** — `standards/react-native/*` plus `standards/shared/*`; **rank 5** — React Native release notes and community guidance |
-
-## 1. Standards readiness
-
-Every React Native rule this skill cites lives in one of the six files in [§5](#5-react-native-standards-citation). Before planning, confirm those files are authored rather than structure-only placeholders. If a cited file is missing or is a placeholder, **stop and report that React Native planning is blocked until it is authored** — do not fall back to assumed defaults. (All six are authored today; this exists so the skill fails loudly if that regresses.)
-
-## 2. Detected conventions govern
-
-The repository's detected stack and conventions decide what a correct approach looks like. React Native release notes, community blog posts, and library documentation are **supporting guidance only** — they never override a working implementation, and "the ecosystem now prefers X" is never by itself a reason to propose X.
-
-- **Detect — do not assume.** Every technology named in the Overview is a finding to be established, not a default to be applied.
-- Where the repository is internally inconsistent — two navigation libraries, a half-finished state-management migration, both `StyleSheet` and a styling library in active use — **report the inconsistency** rather than silently picking a side.
-- Where the repository has no convention for something the feature needs, say so explicitly and record it as an open decision for the developer. Absence of a convention is not permission to invent one.
-- Never propose a migration — between navigation libraries, state libraries, data-fetching layers, styling approaches, or architecture modes — unless the feature explicitly requests it and it is approved.
 
 ## 3. React Native repository evidence collection
 
@@ -108,6 +91,8 @@ Every path must be evidence-backed. Mark a genuinely undetermined location `[unk
 
 ## 5. React Native standards citation
 
+**This lane's parameters for the two parameterised source-of-truth ranks** (`skills/dev-design-start/SKILL.md` § *Shared planning rules → Source-of-truth hierarchy*): **rank 4** is `standards/react-native/*` plus `standards/shared/*`; **rank 5** is React Native, Expo and library documentation, which is supporting guidance only and never overrides rank 2.
+
 Cite only IDs that exist in these files and genuinely apply to the point being made. Never invent an ID, and never cite one that is merely adjacent.
 
 | Area | Standard file | ID roots |
@@ -132,12 +117,13 @@ These are the React Native-specific conditions. Generic stop conditions belong t
 - Two navigation libraries, two state-management libraries, or two data-fetching layers are in active use with no discernible primary, and the feature must choose between them.
 - The repository's structural convention (feature-based vs. type-based) cannot be established, and the feature adds new modules.
 - The feature cannot be built without introducing a new library, architecture mode, or styling approach — report it as an open decision rather than deciding it.
-- A cited `standards/react-native/*` file is missing or is a structure-only placeholder (see [§1](#1-standards-readiness)).
+- A cited `standards/react-native/*` file is missing or is a structure-only placeholder (see `skills/platform-planning/SKILL.md` §2).
 - You are about to state a repository fact you did not verify, or cite an ID you did not confirm exists.
 
-## Relationship with command, agent, skill
+## Relationship with commands, agent, skills
 
-- **`commands/dev-design-start.md`** — orchestration: artifact resolution, gates, context, routing, triggering.
-- **`skills/dev-design-start/SKILL.md`** — the generic DD methodology, including everything in [What this skill does not own](#what-this-skill-does-not-own).
-- **`agents/rn-architect.md`** — the React Native specialist that executes this methodology and returns the result.
-- **This skill** — the React Native planning methodology itself, and nothing that a platform-independent layer could state.
+- **`commands/analyze-feature.md`**, **`commands/dev-design-start.md`**, **`commands/dev-feature-start.md`** — detection, the confirmation gate, artifact resolution, approval gates and routing.
+- **`skills/platform-planning/SKILL.md`** — the platform-independent planning methodology. It names every other owner; that table is not repeated here.
+- **`skills/dev-design-start/SKILL.md`** — the DD section rules, Classification, Risk classification and the source-of-truth hierarchy.
+- **`agents/rn-architect.md`** — the React Native specialist that executes all of it.
+- **This skill** — the React Native planning content itself, and nothing a platform-independent layer could state.
