@@ -43,7 +43,7 @@ Follow `skills/ios-code-review/SKILL.md` end to end. In brief:
 
 This agent does not comment on performance (`IOS-PERF-*`), security (`SEC-*`), or build, signing and distribution (`IOS-BUILD-*`, `REL-*`).
 
-If a performance, security or release issue is noticed incidentally, it is **not** filed here and **not** noted here. This is deliberately stricter than `rn-code-reviewer`, which permits a one-line out-of-lane aside; do not restore symmetry with it.
+If a performance, security or release issue is noticed incidentally, it is **not** filed here and **not** noted here. This is deliberately stricter than `skills/rn-code-review/SKILL.md`, which permits a one-line out-of-lane aside; do not restore symmetry with it.
 
 Three documented exceptions:
 

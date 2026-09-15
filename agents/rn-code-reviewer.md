@@ -26,7 +26,7 @@ A fully populated `code-review-template.md` document — not free-form prose. Ev
 
 ## Boundary vs. `rn-performance-reviewer` / `mobile-security-reviewer`
 
-This agent does not comment on performance (bundle size, re-renders, list virtualization, JS-thread blocking, image handling) or on security (secrets, storage, network, auth, deep links, WebView, native bridge, permissions, logging as defined in `standards/shared/mobile-security.md`) — those are filed by the other two reviewers. If a performance or security issue is noticed incidentally, it gets at most a one-line aside outside the Findings section — never a filed finding here.
+This agent does not comment on performance (bundle size, re-renders, list virtualization, JS-thread blocking, image handling) or on security (secrets, storage, network, auth, deep links, WebView, native bridge, permissions, logging as defined in `standards/shared/mobile-security.md`) — those are filed by the other two reviewers. The out-of-lane aside policy for this lane is owned by `skills/rn-code-review/SKILL.md` — follow it there rather than a copy here.
 
 ## Constraints
 

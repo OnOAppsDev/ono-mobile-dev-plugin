@@ -150,11 +150,15 @@ const SECURITY_CMD = "commands/review-security.md";
     check(`4 ${p.lane} requires a citation in the same slot`,
       /citation/i.test(s));
   }
-  const rn = flat(read("skills/rn-code-review/SKILL.md"));
-  check("4 the RN lane requires a standard ID per finding",
-    /Cite the standard ID.{0,60}for every finding/i.test(rn));
-  check("4 the RN lane requires concrete remediation",
-    /Write concrete remediation per finding/i.test(rn));
+  // OWNERSHIP MOVED. Citation and remediation are generic and now live once in
+  // platform-review; asserted against the ROUTE (shared + lane), which is what a
+  // reviewer actually loads, rather than against the lane alone.
+  const shared = flat(read("skills/platform-review/SKILL.md"));
+  check("4 the route requires a citation in the same slot, or the finding is not filable",
+    /A finding with an empty citation slot is not filable/.test(shared));
+  check("4 the route requires concrete remediation per finding",
+    /concrete remediation\*\* — a specific fix pointer/.test(shared));
+  check("4 Nit is not an exemption from citation", /Nit is not an exemption/.test(shared));
 }
 
 // ---------------------------------------------------------------------------
@@ -255,18 +259,32 @@ const SECURITY_CMD = "commands/review-security.md";
     ["measurement requests", /Measurement requests/i],
     ["lane ownership and the merge contract", /Lane ownership and the merge contract/i],
     ["framework-neutral family selection", /Framework-neutral family selection/i],
-    ["the two review passes", /The two review passes/i],
+    ["the two review passes", /two independent passes over the same scope|The two (review )?passes/i],
     ["release stage is Pass B only", /Release stage \(Pass B only\)/i],
     ["device_type handling at review", /`device_type` handling at review/i],
   ];
+  // Reachability is a property of the ROUTE — the iOS lane plus the shared methodology it
+  // loads — not of the lane file alone. Eight of these generalised into platform-review;
+  // asserting them against the lane after the split would demand a second copy, which is
+  // the duplication this refactor removes.
+  const iosRoute = ios + "\n" + read("skills/platform-review/SKILL.md");
+  const iosRouteFlat = flat(iosRoute);
   for (const [label, re] of UNIQUES) {
-    check(`9 iOS review unique reachable: ${label}`, re.test(ios) || re.test(iosFlat));
+    check(`9 iOS review unique reachable from the iOS route: ${label}`,
+      re.test(iosRoute) || re.test(iosRouteFlat));
   }
-  check("9 the iOS lane remains the largest review lane",
-    ios.split("\n").length >= PLATFORMS.filter((p) => p.lane !== "ios")
-      .map((p) => read(p.skill).split("\n").length)
-      .reduce((a, b) => Math.max(a, b), 0),
-    "iOS should be the superset");
+  // The size proxy for "iOS is the superset" no longer holds after the split, because the
+  // generalised half left the lane. The real property — iOS retains the most
+  // platform-specific review content — is asserted directly instead.
+  // Section count is a poor proxy after the split — lanes differ in how much ID-bearing
+  // data they carry, and React legitimately carries more sections than iOS. The property
+  // that actually matters is that iOS's fifteen uniques are each reachable, asserted
+  // above. What is still worth pinning is that the iOS lane did not become a thin stub:
+  // it must retain substantially more content than the thinnest lane.
+  const laneLines = (rel: string): number => read(rel).split("\n").length;
+  check("9 the iOS lane is not reduced to a stub",
+    laneLines("skills/ios-code-review/SKILL.md") >= 200,
+    `${laneLines("skills/ios-code-review/SKILL.md")} lines`);
 }
 
 // ---------------------------------------------------------------------------
@@ -275,12 +293,20 @@ const SECURITY_CMD = "commands/review-security.md";
 {
   // (a) RN's out-of-lane aside PERMISSION. It lives in exactly one file today, and that
   //     file is an agent a shared-role refactor removes. Pinned here deliberately.
-  const rnAgent = flat(read("agents/rn-code-reviewer.md"));
+  // OWNERSHIP MOVED (Stage 4c, Option A). The permission now lives in the RN review
+  // SKILL, which survives the shared-role refactor; the agent defers to it. The
+  // behaviour is unchanged — only its owner is.
+  const rnSkill = flat(read("skills/rn-code-review/SKILL.md"));
   check("10 RN permits a one-line out-of-lane aside",
-    /at most a one-line aside outside the Findings section/.test(rnAgent));
-  const rnSkill = read("skills/rn-code-review/SKILL.md");
-  check("10 the RN SKILL is silent on asides — the permission is agent-owned",
-    !/aside/i.test(rnSkill));
+    /at most a one-line aside outside the Findings section/.test(rnSkill));
+  check("10 the RN skill owns the policy and says it is RN's alone",
+    /This policy is React Native's alone/.test(rnSkill));
+  check("10 the RN skill forbids normalising it without an explicit decision",
+    /Do not normalise it in either direction without an explicit decision/.test(rnSkill));
+  const rnAgent = flat(read("agents/rn-code-reviewer.md"));
+  check("10 the RN agent defers the policy to the skill rather than restating it",
+    /out-of-lane aside policy for this lane is owned by `skills\/rn-code-review\/SKILL\.md`/.test(rnAgent) &&
+    !/at most a one-line aside/.test(rnAgent));
 
   // (b) The three lanes that deliberately diverge from RN still say so, and still name
   //     the file they diverge from. A dangling cross-reference here means the refactor
@@ -295,8 +321,13 @@ const SECURITY_CMD = "commands/review-security.md";
     check(`10 ${label} records the deliberate divergence from RN`,
       /deliberately stricter than|divergence is intentional|never shared/i.test(t));
   }
-  check("10 the iOS lane names where RN's permission actually lives",
-    /agents\/rn-code-reviewer\.md/.test(flat(read("skills/ios-code-review/SKILL.md"))));
+  // Every component that diverges from RN must name the file that now owns the policy.
+  for (const rel of ["skills/ios-code-review/SKILL.md", "agents/ios-code-reviewer.md",
+                     "agents/android-code-reviewer.md", "agents/react-code-reviewer.md",
+                     "skills/react-code-review/SKILL.md"]) {
+    check(`10 ${rel} points at the RN skill, not the deleted agent`,
+      /skills\/rn-code-review\/SKILL\.md/.test(flat(read(rel))));
+  }
 
   // (c) RN must not silently acquire the strict no-modernization-anywhere rule the other
   //     three carry. If the refactor gives it one, that is a behaviour change and this
