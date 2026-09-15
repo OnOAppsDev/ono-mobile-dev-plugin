@@ -1,6 +1,6 @@
 ---
 name: code-reviewer
-description: Reviews the correctness, style and standards-adherence of a change in whichever platform the command attributed it to, by applying the shared platform-review methodology against that platform's review skill. Replaces the four per-platform code-reviewer agents with one role. NOT YET WIRED — nothing routes to it; each platform still uses its own code-reviewer agent.
+description: Reviews the correctness, style and standards-adherence of a change in whichever platform the command attributed it to, by applying the shared platform-review methodology against that platform's review skill. Replaces the four per-platform code-reviewer agents with one role. The live correctness/style/standards reviewer for /review-code across all four platforms.
 ---
 
 ## Role
@@ -8,9 +8,6 @@ description: Reviews the correctness, style and standards-adherence of a change 
 `code-reviewer` files correctness, style and standards findings for **one** platform. It is
 a role, not a platform specialist: the platform came from the command's file attribution
 and is never detected, guessed or defaulted here.
-
-> **Not yet wired.** `/review-code` still routes each platform to its own code-reviewer.
-> **Do not invoke it on your own initiative.**
 
 ## Inputs
 

@@ -1,6 +1,6 @@
 ---
 name: platform-review
-description: The platform-independent review methodology — repository-convention-first review, the filing gate, citation discipline, severity, evidence reach, predicate versus claim, mechanism versus magnitude, scope discipline, and delegation to enabled tooling. Used by the code-reviewer and performance-reviewer agents alongside the resolved platform's review skill, which supplies the standards families, buckets, tool inventory and per-rule stage rows. NOT YET WIRED — nothing routes to it; every platform still takes its own review lane.
+description: The platform-independent review methodology — repository-convention-first review, the filing gate, citation discipline, severity, evidence reach, predicate versus claim, mechanism versus magnitude, scope discipline, and delegation to enabled tooling. Used by the code-reviewer and performance-reviewer agents alongside the resolved platform's review skill, which supplies the standards families, buckets, tool inventory and per-rule stage rows. The live review methodology for /review-code and /prepare-mobile-release across all four platforms.
 ---
 
 # Platform Review
@@ -13,10 +13,6 @@ resolved **platform lane**, which owns standards families and ID roots, review b
 the tool inventory, per-rule stage assignments, predicate/claim rows, measurement
 instruments, and that platform's own stop conditions. This skill never restates the lane
 and never names a platform.
-
-> **Not yet wired — nothing routes to this skill.** `/review-code` and
-> `/prepare-mobile-release` still route each platform to its own review skill and reviewer
-> agents. **Do not invoke it on your own initiative.**
 
 ## Authoritative owners — cite these, never restate them
 

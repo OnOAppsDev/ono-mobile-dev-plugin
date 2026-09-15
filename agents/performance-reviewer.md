@@ -1,6 +1,6 @@
 ---
 name: performance-reviewer
-description: Audits the performance of a change against the resolved platform's performance rules, at Review stage and at Release stage, by applying the shared platform-review methodology against that platform's review skill. Replaces the four per-platform performance-reviewer agents with one role. NOT YET WIRED — nothing routes to it; each platform still uses its own performance-reviewer agent.
+description: Audits the performance of a change against the resolved platform's performance rules, at Review stage and at Release stage, by applying the shared platform-review methodology against that platform's review skill. Replaces the four per-platform performance-reviewer agents with one role. The live performance reviewer for /review-code and /prepare-mobile-release across all four platforms.
 ---
 
 ## Role
@@ -8,9 +8,6 @@ description: Audits the performance of a change against the resolved platform's 
 `performance-reviewer` audits performance for **one** platform, in **one** of two stages:
 the Review pass invoked by `/review-code`, and the Release sign-off invoked by
 `/prepare-mobile-release`. The platform and the stage are both passed in.
-
-> **Not yet wired.** `/review-code` and `/prepare-mobile-release` still route each platform
-> to its own performance-reviewer. **Do not invoke it on your own initiative.**
 
 ## Inputs
 

@@ -107,11 +107,10 @@ const live = validate(REPO_ROOT);
   // is exactly what it did when React was still scaffolding.
   check("4 no component is a placeholder — every lane is authored",
     placeholders.length === 0, `${placeholders.length}: ${placeholders.join(", ")}`);
-  // The implementation route went live at Stage 3d. The review route is staged at Stage 4b
-  // and not yet wired, so C4 is doing its job: these three must stay unrouted until the
-  // Stage 4d flip, and routing to one early is a defect rather than a surprise.
-  check("4 the deferred set is exactly the staged review components",
-    deferred.join(",") === "code-reviewer,performance-reviewer,platform-review", deferred.join(","));
+  // Implementation went live at Stage 3d, review at Stage 4d. Nothing is staged now.
+  // C4 stays armed: a future component declaring NOT YET WIRED must remain unrouted.
+  check("4 nothing is deferred — implementation and review routes are both live",
+    deferred.length === 0, deferred.join(","));
 
   // The trap that would declare an authored lane unbuilt. See the validator header.
   const android = live.components.filter((c) => c.lane === "android");

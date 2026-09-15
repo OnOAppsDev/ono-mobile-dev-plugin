@@ -206,8 +206,12 @@ const SECURITY_CMD = "commands/review-security.md";
 // ---------------------------------------------------------------------------
 {
   const rel = flat(read(RELEASE_CMD));
+  // Wording follows the Stage-4d route; the invariant is unchanged — one performance
+  // review per shipping platform, each carrying exactly one lane.
   check("7 release invokes a performance reviewer per shipping platform",
-    /invoke each shipping platform's performance-reviewer agent/.test(rel));
+    /invoke the `performance-reviewer` agent once per shipping platform/.test(rel));
+  check("7 release carries exactly one lane per invocation",
+    /exactly one lane per invocation/.test(rel));
   check("7 one platform-tagged sign-off block per shipping platform",
     /one platform-tagged sign-off block per shipping platform/.test(rel));
   check("7 a placeholder lane does not abort the release check",
