@@ -38,15 +38,15 @@ review free of manufactured noise:
 
 ## The two passes over this lane
 
-`rn-code-reviewer` walks each bucketed file against its standards section's checklist,
-recording pass / fail / not-applicable per bullet. `rn-performance-reviewer` **independently**
+`code-reviewer` walks each bucketed file against its standards section's checklist,
+recording pass / fail / not-applicable per bullet. `performance-reviewer` **independently**
 audits the same scope against `standards/react-native/rn-performance.md`'s `RN-PERF-*` rules —
 a separate pass, not a sub-step, so a perf-only change is never miscategorised.
 
 ## Exclusions
 
 Security defers to `mobile-security-review`'s methodology. Anything outside `RN-PERF-*`'s
-scope stays with `rn-code-reviewer` rather than `rn-performance-reviewer`.
+scope stays with `code-reviewer` rather than `performance-reviewer`.
 
 ## Standards citation
 
@@ -65,7 +65,7 @@ scope stays with `rn-code-reviewer` rather than `rn-performance-reviewer`.
 
 **This lane permits a one-line out-of-lane aside.** A performance or security issue
 noticed incidentally gets at most a one-line aside outside the Findings section — never a
-filed finding here, since performance belongs to `rn-performance-reviewer` and security to
+filed finding here, since performance belongs to `performance-reviewer` and security to
 `mobile-security-reviewer`.
 
 **This policy is React Native's alone.** The iOS, Android and React lanes each forbid any
@@ -79,5 +79,5 @@ deliberately neutral on this policy and delegates it to each lane.
 
 - **`commands/review-code.md`** — scope, file attribution, standards loading, lane routing, the readiness gate, and the merge.
 - **`skills/platform-review/SKILL.md`** — the platform-independent review methodology. It names every other owner; that table is not repeated here.
-- **`agents/rn-code-reviewer.md`** and **`agents/rn-performance-reviewer.md`** — the two executors that run both halves over this platform's files.
+- **`agents/code-reviewer.md`** and **`agents/performance-reviewer.md`** — the two executors that run both halves over this platform's files.
 - **This skill** — the React Native review content itself, and nothing a platform-independent layer could state.

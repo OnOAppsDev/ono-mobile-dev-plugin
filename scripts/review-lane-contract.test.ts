@@ -21,7 +21,7 @@
  * refactor has to satisfy a boundary that was already green.
  *
  * PROPERTY 10 IS THE SHARP ONE. React Native's permission to file a one-line out-of-lane
- * aside lives in exactly one place — `agents/rn-code-reviewer.md` — which is the agent a
+ * aside lives in exactly one place — `skills/rn-code-review/SKILL.md` — which is the file a
  * shared-role refactor deletes. Three other components cite that file BY NAME as the
  * thing their stricter stance diverges from. So the aside policy cannot survive the
  * refactor by accident: either it is deliberately relocated, or RN silently changes
@@ -62,8 +62,11 @@ const PLATFORMS = LANES.map((l) => ({
   prefix: l.prefix,
   standardsDir: l.standardsDir,
   skill: `skills/${l.prefix}code-review/SKILL.md`,
-  reviewer: `agents/${l.prefix}code-reviewer.md`,
-  perf: `agents/${l.prefix}performance-reviewer.md`,
+  // OWNERSHIP MOVED (Stage 4d + cleanup). One shared pair of role agents serves every
+  // platform; the lane supplies the platform half. Every property below still runs per
+  // platform — it now runs against the route the platform actually takes.
+  reviewer: "agents/code-reviewer.md",
+  perf: "agents/performance-reviewer.md",
 }));
 
 const REVIEW_CMD = "commands/review-code.md";
@@ -177,7 +180,10 @@ const SECURITY_CMD = "commands/review-security.md";
   for (const p of PLATFORMS) {
     const rev = flat(read(p.reviewer));
     check(`5 ${p.lane} code-reviewer declares a boundary vs performance and security`,
-      /does not comment on performance|not filed here|Boundary vs/i.test(rev));
+      // Phrasing-tolerant: the role agent states the boundary in the imperative
+      // ("Do not comment on performance") where the per-platform agents used the
+      // third person. The property is the declared boundary, never one verb form.
+      /(do(es)? not|never) comment on performance|not filed here|Boundary vs/i.test(rev));
   }
 }
 
@@ -307,10 +313,14 @@ const SECURITY_CMD = "commands/review-security.md";
     /This policy is React Native's alone/.test(rnSkill));
   check("10 the RN skill forbids normalising it without an explicit decision",
     /Do not normalise it in either direction without an explicit decision/.test(rnSkill));
-  const rnAgent = flat(read("agents/rn-code-reviewer.md"));
-  check("10 the RN agent defers the policy to the skill rather than restating it",
-    /out-of-lane aside policy for this lane is owned by `skills\/rn-code-review\/SKILL\.md`/.test(rnAgent) &&
-    !/at most a one-line aside/.test(rnAgent));
+  // Re-pointed (cleanup): `rn-code-reviewer` is gone; `code-reviewer` serves every lane.
+  // It cannot name RN's policy without breaking lane neutrality, so what it must do is
+  // defer to whichever lane resolved — and still never restate the aside itself.
+  const sharedReviewer = flat(read("agents/code-reviewer.md"));
+  check("10 the shared agent defers the policy to the lane rather than restating it",
+    /out-of-lane policy/i.test(sharedReviewer) &&
+    /the \*\*lane's\*\* policy|read it from the lane/.test(sharedReviewer) &&
+    !/at most a one-line aside/.test(sharedReviewer));
 
   // (b) The three lanes that deliberately diverge from RN still say so, and still name
   //     the file they diverge from. A dangling cross-reference here means the refactor
@@ -326,11 +336,17 @@ const SECURITY_CMD = "commands/review-security.md";
       /deliberately stricter than|divergence is intentional|never shared/i.test(t));
   }
   // Every component that diverges from RN must name the file that now owns the policy.
-  for (const rel of ["skills/ios-code-review/SKILL.md", "agents/ios-code-reviewer.md",
-                     "agents/android-code-reviewer.md", "agents/react-code-reviewer.md",
-                     "skills/react-code-review/SKILL.md"]) {
+  // The three per-platform reviewer agents that used to cite RN's policy are gone; the
+  // skills that diverge from it remain, and must still name the file that owns it.
+  for (const rel of ["skills/ios-code-review/SKILL.md", "skills/react-code-review/SKILL.md"]) {
     check(`10 ${rel} points at the RN skill, not the deleted agent`,
       /skills\/rn-code-review\/SKILL\.md/.test(flat(read(rel))));
+  }
+  // No surviving component may still cite a deleted per-platform reviewer agent.
+  for (const rel of ["skills/ios-code-review/SKILL.md", "skills/android-code-review/SKILL.md",
+                     "skills/react-code-review/SKILL.md", "agents/code-reviewer.md"]) {
+    check(`10 ${rel} cites no deleted per-platform reviewer agent`,
+      !/agents\/(rn|ios|android|react)-(code|performance)-reviewer\.md/.test(read(rel)));
   }
 
   // (c) RN must not silently acquire the strict no-modernization-anywhere rule the other
@@ -347,7 +363,7 @@ const SECURITY_CMD = "commands/review-security.md";
   }
   check("10 RN does NOT carry the strict no-modernization-anywhere rule today",
     !STRICT.test(flat(read("skills/rn-code-review/SKILL.md"))) &&
-    !STRICT.test(flat(read("agents/rn-code-reviewer.md"))));
+    !STRICT.test(flat(read("agents/code-reviewer.md"))));
 }
 
 // ---------------------------------------------------------------------------

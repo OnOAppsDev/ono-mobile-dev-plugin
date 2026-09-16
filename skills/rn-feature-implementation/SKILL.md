@@ -1,6 +1,6 @@
 ---
 name: rn-feature-implementation
-description: React Native-specific implementation methodology — the repository dimensions to inspect, the per-area coding guidance, the validation tooling, and the RN standards-citation map. Used by /implement-task via the rn-feature-developer agent, alongside the shared platform-implementation skill, which owns the lifecycle mechanics.
+description: React Native-specific implementation methodology — the repository dimensions to inspect, the per-area coding guidance, the validation tooling, and the RN standards-citation map. Used by /implement-task via the feature-implementer agent, alongside the shared platform-implementation skill, which owns the lifecycle mechanics.
 ---
 
 # React Native Feature Implementation
@@ -102,7 +102,7 @@ image performance.
 
 ## Standards citation
 
-Record which standard IDs were **applied** (not merely reviewed) — this is the trace `rn-code-reviewer`, `rn-performance-reviewer`, and the QA handoff rely on, so they do not have to re-derive it.
+Record which standard IDs were **applied** (not merely reviewed) — this is the trace `code-reviewer`, `performance-reviewer`, and the QA handoff rely on, so they do not have to re-derive it.
 
 | Area | Standard file | IDs |
 |---|---|---|
@@ -134,7 +134,7 @@ Responsibilities stay separated:
 
 - **`commands/implement-task.md`** — task-id resolution, repository-root resolution, document-path resolution, approval/dependency/blocker gates, platform routing, the context handoff, lifecycle state, and verification of the completion report.
 - **`skills/platform-implementation/SKILL.md`** — the platform-independent implementation methodology: inputs, source-of-truth hierarchy, readiness checks, grounding discipline, scope control, incremental implementation, validation rules, self-review, and the completion report.
-- **`agents/rn-feature-developer.md`** — the React Native specialist and executor that runs both.
+- **`agents/feature-implementer.md`** — the React Native specialist and executor that runs both.
 - **This skill** — the React Native implementation methodology itself, and nothing a platform-independent layer could state.
 - **Hooks** — `require-approval-before-code` (approval before any code write), `block-main-branch-changes` (feature-branch enforcement), and `protect-secrets`.
 

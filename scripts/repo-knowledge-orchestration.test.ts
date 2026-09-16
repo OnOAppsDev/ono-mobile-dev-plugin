@@ -227,7 +227,7 @@ const S3 = step3();
     /\*\*Android\*\*: lightweight existence checks only/.test(repoAnalyst));
   check("6 repo-analyst does lightweight React checks for the same deliberate reason",
     /\*\*React \(web\)\*\*: lightweight existence checks only/.test(repoAnalyst) &&
-      /react-architect` runs its own deeper React inspection/.test(repoAnalyst));
+      /feature-architect` runs its own deeper React inspection/.test(repoAnalyst));
   check("6 repo-analyst no longer defers React depth to unauthored standards",
     !/deferred until `standards\/react\/\*` is authored/.test(repoAnalyst));
   check("6 repo-analyst still labels every stack finding reused or derived",
@@ -239,14 +239,15 @@ const S3 = step3();
   // Inverted by REACT-001/002/003. These were status assertions ("React is still a
   // placeholder"); with the lane authored they become the same coverage assertions
   // group 3 already makes for iOS and Android — a stronger check, not a weaker one.
-  const reactAgent = read("agents/react-architect.md");
+  // Re-pointed (cleanup): one shared role agent serves React like every other lane.
+  const reactAgent = read("agents/feature-architect.md");
   const reactSkill = read("skills/react-dev-planning/SKILL.md");
-  check("7 react-architect resolves canonical knowledge via the consumer",
+  check("7 the React route resolves canonical knowledge via the consumer",
     /repo-knowledge-consumer/.test(reactAgent));
   // The React lane delegates via platform-planning, which owns the consumer step.
   check("7 react-dev-planning delegates repository knowledge to the shared methodology",
     /platform-planning/.test(reactSkill));
-  for (const rel of ["agents/react-architect.md", "skills/react-dev-planning/SKILL.md"]) {
+  for (const rel of ["agents/feature-architect.md", "skills/react-dev-planning/SKILL.md"]) {
     check(`7 ${rel} is no longer a placeholder`, !/^## Status: Not yet authored$/m.test(read(rel)));
   }
   const reactStandards = readdirSync(join(REPO_ROOT, "standards", "react")).filter((f) => f.endsWith(".md"));

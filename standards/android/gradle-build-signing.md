@@ -2,7 +2,7 @@
 
 ## Purpose & Scope
 
-These standards cover the Android build configuration touched during feature work and validated at release: Gradle build variants and flavors, dependency management, signing configuration, and R8/ProGuard minification. They are applied by `android-feature-developer` when a task changes build config, and cited by `mobile-release-engineer` / `android-performance-reviewer` in `/prepare-mobile-release` when the release ships an Android build. Each bullet carries a stable `AND-REL-*` ID. This is a baseline, not exhaustive — follow the repo's existing Gradle conventions (Groovy vs. Kotlin DSL, version catalogs, convention plugins) rather than imposing a different style.
+These standards cover the Android build configuration touched during feature work and validated at release: Gradle build variants and flavors, dependency management, signing configuration, and R8/ProGuard minification. They are applied by `feature-implementer` when a task changes build config, and cited by `mobile-release-engineer` / `performance-reviewer` in `/prepare-mobile-release` when the release ships an Android build. Each bullet carries a stable `AND-REL-*` ID. This is a baseline, not exhaustive — follow the repo's existing Gradle conventions (Groovy vs. Kotlin DSL, version catalogs, convention plugins) rather than imposing a different style.
 
 ## Build Variants & Configuration
 

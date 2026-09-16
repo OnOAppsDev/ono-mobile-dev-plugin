@@ -2,7 +2,7 @@
 
 ## Purpose & Scope
 
-These standards govern navigation in native Android app code — destinations/routes, argument passing, deep links, and back-stack behavior. They are used by `android-architect` when proposing navigation changes, implemented by `android-feature-developer`, and reviewed by `android-code-reviewer`. Each bullet carries a stable `AND-NAV-*` ID. This is a baseline, not exhaustive — follow the repository's detected navigation mechanism (Jetpack Navigation Component, Compose Navigation, a custom router, or manual `FragmentTransaction`/`Intent` navigation) rather than imposing one.
+These standards govern navigation in native Android app code — destinations/routes, argument passing, deep links, and back-stack behavior. They are used by `feature-architect` when proposing navigation changes, implemented by `feature-implementer`, and reviewed by `code-reviewer`. Each bullet carries a stable `AND-NAV-*` ID. This is a baseline, not exhaustive — follow the repository's detected navigation mechanism (Jetpack Navigation Component, Compose Navigation, a custom router, or manual `FragmentTransaction`/`Intent` navigation) rather than imposing one.
 
 ## Destinations & Routes
 

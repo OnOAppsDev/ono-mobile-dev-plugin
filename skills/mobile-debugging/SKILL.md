@@ -13,7 +13,7 @@ description: Methodology for root-causing bugs and reviewer feedback and applyin
 
 4. **Determine which platform owns each finding**, using the same file-attribution rule `repo-analyst` uses (a file belongs to `ios` if under an iOS project tree or has extension `.swift`/`.m`/`.mm`/`.h`; to `android` if under `android/` or extension `.kt`/`.java`; to `react` if in a React-web workspace; otherwise `react-native`) — either from the finding's own `[platform]` tag if present, or from its file path.
 
-5. **Delegate the actual code change to the matching platform's feature-developer agent** (`rn-feature-developer`/`ios-feature-developer`/`android-feature-developer`/`react-feature-developer`), passing along the standard ID the finding cited so the fix is written consistent with that standard rather than as an ad hoc patch. A mixed-repo fix pass groups findings by platform first, then runs this delegation once per platform group.
+5. **Delegate the actual code change to `feature-implementer`**, run against the resolved platform's implementation lane, passing along the standard ID the finding cited so the fix is written consistent with that standard rather than as an ad hoc patch. A mixed-repo fix pass groups findings by platform first, then runs this delegation once per platform group.
 
 6. **Re-verify the fix against the originating finding** — confirm the specific condition the reviewer flagged no longer holds, not just that the code compiles/runs.
 

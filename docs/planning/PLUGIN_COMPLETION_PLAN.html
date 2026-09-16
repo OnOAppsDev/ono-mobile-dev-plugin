@@ -3,1119 +3,199 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Ono Mobile Dev Plugin — Completion Plan (Editable)</title>
+<title>Ono Mobile Dev Plugin — Roadmap</title>
 <style>
   :root{
-    --bg:#eef1f5; --panel:#ffffff; --ink:#1b2430; --muted:#5b6675;
+    --bg:#eef1f5; --panel:#fff; --ink:#1b2430; --muted:#5b6675;
     --line:#d8dde5; --line-strong:#b9c1cd; --head:#f0f3f7; --accent:#2f6feb;
-    --accent-soft:#e7effd; --sel:#fff4c9; --sel-line:#e6c200; --ok:#1a7f4b; --warn:#b26a00;
-    --btn:#f3f5f8; --btn-ink:#26303d;
-
-    /* status colors */
-    --st-missing-bg:#fdecec;   --st-missing-ink:#a52222;   --st-missing-line:#e39b9b;
-    --st-placeholder-bg:#fff4e0; --st-placeholder-ink:#8a5a00; --st-placeholder-line:#e6c68a;
-    --st-partial-bg:#fdeede;   --st-partial-ink:#9a5300;   --st-partial-line:#eab98a;
-    --st-disc-bg:#f1ecfb;      --st-disc-ink:#5a3ba8;      --st-disc-line:#c9b8ec;
-    --st-mod-bg:#e7effd;       --st-mod-ink:#22509a;       --st-mod-line:#a8c4f0;
-    --st-optional-bg:#eef4f6;  --st-optional-ink:#3c6b78;  --st-optional-line:#b4cdd4;
-    --st-done-bg:#e5f5ec;      --st-done-ink:#136c3d;      --st-done-line:#a4d8ba;
-
-    /* owner colors */
-    --ow-plugin-bg:#eceff3;  --ow-plugin-ink:#3a4453;  --ow-plugin-line:#c3cbd6;
-    --ow-tom-bg:#e7effd;     --ow-tom-ink:#22509a;     --ow-tom-line:#a8c4f0;
-    --ow-noam-bg:#e2f4f4;    --ow-noam-ink:#0f6a6a;    --ow-noam-line:#9bd3d3;
-    --ow-guy-bg:#e6f4e8;     --ow-guy-ink:#1c6b32;     --ow-guy-line:#a8d6b3;
-    --ow-boris-bg:#f0eafb;   --ow-boris-ink:#5a3ba8;   --ow-boris-line:#c9b8ec;
-    --ow-pavel-bg:#fdefe0;   --ow-pavel-ink:#9a5a00;   --ow-pavel-line:#eac694;
+    --ok-bg:#e5f5ec; --ok-ink:#136c3d; --ok-line:#a4d8ba;
+    --open-bg:#fdecec; --open-ink:#a52222; --open-line:#e39b9b;
+    --def-bg:#eef4f6; --def-ink:#3c6b78; --def-line:#b4cdd4;
+    --warn-bg:#fff4e0; --warn-ink:#8a5a00; --warn-line:#e6c68a;
   }
   *{box-sizing:border-box}
   html,body{margin:0;padding:0}
-  body{
-    background:var(--bg); color:var(--ink);
-    font:15px/1.55 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
-    -webkit-text-size-adjust:100%;
-  }
-  .wrap{max-width:1320px; margin:0 auto; padding:0 18px 90px}
-
-  /* Sticky global toolbar */
-  .toolbar{
-    position:sticky; top:0; z-index:40;
-    background:var(--panel); border-bottom:1px solid var(--line-strong);
-    display:flex; flex-wrap:wrap; align-items:center; gap:8px;
-    padding:10px 18px; box-shadow:0 1px 6px rgba(0,0,0,.06);
-  }
-  .toolbar .grow{flex:1 1 auto; min-width:120px}
-  .toolbar .meta{font-size:12.5px; color:var(--muted)}
-  .toolbar .meta b{color:var(--ink)}
-
-  button.btn{
-    font:600 13px/1 inherit; cursor:pointer; color:var(--btn-ink);
-    background:var(--btn); border:1px solid var(--line-strong); border-radius:8px;
-    padding:9px 13px; transition:background .12s, box-shadow .12s;
-  }
-  button.btn:hover{background:#e9edf3}
-  button.btn:active{box-shadow:inset 0 1px 3px rgba(0,0,0,.12)}
-  button.btn.primary{background:var(--accent); color:#fff; border-color:var(--accent)}
-  button.btn.primary:hover{background:#2258c9}
-  button.btn.danger{color:#8a1f1f; border-color:#e3b7b7; background:#fdf2f2}
-  button.btn.danger:hover{background:#f8e3e3}
-  button.btn.small{padding:6px 11px; font-size:12px; border-radius:7px}
-
-  /* Dashboard header */
-  header.report{
-    margin:18px 0 4px; padding:22px 24px;
-    background:linear-gradient(135deg,#1f2a44 0%,#2f4d86 62%,#356bd0 100%);
-    color:#eef3fb; border-radius:14px; box-shadow:0 6px 22px rgba(24,40,80,.18);
-  }
-  header.report .eyebrow{font-size:11.5px; letter-spacing:.14em; text-transform:uppercase; color:#b9cdf0; margin:0 0 6px}
-  header.report h1{font-size:26px; margin:0 0 8px; line-height:1.2}
-  header.report .sub{color:#cdd9ee; font-size:13.5px; margin:0}
-  header.report .chips{display:flex; flex-wrap:wrap; gap:8px; margin-top:14px}
-  header.report .chip{
-    font-size:12px; background:rgba(255,255,255,.12); border:1px solid rgba(255,255,255,.22);
-    color:#eaf1fc; padding:4px 10px; border-radius:999px;
-  }
-
-  /* Summary cards */
-  .cards{
-    display:grid; grid-template-columns:repeat(auto-fit,minmax(230px,1fr));
-    gap:14px; margin:16px 0 6px;
-  }
-  .card{
-    background:var(--panel); border:1px solid var(--line); border-radius:12px;
-    padding:16px 18px; box-shadow:0 1px 3px rgba(0,0,0,.04);
-  }
-  .card .label{font-size:12px; text-transform:uppercase; letter-spacing:.05em; color:var(--muted); margin:0 0 8px}
-  .card .big{font-size:34px; font-weight:800; line-height:1; color:var(--ink)}
-  .card .big small{font-size:14px; font-weight:600; color:var(--muted); margin-left:6px}
-  .card .breakdown{list-style:none; margin:0; padding:0; font-size:13px}
-  .card .breakdown li{display:flex; align-items:center; justify-content:space-between; gap:8px; padding:3px 0}
-  .card .breakdown .k{display:flex; align-items:center; gap:7px; min-width:0}
-  .card .breakdown .k .swatch{width:10px; height:10px; border-radius:3px; flex:0 0 auto}
-  .card .breakdown .v{font-weight:700; font-variant-numeric:tabular-nums}
-  .card .breakdown .kname{white-space:nowrap; overflow:hidden; text-overflow:ellipsis}
-
-  .notice{
-    margin:16px 0 4px; padding:12px 16px; border-radius:10px;
-    background:var(--accent-soft); border:1px solid #cfe0fb; color:#274a86; font-size:13.5px;
-  }
-  .callout{
-    margin:14px 0; padding:12px 16px; border-radius:10px;
-    background:#fff9e6; border:1px solid #f0dd9b; color:#6b5200; font-size:14px;
-  }
-  .callout strong{color:#4d3b00}
-  #savedAt b{color:var(--ink)}
-
-  h2{font-size:20px; margin:34px 0 8px; padding-bottom:7px; border-bottom:2px solid var(--line-strong)}
-  h3{font-size:16px; margin:22px 0 6px}
-  p{margin:8px 0}
-  ul{margin:8px 0 8px 20px; padding:0}
-  li{margin:3px 0}
-  code{background:#eef1f5; padding:1px 5px; border-radius:4px; font-size:12.5px}
-  pre{background:#0f1620; color:#dce6f2; padding:14px 16px; border-radius:10px; overflow-x:auto; font-size:12px; line-height:1.5}
-  .small{font-size:13px; color:var(--muted)}
-  .section-note{color:var(--muted); font-size:13px; margin:6px 0}
-
-  /* Legend */
-  .legend{
-    background:var(--panel); border:1px solid var(--line); border-radius:12px;
-    padding:16px 18px; margin:12px 0;
-  }
-  .legend h3{margin:0 0 8px}
-  .legend .grid{display:grid; grid-template-columns:repeat(auto-fit,minmax(240px,1fr)); gap:16px}
-  .legend .col h4{margin:0 0 6px; font-size:13px; text-transform:uppercase; letter-spacing:.04em; color:var(--muted)}
-  .legend .item{display:flex; align-items:flex-start; gap:8px; font-size:13px; margin:5px 0}
-  .badge{
-    display:inline-block; font-size:11.5px; font-weight:700; line-height:1.3;
-    padding:2px 9px; border-radius:999px; white-space:nowrap; border:1px solid transparent;
-  }
-  .prio-key{width:14px; height:14px; border-radius:4px; flex:0 0 auto; margin-top:2px}
-
-  /* status badge palette */
-  .b-missing{background:var(--st-missing-bg); color:var(--st-missing-ink); border-color:var(--st-missing-line)}
-  .b-placeholder{background:var(--st-placeholder-bg); color:var(--st-placeholder-ink); border-color:var(--st-placeholder-line)}
-  .b-partial{background:var(--st-partial-bg); color:var(--st-partial-ink); border-color:var(--st-partial-line)}
-  .b-disc{background:var(--st-disc-bg); color:var(--st-disc-ink); border-color:var(--st-disc-line)}
-  .b-mod{background:var(--st-mod-bg); color:var(--st-mod-ink); border-color:var(--st-mod-line)}
-  .b-optional{background:var(--st-optional-bg); color:var(--st-optional-ink); border-color:var(--st-optional-line)}
-  .b-done{background:var(--st-done-bg); color:var(--st-done-ink); border-color:var(--st-done-line)}
-  /* owner badge palette */
-  .b-plugin{background:var(--ow-plugin-bg); color:var(--ow-plugin-ink); border-color:var(--ow-plugin-line)}
-  .b-tom{background:var(--ow-tom-bg); color:var(--ow-tom-ink); border-color:var(--ow-tom-line)}
-  .b-noam{background:var(--ow-noam-bg); color:var(--ow-noam-ink); border-color:var(--ow-noam-line)}
-  .b-guy{background:var(--ow-guy-bg); color:var(--ow-guy-ink); border-color:var(--ow-guy-line)}
-  .b-boris{background:var(--ow-boris-bg); color:var(--ow-boris-ink); border-color:var(--ow-boris-line)}
-  .b-pavel{background:var(--ow-pavel-bg); color:var(--ow-pavel-ink); border-color:var(--ow-pavel-line)}
-
-  /* Editable tables */
-  .table-block{background:var(--panel); border:1px solid var(--line); border-radius:12px; margin:12px 0 8px; overflow:hidden; box-shadow:0 1px 3px rgba(0,0,0,.04)}
-  .table-toolbar{
-    display:flex; flex-wrap:wrap; gap:8px; align-items:center;
-    padding:11px 14px; background:#f7f9fb; border-bottom:1px solid var(--line);
-  }
-  .table-toolbar .tname{font-weight:700; font-size:14px; flex:1 1 auto; min-width:140px}
-  .scroll{overflow-x:auto}
-  table.editable{border-collapse:collapse; width:100%; min-width:640px}
-  table.editable thead th{
-    position:sticky; top:0; z-index:5; background:var(--head); text-align:left;
-    font-size:12px; text-transform:uppercase; letter-spacing:.02em; color:#3a4453;
-    padding:10px 11px; border-bottom:2px solid var(--line-strong); border-right:1px solid var(--line);
-    white-space:nowrap;
-  }
-  table.editable tbody td{
-    padding:8px 11px; border-bottom:1px solid var(--line); border-right:1px solid var(--line);
-    vertical-align:top; font-size:13.5px; min-width:70px;
-  }
-  table.editable tbody tr:nth-child(even){background:#fafbfc}
-  table.editable tbody tr:hover{background:#f2f6fc}
-  table.editable tbody td[contenteditable]:focus{
-    outline:2px solid var(--accent); outline-offset:-2px; background:#fff;
-  }
-  table.editable tbody tr.selected{background:var(--sel) !important}
-  table.editable tbody tr.selected td{border-bottom-color:var(--sel-line)}
-
-  /* priority row highlighting (task table) */
-  tr[data-priority="blocker"] td:first-child{border-left:5px solid #d23a3a}
-  tr[data-priority="blocker"]{background:#fdf4f4}
-  tr[data-priority="blocker"]:nth-child(even){background:#fbeeee}
-  tr[data-priority="high"] td:first-child{border-left:5px solid #e6a417}
-  tr[data-priority="high"]{background:#fffaf0}
-  tr[data-priority="high"]:nth-child(even){background:#fdf5e6}
-  tr[data-priority="done"] td:first-child{border-left:5px solid #1a7f4b}
-  tr[data-priority="done"]{background:#f1faf5}
-  tr[data-priority="done"]:nth-child(even){background:#e9f6ef}
-  tr[data-priority] .pflag{
-    display:inline-block; font-size:10px; font-weight:800; letter-spacing:.03em;
-    text-transform:uppercase; padding:1px 6px; border-radius:5px; margin-left:6px; vertical-align:middle;
-  }
-  tr[data-priority="blocker"] .pflag{background:#f6d5d5; color:#a52222}
-  tr[data-priority="high"] .pflag{background:#f6e4bd; color:#8a5a00}
-  tr[data-priority="done"] .pflag{background:#c7ebd5; color:#136c3d}
-
-  /* data-driven cell tints applied by JS */
-  td.tint{font-weight:600}
-  td.tint.t-missing{background:var(--st-missing-bg); color:var(--st-missing-ink)}
-  td.tint.t-placeholder{background:var(--st-placeholder-bg); color:var(--st-placeholder-ink)}
-  td.tint.t-partial{background:var(--st-partial-bg); color:var(--st-partial-ink)}
-  td.tint.t-disc{background:var(--st-disc-bg); color:var(--st-disc-ink)}
-  td.tint.t-mod{background:var(--st-mod-bg); color:var(--st-mod-ink)}
-  td.tint.t-optional{background:var(--st-optional-bg); color:var(--st-optional-ink)}
-  td.tint.t-done{background:var(--st-done-bg); color:var(--st-done-ink)}
-  td.tint.o-plugin{background:var(--ow-plugin-bg); color:var(--ow-plugin-ink)}
-  td.tint.o-tom{background:var(--ow-tom-bg); color:var(--ow-tom-ink)}
-  td.tint.o-noam{background:var(--ow-noam-bg); color:var(--ow-noam-ink)}
-  td.tint.o-guy{background:var(--ow-guy-bg); color:var(--ow-guy-ink)}
-  td.tint.o-boris{background:var(--ow-boris-bg); color:var(--ow-boris-ink)}
-  td.tint.o-pavel{background:var(--ow-pavel-bg); color:var(--ow-pavel-ink)}
-
-  .hint{font-size:11.5px; color:var(--muted); margin:2px 14px 10px}
-
-  .toast{
-    position:fixed; right:18px; bottom:18px; z-index:60;
-    background:var(--ok); color:#fff; padding:11px 18px; border-radius:9px;
-    font-size:13px; box-shadow:0 4px 14px rgba(0,0,0,.2);
-    opacity:0; transform:translateY(8px); transition:opacity .2s, transform .2s; pointer-events:none;
-  }
-  .toast.show{opacity:1; transform:translateY(0)}
-
-  @media (max-width:640px){
-    header.report h1{font-size:21px}
-    .toolbar{gap:6px}
-    button.btn{padding:8px 10px}
-    .wrap{padding:0 10px 70px}
-  }
+  body{background:var(--bg);color:var(--ink);
+    font:15px/1.6 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif}
+  .wrap{max-width:1180px;margin:0 auto;padding:28px 18px 90px}
+  h1{font-size:26px;margin:0 0 4px}
+  .sub{color:var(--muted);font-size:13.5px;margin-bottom:26px}
+  section{background:var(--panel);border:1px solid var(--line);border-radius:12px;
+    padding:20px 22px;margin:0 0 18px}
+  h2{font-size:18px;margin:0 0 12px;padding-bottom:8px;border-bottom:1px solid var(--line)}
+  h3{font-size:14.5px;margin:18px 0 8px;color:var(--muted);text-transform:uppercase;letter-spacing:.04em}
+  table{width:100%;border-collapse:collapse;font-size:13.5px;margin:8px 0 4px;display:block;overflow-x:auto}
+  th,td{border:1px solid var(--line);padding:7px 9px;text-align:left;vertical-align:top}
+  th{background:var(--head);font-weight:600;white-space:nowrap}
+  code{background:#f2f4f8;border:1px solid var(--line);border-radius:4px;padding:1px 5px;font-size:12.5px}
+  .chip{display:inline-block;font-size:11.5px;font-weight:700;border-radius:999px;padding:2px 9px;white-space:nowrap}
+  .done{background:var(--ok-bg);color:var(--ok-ink);border:1px solid var(--ok-line)}
+  .open{background:var(--open-bg);color:var(--open-ink);border:1px solid var(--open-line)}
+  .deferred{background:var(--def-bg);color:var(--def-ink);border:1px solid var(--def-line)}
+  .known{background:var(--warn-bg);color:var(--warn-ink);border:1px solid var(--warn-line)}
+  ul{margin:8px 0;padding-left:20px} li{margin:5px 0}
+  .note{color:var(--muted);font-size:13px;margin-top:10px}
+  .rule{font-weight:600;background:#f7f9fc;border-left:3px solid var(--accent);
+    padding:10px 14px;border-radius:0 8px 8px 0;margin:12px 0}
 </style>
 </head>
 <body>
-
-<div class="toolbar">
-  <div class="grow meta" id="savedAt">Last saved: <b>8/2/2026, 2:47:33 PM</b> (local browser only — Export HTML to keep a copy)</div>
-  <button class="btn primary" id="btnSave">Save</button>
-  <button class="btn" id="btnExport">Export HTML</button>
-  <button class="btn danger" id="btnReset">Reset to original</button>
-</div>
-
 <div class="wrap">
 
-  <header class="report">
-    <p class="eyebrow">Program Dashboard</p>
-    <h1>Ono Mobile Dev Plugin — Completion Plan</h1>
-    <p class="sub">Repository: OnOAppsDev/ono-mobile-dev-plugin · Plugin version 0.5.0 · Audit 2026-07-20 · Maintenance review 2026-08-31 · Architecture decision applied</p>
-    <div class="chips">
-      <span class="chip">4 technology platforms</span>
-      <span class="chip">TV = context, not a platform</span>
-      <span class="chip">6 owners working in parallel</span>
-      <span class="chip">Target: end of Week 5</span>
-    </div>
-  </header>
+<h1>Ono Mobile Dev Plugin — Roadmap</h1>
+<div class="sub">Authoritative roadmap. Supersedes the completion plan it replaces.
+Last updated 2026-09-15 · <code>node scripts/check.ts --strict</code> → 18 suites · 1,973 assertions · 0 failures · 0 skipped</div>
 
-  <div class="callout">
-    <strong>How to use this file.</strong> This dashboard lives at <code>docs/planning/PLUGIN_COMPLETION_PLAN.html</code> and is meant to be <strong>downloaded and opened locally</strong> in a browser. Your edits are stored <strong>only in your own browser</strong> (localStorage) — they are not written to disk or committed to Git automatically. To share updates with the team, use <strong>Export HTML</strong> (or edit the file directly) and <strong>commit the HTML back to the repository</strong>.
-  </div>
+<section>
+<h2>1. Architecture</h2>
 
-  <!-- ================= SUMMARY CARDS ================= -->
-  <section class="cards" aria-label="Summary">
-    <div class="card">
-      <p class="label">Total tasks</p>
-      <div class="big" id="card-total">29</div>
-      <p class="small" id="card-total-note">29 work items · 25 completed · React Native complete, standards follow-ups open</p>
-    </div>
-    <div class="card">
-      <p class="label">Total estimated effort</p>
-      <div class="big"><span id="card-effort">78.0</span><small>focused days</small></div>
-      <p class="small">authoring + integration + validation</p>
-    </div>
-    <div class="card">
-      <p class="label">Tasks by owner</p>
-      <ul class="breakdown" id="card-owner"><li><span class="k"><span class="swatch" style="background: var(--ow-plugin-line);"></span><span class="kname">Plugin Owner</span></span><span class="v">16</span></li><li><span class="k"><span class="swatch" style="background: var(--ow-tom-line);"></span><span class="kname">Tom Zion</span></span><span class="v">4</span></li><li><span class="k"><span class="swatch" style="background: var(--ow-noam-line);"></span><span class="kname">Noam Haba</span></span><span class="v">2</span></li><li><span class="k"><span class="swatch" style="background: var(--ow-guy-line);"></span><span class="kname">Guy Gur Arie</span></span><span class="v">4</span></li><li><span class="k"><span class="swatch" style="background: var(--ow-boris-line);"></span><span class="kname">Boris Molotsky</span></span><span class="v">3</span></li></ul>
-    </div>
-    <div class="card">
-      <p class="label">Tasks by status</p>
-      <ul class="breakdown" id="card-status"><li><span class="k"><span class="swatch" style="background: var(--st-done-ink);"></span><span class="kname">Completed</span></span><span class="v">25</span></li><li><span class="k"><span class="swatch" style="background: var(--st-missing-ink);"></span><span class="kname">Missing — must be created</span></span><span class="v">2</span></li><li><span class="k"><span class="swatch" style="background: var(--st-mod-ink);"></span><span class="kname">Requires modification</span></span><span class="v">1</span></li><li><span class="k"><span class="swatch" style="background: #b9c1cd;"></span><span class="kname">Other</span></span><span class="v">1</span></li></ul>
-    </div>
-  </section>
+<p>Every lifecycle stage runs one <b>shared role agent</b> plus one <b>shared lifecycle
+methodology</b>, against <b>exactly one platform lane</b> resolved from the confirmed
+platform. The agent and the methodology are platform-independent; the lane is the only
+source of platform content.</p>
 
-  <div class="notice">
-    <strong>Local edits only.</strong> Every table cell below is editable. Changes are stored in <em>this browser's</em> localStorage and survive a refresh, but they are <strong>not</strong> written back to <code>docs/planning/PLUGIN_COMPLETION_PLAN.html</code> or shared with anyone until you use <strong>Export HTML</strong> to download an edited copy. Summary cards, badges and highlights recompute automatically as you edit the task table.
-  </div>
+<div class="rule">Exactly one platform lane is ever loaded. No other platform's lane or standards may be loaded in the same invocation.</div>
 
-  <div class="callout" id="idNote">
-    <strong>Task IDs identify work items. They do not represent weeks or dates.</strong>
-    IDs such as <code>SHARED-001</code>, <code>IOS-001</code>, <code>ANDROID-001</code> and <code>REACT-001</code> are stable identifiers for tracking and dependencies only. The schedule is expressed separately through the <strong>Start week</strong>, <strong>End week</strong> and <strong>Estimated effort</strong> columns — never inferred from the number in an ID.
-  </div>
+<h3>Shared lifecycle methodology</h3>
+<table>
+<tr><th>Skill</th><th>Owns</th></tr>
+<tr><td><code>platform-planning</code></td><td>Confirmed-context rule, standards readiness, repository-knowledge resolution, evidence discipline and its labelling vocabulary, reuse-before-new, detected-conventions-govern, output discipline, platform-independent stop conditions.</td></tr>
+<tr><td><code>platform-implementation</code></td><td>Standards readiness gate, design reference, repository grounding, pre-implementation plan, scope control, incremental implementation, validation methodology, self-review and completion.</td></tr>
+<tr><td><code>platform-review</code></td><td>Repository-convention-first review, delegation ladder, filing gate, evidence reach (stage · predicate vs claim · mechanism vs magnitude), scope discipline, the two passes, severity, output. Deliberately neutral on out-of-lane asides — the lane owns that policy.</td></tr>
+</table>
 
-  <!-- ================= LEGEND ================= -->
-  <section class="legend" aria-label="Legend">
-    <h3>Legend</h3>
-    <div class="grid">
-      <div class="col">
-        <h4>Task IDs</h4>
-        <p class="small" style="margin:4px 0 8px">Prefix = platform / area; number = sequence within that area. Not a schedule.</p>
-        <div class="item"><span class="badge b-plugin">SHARED-###</span> Shared infrastructure &amp; orchestration</div>
-        <div class="item"><span class="badge b-plugin">DOC-###</span> Shared documentation</div>
-        <div class="item"><span class="badge b-tom">IOS-###</span> iOS platform</div>
-        <div class="item"><span class="badge b-noam">ATV-###</span> Apple TV context inside iOS</div>
-        <div class="item"><span class="badge b-guy">ANDROID-###</span> Android platform (Mobile + Android TV)</div>
-        <div class="item"><span class="badge b-boris">REACT-###</span> React web platform (+ Smart TV context)</div>
-      </div>
-      <div class="col">
-        <h4>Current state</h4>
-        <div class="item"><span class="badge b-done">Exists and implemented</span></div>
-        <div class="item"><span class="badge b-partial">Exists but partial</span></div>
-        <div class="item"><span class="badge b-placeholder">Exists as placeholder</span></div>
-        <div class="item"><span class="badge b-disc">Exists but disconnected</span></div>
-        <div class="item"><span class="badge b-mod">Requires modification</span></div>
-        <div class="item"><span class="badge b-missing">Missing — must be created</span></div>
-        <div class="item"><span class="badge b-optional">Optional / Deferred by decision</span></div>
-      </div>
-      <div class="col">
-        <h4>Priority (row highlight)</h4>
-        <div class="item"><span class="prio-key" style="background:#d23a3a"></span> <span><strong>Blocker</strong> — on the critical path or unblocks multiple downstream tasks.</span></div>
-        <div class="item"><span class="prio-key" style="background:#e6a417"></span> <span><strong>High</strong> — core platform-authoring work.</span></div>
-        <div class="item"><span class="prio-key" style="background:#d8dde5"></span> <span><strong>Normal</strong> — docs / validation / sync.</span></div>
-        <div class="item"><span class="prio-key" style="background:#1a7f4b"></span> <span><strong>Completed</strong> — implemented and verified (no longer a blocker).</span></div>
-      </div>
-      <div class="col">
-        <h4>Owners</h4>
-        <div class="item"><span class="badge b-pavel">Pavel Tarnopolski</span> React Native</div>
-        <div class="item"><span class="badge b-tom">Tom Zion</span> iOS Mobile</div>
-        <div class="item"><span class="badge b-noam">Noam Haba</span> Apple TV (inside iOS)</div>
-        <div class="item"><span class="badge b-guy">Guy Gur Arie</span> Android Mobile + Android TV</div>
-        <div class="item"><span class="badge b-boris">Boris Molotsky</span> React + Smart TV</div>
-        <div class="item"><span class="badge b-plugin">Plugin Owner</span> Shared infra &amp; orchestration</div>
-      </div>
-    </div>
-  </section>
+<h3>Shared role agents</h3>
+<table>
+<tr><th>Agent</th><th>Stage</th><th>Methodology</th></tr>
+<tr><td><code>feature-architect</code></td><td>Planning</td><td><code>platform-planning</code></td></tr>
+<tr><td><code>feature-implementer</code></td><td>Implementation</td><td><code>platform-implementation</code></td></tr>
+<tr><td><code>code-reviewer</code></td><td>Review — correctness / style / standards</td><td><code>platform-review</code></td></tr>
+<tr><td><code>performance-reviewer</code></td><td>Review — performance</td><td><code>platform-review</code></td></tr>
+</table>
+<p class="note">Plus three unchanged specialists: <code>repo-analyst</code> (detection),
+<code>mobile-security-reviewer</code> (<code>/review-security</code>) and
+<code>mobile-release-engineer</code> (<code>/prepare-mobile-release</code>).</p>
 
-  <!-- ================= 0. ARCHITECTURE DECISION ================= -->
-  <h2>0. Architecture Decision (source of truth)</h2>
-  <p>The plugin architecture is <strong>technology-based</strong>. There are <strong>four platforms only</strong>: React Native, React, iOS, Android. <strong>No separate <code>tvOS</code> or <code>Android TV</code> platform families are created.</strong> TV form-factor behavior (focus/remote/D-pad navigation, 10-foot UI, media playback, TV lifecycle, TV signing/packaging) lives <strong>inside the existing platform's Skills, Agents, and Standards</strong>, activated by a <strong>mobile-vs-TV context signal</strong> passed to those Skills/Agents when needed — a context signal, not a new platform value.</p>
+<h3>Platform lanes — four platforms, no TV platform</h3>
+<table>
+<tr><th>Platform</th><th>Planning lane</th><th>Implementation lane</th><th>Review lane</th></tr>
+<tr><td><code>react-native</code></td><td><code>rn-dev-planning</code></td><td><code>rn-feature-implementation</code></td><td><code>rn-code-review</code></td></tr>
+<tr><td><code>ios</code></td><td><code>ios-dev-planning</code></td><td><code>ios-feature-implementation</code></td><td><code>ios-code-review</code></td></tr>
+<tr><td><code>android</code></td><td><code>android-dev-planning</code></td><td><code>android-feature-implementation</code></td><td><code>android-code-review</code></td></tr>
+<tr><td><code>react</code></td><td><code>react-dev-planning</code></td><td><code>react-feature-implementation</code></td><td><code>react-code-review</code></td></tr>
+</table>
+<p class="note"><code>device_type</code> (<code>mobile</code> | <code>tv</code>) is a context
+signal inside a platform, never a fifth platform. <code>react-native</code> +
+<code>tv</code> is an unsupported combination and a defined hard stop, not a gap.</p>
+</section>
 
-  <p><strong>Validation is a capability, not a workflow step.</strong> The deterministic checks delivered by SHARED-005 (test harness, hook coverage, document-chain dry-run) and SHARED-006 (reference-integrity / frontmatter validator) are <em>developer and repository quality tooling</em>. They run from a shell — <code>node scripts/check.ts</code>, or <code>node scripts/check.ts --strict</code> before a PR — with no dependencies, no network and no CI. No command invokes them, and nothing a user of the plugin does requires them. <strong>They must never become mandatory runtime steps for users of the plugin.</strong> Automatic CI execution of the identical command is a separate, optional opt-in (SHARED-012), deferred by decision — so &quot;no CI&quot; is a chosen position here, not missing work.</p>
+<section>
+<h2>2. Current routing</h2>
+<table>
+<tr><th>Stage</th><th>Command</th><th>Role agent</th><th>Shared methodology</th><th>Lane</th></tr>
+<tr><td>Analyze</td><td><code>/analyze-feature</code></td><td><code>feature-architect</code></td><td><code>platform-planning</code></td><td>one <code>*-dev-planning</code></td></tr>
+<tr><td>Design</td><td><code>/dev-design-start</code></td><td><code>feature-architect</code></td><td><code>platform-planning</code> + <code>dev-design-start</code></td><td>one <code>*-dev-planning</code></td></tr>
+<tr><td>Decompose</td><td><code>/dev-feature-start</code></td><td><code>feature-architect</code></td><td><code>platform-planning</code> + <code>dev-feature-start</code></td><td>one <code>*-dev-planning</code></td></tr>
+<tr><td>Implement</td><td><code>/implement-task</code></td><td><code>feature-implementer</code></td><td><code>platform-implementation</code></td><td>one <code>*-feature-implementation</code></td></tr>
+<tr><td>Review</td><td><code>/review-code</code></td><td><code>code-reviewer</code> + <code>performance-reviewer</code></td><td><code>platform-review</code></td><td>one <code>*-code-review</code></td></tr>
+<tr><td>Security</td><td><code>/review-security</code></td><td><code>mobile-security-reviewer</code></td><td><code>mobile-security-review</code></td><td>— shared standards only</td></tr>
+<tr><td>Fix</td><td><code>/fix-review-comments</code></td><td><code>feature-implementer</code></td><td><code>mobile-debugging</code> + <code>platform-implementation</code></td><td>one <code>*-feature-implementation</code></td></tr>
+<tr><td>QA handoff</td><td><code>/create-dev-qa-notes</code></td><td><code>feature-implementer</code></td><td><code>mobile-testing-and-qa-handoff</code></td><td>one <code>*-feature-implementation</code></td></tr>
+<tr><td>Release</td><td><code>/prepare-mobile-release</code></td><td><code>mobile-release-engineer</code>, then <code>performance-reviewer</code> once per shipping platform</td><td><code>mobile-release-readiness</code> + <code>platform-review</code></td><td>one <code>*-code-review</code> per platform</td></tr>
+</table>
 
-  <div class="table-block" data-name="Team, Platform and Owner Mapping">
-    <div class="table-toolbar">
-      <span class="tname">Team → Platform → Owner mapping</span>
-      <button class="btn small addrow" data-table="t-map">+ Add row</button>
-      <button class="btn small danger delrow" data-table="t-map">Delete selected row</button>
-    </div>
-    <div class="scroll">
-      <table class="editable" id="t-map">
-        <thead><tr><th>Team</th><th>Plugin platform</th><th>Primary owner</th></tr></thead>
-        <tbody>
-          <tr><td contenteditable="">React Native</td><td contenteditable="">react-native</td><td contenteditable="" class="tint o-pavel">Pavel Tarnopolski (complete — reference)</td></tr>
-          <tr><td contenteditable="">iOS Mobile</td><td contenteditable="">ios</td><td contenteditable="" class="tint o-tom">Tom Zion</td></tr>
-          <tr><td contenteditable="">Apple TV (tvOS)</td><td contenteditable="">ios (TV context)</td><td contenteditable="" class="tint o-noam">Noam Haba</td></tr>
-          <tr><td contenteditable="">Android Mobile</td><td contenteditable="">android</td><td contenteditable="" class="tint o-guy">Guy Gur Arie</td></tr>
-          <tr><td contenteditable="">Android TV</td><td contenteditable="">android (TV context)</td><td contenteditable="" class="tint o-guy">Guy Gur Arie</td></tr>
-          <tr><td contenteditable="">React Web</td><td contenteditable="">react</td><td contenteditable="" class="tint o-boris">Boris Molotsky</td></tr>
-          <tr><td contenteditable="">React Smart TV</td><td contenteditable="">react (TV context)</td><td contenteditable="" class="tint o-boris">Boris Molotsky</td></tr>
-          <tr><td contenteditable="">Shared infrastructure &amp; orchestration</td><td contenteditable="">cross-platform</td><td contenteditable="" class="tint o-plugin">Plugin Owner</td></tr>
-        </tbody>
-      </table>
-    </div>
-    <div class="hint">Tip: click any cell in a row to select that row (it highlights); then use “Delete selected row”. Owner cells are colour-coded automatically.</div>
-  </div>
+<p class="note"><b>Readiness gate, every stage.</b> The gate is on the <i>lane</i>, never the
+agent: role agents and shared methodologies are platform-independent and always authored,
+so only a lane can gate a route. All twelve lanes pass today. Gate semantics differ by
+command and are deliberate — <code>/implement-task</code> hard-stops,
+<code>/review-code</code> excludes and declares, <code>/fix-review-comments</code> skips and
+reports, <code>/prepare-mobile-release</code> records unverifiable as a no-go.</p>
+</section>
 
-  <h3>Removed from the previous plan (no longer in scope)</h3>
-  <ul>
-    <li>Separate tvOS detection / Smart TV detection as new platform values — replaced by a single mobile-vs-TV context task (<code>SHARED-001</code>).</li>
-    <li><code>TVOS-001..004</code> (separate tvOS standards/agents/skills/routing) — folded into the iOS platform (Noam Haba).</li>
-    <li><code>REACT-TV-001..003</code> (separate Smart TV family) — folded into the React platform (Boris Molotsky).</li>
-    <li>Template <code>platform</code>-enum additions for TV and Open Decisions #1–#3 — resolved by this decision.</li>
-  </ul>
+<section>
+<h2>3. Legacy platform agents — removed</h2>
+<p>The sixteen per-platform agents were deleted once every reference was re-pointed to the
+role that replaced them. Four families collapsed to four role agents:</p>
+<table>
+<tr><th>Removed (4 each)</th><th>Replaced by</th></tr>
+<tr><td><code>rn-</code>/<code>ios-</code>/<code>android-</code>/<code>react-architect</code></td><td><code>feature-architect</code></td></tr>
+<tr><td><code>*-feature-developer</code></td><td><code>feature-implementer</code></td></tr>
+<tr><td><code>*-code-reviewer</code></td><td><code>code-reviewer</code></td></tr>
+<tr><td><code>*-performance-reviewer</code></td><td><code>performance-reviewer</code></td></tr>
+</table>
+<p class="note">Agent count 23 → 7. Legacy names survive only in <code>CHANGELOG.md</code>,
+in dated records under <code>docs/planning/</code>, in test fixtures, and in git history —
+all of which describe the repository as it stood at a point in time.</p>
+</section>
 
-  <!-- ================= 1. EXECUTIVE SUMMARY ================= -->
-  <h2>1. Executive Summary</h2>
-  <p>The shared spine is complete and production-ready: 10 commands, 12 shared skills, 3 shared agents, 9 templates, 3 hooks, and seven tested scripts (the repo-root resolver, the repository-knowledge reader, the DD-complexity scorer, the planning-document migrator, the per-task lifecycle store, the reference-integrity validator and the Figma theme-token engine), aggregated by an eighth — <code>scripts/check.ts</code>. <strong>Deterministic validation is now in place</strong>: <code>node scripts/check.ts --strict</code> runs <strong>18 suites / 1,799 assertions / 0 failures / 0 skipped</strong> over helpers, hooks, repository structure, the documentation contracts and the document chain, offline and with no dependencies (SHARED-004 ✓, SHARED-005 ✓, SHARED-006 ✓, SHARED-007 ✓, SHARED-010 ✓, SHARED-013 ✓, SHARED-014 ✓, DOC-002 ✓). It validates the deterministic layer only — model-driven behaviour is out of its reach by design. <strong>The planning chain now detects its own upstream changes.</strong> SHARED-013 ✓ gives the DD and the Task Breakdown a <code>source_fingerprint</code> of the document they were generated from, so an approved artifact edited after the fact is caught at the next command rather than silently implemented against: Feature Analysis → DD → Task Breakdown → <code>/implement-task</code> is synchronized by controlled re-entry, with a deterministic unchanged/modified/removed impact report and a transitive dependency walk that blocks only work the change can actually reach. <strong>Approval stays human.</strong> The plugin stops and names one recovery command; it never regenerates an approved document, never edits upstream requirements, and never revokes approval. <strong>Accessibility is now a first-class implementation concern.</strong> SHARED-014 ✓ makes it a recorded completion dimension of <code>/implement-task</code> rather than advice a lane may or may not follow: <code>standards/shared/accessibility.md</code> carries 30 platform-neutral rules covering traversal order, focus lifecycle, collections and carousels, announcements, timed content, error association and reduced motion; the platform standards own the implementation path (<code>AND-UI-A11Y-1..10</code>, <code>RN-A11Y-1..11</code>, iOS's existing <code>IOS-UI-A11Y-1..3</code>). It is <strong>mobile-only by design</strong> — a <code>device_type: tv</code> task <em>explicitly</em> skips the flow with a recorded reason and cites no <code>A11Y-*</code> and no <code>REACT-TV-*</code>, and the writer refuses a TV record that cites mobile rules, so mobile assumptions can never be silently applied to a TV surface. TV accessibility remains with the TV workstreams. The same ticket introduced a <strong>generic verification model</strong>: <code>standards/shared/verification.md</code> owns the Tier 1/2/3 vocabulary in one place, and task state gained a domain-tagged <code>verificationDebt</code> field for obligations the plugin cannot discharge. A failing Tier 1/2 check blocks completion; outstanding debt does not, so completion never depends on device availability. Tier 3 is <em>unrepresentable</em> as a pass, and a QA handoff now reads pending VoiceOver/TalkBack obligations from the persisted record instead of reconstructing them — keeping plugin-verified evidence structurally separate from human attestation. Platform maturity is uneven — React Native complete (Pavel Tarnopolski, reference); Android Mobile complete (standards, implementation, front-half and review all authored); iOS complete (IOS-001 ✓, IOS-002 ✓, IOS-003 ✓, IOS-004 ✓ — standards, planning, implementation and review lanes all authored); React (web) complete (REACT-001 ✓, REACT-002 ✓, REACT-003 ✓ — six base standards, four agents, three skills, and Smart TV via <code>device_type: tv</code>; 165 REACT-* rules). No platform lane remains a placeholder. <strong>TV: routing and discovery exist, guidance does not.</strong> <code>device_type</code> is carried end to end (SHARED-001 ✓) and the iOS and Android planning skills each run a TV discovery pass, but no tvOS or Android-TV rules exist in any standards document — so the Apple TV and Android TV lanes can discover and avoid regression, not cite guidance (ATV-001 and ANDROID-003 remain open). <strong>Smart TV is the exception</strong> — REACT-003 ✓ authored <code>standards/react/react-smart-tv.md</code> (54 <code>REACT-TV-*</code> rules), so the React lane cites TV guidance today. See §4.</p>
-  <p class="section-note">Largest blockers: (1) no task-status store / e2e harness — no lane has been exercised end to end on a real repository. Cleared blockers: the React platform and Smart TV by REACT-001 ✓, REACT-002 ✓ and REACT-003 ✓ (2026-08-16/20), which close the last placeholder lane, "no mobile-vs-TV context signal" by SHARED-001 ✓ (2026-07-21), the Android front-half by ANDROID-001 ✓ and Android code-review by ANDROID-002 ✓ (both 2026-08-06) — Android Mobile now has no open blocker — the iOS standards by IOS-001 ✓ and the iOS planning lane by IOS-002 ✓ (both 2026-08-12), which together open `/analyze-feature`, `/dev-design-start` and `/dev-feature-start` for real iOS work and unblock SHARED-010, and the iOS implementation and review lanes by IOS-003 ✓ (2026-08-13) and IOS-004 ✓ (2026-08-16) — Tom Zion's lane is finished and ATV-002 is unblocked. Also delivered: the legacy planning-document migration framework by SHARED-011 ✓ (2026-08-12), so a planning document written against an older frontmatter contract no longer fails in a newer workflow stage — /dev-design-start migrates it automatically. This was never a listed blocker; it is recorded here because it removes a class of workflow failure across every stage that reads a feature analysis.</p>
+<section>
+<h2>4. Completed refactor stages</h2>
+<table>
+<tr><th>Stage</th><th>Delivered</th><th></th></tr>
+<tr><td>1</td><td>Context-isolation contract — encodes the plugin/knowledge ownership boundary and the cross-lane allowlist</td><td><span class="chip done">Done</span></td></tr>
+<tr><td>2</td><td><code>platform-implementation</code> + <code>feature-implementer</code>, added unwired</td><td><span class="chip done">Done</span></td></tr>
+<tr><td>3a–3b</td><td>Implementation contract generalized to the shared skill; four packs slimmed</td><td><span class="chip done">Done</span></td></tr>
+<tr><td>3c–3d</td><td>Packs reduced to platform content; <code>/implement-task</code> routing flipped</td><td><span class="chip done">Done</span></td></tr>
+<tr><td>4a</td><td>Review-lane contract — ten properties, incl. React Native's out-of-lane aside policy</td><td><span class="chip done">Done</span></td></tr>
+<tr><td>4b–4c</td><td><code>platform-review</code> + <code>code-reviewer</code> + <code>performance-reviewer</code>; four review lanes slimmed</td><td><span class="chip done">Done</span></td></tr>
+<tr><td>4d</td><td><code>/review-code</code> routing flipped</td><td><span class="chip done">Done</span></td></tr>
+<tr><td>5a</td><td>Planning-lane contract — thirteen properties</td><td><span class="chip done">Done</span></td></tr>
+<tr><td>5b–5c</td><td><code>platform-planning</code> + <code>feature-architect</code>; four planning lanes slimmed</td><td><span class="chip done">Done</span></td></tr>
+<tr><td>5d</td><td><code>/analyze-feature</code>, <code>/dev-design-start</code>, <code>/dev-feature-start</code> routing flipped</td><td><span class="chip done">Done</span></td></tr>
+<tr><td>Cleanup</td><td><code>/fix-review-comments</code> and <code>/create-dev-qa-notes</code> flipped; standards and templates re-pointed to role names; sixteen legacy agents deleted</td><td><span class="chip done">Done</span></td></tr>
+</table>
+<p class="note">Each slim was gated on a static old-route vs new-route differential requiring
+exact standard-ID-root and standards-path parity. Deduplication only — no rule, ID,
+severity, applicability or path was changed at any stage.</p>
+</section>
 
-  <div class="table-block" data-name="Team Lifecycle Capability">
-    <div class="table-toolbar">
-      <span class="tname">Can each team complete the full lifecycle today?</span>
-      <button class="btn small addrow" data-table="t-life">+ Add row</button>
-      <button class="btn small danger delrow" data-table="t-life">Delete selected row</button>
-    </div>
-    <div class="scroll">
-      <table class="editable" id="t-life">
-        <thead><tr><th>Team</th><th>Owner</th><th>Full lifecycle today?</th></tr></thead>
-        <tbody>
-          <tr><td contenteditable="">React Native</td><td contenteditable="" class="tint o-pavel">Pavel Tarnopolski</td><td contenteditable="">✅ Yes</td></tr>
-          <tr><td contenteditable="">Android Mobile</td><td contenteditable="" class="tint o-guy">Guy Gur Arie</td><td contenteditable="">✅ Yes</td></tr>
-          <tr><td contenteditable="">Android TV</td><td contenteditable="" class="tint o-guy">Guy Gur Arie</td><td contenteditable="">❌ No</td></tr>
-          <tr><td contenteditable="">iOS Mobile</td><td contenteditable="" class="tint o-tom">Tom Zion</td><td contenteditable="">❌ No</td></tr>
-          <tr><td contenteditable="">Apple TV</td><td contenteditable="" class="tint o-noam">Noam Haba</td><td contenteditable="">❌ No</td></tr>
-          <tr><td contenteditable="">React Web + Smart TV</td><td contenteditable="" class="tint o-boris">Boris Molotsky</td><td contenteditable="">✅ Yes</td></tr>
-        </tbody>
-      </table>
-    </div>
-  </div>
+<section>
+<h2>5. Remaining backlog</h2>
 
-  <!-- ================= 2. INVENTORY ================= -->
-  <h2>2. Repository Inventory (condensed, factual)</h2>
-  <p class="section-note">Status values: Complete · Partial · Placeholder · Missing · Inconsistent.</p>
+<h3>Platform work</h3>
+<table>
+<tr><th>ID</th><th>Owner</th><th>Scope</th><th></th></tr>
+<tr><td>ATV-001</td><td>Noam Haba</td><td>Author tvOS rules. <code>IOS-UI-TV-*</code> and <code>IOS-PERF-TV-*</code> are reserved roots with no rules behind them; a bare <code>IOS-TV-*</code> root is not permitted. Until authored, the iOS lane's TV responsibility is discovery and non-regression, and no TV ID may be cited.</td><td><span class="chip open">Open</span></td></tr>
+<tr><td>ATV-002</td><td>Noam Haba</td><td>Branch the iOS lane deeply on <code>device_type</code>. Blocked on ATV-001.</td><td><span class="chip open">Open</span></td></tr>
+<tr><td>ANDROID-003</td><td>Guy Gur Arie</td><td>Author Android TV rules. Same position as ATV-001 for the Android lane.</td><td><span class="chip open">Open</span></td></tr>
+<tr><td>SHARED-012</td><td>Plugin Owner</td><td>Optional CI opt-in running the identical <code>check.ts</code> command. Deferred by decision — validation is developer tooling, never a mandatory runtime step.</td><td><span class="chip deferred">Deferred</span></td></tr>
+</table>
+<p class="note">React Native, iOS Mobile, Android Mobile and React Web (incl. Smart TV via
+<code>device_type: tv</code>, 54 <code>REACT-TV-*</code> rules) are complete end to end.
+Apple TV and Android TV can discover and avoid regression, but cannot cite guidance.</p>
 
-  <div class="table-block" data-name="Repository Inventory">
-    <div class="table-toolbar">
-      <span class="tname">Repository Inventory</span>
-      <button class="btn small addrow" data-table="t-inv">+ Add row</button>
-      <button class="btn small danger delrow" data-table="t-inv">Delete selected row</button>
-    </div>
-    <div class="scroll">
-      <table class="editable" id="t-inv">
-        <thead><tr><th>Area</th><th>Status</th><th>Evidence</th></tr></thead>
-        <tbody>
-          <tr><td contenteditable="">plugin.json</td><td contenteditable="" class="tint t-done">Complete</td><td contenteditable="">4 platforms implied; 3 hooks + figma MCP; version 0.5.0. <strong>Authoritative source for this plugin's version</strong> (SHARED-007 ✓) — the marketplace entry declares none, and the version↔CHANGELOG link is machine-checked</td></tr>
-          <tr><td contenteditable="">10 commands (commands/*)</td><td contenteditable="" class="tint t-done">Complete</td><td contenteditable="">Thin platform-aware orchestrators; approval gates enforced</td></tr>
-          <tr><td contenteditable="">9 templates (templates/*)</td><td contenteditable="" class="tint t-done">Complete</td><td contenteditable="">Platform-aware; platform enum has no TV/form-factor field</td></tr>
-          <tr><td contenteditable="">3 hooks (hooks/*)</td><td contenteditable="" class="tint t-done">Complete</td><td contenteditable="">Secrets, approval-before-code, block-main; platform-agnostic</td></tr>
-          <tr><td contenteditable="">resolve-target-repo-root.ts (+ test)</td><td contenteditable="" class="tint t-done">Complete</td><td contenteditable="">155 lines; test executed, passes</td></tr>
-          <tr><td contenteditable="">read-repo-knowledge.ts (+ test)</td><td contenteditable="" class="tint t-done">Complete</td><td contenteditable="">330 lines + 296-line test (one case per degradation-matrix row); executed 2026-08-02, passes</td></tr>
-          <tr><td contenteditable="">migrate-planning-doc.ts (+ test + fixtures)</td><td contenteditable="" class="tint t-done">Complete</td><td contenteditable="">SHARED-011 ✓ — the only component that understands historical document shapes. Deterministic and clock-free; 257-assertion test suite over 13 on-disk fixtures covering every chain, both frontmatter encodings, CRLF, body-byte preservation, idempotency and every refusal path</td></tr>
-          <tr><td contenteditable="">Per-task lifecycle store — task-state.ts (+ contract + test)</td><td contenteditable="" class="tint t-done">Complete</td><td contenteditable="">SHARED-004 ✓ — <code>docs/task-state-contract.md</code> + <code>scripts/task-state.ts</code> (1,002 lines, sole reader/writer) + 91 assertions. Gives <code>/implement-task</code> machine-verifiable dependency and completion state via <code>deterministicProof</code>; <code>/create-dev-qa-notes</code> consumes the persisted record. Clock-free (no <code>Date</code>, no randomness) — <em>when and by whom</em> comes from git</td></tr>
-        <tr><td contenteditable="">Shared skills (12) + shared agents (3)</td><td contenteditable="" class="tint t-done">Complete</td><td contenteditable="">Detection, security/release/QA/debug/design/feature-start, repo-knowledge-consumer</td></tr>
-          <tr><td contenteditable="">Shared standards: release-readiness, qa-handoff</td><td contenteditable="" class="tint t-done">Complete</td><td contenteditable="">Platform-neutral (REL-*, QA-*)</td></tr>
-          <tr><td contenteditable="">Shared standards: mobile-security, accessibility, i18n-rtl, verification</td><td contenteditable="" class="tint t-done">Complete</td><td contenteditable="">SHARED-002 ✓ — platform-neutral requirements with labelled RN/iOS/Android/React examples; TV form-factor differences noted inside each platform example (A11Y-TOUCH-1/2). SHARED-014 ✓ — accessibility.md grown to 30 rules (adding A11Y-CONTRAST-*, A11Y-FOCUS-*, A11Y-COLLECTION-*, A11Y-MOTION-1, ROLES-6/7, SR-4/5) plus a new standards/shared/verification.md (VERIFY-1..3 and the Tier 1/2/3 vocabulary), taking standards/shared/ from 5 files to 6. SHARED-003 ✓ — mobile-security.md extended to 48 IDs with web (SEC-WEB-*, SEC-COOKIE-*) and native (SEC-EXPOSURE-*) coverage, tagged [web only] / [native only]</td></tr>
-          <tr><td contenteditable="">React Native module (6 standards, 3 skills, 4 agents)</td><td contenteditable="" class="tint t-done">Complete</td><td contenteditable="">Reference implementation (Pavel Tarnopolski). Modernized and normalized 2026-08-18/19: standards rebuilt to 124 rules across 6 files (136 today — SHARED-014 ✓ added <code>RN-A11Y-1..11</code>) with per-document Applicability gating (RTK Query / Redux Toolkit no longer assumed) and a shared AI Agent Execution Directives block (severity, citation format, anti-hallucination); react-navigation.md renamed rn-navigation.md; implementation lane split into a thin rn-feature-developer plus a 248-line rn-feature-implementation; planning lane split into a thin rn-architect plus a 127-line rn-dev-planning carrying only RN-specific methodology. Pinned by scripts/rn-implementation-contract.test.ts (168 assertions). 16 MEDIUM/LOW standards follow-ups remain open</td></tr>
-          <tr><td contenteditable="">Android standards (10, AND-*)</td><td contenteditable="" class="tint t-done">Complete</td><td contenteditable="">High quality; mobile-oriented (no TV)</td></tr>
-          <tr><td contenteditable="">Android feature-implementation skill + feature-developer agent</td><td contenteditable="" class="tint t-done">Complete</td><td contenteditable="">Authored (252-line skill)</td></tr>
-          <tr><td contenteditable="">Android architect/code-reviewer/performance-reviewer + dev-planning/code-review skills</td><td contenteditable="" class="tint t-done">Complete</td><td contenteditable="">All authored (2026-08-06): android-architect.md + android-dev-planning via ANDROID-001 ✓; android-code-reviewer.md, android-performance-reviewer.md + android-code-review via ANDROID-002 ✓. No "Not yet authored" placeholder remains in any Android component</td></tr>
-          <tr><td contenteditable="">iOS standards (5)</td><td contenteditable="" class="tint t-done">Complete</td><td contenteditable="">IOS-001 ✓ (2026-08-12) — 168 stable IDs across IOS-SWIFT-*/UI-*/ARCH-*/PERF-*/BUILD-*; swift-standards.md hosts the shared governing block (lane routing, severity rubric, no-convention resolution, applicability stage). 26 verified external references</td></tr>
-          <tr><td contenteditable="">iOS planning lane — ios-architect agent + ios-dev-planning skill</td><td contenteditable="" class="tint t-done">Complete</td><td contenteditable="">IOS-002 ✓ (2026-08-12) — repository-first planning methodology; 156 verified IOS-*/shared IDs cited; Analyze, Design and Feature-start all served. No "Not yet authored" text remains in either file</td></tr>
-          <tr><td contenteditable="">iOS review lane — skill (1), agents (2)</td><td contenteditable="" class="tint t-done">Complete</td><td contenteditable="">IOS-004 ✓ (2026-08-16) — <code>ios-code-review</code> skill plus the <code>ios-code-reviewer</code> and <code>ios-performance-reviewer</code> agents authored. The full iOS lifecycle is live: standards → planning → implementation → review</td></tr>
-          <tr><td contenteditable="">React standards (6)</td><td contenteditable="" class="tint t-done">Complete</td><td contenteditable="">REACT-001 ✓ (2026-08-16) — 111 REACT-* IDs across coding/architecture/api/routing/state/performance; lane ID skeleton frozen</td></tr>
-          <tr><td contenteditable="">React skills (3), agents (4)</td><td contenteditable="" class="tint t-done">Complete</td><td contenteditable="">REACT-002 ✓ (2026-08-20) — <code>react-architect</code>, <code>react-feature-developer</code>, <code>react-code-reviewer</code>, <code>react-performance-reviewer</code> plus the <code>react-dev-planning</code>, <code>react-feature-implementation</code> and <code>react-code-review</code> skills. Thin agent / thick skill, mirroring the RN and Android lanes. Independently reviewed (~55 findings, all React-lane items fixed)</td></tr>
-          <tr><td contenteditable="">React Smart TV — standard (1)</td><td contenteditable="" class="tint t-done">Complete</td><td contenteditable="">REACT-003 ✓ (2026-08-20) — <code>react-smart-tv.md</code>, 54 <code>REACT-TV-*</code> rules for <code>device_type: tv</code>, plus TV branches in 5 base standards and the contract in all 7 agents/skills. Purely additive; the frozen REACT-001 IDs are byte-identical. Independently reviewed (~45 findings, all P0/P1 closed). The full React lifecycle is live: standards → planning → implementation → review</td></tr>
-          <tr><td contenteditable="">Mobile-vs-TV context signal</td><td contenteditable="" class="tint t-done">Complete</td><td contenteditable="">SHARED-001 ✓ — device_type (mobile | tv) in repo-analyst, all 4 feature-flow commands, all 4 templates; /implement-task enforces it with no silent default</td></tr>
-          <tr><td contenteditable="">Repository Knowledge consumer</td><td contenteditable="" class="tint t-done">Complete</td><td contenteditable="">SHARED-009 ✓ — read-repo-knowledge.ts + test, repo-knowledge-consumer skill, docs/repo-knowledge-contract.md; consumed by /analyze-feature and /dev-design-start</td></tr>
-          <tr><td contenteditable="">Planning-chain change detection — source_fingerprint</td><td contenteditable="" class="tint t-done">Complete</td><td contenteditable="">SHARED-013 ✓ — the DD stamps the approved feature analysis's body hash and the Task Breakdown stamps the DD's, so an approved artifact edited after generation is detected at the next command instead of being implemented against silently. Verification stops and names one recovery command; it never regenerates and never revokes approval. <code>/implement-task</code> adds a per-invocation preflight, a deterministic unchanged/modified/removed impact report, and a cycle-safe transitive dependency walk. Additive and outside the version chain — no schema bump, no migration step; a legacy document without the field reads <code>unknown</code>, never <code>mismatch</code>. <strong>Known limitation:</strong> a Figma design changed behind an unchanged URL is undetectable (the Figma MCP exposes no revision or content hash) and is handled by explicit human attestation; a changed URL <em>is</em> detected</td></tr>
-        <tr><td contenteditable="">Planning-document contract + migration loader</td><td contenteditable="" class="tint t-done">Complete</td><td contenteditable="">SHARED-011 ✓ — docs/planning-doc-contract.md declares doc_schema_version per document kind (feature-analysis v3; dd / dev-plan / task-breakdown v1) and all four templates stamp it; skills/planning-doc-migration is the single frontmatter compatibility layer, consumed by /dev-design-start. Feature Analysis is the only kind with an authored migration chain — /dev-feature-start and /implement-task are deliberately not wired yet</td></tr>
-          <tr><td contenteditable="">Apple TV / Android TV / Smart TV knowledge</td><td contenteditable="" class="tint t-partial">Partial — Smart TV only</td><td contenteditable=""><strong>Smart TV is authored</strong> (REACT-003 ✓): <code>standards/react/react-smart-tv.md</code>, 54 <code>REACT-TV-*</code> rules, cited by six of the seven React components. <strong>Apple TV and Android TV are not</strong> — no tvOS or Android-TV rules exist in <code>standards/ios/</code> or <code>standards/android/</code> (ATV-001, ANDROID-003). TV detection markers do exist (repo-analyst, mobile-repo-analysis) and accessibility.md carries per-platform TV examples — both shared-level, not platform-level</td></tr>
-          <tr><td contenteditable="">Reference-integrity / frontmatter validation</td><td contenteditable="" class="tint t-done">Complete</td><td contenteditable=""><code>node scripts/check.ts --strict</code> runs <strong>18 suites / 1,799 assertions / 0 failures / 0 skipped</strong> across helpers, hooks, <strong>repository structure</strong>, contracts and the document chain (SHARED-004 ✓ + SHARED-005 ✓ + SHARED-006 ✓ + SHARED-007 ✓ + SHARED-010 ✓ + SHARED-013 ✓ + DOC-002 ✓), from a shell, manually before a PR</td></tr>
-        <tr><td contenteditable="">Automatic CI enforcement</td><td contenteditable="" class="tint t-optional">Optional / Deferred by decision</td><td contenteditable="">No <code>.github/</code> by design. The plugin is fully validated without CI; a repository may opt in later and run the identical command (SHARED-012). Deterministic validation is a developer/repository capability, never a runtime workflow step</td></tr>
-          <tr><td contenteditable="">In-repo marketplace metadata</td><td contenteditable="" class="tint t-done">By design — none</td><td contenteditable="">Distribution metadata lives in the external ono-plugin-marketplace (<code>name</code> + <code>source</code> only); this repo's <code>.claude-plugin/plugin.json</code> is authoritative for version/description/author/components. Ownership documented + locally machine-checked (SHARED-007)</td></tr>
-          <tr><td contenteditable="">README / CHANGELOG</td><td contenteditable="" class="tint t-done">Complete</td><td contenteditable="">DOC-001 ✓ — README carries the mobile-vs-TV model (<code>### Mobile vs. TV</code>), the Android status claims are correct and machine-checked, and metadata ownership plus the validation commands are documented. CHANGELOG backfilled: 0.4.0 gained SHARED-001/002/008, 0.5.0 gained SHARED-003 and ANDROID-001/002, and a new <code>[Unreleased]</code> section holds IOS-001..004 and SHARED-004/005/006/007/010. Newest release heading is still 0.5.0, matching the un-bumped <code>plugin.json</code> — the bump is separate work</td></tr>
-        </tbody>
-      </table>
-    </div>
-  </div>
+<h3>Engineering backlog</h3>
+<table>
+<tr><th>Item</th><th>Detail</th><th></th></tr>
+<tr><td><code>mobile-repo-analysis</code> cross-platform standards defect</td><td>The one recorded cross-lane defect. Pinned by <code>context-isolation-contract</code> as <code>kind: "defect"</code> — recorded, never endorsed.</td><td><span class="chip known">Known</span></td></tr>
+<tr><td>Project Knowledge reuse gap</td><td>Canonical knowledge is resolved but not reused as fully as the contract allows.</td><td><span class="chip known">Known</span></td></tr>
+<tr><td>Partially-applied-task methodology gap</td><td>No methodology covers resuming a task already partly applied to the working tree.</td><td><span class="chip known">Known</span></td></tr>
+<tr><td>React lane delegation wording</td><td><code>react-dev-planning</code> restates the <code>repo-knowledge-consumer</code> procedure inline where iOS and Android delegate to it. Behaviour agrees; the ownership convention does not. Tracked, not papered over, in <code>repo-knowledge-orchestration</code>.</td><td><span class="chip known">Known</span></td></tr>
+<tr><td>Live A/B evidence</td><td>Only Android was measured on a real repository (ExoPlayer → Media3). React Native, iOS and React remain unmeasured.</td><td><span class="chip open">Open</span></td></tr>
+<tr><td>End-to-end exercise</td><td>No lane has been run end to end on a real repository through the full command chain.</td><td><span class="chip open">Open</span></td></tr>
+<tr><td><code>dd-complexity-assessment</code></td><td>Scoring model still being calibrated against real features; it measures and never decides. Retained pending a final reachability audit.</td><td><span class="chip known">Known</span></td></tr>
+</table>
 
-  <!-- ================= 3. IMPLEMENTATION TABLE ================= -->
-  <h2>3. Implementation Task Table</h2>
-  <p class="section-note">Every task names the exact Skill, Command, Agent or file. <strong>Effort</strong> is in focused working days. <strong>Start week</strong> / <strong>End week</strong> are the schedule — the Task ID is <em>not</em> a week. Blocker rows have a red left bar; High rows have an amber left bar.</p>
+<h3>Cross-plugin (ono-plugin-qa)</h3>
+<table>
+<tr><th>Item</th><th>Detail</th><th></th></tr>
+<tr><td><code>/check-qa-coverage</code> discovery bug</td><td>Still greps for a <code># QA Handoff</code> first line that no longer exists. Fix by following <code>qa_handoff_link</code> instead.</td><td><span class="chip open">Open</span></td></tr>
+<tr><td>Global git-block hook</td><td><code>ono-plugin-qa</code> 0.4.0 registers a <code>PreToolUse</code> hook with a bare <code>"matcher": "Bash"</code>, blocking <code>git commit</code>/<code>push</code> in <i>every</i> repository, not only the QA repo. Scope it to the QA working tree.</td><td><span class="chip open">Open</span></td></tr>
+</table>
+</section>
 
-  <div class="table-block" data-name="Implementation Task Table">
-    <div class="table-toolbar">
-      <span class="tname">Implementation Task Table (12 columns)</span>
-      <button class="btn small addrow" data-table="t-impl">+ Add row</button>
-      <button class="btn small danger delrow" data-table="t-impl">Delete selected row</button>
-    </div>
-    <div class="scroll">
-      <table class="editable" id="t-impl">
-        <thead><tr>
-          <th>Task ID</th><th>Owner</th><th>Platform</th><th>Component type</th><th>Exact component name</th>
-          <th>Current state</th><th>Required action</th><th>Description</th><th>Dependencies</th>
-          <th>Effort</th><th>Start week</th><th>End week</th>
-        </tr></thead>
-        <tbody>
-          <tr data-priority="done">
-            <td contenteditable="">SHARED-001<span class="pflag">Done</span></td><td contenteditable="" class="tint o-plugin">Plugin Owner</td><td contenteditable="">Shared</td><td contenteditable="">Infrastructure</td>
-            <td contenteditable="">Mobile/TV context propagation (repo-analyst → command routing → template frontmatter → Skills/Agents)</td>
-            <td contenteditable="" class="tint t-done">Completed</td><td contenteditable="">Implemented</td>
-            <td contenteditable="">Implemented 2026-07-21. repo-analyst now detects device_type (mobile | tv); /analyze-feature always asks the user to confirm the detected platform and device type; multiple-platform detection requires selecting one active platform; the confirmed context is stored in feature-analysis frontmatter and carried through DD → Dev Plan → Task Breakdown; downstream commands reuse the confirmed context without re-detecting; no separate TV platform hierarchy was introduced (TV stays a context signal, values mobile/tv only).</td>
-            <td contenteditable="">—</td><td contenteditable="">2</td><td contenteditable="">Week 1</td><td contenteditable="">Week 1 ✓</td>
-          </tr>
-          <tr data-priority="done">
-            <td contenteditable="">SHARED-002<span class="pflag">Done</span></td><td contenteditable="" class="tint o-plugin">Plugin Owner</td><td contenteditable="">Shared</td><td contenteditable="">Standard</td>
-            <td contenteditable="">mobile-security.md, accessibility.md, i18n-rtl.md (shared standards)</td>
-            <td contenteditable="" class="tint t-done">Completed</td><td contenteditable="">Implemented</td>
-            <td contenteditable="">Implemented 2026-07-22. The three shared standards were converted to platform-neutral normative requirements; React Native-specific guidance was moved into optional platform examples covering React Native, iOS, Android, and React. TV-specific guidance is expressed only inside the relevant platform example (no separate TV sections). All existing rule IDs were preserved; no platform-specific standards were created; no Commands, Skills, Agents, routing, or templates were modified.</td>
-            <td contenteditable="">—</td><td contenteditable="">4</td><td contenteditable="">Week 1</td><td contenteditable="">Week 2 ✓</td>
-          </tr>
-          <tr data-priority="done">
-            <td contenteditable="">SHARED-003<span class="pflag">Done</span></td><td contenteditable="" class="tint o-plugin">Plugin Owner</td><td contenteditable="">Shared</td><td contenteditable="">Standard</td>
-            <td contenteditable="">mobile-security.md (shared) — web + native extensions</td>
-            <td contenteditable="" class="tint t-done">Completed</td><td contenteditable="">Implemented</td>
-            <td contenteditable="">Implemented 2026-08-06. mobile-security.md extended from 36 to 48 stable IDs — all 36 existing IDs preserved unchanged, 12 added across three new sections. Web (9 IDs, tagged [web only]): SEC-WEB-1..6 covering XSS and safe HTML rendering, Content-Security-Policy, CSRF, third-party scripts and SRI, open redirects and unsafe navigation, and CORS as a browser boundary rather than authorization; SEC-COOKIE-1..3 covering httpOnly/Secure/SameSite session cookies, no tokens in script-readable browser storage, and narrow cookie scope. Native (3 IDs, tagged [native only]): SEC-EXPOSURE-1..3 covering OS backup and device-migration exclusion, screenshot and app-switcher protection, and clipboard exposure — the remaining native concerns were already covered by existing SEC-STORAGE/AUTH/NET/DEEPLINK/WEBVIEW/SECRETS/HARDEN/PERMS/LOG rules and are cross-referenced rather than duplicated. Every new rule states a platform-neutral outcome with framework and OS detail only as labelled examples, and carries a practical review check. Purpose &amp; Scope now defines the applicability tags and states that untagged rules apply to all platforms. Four reviewer instructions and two orchestration files were repointed at the new rules, closing every stale "web security not yet covered" statement repo-wide. Support: Boris Molotsky, Tom Zion, Guy Gur Arie.</td>
-            <td contenteditable="">SHARED-002 ✓ (done)</td><td contenteditable="">2</td><td contenteditable="">Week 3</td><td contenteditable="">Week 3 ✓</td>
-          </tr>
-          <tr data-priority="done">
-            <td contenteditable="">SHARED-004<span class="pflag">Done</span></td><td contenteditable="" class="tint o-plugin">Plugin Owner</td><td contenteditable="">Shared</td><td contenteditable="">Infrastructure</td>
-            <td contenteditable="">Per-task lifecycle/status store (scripts/ + /implement-task integration)</td>
-            <td contenteditable="" class="tint t-done">Complete</td><td contenteditable="">Create new</td>
-            <td contenteditable="">Deterministic per-task lifecycle/status store, specified by <code>docs/task-state-contract.md</code> (220 lines) and implemented by <code>scripts/task-state.ts</code> (1,002 lines, the only reader/writer) with 91 assertions. One discovery path per feature — <code>&lt;TARGET_ROOT&gt;/docs/tasks/{FEATURE}-task-state.json</code> — four writable states, SHA-256 row fingerprinting for staleness, an attempt counter, and a <code>provenance</code> trust axis that keeps <em>human-attested</em> distinct from <em>plugin-verified</em>. <strong><code>/implement-task</code> now has machine-verifiable dependency and completion state</strong>: §6 gates on <code>deterministicProof = complete &amp;&amp; plugin-verified &amp;&amp; !stale</code> — nothing else counts as proof — and §7a records <code>in-progress</code> before handoff, so a crashed attempt is visible instead of invisible. <code>/create-dev-qa-notes</code> §4 reads the persisted record first and falls back to the agent only for what the record cannot hold. Clock-free and offline: no <code>Date</code>, no randomness — <em>when and by whom</em> comes from git. Degraded reads enumerate every breakdown task as explicitly <code>unknown</code> rather than returning an empty set, which is what made an early dependency proof vacuously true.</td>
-            <td contenteditable="">—</td><td contenteditable="">4</td><td contenteditable="">Week 2</td><td contenteditable="">Week 3</td>
-          </tr>
-          <tr data-priority="done">
-            <td contenteditable="">SHARED-005<span class="pflag">Done</span></td><td contenteditable="" class="tint o-plugin">Plugin Owner</td><td contenteditable="">Shared</td><td contenteditable="">Test</td>
-            <td contenteditable="">Test harness (scripts/check.ts) + hook coverage + deterministic document-chain dry-run + fixture repos</td>
-            <td contenteditable="" class="tint t-done">Complete</td><td contenteditable="">Add tests</td>
-            <td contenteditable="">One command — <code>node scripts/check.ts</code>, run manually from the repo root before a PR — aggregating every deterministic suite in four phases (Helpers, Hooks, Contracts, Integration) with PASS/FAIL/SKIPPED totals and a non-zero exit on failure. <strong>&quot;E2e dry-run&quot; is scoped honestly as a <em>document-chain</em> dry-run</strong>: the real helpers are driven head-to-tail over fixture target repos so each stage's real output is proven to be valid input to the next stage's reader. A skipped suite (the hooks suite self-skips without <code>jq</code>) originally still exited 0 — <strong><code>--strict</code>, added with SHARED-006, turns an incomplete run into a failure</strong>, so a run that skipped the whole safety layer can no longer report as healthy. It is NOT a Claude-driven end-to-end run and contains no mock runtime — commands, skills and agents are ~7.4k lines of instructions only Claude executes, so a simulated one would assert the self-consistency of a fiction. Also closes the plugin's last untested executable code: the three hooks/*.sh safety scripts. Three items in the original scope were dropped as redundant or vacuous: the repository-knowledge manifest states are already covered by read-repo-knowledge.test.ts (absent / fresh / stale-head / stale-artifacts / unknown), worktree resolution is already covered by resolve-target-repo-root.test.ts, and per-platform + TV fixture variants would exercise no deterministic branch because no helper or hook reads device_type. Support: all owners.</td>
-            <td contenteditable="">SHARED-001 ✓, SHARED-009 ✓</td><td contenteditable="">2</td><td contenteditable="">Week 4</td><td contenteditable="">Week 5</td>
-          </tr>
-          <tr data-priority="done">
-            <td contenteditable="">SHARED-006<span class="pflag">Done</span></td><td contenteditable="" class="tint o-plugin">Plugin Owner</td><td contenteditable="">Shared</td><td contenteditable="">Infrastructure</td>
-            <td contenteditable="">Reference-integrity / frontmatter validator (deterministic repository validation)</td>
-            <td contenteditable="" class="tint t-done">Complete</td><td contenteditable="">Create new</td>
-            <td contenteditable=""><code>scripts/reference-integrity.ts</code> + <code>scripts/reference-integrity.test.ts</code>, registered as <strong>Phase 3 · Repository</strong> in <code>scripts/check.ts</code> (307 assertions). Validates: every cited skill / agent / standard / template / script / contract path resolves (86 candidates, 3 documented foreign-plugin citations); all intra-document anchors and relative links resolve; all 19 agents / 25 skills / 10 commands carry valid required frontmatter with <code>name</code> matching filename or directory; declared <code>skills:</code> routes resolve; every component classifies as active / placeholder / deferred <em>from its own on-disk marker</em>, with no curated registry; body markers and frontmatter descriptions agree; <strong>no command routes to a placeholder without a readiness gate</strong>; no deferred component is routed to; and README's readiness claims match disk. Its first run found and fixed <strong>7 ungated React routes</strong> (only <code>/implement-task</code> had a gate) and <strong>5 stale README claims</strong> that documented the authored Android lane as a placeholder. <strong>Runs from a shell — <code>node scripts/check.ts --strict</code> — with no CI, no dependencies and no network.</strong> Automatic CI enforcement is separate and optional: see SHARED-012.</td>
-            <td contenteditable="">—</td><td contenteditable="">2</td><td contenteditable="">Week 4</td><td contenteditable="">Week 4</td>
-          </tr>
-          <tr data-priority="normal">
-            <td contenteditable="">SHARED-012</td><td contenteditable="" class="tint o-plugin">Plugin Owner</td><td contenteditable="">Shared</td><td contenteditable="">Infrastructure</td>
-            <td contenteditable="">Optional automatic CI enforcement of the deterministic check</td>
-            <td contenteditable="" class="tint t-optional">Optional / Deferred by decision</td><td contenteditable="">Opt-in</td>
-            <td contenteditable=""><strong>Deferred by product/architecture decision — not unfinished mandatory work.</strong> A repository owner may choose to run the <em>same</em> command the developer already runs — <code>node scripts/check.ts --strict</code> — automatically in GitHub Actions on <code>pull_request</code>. This adds <em>enforcement</em>, not capability: SHARED-005 and SHARED-006 are already complete and fully usable from a shell. <strong>The validators have no CI dependency</strong> — no environment variable, no network, no CI-only code path — so enabling this later changes nothing about how they work. Deliberately not created in this change: no <code>.github/</code> directory, no workflow file, no CI badge. <strong>Architecture principle: SHARED-005/006 validation capabilities are developer/repository quality tooling and must never become mandatory runtime workflow steps for users of the plugin.</strong> If adopted, the workflow is ~12 lines — checkout, <code>setup-node</code> (Node 24, for native type stripping of the unbundled <code>.ts</code> scripts), a <code>jq --version</code> guard so the hooks suite cannot skip silently, and the one command.</td>
-            <td contenteditable="">SHARED-005 ✓, SHARED-006 ✓</td><td contenteditable="">0.5</td><td contenteditable="">—</td><td contenteditable="">—</td>
-          </tr>
-          <tr data-priority="done">
-            <td contenteditable="">SHARED-007<span class="pflag">Done</span></td><td contenteditable="" class="tint o-plugin">Plugin Owner</td><td contenteditable="">Shared</td><td contenteditable="">Documentation</td>
-            <td contenteditable="">plugin.json ↔ ono-plugin-marketplace metadata ownership</td>
-            <td contenteditable="" class="tint t-done">Complete</td><td contenteditable="">Update documentation</td>
-            <td contenteditable="">Resolved by <strong>removing the duplication rather than synchronising it</strong>. <code>plugin.json</code> is authoritative for plugin-owned metadata (<code>version</code>, <code>description</code>, <code>author</code>, components); <code>marketplace.json</code> owns distribution metadata (<code>name</code>, <code>source.url</code>/<code>ref</code>/<code>sha</code>) plus its own <code>metadata.version</code>. <strong>Per-plugin <code>version</code> fields were deleted from all four marketplace entries</strong> — Claude Code's docs state that when both declare one, <code>plugin.json</code> wins <em>silently</em>, so the copies could only mask the truth. Three of four had already drifted undetected (inspector 0.7.0 vs 0.9.0, mobile-dev <strong>0.2.0 vs 0.5.0</strong>, qa 0.3.0 vs 0.5.1); the README's Version column went with them. The marketplace-facing <code>description</code> is kept as a documented, semantically-aligned duplicate — not deleted — until browse/install UX is verified not to depend on it; mobile-dev's was refreshed ("dev planning" → "detailed design, task breakdown") along with its stale command table (<code>/create-dev-plan</code> → <code>/dev-design-start</code> + <code>/dev-feature-start</code>). Ownership is documented in this plugin's README § Metadata ownership and the marketplace's <em>How it's wired</em>. Machine-checked locally by <code>scripts/release-metadata.test.ts</code> (29 assertions): <code>plugin.json</code> version == newest CHANGELOG release heading, newest-first ordering, and no marketplace-owned field in <code>plugin.json</code>. <strong>No network or cross-repository dependency was added to <code>scripts/check.ts</code></strong> — the suite asserts its own offline-ness. Cross-repository automatic enforcement stays out of scope (optional, SHARED-012).</td>
-            <td contenteditable="">—</td><td contenteditable="">0.5</td><td contenteditable="">Week 5</td><td contenteditable="">Week 5</td>
-          </tr>
-          <tr data-priority="done">
-            <td contenteditable="">SHARED-008<span class="pflag">Done</span></td><td contenteditable="" class="tint o-plugin">Plugin Owner</td><td contenteditable="">Shared</td><td contenteditable="">Infrastructure</td>
-            <td contenteditable="">Optional design-reference gate + single confirmed platform (commands, architect/feature-developer agents, platform skills, templates)</td>
-            <td contenteditable="" class="tint t-done">Completed</td><td contenteditable="">Implemented</td>
-            <td contenteditable="">Implemented 2026-07-27. Replaced the Figma-required assumption with a design reference of any supported type, gated across /analyze-feature, /dev-design-start, /dev-feature-start and /implement-task, all 8 architect + feature-developer agents, 7 platform skills and 4 templates; UI proposals are gated on a design reference and one is never requested when the feature changes no user-facing UI. The single-confirmed-platform half of the same change is described under SHARED-001; this row covers the design-reference gate, which SHARED-001 does not.</td>
-            <td contenteditable="">—</td><td contenteditable="">2</td><td contenteditable="">Week 2</td><td contenteditable="">Week 2 ✓</td>
-          </tr>
-          <tr data-priority="done">
-            <td contenteditable="">SHARED-009<span class="pflag">Done</span></td><td contenteditable="" class="tint o-plugin">Plugin Owner</td><td contenteditable="">Shared</td><td contenteditable="">Infrastructure</td>
-            <td contenteditable="">Repository Knowledge consumer (scripts/read-repo-knowledge.ts + test, skills/repo-knowledge-consumer, docs/repo-knowledge-contract.md)</td>
-            <td contenteditable="" class="tint t-done">Completed</td><td contenteditable="">Implemented</td>
-            <td contenteditable="">Implemented 2026-07-31 (drove the 0.3.0 → 0.4.0 version bump). Deterministic reader for the manifest ono-project-inspector publishes at .ono/repo-knowledge.json: computes freshness (git HEAD + per-document SHA-256), applies the degradation matrix, and always exits 0 with valid JSON so a missing manifest can never fail a command. repo-knowledge-consumer is the only component that understands the format. repo-analyst and rn-architect reuse canonical knowledge instead of re-deriving it; /analyze-feature and /dev-design-start cite sources by path and anchor rather than embedding facts that go stale. Never blocks — no manifest falls back to full live derivation.</td>
-            <td contenteditable="">—</td><td contenteditable="">4</td><td contenteditable="">Week 2</td><td contenteditable="">Week 3 ✓</td>
-          </tr>
-          <tr data-priority="done">
-            <td contenteditable="">SHARED-010<span class="pflag">Done</span></td><td contenteditable="" class="tint o-plugin">Plugin Owner</td><td contenteditable="">Shared</td><td contenteditable="">Infrastructure</td>
-            <td contenteditable="">Repository-knowledge reuse for iOS / Android / React (commands/analyze-feature.md + the three platform architect agents)</td>
-            <td contenteditable="" class="tint t-done">Complete</td><td contenteditable="">Create new</td>
-            <td contenteditable="">Complete. Delivered in three parts: <strong>ANDROID-001 ✓</strong> and <strong>IOS-002 ✓</strong> gave both architects a Process step that resolves canonical knowledge through <code>repo-knowledge-consumer</code>, and both platform dev-planning skills a §2 that delegates to it without restating it; <strong>SHARED-010</strong> then corrected the shared orchestration in <code>commands/analyze-feature.md</code> step 3, which had grouped iOS, Android and React under one rationale and so read as though canonical-knowledge reuse were React-Native-only. Step 3 now states the rule — <em>every authored lane reuses canonical repository knowledge; the lanes differ only in which layer does the reusing</em> — with one bullet each: RN reused at <code>repo-analyst</code>, iOS/Android reused at the architect, React deferred <strong>because its lane is not authored</strong> (its own true reason, not the architect rationale that is false for a placeholder). <strong>No architect, dev-planning skill, <code>repo-analyst</code> or <code>repo-knowledge-consumer</code> was modified</strong> — they were already correct; only the command's description was stale. Guarded by <code>scripts/repo-knowledge-orchestration.test.ts</code> (46 assertions, Phase 4 · Contracts), which pins the per-lane reuse layer, asserts iOS/Android depth is never blamed on placeholders, asserts the three lanes are never re-collapsed into one rationale, and asserts only <code>repo-knowledge-consumer</code> invokes <code>scripts/read-repo-knowledge.ts</code>. Restoring the old sentence fails 14 of those assertions. <strong>React stays a placeholder</strong>: its participation in the flow arrives with REACT-002, which SHARED-010 does not pre-empt. Support: Tom Zion, Guy Gur Arie, Boris Molotsky.</td>
-            <td contenteditable="">SHARED-009 ✓, IOS-002 ✓, ANDROID-001 ✓ (REACT-002 applies to the future React lane only — never a blocker for this ticket)</td><td contenteditable="">1</td><td contenteditable="">Week 5</td><td contenteditable="">Week 5</td>
-          </tr>
-          <tr data-priority="done">
-            <td contenteditable="">SHARED-011<span class="pflag">Done</span></td><td contenteditable="" class="tint o-plugin">Plugin Owner</td><td contenteditable="">Shared</td><td contenteditable="">Infrastructure</td>
-            <td contenteditable="">Legacy planning-document migration framework (scripts/migrate-planning-doc.ts + test + fixtures, skills/planning-doc-migration, docs/planning-doc-contract.md)</td>
-            <td contenteditable="" class="tint t-done">Completed</td><td contenteditable="">Implemented</td>
-            <td contenteditable="">Implemented 2026-08-12 (drove the 0.4.0 → 0.5.0 version bump). Legacy planning documents now migrate automatically instead of failing in newer workflow stages. Versioned frontmatter contract (docs/planning-doc-contract.md) declares a doc_schema_version per document kind and records the Feature Analysis history recovered from this repository's git log — v0 (c77c75d) → v1 platform/device_type (6c56ec5) → v2 design_reference_* (c90c78c) → v3 repo_knowledge_* (2cadba7). Deterministic, clock-free framework (scripts/migrate-planning-doc.ts, 257-assertion suite over 13 on-disk fixtures) resolves the version from a doc_schema_version stamp or, failing that, a marker ladder, then applies a sequential chain of frozen single-step migrations; a document already stamped at the current version is a true no-op — no chain, no write, no message. Migration loader (skills/planning-doc-migration) is the single compatibility layer: the ad-hoc legacy-tolerance paragraph was deleted from /dev-design-start, which now loads every feature analysis through the loader before reading any field and continues the workflow automatically whenever migration succeeds. Frontmatter only — the body is held as an opaque byte slice and asserted byte-identical before an atomic fsync + rename write, so headings, whitespace, evidence, links, timestamps and generated content cannot change; the v2→v3 body-section rename is deliberately not performed. Approval survives by construction: status, feature, author and date are structurally unwritable, and a step that attempts one rejects the entire migration without writing. Inference is deterministic and document-internal only (figma_link → the canonical design_reference_* triple; an explicitly labelled device line → device_type; never repository analysis, never a keyword guess). Anything ambiguous — platform: mixed, an unlabelled device_type, a missing design reference — returns needs-input with every question batched into a single prompt and the file left byte-untouched. Scope: the Feature Analysis chain only. DD / Dev Plan / Task Breakdown stamp v1 with no authored chain, and /dev-feature-start and /implement-task are deliberately not wired to the loader — their kinds have nothing to migrate yet.</td>
-            <td contenteditable="">—</td><td contenteditable="">4</td><td contenteditable="">Week 5</td><td contenteditable="">Week 5 ✓</td>
-          </tr>
-          <tr data-priority="done">
-            <td contenteditable="">SHARED-013<span class="pflag">Done</span></td><td contenteditable="" class="tint o-plugin">Plugin Owner</td><td contenteditable="">Shared</td><td contenteditable="">Infrastructure</td>
-            <td contenteditable="">Upstream-change invalidation, controlled re-entry, and task impact reporting (<code>source_fingerprint</code>)</td>
-            <td contenteditable="" class="tint t-done">Complete</td><td contenteditable="">Create new</td>
-            <td contenteditable="">Implemented 2026-08-30. Extends the proven <code>rowFingerprint</code>/<code>stale</code> model one level up the document chain so an approved downstream artifact can be proven to derive from the upstream version on disk <em>now</em>. <strong>Detection:</strong> the DD stamps <code>source_fingerprint</code> — the SHA-256 of the approved feature analysis <em>body</em> — and the Task Breakdown stamps the DD's. The hash reuses <code>splitDocument()</code> and the body digest already in <code>migrate-planning-doc.ts</code>, so there is no second normalization algorithm; frontmatter is excluded, which makes the value provably migration-stable because that framework already asserts body byte-identity, and keeps an approval flip or a schema migration from masquerading as a content change. <strong>Controlled re-entry:</strong> the next command down verifies at entry and <strong>stops</strong>, naming exactly one recovery command — never regenerating, never editing upstream requirements, and <strong>never revoking approval</strong>. The canonical synchronization flow (human amends and re-approves the analysis → <code>/dev-design-start</code> → human re-approves the DD → <code>/dev-feature-start</code> → human re-approves the breakdown → <code>/implement-task</code>) is documented once in <code>skills/dev-design-start/SKILL.md</code>, and the existing-file strategy (<code>Overwrite</code>/<code>Update</code>/<code>Preserve</code>/<code>Version</code>) now covers <code>/analyze-feature</code> and <code>/dev-feature-start</code> as well as the DD. <strong>Impact reporting:</strong> <code>/implement-task</code> runs a preflight on every invocation using the feature-wide store read it already performs, and prints a deterministic unchanged / modified / removed / unrecorded classification derived from stored <code>rowFingerprint</code> values — set-and-hash arithmetic, no regeneration, since decomposing a DD into rows is model work. <strong>Transitive dependency validation:</strong> the walk follows <code>dependsOn</code> through every level rather than the direct list, is cycle-safe by three-colour marking, and reports the exact failing path (<code>T7 → T3 → T1</code>). It blocks only what the change can reach — upstream mismatch, the requested task, or its transitive closure — while stale work outside the closure is reported but never blocking, so the gate cannot train developers to override it. <strong>Additive and forward-compatible:</strong> no <code>doc_schema_version</code> bumped, no migration step authored, no new persisted state and no new verdict — a legacy document without the field reads <code>unknown</code>, never <code>mismatch</code>, exactly like the <code>qa_handoff_link</code> precedent. The Dev Plan deliberately carries no fingerprint: it is co-generated with the breakdown in one <code>/dev-feature-start</code> run, so it cannot diverge and no command could verify it. <strong>Design references add no field</strong> — re-pointing is caught by comparing the four verbatim-carried design fields. <strong>Known limitation:</strong> a Figma design edited <em>behind an unchanged URL</em> cannot be detected — no Figma MCP tool exposes a revision, version or content hash — so currency there is an explicit <code>human-attested</code> confirmation rather than a fabricated fingerprint. A <em>changed</em> Figma URL is detected. Guarded by <code>scripts/source-fingerprint-contract.test.ts</code> (82 assertions) including the proof-of-defect case: a DD edited while every task row stays byte-identical, which every gate passed before this work.</td>
-            <td contenteditable="">SHARED-004 ✓, SHARED-005 ✓, SHARED-011 ✓</td><td contenteditable="">1.5</td><td contenteditable="">—</td><td contenteditable="">—</td>
-          </tr>
-            <tr data-priority="done">
-              <td contenteditable="">SHARED-014<span class="pflag">Done</span></td><td contenteditable="" class="tint o-plugin">Plugin Owner</td><td contenteditable="">Shared</td><td contenteditable="">Infrastructure</td>
-              <td contenteditable="">Accessibility as a first-class completion dimension of <code>/implement-task</code>, on a generic verification-debt mechanism</td>
-              <td contenteditable="" class="tint t-done">Complete</td><td contenteditable="">Create new + update</td>
-              <td contenteditable="">Implemented 2026-08-31. <strong>Scope: mobile only.</strong> <code>device_type: mobile</code> runs the flow; <code>device_type: tv</code> <em>explicitly</em> skips it with a recorded reason and cites no <code>A11Y-*</code> and no <code>REACT-TV-*</code> — TV accessibility stays with the TV workstreams. The skip is test-protected, because a silent skip and a recorded skip are indistinguishable in prose but not in a record. <strong>Ownership:</strong> shared owns WHAT — <code>standards/shared/accessibility.md</code> grew 13&nbsp;→&nbsp;30 rules across <code>A11Y-ROLES-1..7</code>, <code>TOUCH-1..2</code>, <code>FONT-1..3</code>, <code>CONTRAST-1..2</code>, <code>FOCUS-1..4</code>, <code>COLLECTION-1..6</code>, <code>SR-1..5</code>, <code>MOTION-1</code>, covering traversal order, focus after navigation, modal focus restoration, hidden/off-screen exposure, announcement flooding, lists/grids, carousels including partially visible hints and auto-advance with a screen reader active, recycled-cell phantom nodes, timed content, error association and reduced motion. Platform standards own HOW: <code>AND-UI-A11Y-1..10</code> and <code>RN-A11Y-1..11</code>, each grounded in the official Compose and React Native accessibility documentation (which corrected two assumptions: several RN props are single-platform, and <code>setAccessibilityFocus</code> is deprecated). iOS <code>IOS-UI-A11Y-1..3</code> unchanged. <strong>Verification:</strong> a new <code>standards/shared/verification.md</code> owns the Tier&nbsp;1/2/3 vocabulary — generalized out of the iOS skill, which now references rather than restates it — plus <code>VERIFY-1..3</code>. <strong>Completion:</strong> a failing Tier&nbsp;1/2 check blocks <code>complete</code>; outstanding <code>verificationDebt</code> does not, so completion never depends on device availability. Tier&nbsp;3 is <em>unrepresentable</em> as a pass: <code>checks</code> accepts only tiers 1–2, debt has no result field, and its <code>status</code> is only ever written <code>pending</code>. <code>A11Y-SR-1</code> cannot be satisfied by mechanical evidence (<code>VERIFY-2</code>). Legacy records read <code>notRecorded</code>, never <code>notApplicable</code> and never a pass. <code>verificationDebt</code> is domain-tagged and generic — only <code>domain: "accessibility"</code> is populated here, so a future performance or device-capability domain needs no migration. QA consumes the debt from persisted task state rather than reconstructing it. No new command, agent, skill, task-state status or schema version; no automation framework assumed. <strong>Known limitation:</strong> iOS trails Android/RN on HOW coverage for the new <code>FOCUS</code>/<code>COLLECTION</code> families — recorded, not silently closed.</td>
-              <td contenteditable="">SHARED-004 ✓, SHARED-013 ✓</td><td contenteditable="">2</td><td contenteditable="">—</td><td contenteditable="">—</td>
-            </tr>
-          <tr data-priority="done">
-            <td contenteditable="">DOC-001<span class="pflag">Done</span></td><td contenteditable="" class="tint o-plugin">Plugin Owner</td><td contenteditable="">Shared</td><td contenteditable="">Documentation</td>
-            <td contenteditable="">README.md, CHANGELOG.md</td>
-            <td contenteditable="" class="tint t-done">Complete</td><td contenteditable="">Update documentation</td>
-            <td contenteditable="">Complete. <strong>README:</strong> the Android-placeholder claims were corrected under SHARED-006 ✓ (now machine-checked); DOC-001 added <code>### Mobile vs. TV</code> under <em>How platform detection works</em> — the model only: <code>device_type</code> is exactly one of <code>mobile</code>/<code>tv</code> with no <code>mixed</code>, TV is a context <em>inside</em> a platform rather than a fifth platform, React Native is deliberately mobile-only, resolution is confirmed by the human at <code>/analyze-feature</code> step 2 and never re-inferred later, and a both-targets repository stops and asks. It references <code>agents/repo-analyst.md</code> Step 6.5, <code>docs/planning-doc-contract.md</code> and the per-lane §14 sections instead of duplicating their logic, and states current coverage honestly: routing and discovery exist, TV <em>guidance</em> does not (ATV-001/002, ANDROID-003, REACT-003 open). <strong>CHANGELOG:</strong> the drift was larger than this ticket originally described. Backfilled into <strong>0.4.0</strong> — SHARED-001 (<code>6c56ec5</code>), SHARED-002 (<code>f39ed74</code>), SHARED-008 (<code>c90c78c</code>); into <strong>0.5.0</strong> — SHARED-003 (<code>feb691b</code>), ANDROID-001 (<code>9177aaa</code>), ANDROID-002 (<code>b3e4a3f</code>), with ANDROID-004 noted as having no separate work rather than given a bullet it did not earn. A new <strong><code>[Unreleased]</code></strong> section holds the nine items that postdate the 0.5.0 bump commit <code>d829d78</code>: IOS-001..004 and SHARED-004/005/006/007/010. <strong>Every one of the 15 placements was verified against the true release boundaries in git</strong> (the <code>plugin.json</code> bump commits), which moved IOS-001 and IOS-002 out of 0.5.0 — they shipped after the bump, not before it as the ticket assumed. Corrections were additive only: <strong>zero deletions in either file</strong>, no date or version changed, no unrelated historical wording touched. <code>plugin.json</code> stays at 0.5.0 — the release bump remains separate work, and <code>release-metadata.test.ts</code> stays green because it ignores a non-semver heading. Support: Guy Gur Arie.</td>
-            <td contenteditable="">SHARED-001 ✓, SHARED-008 ✓, SHARED-009 ✓, ANDROID-001 ✓, ANDROID-002 ✓</td><td contenteditable="">1.5</td><td contenteditable="">Week 5</td><td contenteditable="">Week 5</td>
-          </tr>
-          <tr data-priority="done">
-            <td contenteditable="">DOC-002<span class="pflag">Done</span></td><td contenteditable="" class="tint o-plugin">Plugin Owner</td><td contenteditable="">Shared</td><td contenteditable="">Documentation</td>
-            <td contenteditable="">/implement-task docs + skill/agent context-contract notes</td>
-            <td contenteditable="" class="tint t-done">Complete</td><td contenteditable="">Update documentation</td>
-            <td contenteditable="">Complete. The contract was already stated where it matters: <code>/implement-task</code> §5 requires <code>device_type</code> to be exactly <code>mobile</code> or <code>tv</code>, stops on a missing, invalid or conflicting value, and <strong>never defaults to <code>mobile</code></strong>; §8 records that a <code>tv</code> task runs on the same platform agent and skill, so device type never changes routing. Both authored lanes carry it end to end — the Android and iOS architects take the confirmed context as given and declare TV a context signal rather than a platform, both dev-planning skills branch on <code>mobile</code>/<code>tv</code>, and <code>android-code-review</code> §12 handles the review stage, which has no upstream frontmatter to read, by inferring rather than demanding. <strong>DOC-002 closed the one real hole: <code>platform: react-native</code> + <code>device_type: tv</code> was reachable but undefined</strong> — <code>repo-analyst</code> treats <code>react-native-tvos</code> as a decisive TV marker and a developer can select <code>tv</code> at the confirmation gate, yet the React Native lane said only "mobile-only, no TV branch" and never what to do when <code>tv</code> arrived, so such a feature was planned as mobile by default. <code>skills/rn-dev-planning</code> now owns the rule — <strong>report the unsupported context and stop</strong>, never plan it as mobile, never invent an RN TV branch or standard, never reroute — and <code>rn-architect</code> follows it and points there. The RN <em>implementation</em> lane was deliberately left untouched: its <code>device_type</code> silence is the contract, protected by <code>rn-implementation-contract.test.ts</code> group 10 (all 168 assertions still pass). Guarded by <code>scripts/device-type-contract.test.ts</code> (55 assertions, Phase 4 · Contracts), which deliberately does not re-assert that exclusion. Reverting the RN rule fails 10 assertions; deleting <code>/implement-task</code>'s never-default clause fails 2. <strong>React Native TV support remains a separate future product and architecture decision</strong> — recorded as a known limitation, not manufactured as backlog. React stays a placeholder and no methodology was authored for it. Support: Guy Gur Arie.</td>
-            <td contenteditable="">SHARED-001 ✓ (done)</td><td contenteditable="">0.5</td><td contenteditable="">Week 5</td><td contenteditable="">Week 5</td>
-          </tr>
-          <tr data-priority="done">
-            <td contenteditable="">IOS-001<span class="pflag">Done</span></td><td contenteditable="" class="tint o-tom">Tom Zion</td><td contenteditable="">iOS</td><td contenteditable="">Standard</td>
-            <td contenteditable="">swift-standards.md, swiftui-uikit-standards.md, ios-architecture.md, xcode-build-signing.md, ios-performance.md (IOS-* IDs)</td>
-            <td contenteditable="" class="tint t-done">Completed</td><td contenteditable="">Implemented</td>
-            <td contenteditable="">Implemented 2026-08-12. All five iOS standards authored with 168 stable IDs across five roots — IOS-SWIFT-* (40), IOS-UI-* (33), IOS-ARCH-* (35), IOS-PERF-* (33), IOS-BUILD-* (27) — replacing every "Not yet authored" placeholder. swift-standards.md additionally hosts a shared governing block, placed first so a single-document consumer can bounded-read it: the lane table routing each ID root to exactly one filer, a Blocking/Major/Minor/Nit severity rubric, a three-case resolution for when a repository convention cannot be established (absence of a convention is never compliance), and a Diff/Build/Release applicability stage so a reviewer marks unreachable rules Not Applicable rather than passed. A one-defect-one-finding table names the owning ID for the six cross-document collisions and assigns deduplication to the ios-code-review merge step, since the two reviewers cannot read each other's output. Framework-, pattern- and version-neutral throughout: SwiftUI, UIKit and hybrid are first-class, the file under review selects the family, and no rule pins a Swift or iOS version. Roughly thirty rules carry explicit false-finding guards so an agent cannot condemn idiomatic code. 26 external references verified live, each with a "when to consult" note rather than inlined explanation. tvOS content deliberately left to ATV-001, with the ID convention reserved (IOS-UI-TV-*) so Noam Haba's rules route without changing the lane table. Also corrected seven agent/skill files and README that still claimed these standards were placeholders. Does not implement IOS-002/003/004.</td>
-            <td contenteditable="">SHARED-002 ✓ (done, soft)</td><td contenteditable="">4</td><td contenteditable="">Week 1</td><td contenteditable="">Week 1 ✓</td>
-          </tr>
-          <tr data-priority="done">
-            <td contenteditable="">IOS-002<span class="pflag">Done</span></td><td contenteditable="" class="tint o-tom">Tom Zion</td><td contenteditable="">iOS</td><td contenteditable="">Agent + Skill</td>
-            <td contenteditable="">ios-architect.md (agent) + ios-dev-planning (skill)</td>
-            <td contenteditable="" class="tint t-done">Completed</td><td contenteditable="">Implemented</td>
-            <td contenteditable="">Implemented 2026-08-12. Authored the iOS planning lane: <code>skills/ios-dev-planning</code> (379 lines, 18 numbered sections) and <code>agents/ios-architect.md</code> (74 lines), replacing both placeholders. Repository-first and technology-neutral: SwiftUI, UIKit, storyboards, the two observation models, Swift Concurrency, GCD, Combine, RxSwift, SPM, CocoaPods, Carthage, Core Data, SwiftData, XCTest and Swift Testing are possible findings and never defaults, stated in no order of precedence; the UI model is identified per surface, not per repository, so a hybrid app is planned correctly. An 18-dimension evidence sweep whose depth scales with stage (scoped at Analyze, complete at Design) is paired with a <strong>Detection traps</strong> section that has no sibling equivalent: seven documented ways an Xcode repository hides its own configuration — a generated information property list so a file's absence proves nothing, build settings resolved across six levels with a dependency manager inserting its own, a per-target language-mode baseline, ambiguous entry-point markers, packages added through Xcode leaving no manifest, generated projects, and attribute-based test discovery. 134 IOS-*/A11Y-*/I18N-*/SEC-* IDs cited, every one verified to exist; zero TV IDs, since those roots are reserved and unauthored. Honours four IOS-001 contracts: the applicability stage (Build- and Release-stage rules are recorded as to-be-verified, never asserted), the no-convention ladder, lane boundaries, and the measurement discipline that forbids asserting a magnitude claim from reading code. Serves all three stages, including three iOS-specific decomposition hazards at Feature-start (project-file contention between parallel tasks, a new target or scheme as its own task, test-host ordering). TV is handled as a device_type context signal with an 11-item discovery pass and a framework-independent build-configuration anchor, while deliberately authoring no tvOS guidance — ATV-001 owns the rules and ATV-002 the deep branching. Three verification passes against Apple primary sources and four adversarial review agents (contract compliance, iOS technical correctness, neutrality/density, executability) found real defects that were fixed, including a stage-scoping error that would have halted every data-driven feature at Analyze and four factual errors about background-task budgets, scene restoration, session configuration and observation-model mismatch. Also corrected a defective cross-reference in IOS-001's ios-performance.md and a stale claim in /analyze-feature. Does not implement IOS-003/004.</td>
-            <td contenteditable="">IOS-001 ✓</td><td contenteditable="">2</td><td contenteditable="">Week 2</td><td contenteditable="">Week 2 ✓</td>
-          </tr>
-          <tr data-priority="done">
-            <td contenteditable="">IOS-003<span class="pflag">Done</span></td><td contenteditable="" class="tint o-tom">Tom Zion</td><td contenteditable="">iOS</td><td contenteditable="">Agent + Skill</td>
-            <td contenteditable="">ios-feature-developer.md (agent) + ios-feature-implementation (skill)</td>
-            <td contenteditable="" class="tint t-done">Complete</td><td contenteditable="">Authored</td>
-            <td contenteditable="">Implemented 2026-08-13. Authored the iOS implementation lane: <code>skills/ios-feature-implementation</code> (387 lines, 20 numbered sections) and <code>agents/ios-feature-developer.md</code> (44 lines), replacing both placeholders and opening <code>/implement-task</code> for real iOS work; it also serves the iOS halves of <code>/fix-review-comments</code> and <code>/create-dev-qa-notes</code>. Repository-first and technology-neutral: SwiftUI, UIKit, both observation models, Swift Concurrency, GCD, Combine, SPM, CocoaPods, Core Data, SwiftData, XCTest and Swift Testing are possible findings, never defaults. Does not re-run IOS-002's Design-stage evidence sweep — it inherits the Design Document's <em>conclusions</em> — <code>templates/dd-template.md</code> §19 is explicit that the architect's evidence sweep is research that informs the section and is never pasted into it — and checks those conclusions against the repository for <strong>drift</strong>, reporting rather than silently coding against either version. Two sections have no sibling equivalent. <strong>Build-stage evidence</strong> operationalises an IOS-001 contract: the applicability rubric assigns Build-stage verification to CI or the implementer and forbids a diff-reading reviewer from asserting it, so this is the only stage that can produce it. <strong>Verification reach</strong> splits every check into mechanical / snapshot-baselined / impossible-headlessly, so the agent cannot claim what no mechanism can establish — <code>simctl ui</code> exposes only appearance, contrast and content size, so VoiceOver, Reduce Motion and Bold Text are human-only, and every handoff must carry a non-empty unverified list. Six research passes verified the toolchain empirically against Xcode 26.0.1 rather than from documentation, catching claims that would have shipped as defects: <code>leaks</code> and Instruments' Leaks template cannot attach to a simulator app (so the iOS retain-cycle proof is a teardown weak-reference assertion), unsatisfiable-constraint logging is off by default so grepping for it is a false <em>pass</em>, the Simulator does not redact private log values but a device does, Address and Thread Sanitizer cannot build together, and Apple's own help text recommends an <code>xcresulttool</code> subcommand that does not exist. 47 IOS-*/shared ID roots cited, every one verified to exist and read for meaning; zero TV IDs, since those roots stay reserved until ATV-001. Corrected the stale claims this change invalidated in <code>README.md</code> and <code>/implement-task</code>'s routing table and readiness gate. Did not implement IOS-004 — the iOS review lane and <code>/review-code</code>'s iOS route stayed closed until IOS-004 ✓ landed on 2026-08-16.</td>
-            <td contenteditable="">IOS-001 ✓</td><td contenteditable="">4</td><td contenteditable="">Week 2</td><td contenteditable="">Week 2 ✓</td>
-          </tr>
-          <tr data-priority="done">
-            <td contenteditable="">IOS-004<span class="pflag">Done</span></td><td contenteditable="" class="tint o-tom">Tom Zion</td><td contenteditable="">iOS</td><td contenteditable="">Agent + Skill</td>
-            <td contenteditable="">ios-code-reviewer.md, ios-performance-reviewer.md (agents) + ios-code-review (skill)</td>
-            <td contenteditable="" class="tint t-done">Complete</td><td contenteditable="">Authored</td>
-            <td contenteditable="">Implemented 2026-08-16. Authored the iOS review lane: <code>skills/ios-code-review</code> (328 lines, 17 numbered sections) and <code>agents/ios-code-reviewer.md</code> / <code>agents/ios-performance-reviewer.md</code>, replacing all three placeholders and opening <code>/review-code</code>'s iOS route plus the iOS perf sign-off in <code>/prepare-mobile-release</code>. Completes Tom Zion's lane and clears the last blocker on Noam Haba's ATV-002. The lane's organising idea is a <strong>delegation ladder</strong>: every check routes to the cheapest authority that can soundly settle it, so the reviewer spends its budget only on what nothing else can decide — with the explicit precedence rule that where a lint rule and an authored <code>IOS-*</code> ID coincide the finding is still filed under the ID, since <code>/fix-review-comments</code> re-verifies by citation. Two further sections have no sibling equivalent: <strong>evidence reach</strong>, which splits the source-side predicate a diff can settle from the runtime claim it cannot, rule by rule; and an executable <strong>merge contract</strong> that discharges the obligation <code>swift-standards.md</code> assigns to this skill by name — since neither reviewer agent can see the other's findings, cross-lane findings carry a <code>merge-candidate</code> marker the caller folds. Both agents declare <code>skills:</code> so the methodology loads with them, and omit the in-place edit tools. 36 standard IDs cited, all verified to exist; no <code>IOS-BUILD-*</code> or <code>SEC-*</code> filed, per the lane table. Three adversarial reviewers found 47 defects across contract compliance, iOS technical correctness and executability — all fixed, including two merge-table rows that would have deleted valid findings, and mechanism claims disproved by compiling the case. Corrected the stale claims this change invalidated in <code>README.md</code> and <code>/implement-task</code>. Does not author tvOS guidance — ATV-001/002 own it.</td>
-            <td contenteditable="">IOS-001 ✓</td><td contenteditable="">2</td><td contenteditable="">Week 3</td><td contenteditable="">Week 3 ✓</td>
-          </tr>
-          <tr data-priority="high">
-            <td contenteditable="">ATV-001<span class="pflag">High</span></td><td contenteditable="" class="tint o-noam">Noam Haba</td><td contenteditable="">iOS (Apple TV context)</td><td contenteditable="">Standard</td>
-            <td contenteditable="">iOS standards — Apple TV / tvOS context sections (in swift/swiftui-uikit/ios-architecture/ios-performance/xcode-build-signing)</td>
-            <td contenteditable="" class="tint t-missing">Missing — must be created</td><td contenteditable="">Add mobile/TV context handling</td>
-            <td contenteditable="">Add Apple TV / tvOS knowledge into the iOS standards as TV-context sections: focus engine, Siri/remote input, media playback, Top Shelf &amp; lifecycle, tvOS memory/performance, tvOS signing/release.</td>
-            <td contenteditable="">IOS-001 ✓, SHARED-001 ✓</td><td contenteditable="">4</td><td contenteditable="">Week 2</td><td contenteditable="">Week 2</td>
-          </tr>
-          <tr data-priority="high">
-            <td contenteditable="">ATV-002<span class="pflag">High</span></td><td contenteditable="" class="tint o-noam">Noam Haba</td><td contenteditable="">iOS (Apple TV context)</td><td contenteditable="">Skill + Agent</td>
-            <td contenteditable="">ios-dev-planning, ios-feature-implementation, ios-code-review (skills) + ios-architect.md, ios-feature-developer.md, ios-code-reviewer.md, ios-performance-reviewer.md (agents)</td>
-            <td contenteditable="" class="tint t-mod">Requires modification</td><td contenteditable="">Add mobile/TV context handling</td>
-            <td contenteditable="">Extend the iOS Skills + Agents to branch on the mobile-vs-TV context so Apple TV work is planned, implemented, and reviewed with focus/remote/playback/lifecycle concerns.</td>
-            <td contenteditable="">IOS-002 ✓, IOS-003 ✓, IOS-004 ✓, SHARED-001 ✓</td><td contenteditable="">4</td><td contenteditable="">Week 3</td><td contenteditable="">Week 4</td>
-          </tr>
-          <tr data-priority="done">
-            <td contenteditable="">ANDROID-001<span class="pflag">Done</span></td><td contenteditable="" class="tint o-guy">Guy Gur Arie</td><td contenteditable="">Android</td><td contenteditable="">Agent + Skill</td>
-            <td contenteditable="">android-architect.md (agent) + android-dev-planning (skill)</td>
-            <td contenteditable="" class="tint t-done">Completed</td><td contenteditable="">Implemented</td>
-            <td contenteditable="">Implemented 2026-08-06. Production-ready android-architect agent (93 lines) and android-dev-planning skill (326 lines, 18 sections). Repository-first architecture: a 5-rank source-of-truth hierarchy in which inspected repository evidence outranks official Android guidance, an 18-dimension evidence sweep, and evidence/reuse/inference/unknown labelling on every repository claim. Framework-agnostic: Compose, XML/Views, hybrid, mid-migration, and custom UI models are all first-class findings identified per surface — no toolkit, architecture, DI, concurrency, persistence, or networking library is ever assumed, and no migration is proposed unless the feature explicitly requests it. Mobile/TV handled by the same agent and skill via device_type, with a 10-point TV discovery pass and no assumption of Leanback or Compose for TV. Android standards integration: 131 concrete AND-*/A11Y-*/I18N-*/SEC-* IDs cited, all verified to exist. Repository-knowledge reuse delegated to repo-knowledge-consumer. Supports Analyze, Development Design, and Feature-start. Does not implement ANDROID-002/003/004.</td>
-            <td contenteditable="">Android standards (done)</td><td contenteditable="">2</td><td contenteditable="">Week 1</td><td contenteditable="">Week 1 ✓</td>
-          </tr>
-          <tr data-priority="done">
-            <td contenteditable="">ANDROID-002<span class="pflag">Done</span></td><td contenteditable="" class="tint o-guy">Guy Gur Arie</td><td contenteditable="">Android</td><td contenteditable="">Agent + Skill</td>
-            <td contenteditable="">android-code-reviewer.md, android-performance-reviewer.md (agents) + android-code-review (skill)</td>
-            <td contenteditable="" class="tint t-done">Completed</td><td contenteditable="">Implemented</td>
-            <td contenteditable="">Implemented 2026-08-06. Production-ready android-code-reviewer (68 lines), android-performance-reviewer (70 lines) and android-code-review skill (204 lines, 14 sections). Repository-first review: a finding must name a concrete violation of a repository convention, the project architecture, an AND-* standard, or a shared standard — modernization and architectural-preference observations may not appear anywhere in the output, and findings are limited strictly to code introduced or modified in the resolved scope, though a concrete AND-* violation is still reviewable when similar legacy code exists. Framework-neutral: the reviewed file — not the repository majority — selects the UI family across Compose, XML/Views, hybrid, mid-migration and custom abstractions, with cross-application prohibited. Correctness, performance and security are mutually exclusive lanes, disambiguated by a mechanical rule (the ID's own root decides the owner), so the two agents cannot double-file. Android standards integration: 11 AND-* families plus shared A11Y-*/I18N-* for the code reviewer, AND-PERF-* for the performance reviewer. Analyze/Design/Feature-start are unchanged; Review and release perf sign-off are now unblocked, with the performance reviewer serving both /review-code and /prepare-mobile-release. No TV-specific standards were implemented — ANDROID-003 intentionally remains separate.</td>
-            <td contenteditable="">Android standards (done)</td><td contenteditable="">2</td><td contenteditable="">Week 2</td><td contenteditable="">Week 2 ✓</td>
-          </tr>
-          <tr data-priority="high">
-            <td contenteditable="">ANDROID-003<span class="pflag">High</span></td><td contenteditable="" class="tint o-guy">Guy Gur Arie</td><td contenteditable="">Android (Android TV context)</td><td contenteditable="">Standard + Skill + Agent</td>
-            <td contenteditable="">Android standards (AND-*) + android-dev-planning, android-code-review, android-feature-implementation (skills) + android-* agents — Android TV context</td>
-            <td contenteditable="" class="tint t-missing">Missing — must be created</td><td contenteditable="">Add mobile/TV context handling</td>
-            <td contenteditable="">Add Android TV knowledge via the mobile-vs-TV context. An Android TV application may use any implementation model. The android-architect must first inspect the repository and identify the actual implementation before making architectural or planning decisions. The implementation may use standard Android TV frameworks, a custom framework, or another repository-specific solution. Discovery covers focus handling, D-pad/remote input, navigation abstractions, TV UI components, playback integration, screen lifecycle, and reusable base classes or framework modules. Repository conventions are the source of truth; Android platform documentation is guidance only and never overrides an existing repository implementation. Never propose migrating to Leanback, Compose for TV, or any other framework unless the feature explicitly requests that migration. Planning output must keep three things separate: existing TV implementation, required feature work, and optional modernization suggestions. Cover the durable TV concerns that apply regardless of framework — focus/remote navigation, TV launcher/banner, Android TV performance, Play Console TV track/signing.</td>
-            <td contenteditable="">ANDROID-001 ✓, ANDROID-002 ✓, SHARED-001 ✓</td><td contenteditable="">4</td><td contenteditable="">Week 3</td><td contenteditable="">Week 4</td>
-          </tr>
-          <tr data-priority="done">
-            <td contenteditable="">ANDROID-004<span class="pflag">Done</span></td><td contenteditable="" class="tint o-guy">Guy Gur Arie</td><td contenteditable="">Android</td><td contenteditable="">Documentation</td>
-            <td contenteditable="">android-dev-planning, android-code-review (stale placeholder text)</td>
-            <td contenteditable="" class="tint t-done">Completed</td><td contenteditable="">Implemented</td>
-            <td contenteditable="">Subsumed 2026-08-06 — no separate work remained. This task's entire scope was correcting the stale text claiming Android standards are placeholders: the android-dev-planning half was removed when ANDROID-001 ✓ authored that skill, and the android-code-review half when ANDROID-002 ✓ authored it. Verified: zero occurrences of the stale claim remain in any Android agent, skill or standard. (The same wording still appears in iOS and React components, where it is accurate and belongs to IOS-002 / REACT-002.) Closed as delivered rather than replaced — no substitute work was created.</td>
-            <td contenteditable="">ANDROID-001 ✓, ANDROID-002 ✓</td><td contenteditable="">0.5</td><td contenteditable="">Week 4</td><td contenteditable="">Week 4 ✓</td>
-          </tr>
-          <tr data-priority="done" class="">
-            <td contenteditable="">REACT-001<span class="pflag">Done</span></td><td contenteditable="" class="tint o-boris">Boris Molotsky</td><td contenteditable="">React</td><td contenteditable="">Standard</td>
-            <td contenteditable="">react-coding, react-routing, react-state-management, react-performance, react-architecture, react-api-service-layer (REACT-* IDs)</td>
-            <td contenteditable="" class="tint t-done">Completed</td><td contenteditable="">Implemented</td>
-            <td contenteditable="">Implemented 2026-08-16. All 6 React (web) standards authored — 111 REACT-* rules across REACT-TS/FC/NAME/PROPS/LINT, REACT-ARCH-*, REACT-API-*, REACT-ROUTE-*, REACT-STATE-*, REACT-PERF-* — replacing the placeholders. Lane conventions set here: REACT- prefix on every family (collision-free vs RN/AND/IOS), a strict no-aside stance, and a rank-5 External-references section per doc. Repository-first and framework-neutral; cites shared SEC-WEB-*/SEC-COOKIE-*/A11Y-* for web security &amp; accessibility. Each doc adversarially reviewed; ID skeleton frozen and all cross-references reconciled (REACT-001-7). REACT-TV-* reserved for REACT-003. Unblocks REACT-002.</td>
-            <td contenteditable="">SHARED-002 ✓, SHARED-003 ✓</td><td contenteditable="">4</td><td contenteditable="">Week 1</td><td contenteditable="">Week 1 ✓</td>
-          </tr>
-          <tr data-priority="done" class="">
-            <td contenteditable="">REACT-002<span class="pflag">Done</span></td><td contenteditable="" class="tint o-boris">Boris Molotsky</td><td contenteditable="">React</td><td contenteditable="">Agent + Skill</td>
-            <td contenteditable="">react-architect.md, react-feature-developer.md, react-code-reviewer.md, react-performance-reviewer.md (agents) + react-dev-planning, react-feature-implementation, react-code-review (skills)</td>
-            <td contenteditable="" class="tint t-done">Complete</td><td contenteditable="">Complete placeholder</td>
-            <td contenteditable="">Implemented 2026-08-20. All four React agents and all three React skills authored — <code>react-architect</code>, <code>react-feature-developer</code>, <code>react-code-reviewer</code>, <code>react-performance-reviewer</code>, plus <code>react-dev-planning</code>, <code>react-feature-implementation</code> and <code>react-code-review</code> — replacing the structure-only placeholders. The lane consumes canonical repository knowledge through <code>repo-knowledge-consumer</code> like iOS and Android, and every command route to it now passes the platform-neutral readiness gate. Independent adversarial review recorded in <code>docs/planning/REACT-002-independent-review-findings.md</code>.</td>
-            <td contenteditable="">REACT-001</td><td contenteditable="">8</td><td contenteditable="">Week 2</td><td contenteditable="">Week 4</td>
-          </tr>
-          <tr data-priority="done" class="">
-            <td contenteditable="">REACT-003<span class="pflag">Done</span></td><td contenteditable="" class="tint o-boris">Boris Molotsky</td><td contenteditable="">React (Smart TV context)</td><td contenteditable="">Standard + Skill + Agent</td>
-            <td contenteditable="">React standards + react-* skills/agents — Smart TV context</td>
-            <td contenteditable="" class="tint t-done">Complete</td><td contenteditable="">Add mobile/TV context handling</td>
-            <td contenteditable="">Implemented 2026-08-20. <code>standards/react/react-smart-tv.md</code> — 226 lines, 54 rules across <code>REACT-TV-FOCUS/INPUT/UI/PERF/MEDIA/PKG/API/LIFECYCLE</code> — covering the three named deliverables: remote/focus navigation, TV runtime and memory constraints, and vendor packaging (Tizen/webOS). Wired rather than orphaned: all seven React components carry <code>device_type</code> and six cite the standard directly. Independent adversarial review (<code>docs/planning/REACT-003-independent-review-findings.md</code>) closed <strong>every P0 and P1</strong> plus all in-lane P2/P3 items. <strong>Shared-lane follow-ups — still open, deliberately outside this ticket, recorded here so they are not lost with the finding document.</strong> Each needs an owner outside the React lane: (1) wire TV into <code>/review-code</code>'s merge step; (2) wire TV into <code>/prepare-mobile-release</code>; (3) give the shared <code>mobile-security-reviewer</code> TV awareness (vendor manifests, keystores, <code>.wgt</code>/<code>.ipk</code>); (4) add a colour-contrast rule to <code>standards/shared/accessibility.md</code> and a TV-surface field to <code>templates/code-review-template.md</code>. <strong>None is a blocker</strong> — every React rule was re-scoped to be enforceable without them, so these are improvements, not dependencies.</td>
-            <td contenteditable="">REACT-001, REACT-002, SHARED-001 ✓</td><td contenteditable="">4</td><td contenteditable="">Week 4</td><td contenteditable="">Week 5</td>
-          </tr>
-        </tbody>
-      </table>
-    </div>
-    <div class="hint">React Native's module is complete and normalized against the current architecture, owned by Pavel Tarnopolski as the reference implementation. Not zero open work: the 2026-08-18 standards review fixed 5 HIGH findings and left 16 MEDIUM/LOW follow-ups un-actioned. Any future React Native Skills, Agents or Standards are Pavel's.</div>
-  </div>
-
-  <!-- ================= 4. READINESS MATRIX ================= -->
-  <h2>4. Platform Readiness Matrix</h2>
-  <p class="section-note"><strong>Ready</strong> = every component on that stage's <em>command → agent → skill</em> path is authored and reachable. <strong>Placeholder</strong> = the path reaches a component still marked <code>## Status: Not yet authored</code>; since SHARED-006 ✓ every such route carries a readiness gate, so it stops or declares the gap instead of producing ungrounded output. <strong>Blocked (TV)</strong> = the mobile path is complete and the TV path reaches authored components, but no tvOS/Android-TV rules exist in the standards yet, so the lane can only <em>discover and avoid regression</em>, not cite guidance (ATV-001, ANDROID-003, REACT-003). TV is a context inside each platform, not a separate family. React Native is deliberately mobile-only — there is no TV branch in that lane.</p>
-
-  <div class="table-block" data-name="Platform Readiness Matrix">
-    <div class="table-toolbar">
-      <span class="tname">Platform Readiness Matrix</span>
-      <button class="btn small addrow" data-table="t-ready">+ Add row</button>
-      <button class="btn small danger delrow" data-table="t-ready">Delete selected row</button>
-    </div>
-    <div class="scroll">
-      <table class="editable" id="t-ready">
-        <thead><tr><th>Lifecycle stage</th><th>React Native (Pavel)</th><th>iOS (Tom) + Apple TV (Noam)</th><th>Android (Guy) — Mobile + TV</th><th>React (Boris) — Web + Smart TV</th></tr></thead>
-        <tbody>
-          <tr><td contenteditable="">Analyze</td><td contenteditable="">Ready</td><td contenteditable="">Ready (mobile) / Blocked (Apple TV)</td><td contenteditable="">Ready (mobile) / Blocked (Android TV)</td><td contenteditable="">Ready</td></tr>
-          <tr><td contenteditable="">Design</td><td contenteditable="">Ready</td><td contenteditable="">Ready (mobile) / Blocked (Apple TV)</td><td contenteditable="">Ready (mobile) / Blocked (Android TV)</td><td contenteditable="">Ready</td></tr>
-          <tr><td contenteditable="">Feature-start</td><td contenteditable="">Ready</td><td contenteditable="">Ready (mobile) / Blocked (Apple TV)</td><td contenteditable="">Ready (mobile) / Blocked (Android TV)</td><td contenteditable="">Ready</td></tr>
-          <tr><td contenteditable="">Implement</td><td contenteditable="">Ready</td><td contenteditable="">Ready (mobile) / Blocked (Apple TV)</td><td contenteditable="">Ready (mobile) / Blocked (Android TV)</td><td contenteditable="">Ready</td></tr>
-          <tr><td contenteditable="">Review-code</td><td contenteditable="">Ready</td><td contenteditable="">Ready (mobile) / Blocked (Apple TV)</td><td contenteditable="">Ready (mobile) / Blocked (Android TV)</td><td contenteditable="">Ready</td></tr>
-          <tr><td contenteditable="">Review-security</td><td contenteditable="">Ready</td><td contenteditable="">Ready</td><td contenteditable="">Ready</td><td contenteditable="">Ready</td></tr>
-          <tr><td contenteditable="">Fix</td><td contenteditable="">Ready</td><td contenteditable="">Ready (mobile) / Blocked (Apple TV)</td><td contenteditable="">Ready (mobile) / Blocked (Android TV)</td><td contenteditable="">Ready</td></tr>
-          <tr><td contenteditable="">QA handoff</td><td contenteditable="">Ready</td><td contenteditable="">Ready (mobile) / Blocked (Apple TV)</td><td contenteditable="">Ready (mobile) / Blocked (Android TV)</td><td contenteditable="">Ready</td></tr>
-          <tr><td contenteditable="">Release</td><td contenteditable="">Ready</td><td contenteditable="">Ready (mobile) / Blocked (Apple TV)</td><td contenteditable="">Ready (mobile) / Blocked (Android TV)</td><td contenteditable="">Ready</td></tr>
-        </tbody>
-      </table>
-    </div>
-      <div class="hint">Two calls worth stating explicitly. <strong>Review-security is Ready for all four platforms</strong> because that stage's path uses no platform lane at all — <code>/review-security</code> → <code>mobile-security-review</code> → the single shared <code>mobile-security-reviewer</code>, citing <code>standards/shared/mobile-security.md</code> (60 SEC-* rules with labelled iOS/Android/RN examples and 11 <code>[web only]</code> SEC-WEB-*/SEC-COOKIE-* rules, per SHARED-002 ✓ and SHARED-003 ✓). It is the one stage a React repository is fully served on today. <strong>React Release moved Partial → Placeholder</strong>, a downgrade: the shared checklist mechanics do run, but the stage requires a React perf sign-off and <code>react-performance-reviewer</code> plus <code>standards/react/react-performance.md</code> are both still placeholders, so the path is not authored end to end. Readiness is judged on the path, not on how much of the stage happens to work.</div>
-  </div>
-
-  <!-- ================= 5. DEPENDENCIES ================= -->
-  <h2>5. Dependencies &amp; Critical Path</h2>
-  <pre>SHARED-002 (neutral standards) ─┐
-                                 ├─► IOS-001 ─► IOS-002/003/004 ─► ATV-002 ─┐
-SHARED-001 (mobile/TV context) ──┤                    └► ATV-001 ───────────┤
-                                 ├─► REACT-001 ─► REACT-002 ─► REACT-003 ────┼─► SHARED-005 (e2e) ─► DOC / done
-Android standards (done) ────────┴─► ANDROID-001/002 ─► ANDROID-003 ─────────┘
-SHARED-004 (task-status)  … independent, parallel
-SHARED-011 ✓ (doc migration) … independent, complete</pre>
-  <p class="section-note"><strong>Critical path:</strong> SHARED-001/002 → REACT-001 → REACT-002 (8d) → REACT-003 — the longest single-owner chain (~16 focused days), owned by Boris Molotsky. Consider splitting REACT-002 to pull the end date in.</p>
-
-  <div class="table-block" data-name="Dependency Table">
-    <div class="table-toolbar">
-      <span class="tname">Dependency Table</span>
-      <button class="btn small addrow" data-table="t-dep">+ Add row</button>
-      <button class="btn small danger delrow" data-table="t-dep">Delete selected row</button>
-    </div>
-    <div class="scroll">
-      <table class="editable" id="t-dep">
-        <thead><tr><th>Task ID</th><th>Depends on</th><th>Blocks</th><th>Notes</th></tr></thead>
-        <tbody>
-          <tr><td contenteditable="">SHARED-001 ✓</td><td contenteditable="">—</td><td contenteditable="">ATV-001, ATV-002, ANDROID-003, REACT-003, SHARED-005 (all unblocked)</td><td contenteditable="">✓ Complete (2026-07-21) — no longer blocking; dependents unblocked</td></tr>
-          <tr><td contenteditable="">SHARED-002 ✓</td><td contenteditable="">—</td><td contenteditable="">IOS-001 (soft), REACT-001 (all unblocked)</td><td contenteditable="">✓ Complete (2026-07-22) — no longer blocking; dependents unblocked</td></tr>
-          <tr><td contenteditable="">SHARED-003 ✓</td><td contenteditable="">SHARED-002 ✓ (done)</td><td contenteditable="">REACT-001</td><td contenteditable="">✓ Complete (2026-08-06) — web + native security extensions authored; no longer blocking, REACT-001 unblocked</td></tr>
-          <tr><td contenteditable="">SHARED-004 ✓</td><td contenteditable="">—</td><td contenteditable="">—</td><td contenteditable="">✓ Complete — per-task lifecycle store; independent, parallel. Blocked nothing and was blocked by nothing</td></tr>
-          <tr><td contenteditable="">SHARED-005 ✓</td><td contenteditable="">SHARED-001 ✓, SHARED-009 ✓</td><td contenteditable="">DOC-001 (unblocked)</td><td contenteditable="">✓ Complete — deterministic document-chain dry-run + hook coverage. Manifest states were already covered by read-repo-knowledge, so no manifest fixtures were built. No longer blocking DOC-001</td></tr>
-        <tr><td contenteditable="">SHARED-006 ✓</td><td contenteditable="">—</td><td contenteditable="">SHARED-012 (optional)</td><td contenteditable="">✓ Complete — reference-integrity validator; independent, reads only the repository. Blocks nothing mandatory</td></tr>
-        <tr><td contenteditable="">SHARED-007 ✓</td><td contenteditable="">—</td><td contenteditable="">—</td><td contenteditable="">✓ Complete — metadata ownership. Cross-repository: also edited ono-plugin-marketplace. Blocks nothing; nothing blocks it</td></tr>
-        <tr><td contenteditable="">SHARED-013 ✓</td><td contenteditable="">SHARED-004 ✓, SHARED-005 ✓, SHARED-011 ✓</td><td contenteditable="">—</td><td contenteditable="">✓ Complete (2026-08-30) — upstream-change detection and controlled re-entry. Independent: reuses the existing fingerprint, store and migration primitives, adds no schema version and no migration step. Blocks nothing</td></tr>
-        <tr><td contenteditable="">SHARED-014 ✓</td><td contenteditable="">SHARED-004 ✓, SHARED-013 ✓</td><td contenteditable="">—</td><td contenteditable="">✓ Complete (2026-08-31) — accessibility as a completion dimension, mobile only, on a generic verification-debt field. Additive: no new command, agent, skill, task-state status or schema version. Blocks nothing</td></tr>
-        <tr><td contenteditable="">SHARED-012</td><td contenteditable="">SHARED-005 ✓, SHARED-006 ✓</td><td contenteditable="">—</td><td contenteditable="">Optional / deferred by decision — never a blocker for any other ticket</td></tr>
-          <tr><td contenteditable="">SHARED-008 ✓</td><td contenteditable="">—</td><td contenteditable="">DOC-001</td><td contenteditable="">✓ Complete (2026-07-27) — design-reference gate; no longer blocking</td></tr>
-          <tr><td contenteditable="">SHARED-009 ✓</td><td contenteditable="">—</td><td contenteditable="">SHARED-005, SHARED-010, DOC-001</td><td contenteditable="">✓ Complete (2026-07-31) — Repository Knowledge consumer; no longer blocking</td></tr>
-          <tr><td contenteditable="">SHARED-010 ✓</td><td contenteditable="">SHARED-009 ✓, IOS-002 ✓, ANDROID-001 ✓ (REACT-002 applies to the future React lane only — never a blocker for this ticket)</td><td contenteditable="">—</td><td contenteditable="">✓ Complete — shared orchestration corrected for the authored lanes. <strong>REACT-002 was never a blocker for this ticket.</strong> It has since completed (2026-08-20), and the React lane now participates in the repository-knowledge flow exactly as SHARED-010 anticipated</td></tr>
-          <tr><td contenteditable="">SHARED-011 ✓</td><td contenteditable="">—</td><td contenteditable="">—</td><td contenteditable="">✓ Complete (2026-08-12) — independent, parallel. Blocks nothing and was blocked by nothing; it removes a workflow-failure class rather than unblocking a task. Wiring /dev-feature-start and /implement-task to the loader is deliberately deferred until their document kinds have an authored migration chain</td></tr>
-          <tr><td contenteditable="">IOS-001 ✓</td><td contenteditable="">SHARED-002 ✓ (done, soft)</td><td contenteditable="">IOS-002/003/004, ATV-001 (all unblocked)</td><td contenteditable="">✓ Complete (2026-08-12) — no longer blocking; iOS skills/agents and Apple TV standards unblocked</td></tr>
-          <tr><td contenteditable="">IOS-002 ✓</td><td contenteditable="">IOS-001 ✓</td><td contenteditable="">ATV-002, SHARED-010</td><td contenteditable="">✓ Complete (2026-08-12) — iOS planning lane authored; no longer blocking</td></tr>
-          <tr><td contenteditable="">IOS-003 ✓</td><td contenteditable="">IOS-001 ✓</td><td contenteditable="">ATV-002</td><td contenteditable="">✓ Complete (2026-08-13) — iOS implementation lane authored; /implement-task open for iOS</td></tr>
-          <tr><td contenteditable="">IOS-004 ✓</td><td contenteditable="">IOS-001 ✓</td><td contenteditable="">ATV-002</td><td contenteditable="">—</td></tr>
-          <tr><td contenteditable="">ATV-001</td><td contenteditable="">IOS-001 ✓, SHARED-001 ✓</td><td contenteditable="">—</td><td contenteditable="">Apple TV knowledge into iOS standards (Noam Haba)</td></tr>
-          <tr><td contenteditable="">ATV-002</td><td contenteditable="">IOS-002 ✓, IOS-003 ✓, IOS-004 ✓, SHARED-001 ✓</td><td contenteditable="">—</td><td contenteditable="">TV context in iOS skills/agents (Noam Haba)</td></tr>
-          <tr><td contenteditable="">ANDROID-001 ✓</td><td contenteditable="">Android standards (done)</td><td contenteditable="">ANDROID-003</td><td contenteditable="">✓ Complete (2026-08-06) — no longer blocking; ANDROID-003 fully unblocked (ANDROID-002 ✓ also complete)</td></tr>
-          <tr><td contenteditable="">ANDROID-002 ✓</td><td contenteditable="">Android standards (done)</td><td contenteditable="">ANDROID-003</td><td contenteditable="">✓ Complete (2026-08-06) — no longer blocking; Review + release perf unblocked</td></tr>
-          <tr><td contenteditable="">ANDROID-003</td><td contenteditable="">ANDROID-001 ✓, ANDROID-002 ✓, SHARED-001 ✓</td><td contenteditable="">—</td><td contenteditable="">Android TV knowledge (Guy Gur Arie)</td></tr>
-          <tr><td contenteditable="">REACT-001 ✓</td><td contenteditable="">SHARED-002 ✓, SHARED-003 ✓</td><td contenteditable="">REACT-002 (unblocked)</td><td contenteditable="">✓ Complete (2026-08-16) — 6 React standards, IDs frozen; no longer blocking, REACT-002 unblocked</td></tr>
-          <tr><td contenteditable="">REACT-002 ✓</td><td contenteditable="">REACT-001 ✓</td><td contenteditable="">REACT-003 ✓</td><td contenteditable="">✓ Complete (2026-08-20) — four React agents and three React skills authored; no longer blocking</td></tr>
-          <tr><td contenteditable="">REACT-003 ✓</td><td contenteditable="">REACT-001 ✓, REACT-002 ✓, SHARED-001 ✓</td><td contenteditable="">—</td><td contenteditable="">✓ Complete (2026-08-20) — Smart TV standard authored and wired into the React lane. Four cross-lane follow-ups are recorded on the §3 REACT-003 row; none blocks the lane</td></tr>
-        </tbody>
-      </table>
-    </div>
-  </div>
-
-  <!-- ================= 6. DELIVERY PLAN ================= -->
-  <h2>6. Delivery Plan (parallel execution)</h2>
-
-  <h3>6.1 Owner Workload</h3>
-  <p class="section-note">Owners work in parallel. Effort is in focused working days.</p>
-  <div class="table-block" data-name="Owner Workload">
-    <div class="table-toolbar">
-      <span class="tname">Owner Workload</span>
-      <button class="btn small addrow" data-table="t-work">+ Add row</button>
-      <button class="btn small danger delrow" data-table="t-work">Delete selected row</button>
-    </div>
-    <div class="scroll">
-      <table class="editable" id="t-work">
-        <thead><tr><th>Owner</th><th>Assigned tasks</th><th>Total effort</th><th>Earliest start</th><th>Expected completion</th><th>Blockers</th></tr></thead>
-        <tbody>
-          <tr><td contenteditable="" class="tint o-pavel">Pavel Tarnopolski</td><td contenteditable="">React Native complete (reference) and normalized; 16 MEDIUM/LOW standards follow-ups open from the 2026-08-18 review; owns any future React Native Skills/Agents/Standards</td><td contenteditable="">0</td><td contenteditable="">—</td><td contenteditable="">Complete</td><td contenteditable="">—</td></tr>
-          <tr><td contenteditable="" class="tint o-tom">Tom Zion</td><td contenteditable="">IOS-001, IOS-002, IOS-003, IOS-004 (all four ✓ done)</td><td contenteditable="">12 (12 delivered · 0 remaining)</td><td contenteditable="">Week 1</td><td contenteditable="">Week 3</td><td contenteditable="">SHARED-002 ✓ (done, soft)</td></tr>
-          <tr><td contenteditable="" class="tint o-noam">Noam Haba</td><td contenteditable="">ATV-001, ATV-002</td><td contenteditable="">8</td><td contenteditable="">Week 2 (IOS-001 ✓ — unblocked)</td><td contenteditable="">Week 4</td><td contenteditable="">None open — IOS-004 ✓ cleared 2026-08-16; ATV-001 and ATV-002 fully unblocked</td></tr>
-          <tr><td contenteditable="" class="tint o-guy">Guy Gur Arie</td><td contenteditable="">ANDROID-001, ANDROID-002, ANDROID-003, ANDROID-004 (ANDROID-001 ✓, ANDROID-002 ✓, ANDROID-004 ✓ done)</td><td contenteditable="">8.5 (4.5 delivered · 4 remaining)</td><td contenteditable="">Week 1</td><td contenteditable="">Week 4</td><td contenteditable="">SHARED-001 (for ANDROID-003)</td></tr>
-          <tr><td contenteditable="" class="tint o-boris">Boris Molotsky</td><td contenteditable="">REACT-001 ✓, REACT-002 ✓, REACT-003 ✓ — lane complete</td><td contenteditable="">16 (16 delivered · 0 remaining)</td><td contenteditable="">Week 1</td><td contenteditable="">Week 5</td><td contenteditable="">None open — lane delivered 2026-08-20</td></tr>
-          <tr><td contenteditable="" class="tint o-plugin">Plugin Owner</td><td contenteditable="">SHARED-001..013, DOC-001, DOC-002. <strong>Done:</strong> SHARED-001 ✓, 002 ✓, 003 ✓, 004 ✓, 005 ✓, 006 ✓, 007 ✓, 008 ✓, 009 ✓, 010 ✓, 011 ✓, <strong>013 ✓</strong>, DOC-001 ✓, DOC-002 ✓. <strong>Remaining: none — every mandatory Plugin Owner item is complete.</strong> SHARED-012 (0.5 d, automatic CI enforcement) is optional/deferred by decision and excluded from the mandatory total</td><td contenteditable="">31 (31 delivered · 0 remaining) + 0.5 optional</td><td contenteditable="">Week 1</td><td contenteditable="">Week 5</td><td contenteditable="">ANDROID-001/002 (for DOC-001 accuracy); IOS-002 ✓/ANDROID-001 ✓/REACT-002 (for SHARED-010). Note: 14.5 remaining days across Weeks 3–5 ≈ 4.8 d/week, within the 4–5 d/person/week assumption</td></tr>
-        </tbody>
-      </table>
-    </div>
-  </div>
-
-  <h3>6.2 Parallel Execution Timeline</h3>
-  <p class="section-note">Assume ~4–5 focused days/person/week. Program completes end of Week 5, gated by the React/Smart-TV chain (Boris Molotsky). Android Mobile reaches full lifecycle by end of Week 2.</p>
-  <div class="table-block" data-name="Parallel Execution Timeline">
-    <div class="table-toolbar">
-      <span class="tname">Parallel Timeline</span>
-      <button class="btn small addrow" data-table="t-time">+ Add row</button>
-      <button class="btn small danger delrow" data-table="t-time">Delete selected row</button>
-    </div>
-    <div class="scroll">
-      <table class="editable" id="t-time">
-        <thead><tr><th>Week</th><th>Tom Zion</th><th>Noam Haba</th><th>Guy Gur Arie</th><th>Boris Molotsky</th><th>Pavel Tarnopolski</th><th>Plugin Owner</th></tr></thead>
-        <tbody>
-          <tr><td contenteditable="">Week 1</td><td contenteditable="">IOS-001 ✓ complete (2026-08-12) — 5 iOS standards</td><td contenteditable="">Research/outline Apple TV standards (IOS-001 ✓ — now unblocked)</td><td contenteditable="">ANDROID-001 ✓ complete (2026-08-06) — architect + dev-planning</td><td contenteditable="">REACT-001 (React web standards)</td><td contenteditable="">React Native complete — reference &amp; cross-team support</td><td contenteditable="">SHARED-001 ✓ complete (2026-07-21) + SHARED-002 ✓ complete (2026-07-22)</td></tr>
-          <tr><td contenteditable="">Week 2</td><td contenteditable="">IOS-002 ✓ (2026-08-12) — architect + dev-planning; IOS-003 ✓ complete (2026-08-13) — feature-developer + feature-implementation</td><td contenteditable="">ATV-001 (Apple TV knowledge → iOS standards)</td><td contenteditable="">ANDROID-002 ✓ complete (2026-08-06) — reviewers + code-review</td><td contenteditable="">REACT-002 (React agents + skills)</td><td contenteditable="">RN reference &amp; support</td><td contenteditable="">SHARED-002 ✓ finish (2026-07-22) + SHARED-008 ✓ (2026-07-27) + SHARED-009 ✓ start + SHARED-004 ✓ start</td></tr>
-          <tr><td contenteditable="">Week 3</td><td contenteditable="">IOS-004 ✓ complete (2026-08-16) — iOS review lane; Tom Zion’s lane finished, ATV-002 unblocked</td><td contenteditable="">ATV-002 start (TV context in iOS skills/agents)</td><td contenteditable="">ANDROID-003 (Android TV knowledge)</td><td contenteditable="">REACT-002 continue</td><td contenteditable="">RN reference &amp; support</td><td contenteditable="">SHARED-009 ✓ finish (2026-07-31) + SHARED-004 ✓ finish (2026-08-19) + SHARED-003 ✓ (web security)</td></tr>
-          <tr><td contenteditable="">Week 4</td><td contenteditable="">Buffer / review / support Noam</td><td contenteditable="">ATV-002 finish</td><td contenteditable="">ANDROID-003 finish (ANDROID-004 ✓ subsumed by ANDROID-001/002)</td><td contenteditable="">REACT-002 finish → REACT-003 (Smart TV) start</td><td contenteditable="">RN reference &amp; support</td><td contenteditable="">SHARED-005 ✓ (test harness/fixtures/document-chain, 2026-08-19) + SHARED-006 ✓ (reference-integrity validator, 2026-08-20 — <em>not</em> CI; automatic CI enforcement was deliberately deferred as the optional SHARED-012)</td></tr>
-          <tr><td contenteditable="">Week 5</td><td contenteditable="">Support e2e validation</td><td contenteditable="">Support e2e validation</td><td contenteditable="">Support e2e validation</td><td contenteditable="">REACT-003 finish</td><td contenteditable="">RN fixtures for e2e validation</td><td contenteditable="">SHARED-011 ✓ complete (2026-08-12) — legacy planning-document migration; SHARED-005 ✓/006 ✓ finish + SHARED-007 ✓ (2026-08-20, cross-repo with ono-plugin-marketplace) + SHARED-010 ✓ (2026-08-26, repository-knowledge orchestration). + DOC-001 ✓ (2026-08-26, README TV model + CHANGELOG backfill) + DOC-002 ✓ (2026-08-26, device_type contract + the RN TV guard). + <strong>SHARED-013 ✓ (2026-08-30, upstream-change detection and controlled re-entry)</strong>. Every mandatory Plugin Owner item is now complete; only the optional SHARED-012 remains.<strong>Nothing mandatory open.</strong> The deterministic document-chain dry-run is done; a Claude-driven end-to-end run is not, and is verified by review or <code>claude plugin eval</code> rather than here</td></tr>
-        </tbody>
-      </table>
-    </div>
-  </div>
-
-  <!-- ================= 7. DEFINITION OF DONE ================= -->
-  <h2>7. Definition of Done (per team)</h2>
-  <p>A team's platform (including its TV variant, where applicable) is <strong>supported</strong> only when all hold:</p>
-  <ul>
-    <li>Standards complete and enforceable (no "Not yet authored"), not re-inheriting RN-flavored shared rules, and — for Apple TV / Android TV / Smart TV — including TV-context sections (focus/remote/playback/lifecycle/TV signing/packaging).</li>
-    <li>Skills (dev-planning, feature-implementation, code-review) authored and branch correctly on the mobile-vs-TV context.</li>
-    <li>Agents (architect, feature-developer, code-reviewer, performance-reviewer) authored, citing the platform's standards, TV-context aware.</li>
-    <li>Command routing resolves the platform to real (non-placeholder) skills/agents and passes the mobile-vs-TV context through every stage.</li>
-    <li>Templates &amp; metadata carry the platform and mobile-vs-TV context end to end; per-platform review/QA/release sections render.</li>
-    <li>Approval gates &amp; error handling enforced; no silent fallback (a TV target is never handled as mobile without the TV context applied).</li>
-    <li>Representative fixtures exist. The SHARED-005 ✓ harness carries the deterministic document-chain fixtures (<code>feature-complete</code>, <code>feature-legacy</code>); it deliberately carries <strong>no TV variant</strong>, because no helper or hook reads <code>device_type</code>, so a TV fixture would exercise no deterministic branch. TV coverage is therefore a <code>claude plugin eval</code> obligation, not a harness one — it is still required, just not provable here.</li>
-    <li>The deterministic dry-run passes for the mobile path — <code>node scripts/check.ts --strict</code>, SHARED-005 ✓ + SHARED-006 ✓ — and a Claude-driven end-to-end run has been exercised for both the mobile and TV variant. <strong>There is no CI requirement here:</strong> automatic enforcement is the optional, deferred SHARED-012; the checks are run from a shell before a PR.</li>
-    <li>Documentation (README/CHANGELOG/pipeline tables) matches reality.</li>
-    <li>Owner sign-off — platform owner confirms the mobile bar is met; for Apple TV, Noam Haba confirms the TV context is genuinely applied; for Android TV, Guy Gur Arie; for Smart TV, Boris Molotsky.</li>
-  </ul>
-
-  <p class="small">End of plan. Architecture per the 2026-07-20 decision: four technology platforms; TV handled as context inside each. Last maintenance review 2026-08-31 against plugin version 0.5.0. Reflected: SHARED-004/005/006/007/010/013/014 ✓, DOC-001/DOC-002 ✓, and the React lane complete (REACT-001/002/003 ✓). <code>plugin.json</code> is deliberately un-bumped for all of it — the release bump is separate work, and the CHANGELOG holds the delivered items under <code>[Unreleased]</code>. This file at <code>docs/planning/PLUGIN_COMPLETION_PLAN.html</code> is the canonical document — there is no <code>.md</code> copy at the repository root.</p>
+<section>
+<h2>6. Standing constraints</h2>
+<ul>
+<li><b>Four platforms only</b> — React Native, React, iOS, Android. TV is a <code>device_type</code> context signal inside a platform, never a new platform value.</li>
+<li><b>Standards are frozen</b> in content. IDs are never renumbered or re-homed; rules, severity, applicability and paths do not move. Reference-only edits replacing retired agent names with role names are the sole exception, and were applied once during the cleanup.</li>
+<li><b>Repository knowledge belongs to <code>ono-project-inspector</code>.</b> This plugin may inspect a repository for the duration of one run; it never writes <code>CLAUDE.md</code>, <code>AUDIT.md</code>, <code>docs/project/**</code>, <code>audits/**</code> or <code>.ono/**</code>, and never becomes the authority on what a repository is.</li>
+<li><b>Validation is a capability, not a workflow step.</b> <code>node scripts/check.ts --strict</code> runs from a shell with no network and no dependencies. No command invokes it; it must never become mandatory for users of the plugin.</li>
+<li><b>Approval stays human.</b> The plugin never regenerates an approved document, never edits upstream requirements, and never revokes approval.</li>
+<li><b>Deterministic checks cover the deterministic layer only.</b> Model-driven behaviour — detection, file attribution, document quality, implementation correctness, review findings — is out of their reach by design and is verified by review or <code>claude plugin eval</code>.</li>
+</ul>
+</section>
 
 </div>
-
-<div class="toast" id="toast">Saved</div>
-
-<script>
-(function(){
-  "use strict";
-  var STORAGE_KEY = "pcp_editable_v5";
-  var originals = {};   // pristine tbody HTML per table id
-  var saveTimer = null;
-
-  function tables(){ return Array.prototype.slice.call(document.querySelectorAll("table.editable")); }
-  function tbodyOf(t){ return t.tBodies[0]; }
-
-  // Serialize a tbody without transient selection/tint state
-  function cleanBodyHTML(t){
-    var clone = tbodyOf(t).cloneNode(true);
-    Array.prototype.forEach.call(clone.querySelectorAll("tr.selected"), function(r){ r.classList.remove("selected"); });
-    // strip JS-applied tint classes so storage stays semantic (re-applied on load)
-    Array.prototype.forEach.call(clone.querySelectorAll("td.tint"), function(td){
-      td.className = td.className.replace(/\btint\b/g,"")
-        .replace(/\b[ot]-[a-z]+\b/g,"").replace(/\s+/g," ").trim();
-      if(!td.className) td.removeAttribute("class");
-    });
-    return clone.innerHTML;
-  }
-
-  function updateStamp(date){
-    var el = document.getElementById("savedAt");
-    if(!date){ el.innerHTML = "Last saved: <b>never</b> (working copy — unsaved changes still persist across refresh)"; return; }
-    var s = date.toLocaleString();
-    el.innerHTML = "Last saved: <b>" + s + "</b> (local browser only — Export HTML to keep a copy)";
-  }
-
-  function persist(showToast){
-    var data = {};
-    tables().forEach(function(t){ data[t.id] = cleanBodyHTML(t); });
-    var now = new Date();
-    data.__savedAt = now.toISOString();
-    try { localStorage.setItem(STORAGE_KEY, JSON.stringify(data)); } catch(e){}
-    updateStamp(now);
-    if(showToast) flash("Saved");
-  }
-
-  function persistDebounced(){
-    if(saveTimer) clearTimeout(saveTimer);
-    saveTimer = setTimeout(function(){ persist(false); }, 500);
-  }
-
-  function loadSaved(){
-    var raw = null;
-    try { raw = localStorage.getItem(STORAGE_KEY); } catch(e){}
-    if(!raw) { updateStamp(null); return; }
-    var data;
-    try { data = JSON.parse(raw); } catch(e){ updateStamp(null); return; }
-    tables().forEach(function(t){
-      if(data[t.id] != null) tbodyOf(t).innerHTML = data[t.id];
-    });
-    updateStamp(data.__savedAt ? new Date(data.__savedAt) : null);
-  }
-
-  function selectRow(tr){
-    var tb = tr.parentElement;
-    Array.prototype.forEach.call(tb.querySelectorAll("tr.selected"), function(r){
-      if(r !== tr) r.classList.remove("selected");
-    });
-    tr.classList.add("selected");
-  }
-
-  function addRow(tableId){
-    var t = document.getElementById(tableId);
-    if(!t) return;
-    var cols = t.tHead.rows[0].cells.length;
-    var tr = document.createElement("tr");
-    for(var i=0;i<cols;i++){
-      var td = document.createElement("td");
-      td.setAttribute("contenteditable","");
-      td.textContent = "";
-      tr.appendChild(td);
-    }
-    tbodyOf(t).appendChild(tr);
-    selectRow(tr);
-    var first = tr.querySelector("td");
-    if(first) first.focus();
-    applyStyling();
-    persist(false);
-  }
-
-  function deleteSelected(tableId){
-    var t = document.getElementById(tableId);
-    if(!t) return;
-    var sel = tbodyOf(t).querySelector("tr.selected");
-    if(!sel){ alert("Select a row first — click any cell in the row you want to delete."); return; }
-    sel.remove();
-    applyStyling();
-    persist(false);
-  }
-
-  function resetAll(){
-    if(!confirm("Discard ALL local edits and restore the original report data?")) return;
-    tables().forEach(function(t){ tbodyOf(t).innerHTML = originals[t.id]; });
-    try { localStorage.removeItem(STORAGE_KEY); } catch(e){}
-    updateStamp(null);
-    applyStyling();
-    flash("Reset to original");
-  }
-
-  function exportHTML(){
-    persist(false); // make sure DOM reflects latest
-    var clone = document.documentElement.cloneNode(true);
-    Array.prototype.forEach.call(clone.querySelectorAll("tr.selected"), function(r){ r.classList.remove("selected"); });
-    var html = "<!DOCTYPE html>\n<html lang=\"en\">\n" + clone.innerHTML + "\n</html>";
-    var blob = new Blob([html], {type:"text/html;charset=utf-8"});
-    var url = URL.createObjectURL(blob);
-    var a = document.createElement("a");
-    a.href = url;
-    a.download = "PLUGIN_COMPLETION_PLAN_edited.html";
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    setTimeout(function(){ URL.revokeObjectURL(url); }, 1000);
-    flash("Exported HTML");
-  }
-
-  function flash(msg){
-    var t = document.getElementById("toast");
-    t.textContent = msg;
-    t.classList.add("show");
-    setTimeout(function(){ t.classList.remove("show"); }, 1600);
-  }
-
-  /* ---------- badges / tints ---------- */
-  function ownerClass(text){
-    var s = (text||"").toLowerCase();
-    if(s.indexOf("pavel")>=0) return "o-pavel";
-    if(s.indexOf("tom")>=0) return "o-tom";
-    if(s.indexOf("noam")>=0) return "o-noam";
-    if(s.indexOf("guy")>=0) return "o-guy";
-    if(s.indexOf("boris")>=0) return "o-boris";
-    if(s.indexOf("plugin owner")>=0) return "o-plugin";
-    return "";
-  }
-  function statusClass(text){
-    var s = (text||"").toLowerCase();
-    if(s.indexOf("missing")>=0) return "t-missing";
-    if(s.indexOf("placeholder")>=0) return "t-placeholder";
-    if(s.indexOf("disconnected")>=0) return "t-disc";
-    if(s.indexOf("partial")>=0) return "t-partial";
-    if(s.indexOf("requires modification")>=0 || s.indexOf("modification")>=0) return "t-mod";
-    if(s.indexOf("completed")>=0 || s.indexOf("complete")>=0 || s.indexOf("implemented")>=0 || s.indexOf("exists and")>=0) return "t-done";
-    return "";
-  }
-  function setTint(td, cls){
-    if(!td) return;
-    td.className = td.className.replace(/\btint\b/g,"").replace(/\b[ot]-[a-z]+\b/g,"").replace(/\s+/g," ").trim();
-    if(cls){ td.classList.add("tint"); td.classList.add(cls); }
-    if(!td.className) td.removeAttribute("class");
-  }
-  function tintColumn(tableId, colIndex, fn){
-    var t = document.getElementById(tableId);
-    if(!t) return;
-    Array.prototype.forEach.call(tbodyOf(t).rows, function(r){
-      var td = r.cells[colIndex];
-      if(td) setTint(td, fn(td.textContent));
-    });
-  }
-  function applyStyling(){
-    // Implementation task table: Owner(1), Current state(5)
-    tintColumn("t-impl", 1, ownerClass);
-    tintColumn("t-impl", 5, statusClass);
-    // Owner workload: Owner(0)
-    tintColumn("t-work", 0, ownerClass);
-    // Lifecycle capability: Owner(1)
-    tintColumn("t-life", 1, ownerClass);
-    // Team mapping: Primary owner(2)
-    tintColumn("t-map", 2, ownerClass);
-    // Repository inventory: Status(1)
-    tintColumn("t-inv", 1, function(txt){
-      var s=(txt||"").toLowerCase();
-      if(s.indexOf("missing")>=0) return "t-missing";
-      if(s.indexOf("placeholder")>=0) return "t-placeholder";
-      if(s.indexOf("inconsistent")>=0) return "t-partial";
-      if(s.indexOf("partial")>=0) return "t-partial";
-      if(s.indexOf("complete")>=0) return "t-done";
-      return "";
-    });
-    recomputeSummary();
-  }
-
-  /* ---------- summary cards ---------- */
-  var OWNER_ORDER = ["Plugin Owner","Tom Zion","Noam Haba","Guy Gur Arie","Boris Molotsky","Pavel Tarnopolski"];
-  var OWNER_SWATCH = {
-    "Plugin Owner":"var(--ow-plugin-line)","Tom Zion":"var(--ow-tom-ink)","Noam Haba":"var(--ow-noam-ink)",
-    "Guy Gur Arie":"var(--ow-guy-ink)","Boris Molotsky":"var(--ow-boris-ink)","Pavel Tarnopolski":"var(--ow-pavel-ink)"
-  };
-  var STATUS_ORDER = [
-    ["Completed","var(--st-done-ink)","complet"],
-    ["Missing — must be created","var(--st-missing-ink)","missing"],
-    ["Exists but partial","var(--st-partial-ink)","partial"],
-    ["Exists as placeholder","var(--st-placeholder-ink)","placeholder"],
-    ["Exists but disconnected","var(--st-disc-ink)","disconnected"],
-    ["Requires modification","var(--st-mod-ink)","modification"],
-    ["Exists and implemented","var(--st-done-ink)","implemented"]
-  ];
-  function normOwner(txt){
-    var s=(txt||"").toLowerCase();
-    if(s.indexOf("pavel")>=0) return "Pavel Tarnopolski";
-    if(s.indexOf("tom")>=0) return "Tom Zion";
-    if(s.indexOf("noam")>=0) return "Noam Haba";
-    if(s.indexOf("guy")>=0) return "Guy Gur Arie";
-    if(s.indexOf("boris")>=0) return "Boris Molotsky";
-    if(s.indexOf("plugin owner")>=0) return "Plugin Owner";
-    return (txt||"").trim() || "Unassigned";
-  }
-  function recomputeSummary(){
-    var t = document.getElementById("t-impl");
-    if(!t) return;
-    var rows = tbodyOf(t).rows;
-    var total = rows.length, effort = 0;
-    var byOwner = {}, byStatus = {};
-    Array.prototype.forEach.call(rows, function(r){
-      var owner = normOwner(r.cells[1] ? r.cells[1].textContent : "");
-      byOwner[owner] = (byOwner[owner]||0)+1;
-      var stTxt = (r.cells[5] ? r.cells[5].textContent : "").toLowerCase();
-      var key = "Other";
-      for(var i=0;i<STATUS_ORDER.length;i++){ if(stTxt.indexOf(STATUS_ORDER[i][2])>=0){ key=STATUS_ORDER[i][0]; break; } }
-      byStatus[key] = (byStatus[key]||0)+1;
-      var e = parseFloat((r.cells[9] ? r.cells[9].textContent : "").replace(/[^0-9.]/g,""));
-      if(!isNaN(e)) effort += e;
-    });
-    document.getElementById("card-total").textContent = total;
-    document.getElementById("card-effort").textContent = (Math.round(effort*10)/10);
-
-    // owner breakdown (known order first, then any extras)
-    var ownerEl = document.getElementById("card-owner");
-    ownerEl.innerHTML = "";
-    var seen = {};
-    OWNER_ORDER.forEach(function(o){ if(byOwner[o]){ ownerEl.appendChild(breakdownLi(o, byOwner[o], OWNER_SWATCH[o]||"#b9c1cd")); seen[o]=1; } });
-    Object.keys(byOwner).forEach(function(o){ if(!seen[o]) ownerEl.appendChild(breakdownLi(o, byOwner[o], "#b9c1cd")); });
-
-    // status breakdown
-    var statusEl = document.getElementById("card-status");
-    statusEl.innerHTML = "";
-    STATUS_ORDER.forEach(function(s){ if(byStatus[s[0]]) statusEl.appendChild(breakdownLi(s[0], byStatus[s[0]], s[1])); });
-    if(byStatus["Other"]) statusEl.appendChild(breakdownLi("Other", byStatus["Other"], "#b9c1cd"));
-
-    var doneCount = byStatus["Completed"] || 0;
-    document.getElementById("card-total-note").textContent = total + " work items · " + doneCount + " completed · React Native complete, standards follow-ups open";
-  }
-  function breakdownLi(name, count, color){
-    var li = document.createElement("li");
-    var k = document.createElement("span"); k.className = "k";
-    var sw = document.createElement("span"); sw.className = "swatch"; sw.style.background = color;
-    var nm = document.createElement("span"); nm.className = "kname"; nm.textContent = name;
-    k.appendChild(sw); k.appendChild(nm);
-    var v = document.createElement("span"); v.className = "v"; v.textContent = count;
-    li.appendChild(k); li.appendChild(v);
-    return li;
-  }
-
-  function init(){
-    // 1) capture pristine originals BEFORE applying saved edits
-    tables().forEach(function(t){ originals[t.id] = tbodyOf(t).innerHTML; });
-    // 2) restore any saved edits
-    loadSaved();
-    // 3) apply badges/tints + summary
-    applyStyling();
-
-    // 4) row selection (focus or click) — works with contenteditable cells
-    document.addEventListener("focusin", function(e){
-      var tr = e.target.closest ? e.target.closest("table.editable tbody tr") : null;
-      if(tr) selectRow(tr);
-    });
-    document.addEventListener("click", function(e){
-      var tr = e.target.closest ? e.target.closest("table.editable tbody tr") : null;
-      if(tr) selectRow(tr);
-    });
-
-    // 5) auto-persist + restyle on edit so a refresh never loses work
-    document.addEventListener("input", function(e){
-      if(e.target.closest && e.target.closest("table.editable")){ applyStyling(); persistDebounced(); }
-    });
-
-    // 6) per-table Add / Delete buttons
-    Array.prototype.forEach.call(document.querySelectorAll("button.addrow"), function(b){
-      b.addEventListener("click", function(){ addRow(b.getAttribute("data-table")); });
-    });
-    Array.prototype.forEach.call(document.querySelectorAll("button.delrow"), function(b){
-      b.addEventListener("click", function(){ deleteSelected(b.getAttribute("data-table")); });
-    });
-
-    // 7) global buttons
-    document.getElementById("btnSave").addEventListener("click", function(){ persist(true); });
-    document.getElementById("btnExport").addEventListener("click", exportHTML);
-    document.getElementById("btnReset").addEventListener("click", resetAll);
-  }
-
-  if(document.readyState === "loading") document.addEventListener("DOMContentLoaded", init);
-  else init();
-})();
-</script>
-
-
 </body>
 </html>

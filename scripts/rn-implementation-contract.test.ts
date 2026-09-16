@@ -55,7 +55,8 @@ import { dirname, join } from "path";
 
 const HERE = import.meta.dirname ?? __dirname;
 const REPO_ROOT = dirname(HERE);
-const AGENT = join(REPO_ROOT, "agents", "rn-feature-developer.md");
+// OWNERSHIP MOVED (Stage 3d + cleanup): `feature-implementer` executes every lane.
+const AGENT = join(REPO_ROOT, "agents", "feature-implementer.md");
 const SKILL = join(REPO_ROOT, "skills", "rn-feature-implementation", "SKILL.md");
 const IMPLEMENT_CMD = join(REPO_ROOT, "commands", "implement-task.md");
 /** The shared lifecycle half. Owns the workflow properties groups 6, 7 and 12 check. */
@@ -94,10 +95,10 @@ if (failures === 0) {
   const sharedFlat = shared.replace(/\s+/g, " ");
 
   // --- 1. Agent delegates the methodology ------------------------------------
-  check("1 agent has frontmatter with the routing name", /^---\nname: rn-feature-developer\ndescription: /.test(agent));
-  check("1 agent names the implementation skill", /skills\/rn-feature-implementation\/SKILL\.md/.test(agent));
-  check("1 agent states it does not restate the methodology", /does not restate that methodology; it applies it/.test(agentFlat));
-  check("1 agent Process defers to the skill", /Follow `skills\/rn-feature-implementation\/SKILL\.md` end to end/.test(agentFlat));
+  check("1 agent has frontmatter with the routing name", /^---\nname: feature-implementer\ndescription: /.test(agent));
+  check("1 agent names the implementation skill", /skills\/platform-implementation\/SKILL\.md/.test(agent));
+  check("1 agent states it does not restate the methodology", /Do not summarise it here — a second copy is the drift risk/.test(agentFlat));
+  check("1 agent Process defers to the skill", /Follow `skills\/platform-implementation\/SKILL\.md` end to end/.test(agentFlat));
 
   // --- 2. Agent carries no duplicated methodology ----------------------------
   const stdPaths = (agent.match(/standards\/react-native\//g) ?? []).length;
@@ -112,15 +113,15 @@ if (failures === 0) {
   }
 
   // --- 4. The three agent-level uniques survive the rewrite ------------------
-  check("4 C33 conflicting-standards rule retained", /two applicable standards conflict for a given change, flag the conflict/.test(agentFlat));
+  check("4 C33 conflicting-standards rule retained", /two applicable standards conflict, flag the conflict/.test(agentFlat));
   check("4 C34 no-standards-prose-in-comments rule retained", /Don't restate a standard's text in code comments/.test(agentFlat));
   check("4 C35 design-reference gate retained", /Don't implement a UI task from a description alone when no design reference is on file/.test(agentFlat));
   check("4 C36 detected-conventions rule added", /Follow the repository's detected conventions/.test(agentFlat));
 
   // --- 5. Fix stage stays in the agent (Option A) ----------------------------
-  check("5 agent covers /fix-review-comments", /## Usage in other stages[\s\S]*fix-review-comments/.test(agent));
-  check("5 agent covers /create-dev-qa-notes", /## Usage in other stages[\s\S]*create-dev-qa-notes/.test(agent));
-  check("5 agent names mobile-debugging as the root-cause owner", /`mobile-debugging` skill owns root-causing/.test(agentFlat));
+  check("5 agent covers /fix-review-comments", /## Delegation[\s\S]*fix-review-comments/.test(agent));
+  check("5 agent covers /create-dev-qa-notes", /## Delegation[\s\S]*create-dev-qa-notes/.test(agent));
+  check("5 agent names mobile-debugging as the root-cause owner", /`mobile-debugging` owns root-causing/.test(agentFlat));
 
   // --- 6. Skill declares the inputs the command passes -----------------------
   // Probe terms are asserted to still exist in §8 first, so a change to the
@@ -202,7 +203,7 @@ if (failures === 0) {
   // --- 9. Fix methodology must NOT migrate into the skill (Option A) ---------
   check("9 pack carries no fix-stage methodology", !/fix-review-comments/.test(skill));
   check("9 shared carries no fix-stage methodology", !/fix-review-comments/.test(shared));
-  check("9 skill scoped to /implement-task in its description", /Used by \/implement-task via the rn-feature-developer agent/.test(skill));
+  check("9 skill scoped to /implement-task in its description", /Used by \/implement-task via the feature-implementer agent/.test(skill));
 
   // --- 10. React Native is mobile-only --------------------------------------
   // Ownership did NOT move: React Native is mobile-only, and that protection stays on the

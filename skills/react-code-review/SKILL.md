@@ -55,7 +55,7 @@ Map each changed file to zero or more buckets. Files matching no bucket are mark
 | `REACT-TV-FOCUS-*`, `REACT-TV-INPUT-*`, `REACT-TV-UI-*`, `REACT-TV-MEDIA-*`, `REACT-TV-LIFECYCLE-*`, `REACT-TV-API-*` | any file on an **established** TV surface ([§14](#14-device_type-handling-at-review)) — focus/key-map modules, TV screens and wrappers, player integration, lifecycle modules | `standards/react/react-smart-tv.md` |
 | `REACT-TV-PKG-*` | a vendor manifest (`config.xml`, `appinfo.json`), packaging script, or per-target env/build config **present in the diff** | `standards/react/react-smart-tv.md` |
 
-`REACT-PERF-*` and `REACT-TV-PERF-*` are deliberately absent from this table — both belong to `react-performance-reviewer` (`skills/platform-review/SKILL.md` §2 rung 3).
+`REACT-PERF-*` and `REACT-TV-PERF-*` are deliberately absent from this table — both belong to `performance-reviewer` (`skills/platform-review/SKILL.md` §2 rung 3).
 
 **There is deliberately no `REACT-TEST-*` or `REACT-LOG-*` bucket, because those families are not authored** (the iOS and Android lanes have equivalents; React does not). A changed test file or a logging change is therefore reviewable **only** against a repository convention, the project's architecture, or a shared rule — the first two categories of the filing gate. If a test-quality or logging-hygiene concern fits none of those, it is **not filable in this lane**: record it once under Not Applicable / Skipped as an unauthored-standard gap rather than stretching an unrelated `REACT-*` ID to cover it, and never invent an ID.
 
@@ -113,7 +113,7 @@ Review has **no confirmed `device_type`** — there is no upstream frontmatter t
 - **Infer, never demand.** If the reviewed files sit on a Smart TV surface, note it in Scope with the evidence. **Never block a review to ask.**
 - **Where the surface cannot be established, say so once in Not Applicable / Skipped and cite no TV rule.** Do not guess a surface to have something to file, and do not treat the uncertainty as a pass. An unestablished surface is `[unknown]`, never `mobile` — and under `[unknown]` you still apply the base families, suppressing only findings whose *sole* basis is a pointer/touch premise (`A11Y-TOUCH-1` sizing, a hover affordance, pointer-derived INP), each recorded N/A — surface unestablished.
 - **Read the detection traps before filing.** The two that bite hardest here: a TV dependency in `package.json` does not make the reviewed file a TV file, and a shared component used by both surfaces takes a **conditional finding** rather than a silent N/A.
-- **Lane split:** `REACT-TV-PERF-*` is `react-performance-reviewer`'s; every other TV family is this lane's. `REACT-TV-PKG-*` is reachable only when packaging config is in the diff — and then it *is* reviewed, not skipped as config-only ([§5](#5-triage-into-standards-relevant-buckets)).
+- **Lane split:** `REACT-TV-PERF-*` is `performance-reviewer`'s; every other TV family is this lane's. `REACT-TV-PKG-*` is reachable only when packaging config is in the diff — and then it *is* reviewed, not skipped as config-only ([§5](#5-triage-into-standards-relevant-buckets)).
 - **Suppress inapplicable pointer/touch rules rather than invent TV rules.** `A11Y-TOUCH-1` already states that on TV form factors the requirement is a reliably focusable element with a clearly visible focus state — honoring that is reading the authored shared standard, not adding TV knowledge. `REACT-TV-FOCUS-3` is the React rule that owns it.
 
 ## Standards citation
@@ -145,7 +145,7 @@ Do not use React Native's `RN-*` or the generically-named `ARCH-*`/`API-*`/`STAT
 - You are about to file a modernization, stack-preference, or architectural-preference observation anywhere in the document.
 - You are about to file against pre-existing code outside the resolved review scope.
 - You are about to cite a standard ID without confirming it exists.
-- You are about to cite a `REACT-TV-*` rule against a file whose TV surface you have not established from evidence ([§14](#14-device_type-handling-at-review)) — or a `REACT-TV-PERF-*` ID, which belongs to `react-performance-reviewer`.
+- You are about to cite a `REACT-TV-*` rule against a file whose TV surface you have not established from evidence ([§14](#14-device_type-handling-at-review)) — or a `REACT-TV-PERF-*` ID, which belongs to `performance-reviewer`.
 - You are about to apply an RSC or SSR rule family to a file whose surface does not server-render, or `REACT-TS-*` to a JavaScript-only repository.
 - You are about to state an unmeasured performance magnitude as fact, or an unprofiled guess as a confirmed Blocking finding.
 - The scope handed in by the command is missing or ambiguous — ask the caller rather than re-deriving it.
@@ -163,12 +163,12 @@ The rule is positional-independent: **the ID's own root decides the owner, where
 
 **The ID's own root decides the owner, not the file it appears in:**
 
-- Any `REACT-PERF-*` ID → `react-performance-reviewer`, always — including `REACT-PERF-CWV-1` cited from `react-coding-standards.md`.
-- Every other ID → `react-code-reviewer`, always — including `REACT-ARCH-BOUNDARY-2` and `REACT-ROUTE-UX-4` cited from `react-performance.md`.
+- Any `REACT-PERF-*` ID → `performance-reviewer`, always — including `REACT-PERF-CWV-1` cited from `react-coding-standards.md`.
+- Every other ID → `code-reviewer`, always — including `REACT-ARCH-BOUNDARY-2` and `REACT-ROUTE-UX-4` cited from `react-performance.md`.
 
 This prevents the two agents double-filing the same issue from two directions. It is the same rule `standards/react/react-performance.md`'s *Lane ownership* note states, applied to both agents.
 
-**Smart TV adds a case the root rule cannot settle by itself.** A standalone `REACT-TV-*` root has no owner under "the root decides", so its routing is stated explicitly in `standards/react/react-smart-tv.md`: `REACT-TV-PERF-*` → `react-performance-reviewer`; **every other TV family, `REACT-TV-PKG-*` included, → `react-code-reviewer`.** That document is the single authority for this split — do not re-derive it here.
+**Smart TV adds a case the root rule cannot settle by itself.** A standalone `REACT-TV-*` root has no owner under "the root decides", so its routing is stated explicitly in `standards/react/react-smart-tv.md`: `REACT-TV-PERF-*` → `performance-reviewer`; **every other TV family, `REACT-TV-PKG-*` included, → `code-reviewer`.** That document is the single authority for this split — do not re-derive it here.
 
 **One defect, one finding.** Routing by root is not enough when a *single* real defect satisfies rules owned by *different* agents — an undisposed player is both `REACT-TV-MEDIA-3` (this lane) and `REACT-TV-PERF-2` (Pass B). The two agents cannot read each other's output, so:
 
@@ -176,17 +176,17 @@ This prevents the two agents double-filing the same issue from two directions. I
 - Where a defect appears in the **One defect, one finding** table in `standards/react/react-smart-tv.md`, file it under that table's **owning ID**, citing the others inside the finding as supporting context.
 - Where the owning ID belongs to the other lane, record the observation in your own finding with the owning ID named, and let [Merge into the shared template](#merge-into-the-shared-template) reconcile.
 - That table is authoritative for TV collisions, and its rows are **mutually exclusive by mechanism** — a player is `REACT-TV-MEDIA-3`, a listener is `REACT-FC-5`, and `REACT-TV-PERF-2` covers memory retained for any *other* reason. Where two rows could still be read as matching, the row naming the more specific mechanism wins.
-- **`react-code-reviewer` executes the deduplication** at [Merge into the shared template](#merge-into-the-shared-template), because it is the agent that populates the template. `react-performance-reviewer` cannot do it — it does not assemble the document — so its only obligation is to **name the owning ID** on any finding in this table, which is what makes the merge resolvable.
+- **`code-reviewer` executes the deduplication** at [Merge into the shared template](#merge-into-the-shared-template), because it is the agent that populates the template. `performance-reviewer` cannot do it — it does not assemble the document — so its only obligation is to **name the owning ID** on any finding in this table, which is what makes the merge resolvable.
 
 ## The two review passes
 
-**Pass A — `react-code-reviewer`** walks each bucketed file against its standards section, recording pass / fail / not-applicable per rule, and noting the standard ID for anything that fails.
+**Pass A — `code-reviewer`** walks each bucketed file against its standards section, recording pass / fail / not-applicable per rule, and noting the standard ID for anything that fails.
 
-**Pass B — `react-performance-reviewer`** independently audits the same scope against `standards/react/react-performance.md`'s `REACT-PERF-*` rules.
+**Pass B — `performance-reviewer`** independently audits the same scope against `standards/react/react-performance.md`'s `REACT-PERF-*` rules.
 
 **Pass B runs separately from Pass A, not as a sub-step of it** — so a performance-only change is not miscategorized as a correctness finding, and a correctness-only change does not absorb performance commentary.
 
-**Pass B has a second, different call site.** `react-performance-reviewer` is also invoked by `/prepare-mobile-release`, where the scope is the release candidate as a whole (not a diff) and the output is the React perf sign-off block in `templates/release-checklist-template.md` (pass / pass-with-follow-ups / fail), per the `mobile-release-readiness` skill and `REL-PERF-1`. The `REACT-PERF-*` rules and the measurement discipline in [§12](#12-performance-measurement-discipline) are identical across both call sites; only the scope and the destination document differ. Pass A has no release-stage call site.
+**Pass B has a second, different call site.** `performance-reviewer` is also invoked by `/prepare-mobile-release`, where the scope is the release candidate as a whole (not a diff) and the output is the React perf sign-off block in `templates/release-checklist-template.md` (pass / pass-with-follow-ups / fail), per the `mobile-release-readiness` skill and `REL-PERF-1`. The `REACT-PERF-*` rules and the measurement discipline in [§12](#12-performance-measurement-discipline) are identical across both call sites; only the scope and the destination document differ. Pass A has no release-stage call site.
 
 ## Repository-convention-first review
 
@@ -229,7 +229,7 @@ Per-rule pass/fail tracking in [The two review passes](#the-two-review-passes) i
 
 Write explicit **"None found"** for any empty section. **Merge with** whatever other reviewers produced for the same scope — never overwrite it, and never emit a separate React document.
 
-**`react-code-reviewer` deduplicates here, using the *One defect, one finding* table in `standards/react/react-smart-tv.md`.** Because Pass A and Pass B audit the same scope independently and cannot see each other's *live* output, the same physical defect can arrive from both — but Pass A assembles this document and therefore can see Pass B's findings in it, which is what makes the merge executable. At merge:
+**`code-reviewer` deduplicates here, using the *One defect, one finding* table in `standards/react/react-smart-tv.md`.** Because Pass A and Pass B audit the same scope independently and cannot see each other's *live* output, the same physical defect can arrive from both — but Pass A assembles this document and therefore can see Pass B's findings in it, which is what makes the merge executable. At merge:
 
 1. Where two findings describe **the same defect at the same site**, keep the one filed under the table's owning ID, fold the other's reasoning into it as supporting context, and cite both IDs in the single surviving finding.
 2. Keep the **higher** of the two severities, and keep Pass B's measurement framing where the surviving finding carries a magnitude claim ([§12](#12-performance-measurement-discipline)).
@@ -243,12 +243,12 @@ Write explicit **"None found"** for any empty section. **Merge with** whatever o
 - **Cross-lane findings.** Performance stays with Pass B; everything else stays with Pass A ([Lane ownership for overlapping IDs](#lane-ownership-for-overlapping-ids)).
 - **Pre-existing code outside the reviewed change** ([Scope discipline — legacy code and the review boundary](#scope-discipline--legacy-code-and-the-review-boundary)).
 - **Modernization, stack preference, and architectural opinion**, everywhere in the document (`skills/platform-review/SKILL.md` §3, the filing gate).
-- **Fixes.** This skill does not repair flagged code — that is `react-feature-developer`'s job in the Fix stage, via `/fix-review-comments`. Note that `skills/react-feature-implementation/SKILL.md` is scoped to `/implement-task` and its input gate requires a task id and Task Breakdown, which the Fix stage does not supply; the developer applies a review fix from the finding, its cited standard ID, and the file, not from that skill's task-resolution path.
+- **Fixes.** This skill does not repair flagged code — that is `feature-implementer`'s job in the Fix stage, via `/fix-review-comments`. Note that `skills/react-feature-implementation/SKILL.md` is scoped to `/implement-task` and its input gate requires a task id and Task Breakdown, which the Fix stage does not supply; the developer applies a review fix from the finding, its cited standard ID, and the file, not from that skill's task-resolution path.
 - **Product scope and design decisions.** Whether the feature should behave this way is the Analyze/Design stage's question, not a review finding.
 
 ## Relationship with command, agents, skills
 
 - **`commands/review-code.md`** — scope, file attribution, standards loading, lane routing, the readiness gate, and the merge.
 - **`skills/platform-review/SKILL.md`** — the platform-independent review methodology. It names every other owner; that table is not repeated here.
-- **`agents/react-code-reviewer.md`** and **`agents/react-performance-reviewer.md`** — the two executors that run both halves over this platform's files.
+- **`agents/code-reviewer.md`** and **`agents/performance-reviewer.md`** — the two executors that run both halves over this platform's files.
 - **This skill** — the React (web) review content itself, and nothing a platform-independent layer could state.

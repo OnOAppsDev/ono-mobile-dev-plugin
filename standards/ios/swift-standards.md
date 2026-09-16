@@ -2,7 +2,7 @@
 
 ## Governing sections (all five iOS documents)
 
-These four sections govern **all five** `standards/ios/*` documents. They define *how* a finding is filed, not *what* is a defect. A consumer that reads only one of the other four documents — `ios-performance-reviewer`, `mobile-release-engineer` — reads this block and stops; it is deliberately placed first so it can be loaded without the Swift rules below.
+These four sections govern **all five** `standards/ios/*` documents. They define *how* a finding is filed, not *what* is a defect. A consumer that reads only one of the other four documents — `performance-reviewer`, `mobile-release-engineer` — reads this block and stops; it is deliberately placed first so it can be loaded without the Swift rules below.
 
 ### Lane boundaries
 
@@ -10,12 +10,12 @@ Findings are filed by ID root:
 
 | ID root | Document | Filed by |
 |---|---|---|
-| `IOS-SWIFT-*` | this file | `ios-code-reviewer` |
-| `IOS-UI-*` | `swiftui-uikit-standards.md` | `ios-code-reviewer` |
-| `IOS-ARCH-*` | `ios-architecture.md` | `ios-code-reviewer` |
-| `IOS-PERF-*` | `ios-performance.md` | `ios-performance-reviewer` |
+| `IOS-SWIFT-*` | this file | `code-reviewer` |
+| `IOS-UI-*` | `swiftui-uikit-standards.md` | `code-reviewer` |
+| `IOS-ARCH-*` | `ios-architecture.md` | `code-reviewer` |
+| `IOS-PERF-*` | `ios-performance.md` | `performance-reviewer` |
 | `IOS-BUILD-*` | `xcode-build-signing.md` | `mobile-release-engineer` |
-| `A11Y-*`, `I18N-*` | `standards/shared/accessibility.md`, `i18n-rtl.md` | `ios-code-reviewer` |
+| `A11Y-*`, `I18N-*` | `standards/shared/accessibility.md`, `i18n-rtl.md` | `code-reviewer` |
 | `SEC-*` | `standards/shared/mobile-security.md` | `mobile-security-reviewer` (via `/review-security`) |
 | `REL-*` | `standards/shared/release-readiness.md` | `mobile-release-engineer` |
 | `QA-*` | `standards/shared/qa-handoff.md` | the QA-handoff skill |
@@ -76,7 +76,7 @@ These are living baselines — flag standards gaps rather than working around th
 
 ## Purpose & Scope
 
-These standards apply to native iOS application code written in Swift, implemented by `ios-feature-developer` via `/implement-task` and reviewed by `ios-code-reviewer` via `/review-code`. They cover Swift language and style only: naming, optionals and types, error handling, object lifetime, concurrency *correctness*, diagnostics, and static analysis. Each bullet carries a stable `IOS-SWIFT-*` ID so proposals, implementation summaries, and review findings can cite the exact rule. This list is a baseline, not exhaustive; the repository's detected Swift style, language mode, and deployment target take precedence.
+These standards apply to native iOS application code written in Swift, implemented by `feature-implementer` via `/implement-task` and reviewed by `code-reviewer` via `/review-code`. They cover Swift language and style only: naming, optionals and types, error handling, object lifetime, concurrency *correctness*, diagnostics, and static analysis. Each bullet carries a stable `IOS-SWIFT-*` ID so proposals, implementation summaries, and review findings can cite the exact rule. This list is a baseline, not exhaustive; the repository's detected Swift style, language mode, and deployment target take precedence.
 
 This file also hosts the shared governing block above, which is why it is the largest of the five.
 

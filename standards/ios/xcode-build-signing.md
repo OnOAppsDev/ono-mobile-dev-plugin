@@ -2,7 +2,7 @@
 
 ## Purpose & Scope
 
-These standards cover how an iOS app is configured, signed, versioned, and prepared for distribution: build settings and schemes, dependency declaration, code signing and provisioning, version and build numbers, and store-submission readiness. They are cited by `mobile-release-engineer` via `/prepare-mobile-release` and by the `mobile-release-readiness` skill when a release includes an iOS build; `ios-feature-developer` and `ios-code-reviewer` apply them when a change touches project configuration. Each bullet carries a stable `IOS-BUILD-*` ID. Lane boundaries between the five iOS documents are defined once, in `standards/ios/swift-standards.md`.
+These standards cover how an iOS app is configured, signed, versioned, and prepared for distribution: build settings and schemes, dependency declaration, code signing and provisioning, version and build numbers, and store-submission readiness. They are cited by `mobile-release-engineer` via `/prepare-mobile-release` and by the `mobile-release-readiness` skill when a release includes an iOS build; `feature-implementer` and `code-reviewer` apply them when a change touches project configuration. Each bullet carries a stable `IOS-BUILD-*` ID. Lane boundaries between the five iOS documents are defined once, in `standards/ios/swift-standards.md`.
 
 **Scope boundary.** This document covers *iOS-specific build and signing mechanics*. The platform-neutral release checklist — environments, rollback, QA sign-off, the release verdict — is `REL-*` in `standards/shared/release-readiness.md` and is not restated here. Secrets handling is `SEC-*` in `standards/shared/mobile-security.md`; this document cites it rather than duplicating it.
 

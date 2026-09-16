@@ -1,6 +1,6 @@
 ---
 name: android-dev-planning
-description: Android-specific planning methodology — the repository evidence dimensions to inspect, the vocabulary a Detailed Design's approach and change surface are written in, Android detection traps, device_type handling and the AND-* citation map. Used by /analyze-feature, /dev-design-start and /dev-feature-start via the android-architect agent, alongside the shared platform-planning skill which owns the planning methodology.
+description: Android-specific planning methodology — the repository evidence dimensions to inspect, the vocabulary a Detailed Design's approach and change surface are written in, Android detection traps, device_type handling and the AND-* citation map. Used by /analyze-feature, /dev-design-start and /dev-feature-start via the feature-architect agent, alongside the shared platform-planning skill which owns the planning methodology.
 ---
 
 # Android Dev Planning
@@ -230,5 +230,5 @@ Cite only IDs that exist in these files and genuinely apply to the point being m
 - **`commands/analyze-feature.md`**, **`commands/dev-design-start.md`**, **`commands/dev-feature-start.md`** — detection, the confirmation gate, artifact resolution, approval gates and routing.
 - **`skills/platform-planning/SKILL.md`** — the platform-independent planning methodology. It names every other owner; that table is not repeated here.
 - **`skills/dev-design-start/SKILL.md`** — the DD section rules, Classification, Risk classification and the source-of-truth hierarchy.
-- **`agents/android-architect.md`** — the Android specialist that executes all of it.
+- **`agents/feature-architect.md`** — the Android specialist that executes all of it.
 - **This skill** — the Android planning content itself, and nothing a platform-independent layer could state.

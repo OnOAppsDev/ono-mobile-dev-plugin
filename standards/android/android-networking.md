@@ -2,7 +2,7 @@
 
 ## Purpose & Scope
 
-These standards govern how native Android app code talks to backend APIs — the networking client, transport/DTO models and mapping, authentication, and error/offline handling. They are implemented by `android-feature-developer` via `/implement-task` and reviewed by `android-code-reviewer` via `/review-code`. Each bullet carries a stable `AND-NET-*` ID. This is a baseline, not exhaustive — follow the repository's detected networking stack (Retrofit, Ktor, or another client) rather than imposing one, and follow the API contracts defined in the approved DD exactly.
+These standards govern how native Android app code talks to backend APIs — the networking client, transport/DTO models and mapping, authentication, and error/offline handling. They are implemented by `feature-implementer` via `/implement-task` and reviewed by `code-reviewer` via `/review-code`. Each bullet carries a stable `AND-NET-*` ID. This is a baseline, not exhaustive — follow the repository's detected networking stack (Retrofit, Ktor, or another client) rather than imposing one, and follow the API contracts defined in the approved DD exactly.
 
 ## Networking Client
 

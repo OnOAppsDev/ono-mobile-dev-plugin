@@ -2,7 +2,7 @@
 
 ## Purpose & Scope
 
-These principles apply to how React (web) application code is organized and layered — reviewed by `react-code-reviewer` via `/review-code` and used by `react-architect` when proposing a technical approach via `/analyze-feature` and `/dev-design-start`. Each rule below carries a stable ID so review findings and design proposals can cite the exact rule they apply. This is a baseline, not exhaustive — reviewers use judgment for app-specific structure inherited from `repo-analyst`'s detection.
+These principles apply to how React (web) application code is organized and layered — reviewed by `code-reviewer` via `/review-code` and used by `feature-architect` when proposing a technical approach via `/analyze-feature` and `/dev-design-start`. Each rule below carries a stable ID so review findings and design proposals can cite the exact rule they apply. This is a baseline, not exhaustive — reviewers use judgment for app-specific structure inherited from `repo-analyst`'s detection.
 
 This document inherits the **React lane conventions** defined in `standards/react/react-coding-standards.md` — the repository-first source-of-truth hierarchy (a repo's established structure, as detected by `repo-analyst`, outranks these principles; official docs are rank-5 supporting only, and absence of a convention is not compliance), technology-neutrality (no assumed framework/router/state library — the layering model is read from the repository, not prescribed), the no-modernization-aside stance, the `REACT-` ID prefix, and the `## External references` pattern. Findings are limited to code introduced or modified in the reviewed scope.
 

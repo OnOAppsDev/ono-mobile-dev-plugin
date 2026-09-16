@@ -1,6 +1,6 @@
 ---
 name: ios-feature-implementation
-description: iOS-specific implementation methodology — the toolchain probe, pre-write availability and isolation checks, the build/test evidence rules, verification reach, and the IOS-* standards-citation map. Used by /implement-task via the ios-feature-developer agent, alongside the shared platform-implementation skill, which owns the lifecycle mechanics.
+description: iOS-specific implementation methodology — the toolchain probe, pre-write availability and isolation checks, the build/test evidence rules, verification reach, and the IOS-* standards-citation map. Used by /implement-task via the feature-implementer agent, alongside the shared platform-implementation skill, which owns the lifecycle mechanics.
 ---
 
 # iOS Feature Implementation
@@ -307,7 +307,7 @@ Answer `QA-A11Y-1` with the Tier 3 list explicitly rather than leaving it implic
 
 ## 20. Standards citation
 
-Record which IDs were **applied**, not merely reviewed — this is the trace `ios-code-reviewer`, `ios-performance-reviewer` and the QA handoff rely on.
+Record which IDs were **applied**, not merely reviewed — this is the trace `code-reviewer`, `performance-reviewer` and the QA handoff rely on.
 
 | Area | Document | IDs |
 |---|---|---|
@@ -318,7 +318,7 @@ Record which IDs were **applied**, not merely reviewed — this is the trace `io
 | Build, signing, dependencies, distribution | `standards/ios/xcode-build-signing.md` | `IOS-BUILD-*` |
 | Accessibility · Localization & RTL · Security · QA handoff | `standards/shared/` | `A11Y-*` · `I18N-*` · `SEC-*` · `QA-*` |
 
-Findings are **filed** by lane (`IOS-PERF-*` by `ios-performance-reviewer`, `IOS-BUILD-*` by `mobile-release-engineer`); this skill **applies** and cites them. Do not use React Native's `ARCH-*`/`API-*`/`STATE-*`/`NAV-*` or Android's `AND-*` IDs.
+Findings are **filed** by lane (`IOS-PERF-*` by `performance-reviewer`, `IOS-BUILD-*` by `mobile-release-engineer`); this skill **applies** and cites them. Do not use React Native's `ARCH-*`/`API-*`/`STATE-*`/`NAV-*` or Android's `AND-*` IDs.
 
 ## Red flags — STOP and report
 
@@ -341,6 +341,6 @@ Responsibilities stay separated:
 - **`skills/platform-implementation/SKILL.md`** — the platform-independent implementation methodology: inputs, source-of-truth hierarchy, task readiness, the pre-implementation plan, scope control, self-review and the completion report.
 - **`skills/ios-dev-planning/SKILL.md`** — the planning lane whose conclusions this skill implements.
 - **`skills/mobile-debugging/SKILL.md`** — owns root-causing at the Fix stage; this skill owns only proving an iOS fix.
-- **`agents/ios-feature-developer.md`** — the iOS specialist and executor that runs both halves.
+- **`agents/feature-implementer.md`** — the iOS specialist and executor that runs both halves.
 - **This skill** — the iOS implementation methodology itself, and nothing a platform-independent layer could state.
 - **Hooks** — `require-approval-before-code`, `block-main-branch-changes`, and `protect-secrets`.

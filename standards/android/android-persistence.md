@@ -2,7 +2,7 @@
 
 ## Purpose & Scope
 
-These standards govern local data persistence in native Android app code — databases (Room), key-value/preferences stores (DataStore, SharedPreferences), file storage, and caching. They are implemented by `android-feature-developer` via `/implement-task` and reviewed by `android-code-reviewer` via `/review-code`. Each bullet carries a stable `AND-DATA-*` ID. This is a baseline, not exhaustive — follow the repository's detected persistence stack rather than imposing one.
+These standards govern local data persistence in native Android app code — databases (Room), key-value/preferences stores (DataStore, SharedPreferences), file storage, and caching. They are implemented by `feature-implementer` via `/implement-task` and reviewed by `code-reviewer` via `/review-code`. Each bullet carries a stable `AND-DATA-*` ID. This is a baseline, not exhaustive — follow the repository's detected persistence stack rather than imposing one.
 
 ## Storage Choice
 

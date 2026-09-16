@@ -77,7 +77,10 @@ const live = validate(REPO_ROOT);
 {
   const n = (k: string): number => live.components.filter((c) => c.kind === k).length;
   check("2 commands were discovered", n("command") >= 9, `${n("command")}`);
-  check("2 agents were discovered", n("agent") >= 19, `${n("agent")}`);
+  // The four per-platform families (architect / feature-developer / code-reviewer /
+  // performance-reviewer) collapsed into four shared role agents, so the floor drops
+  // from 19 to 7. Still a floor, not a claim: it catches an agent disappearing.
+  check("2 agents were discovered", n("agent") >= 7, `${n("agent")}`);
   check("2 skills were discovered", n("skill") >= 23, `${n("skill")}`);
   check("2 standards were discovered", n("standard") >= 32, `${n("standard")}`);
   check("2 routes were discovered", live.routes.length >= 50, `${live.routes.length}`);

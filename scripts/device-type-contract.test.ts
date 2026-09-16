@@ -84,19 +84,24 @@ const flat = (s: string): string => s.replace(/\s+/g, " ");
 
 // --- 2. The authored platform lanes: TV is context, never a platform ------
 {
+  // OWNERSHIP MOVED (Stage 5d + cleanup). One shared agent serves every platform, so the
+  // three agent-side facts are asserted against the ROUTE the platform actually takes:
+  // the shared agent for the confirmed-context rule, the resolved lane for the two
+  // TV-specific ones. Not weakened — the same three facts are still required, and the
+  // lane-side pair is now checked in the lane that actually supplies platform content.
   for (const [lane, agent, skill] of [
-    ["android", "agents/android-architect.md", "skills/android-dev-planning/SKILL.md"],
-    ["ios", "agents/ios-architect.md", "skills/ios-dev-planning/SKILL.md"],
+    ["android", "agents/feature-architect.md", "skills/android-dev-planning/SKILL.md"],
+    ["ios", "agents/feature-architect.md", "skills/ios-dev-planning/SKILL.md"],
   ] as const) {
     const a = flat(read(agent));
     const s = flat(read(skill));
 
-    check(`2 ${lane}-architect takes the confirmed context as given`,
+    check(`2 ${lane} route takes the confirmed context as given`,
       /device_type/.test(a) && /(never re-detect|Do not re-run detection|never re-detecting)/i.test(a));
-    check(`2 ${lane}-architect declares TV is not a separate platform`,
-      /[Nn]ever treat (TV|Apple TV) as a separate platform/.test(a));
-    check(`2 ${lane}-architect forbids silent mobile assumptions on tv`,
-      /Never silently apply mobile\/touch assumptions/.test(a));
+    check(`2 ${lane} lane declares TV is not a separate platform`,
+      /(TV|Apple TV) is a context signal, never a separate platform/.test(s));
+    check(`2 ${lane} lane forbids silent mobile assumptions on tv`,
+      /Never silently apply (touch or mobile|mobile\/touch|pointer\/touch) assumptions/.test(s));
     check(`2 ${lane}-dev-planning declares TV a context signal, not a platform`,
       /is a context signal, never a separate platform/.test(s));
     check(`2 ${lane}-dev-planning branches on both device types`,
@@ -119,7 +124,7 @@ const flat = (s: string): string => s.replace(/\s+/g, " ");
 // --- 3. THE DOC-002 GUARD: react-native + tv stops, and never falls through
 {
   const skill = flat(read("skills/rn-dev-planning/SKILL.md"));
-  const agent = flat(read("agents/rn-architect.md"));
+  const agent = flat(read("agents/feature-architect.md"));
 
   check("3 rn-dev-planning still declares the lane mobile-only",
     /React Native is mobile-only here/.test(skill));
@@ -141,12 +146,17 @@ const flat = (s: string): string => s.replace(/\s+/g, " ");
   check("3 rn-dev-planning frames the stop as defined behaviour, not a gap",
     /this stop \*\*is\*\* the defined behaviour/.test(skill));
 
-  check("3 rn-architect follows the rule and stops",
-    /report the unsupported context and stop/.test(agent));
-  check("3 rn-architect defers ownership to the skill",
-    /per `skills\/rn-dev-planning\/SKILL\.md`'s Overview, which owns the rule/.test(agent));
-  check("3 rn-architect repeats neither the rationale nor a TV methodology",
-    !/react-native-tvos/.test(agent) && !/discovery pass/.test(agent));
+  // Re-pointed (cleanup). The RN stop lived on `rn-architect`, which deferred to the RN
+  // lane by name. The shared agent serves every platform and so cannot name one lane — it
+  // defers to whichever lane resolved. The two properties are unchanged: the agent stops
+  // on the lane's stop conditions, and carries no copy of the lane's TV rationale. The
+  // negative is now STRONGER: no lane-specific TV material may appear on the agent at all.
+  check("3 the shared agent stops on the resolved lane's stop conditions",
+    /Stop on any red flag in `skills\/platform-planning\/SKILL\.md` or in the resolved lane/.test(agent));
+  check("3 the shared agent defers ownership to the resolved lane",
+    /the resolved lane/.test(agent) && !/rn-dev-planning/.test(agent));
+  check("3 the shared agent repeats neither the rationale nor a TV methodology",
+    !/react-native-tvos/.test(agent) && !/discovery pass/.test(agent) && !/\bTV\b/.test(agent));
 }
 
 // --- 4. RN TV is unsupported, not merely unauthored -----------------------
@@ -172,7 +182,7 @@ const flat = (s: string): string => s.replace(/\s+/g, " ");
     // Inverted by REACT-001/002/003. DOC-002 asserted React carried no device_type
     // methodology because the lane was scaffolding; REACT-003 authored the Smart TV
     // context, so the correct assertion is the one iOS and Android already satisfy.
-    for (const rel of ["agents/react-architect.md", "skills/react-dev-planning/SKILL.md"]) {
+    for (const rel of ["agents/feature-architect.md", "skills/react-dev-planning/SKILL.md"]) {
       const t = read(rel);
       check(`5 ${rel} is no longer a placeholder`, !/^## Status: Not yet authored$/m.test(t));
       check(`5 ${rel} carries device_type methodology`, /device_type/.test(t));

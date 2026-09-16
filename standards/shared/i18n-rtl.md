@@ -2,7 +2,7 @@
 
 ## Purpose & Scope
 
-These standards apply to any screen, component, or copy that reaches an end user, reviewed by whichever platform's code-reviewer agent is active (`rn-code-reviewer`, `ios-code-reviewer`, `android-code-reviewer`, `react-code-reviewer`) via `/review-code`. Each rule states a **platform-neutral requirement** (the normative rule); where a platform's concrete API or library adds real value, it appears as a labelled example (React Native / iOS / Android / React). Each bullet below carries a stable ID so review findings can cite the exact rule they violate. This list is a baseline, not exhaustive — reviewers should use judgment for app-specific risk.
+These standards apply to any screen, component, or copy that reaches an end user, reviewed by `code-reviewer` against whichever platform lane is resolved, via `/review-code`. Each rule states a **platform-neutral requirement** (the normative rule); where a platform's concrete API or library adds real value, it appears as a labelled example (React Native / iOS / Android / React). Each bullet below carries a stable ID so review findings can cite the exact rule they violate. This list is a baseline, not exhaustive — reviewers should use judgment for app-specific risk.
 
 ## Translation & Copy Conventions
 

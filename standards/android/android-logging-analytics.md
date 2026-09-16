@@ -2,7 +2,7 @@
 
 ## Purpose & Scope
 
-These standards govern logging and analytics in native Android app code — diagnostic logging hygiene, analytics event emission, and PII handling in both. They are implemented by `android-feature-developer` via `/implement-task` and reviewed by `android-code-reviewer` via `/review-code`. Each bullet carries a stable `AND-LOG-*` ID. This is a baseline, not exhaustive — follow the repository's detected logging and analytics conventions rather than imposing a new one. Security-sensitive logging rules are shared with `standards/shared/mobile-security.md` (`SEC-LOG-*`); this document adds the Android-specific application.
+These standards govern logging and analytics in native Android app code — diagnostic logging hygiene, analytics event emission, and PII handling in both. They are implemented by `feature-implementer` via `/implement-task` and reviewed by `code-reviewer` via `/review-code`. Each bullet carries a stable `AND-LOG-*` ID. This is a baseline, not exhaustive — follow the repository's detected logging and analytics conventions rather than imposing a new one. Security-sensitive logging rules are shared with `standards/shared/mobile-security.md` (`SEC-LOG-*`); this document adds the Android-specific application.
 
 ## Logging Hygiene
 

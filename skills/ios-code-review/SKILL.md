@@ -198,7 +198,7 @@ Consequences:
 - **Nit is not an exemption.** A Nit still carries a citation.
 - **Framework, library and architecture preference are never findings.** SwiftUI, UIKit, both observation models, Swift Concurrency, GCD, Combine, SPM, CocoaPods, Core Data, SwiftData, XCTest and Swift Testing are all valid repository conventions.
 
-Like the Android sibling, **no out-of-lane aside is permitted anywhere in the document.** The permission this diverges from lives in `agents/rn-code-reviewer.md`, not in `skills/rn-code-review/SKILL.md`, which is silent on it. The divergence is intentional.
+Like the Android sibling, **no out-of-lane aside is permitted anywhere in the document.** The permission this diverges from lives in `skills/rn-code-review/SKILL.md`, which owns React Native's policy; `skills/platform-review/SKILL.md` is deliberately neutral and delegates the policy to each lane. The divergence is intentional.
 
 ## Evidence reach — what you may claim
 
@@ -270,5 +270,5 @@ Two pairs look like merges and are **not** — each side owns a distinct defect,
 
 - **`commands/review-code.md`** — scope, file attribution, standards loading, lane routing, the readiness gate, and the merge.
 - **`skills/platform-review/SKILL.md`** — the platform-independent review methodology. It names every other owner; that table is not repeated here.
-- **`agents/ios-code-reviewer.md`** and **`agents/ios-performance-reviewer.md`** — the two executors that run both halves over this platform's files.
+- **`agents/code-reviewer.md`** and **`agents/performance-reviewer.md`** — the two executors that run both halves over this platform's files.
 - **This skill** — the iOS review content itself, and nothing a platform-independent layer could state.

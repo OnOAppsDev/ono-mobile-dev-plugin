@@ -411,6 +411,14 @@ export function headingSlugs(text: string): Set<string> {
   return out;
 }
 
+/** Dated records of completed work — independent review findings, task lists, handoffs.
+ *  They describe the repository as it stood on a given date, so their citations are a
+ *  historical account, not a live contract: a path that was correct when written stays
+ *  correct as a record even after the component is retired. Rewriting them to match the
+ *  present would falsify the record, so B1 does not hold them to today's tree. Everything
+ *  else under docs/ — the contracts especially — is still checked. */
+const HISTORICAL_RECORDS = /^docs\/planning\//;
+
 export function checkReferences(root: string, files: string[]): Defect[] {
   const defects: Defect[] = [];
   const foreign = new Set(FOREIGN_PATHS.map((f) => f.path));
@@ -418,10 +426,12 @@ export function checkReferences(root: string, files: string[]): Defect[] {
   for (const abs of files) {
     const rel = relative(root, abs).split("\\").join("/");
     const text = readFileSync(abs, "utf-8");
+    const historical = HISTORICAL_RECORDS.test(rel);
 
     // B1 — cited plugin-internal paths resolve.
     for (const cand of new Set(citedTokens(text))) {
       if (!isShapedPath(cand) || foreign.has(cand)) continue;
+      if (historical) continue;
       if (!resolvesOnDisk(root, cand)) {
         defects.push({ group: "B", rule: "B1-cited-path-resolves", file: rel, message: `cites \`${cand}\`, which does not exist` });
       }

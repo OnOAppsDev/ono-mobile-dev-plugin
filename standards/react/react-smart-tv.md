@@ -2,7 +2,7 @@
 
 ## Purpose & Scope
 
-These standards apply to React (web) code running on a **Smart TV** surface — a Samsung Tizen or LG webOS TV web application, a vendor browser-based TV runtime, or a browser build driven by a remote — reviewed by `react-code-reviewer` and `react-performance-reviewer`, planned by `react-architect`, implemented by `react-feature-developer`. Each rule carries a stable `REACT-TV-*` ID. A baseline, not exhaustive.
+These standards apply to React (web) code running on a **Smart TV** surface — a Samsung Tizen or LG webOS TV web application, a vendor browser-based TV runtime, or a browser build driven by a remote — reviewed by `code-reviewer` and `performance-reviewer`, planned by `feature-architect`, implemented by `feature-implementer`. Each rule carries a stable `REACT-TV-*` ID. A baseline, not exhaustive.
 
 **Smart TV is `device_type: tv` inside the React platform, never a platform of its own.** No `react-tv` platform value, no `mixed` device type, no TV-specific agent, skill, or command.
 
@@ -18,8 +18,8 @@ The React lane routes by the cited ID's own root. A standalone `REACT-TV-*` root
 
 | Family | Filed by | Reachable at |
 |---|---|---|
-| `REACT-TV-FOCUS-*`, `REACT-TV-INPUT-*`, `REACT-TV-UI-*`, `REACT-TV-MEDIA-*`, `REACT-TV-LIFECYCLE-*`, `REACT-TV-API-*`, `REACT-TV-PKG-*` | `react-code-reviewer` | see *Stages* |
-| `REACT-TV-PERF-*` | `react-performance-reviewer` | Diff · Release |
+| `REACT-TV-FOCUS-*`, `REACT-TV-INPUT-*`, `REACT-TV-UI-*`, `REACT-TV-MEDIA-*`, `REACT-TV-LIFECYCLE-*`, `REACT-TV-API-*`, `REACT-TV-PKG-*` | `code-reviewer` | see *Stages* |
+| `REACT-TV-PERF-*` | `performance-reviewer` | Diff · Release |
 
 - **`REACT-TV-PERF-*` is the performance reviewer's; every other TV family is the code reviewer's.** This holds when a concern *sounds* performance-adjacent: a focus-restoration bug that feels sluggish is `REACT-TV-FOCUS-*`.
 - **`REACT-TV-PKG-5`/`-6` are filed by the React code reviewer, not the security lane.** They cite `SEC-SECRETS-*`/`SEC-HARDEN-*` as supporting rules. *Recorded divergence:* the shared `mobile-security-reviewer` has no TV awareness — it is never told a vendor manifest, keystore, `.wgt` or `.ipk` exists — so routing these to it would leave a committed signing certificate filable by nobody. Wiring the security lane for TV is a **cross-lane gap logged for that lane's owner**; until then these two rules stay here so they have an owner. Application-code security remains entirely the security lane's.
@@ -36,7 +36,7 @@ A rule is only citable in a scope that can reach it. **Where the scope cannot re
 | `REACT-TV-UI-7` | **QA / implementation** — requires running the platform's assistive technology on a device. At Diff only the semantic half is reachable (roles, labels, states, focus order); the walkthrough becomes a stated QA-handoff item. |
 | `REACT-TV-PKG-*` | **Diff, when packaging config is in the reviewed scope** — a `config.xml`, `appinfo.json`, packaging script, or env/target config **in the diff** is reachable and reviewed. Absent from the diff, the family is N/A. |
 
-**Release-stage note (honest gap).** These rules have **no release-stage enforcement point today.** The shared release chain — `/prepare-mobile-release`, `mobile-release-readiness`, `mobile-release-engineer`, `release-checklist-template.md` — has no TV awareness, and invokes only `react-performance-reviewer` for React. So `REACT-TV-PKG-*` is enforceable **only** when packaging config appears in a reviewed diff. Adding a TV branch to the release chain (under shared `REL-NATIVECONFIG-*`, `REL-VERSION-*`, `REL-ENV-*`, `REL-STORE-1`) is a **cross-lane gap logged for the release lane's owner**. Do not record these rules as verified at release; the stage does not check them.
+**Release-stage note (honest gap).** These rules have **no release-stage enforcement point today.** The shared release chain — `/prepare-mobile-release`, `mobile-release-readiness`, `mobile-release-engineer`, `release-checklist-template.md` — has no TV awareness, and invokes only `performance-reviewer` for React. So `REACT-TV-PKG-*` is enforceable **only** when packaging config appears in a reviewed diff. Adding a TV branch to the release chain (under shared `REL-NATIVECONFIG-*`, `REL-VERSION-*`, `REL-ENV-*`, `REL-STORE-1`) is a **cross-lane gap logged for the release lane's owner**. Do not record these rules as verified at release; the stage does not check them.
 
 ### Unestablished facts
 
@@ -73,7 +73,7 @@ Many rules below are phrased against "the repository's existing" TV convention. 
 | Numeric key code hardcoded in a component | `REACT-TV-INPUT-1` | `REACT-TV-INPUT-2` |
 | Signing material or secret committed | `REACT-TV-PKG-5` | `SEC-SECRETS-1`, `SEC-SECRETS-3`, `SEC-SECRETS-4` |
 
-**`react-code-reviewer` performs the deduplication** when it populates the review template, since it is the agent that merges. `react-performance-reviewer` names the owning ID on any finding that appears in this table so the merge can resolve it.
+**`code-reviewer` performs the deduplication** when it populates the review template, since it is the agent that merges. `performance-reviewer` names the owning ID on any finding that appears in this table so the merge can resolve it.
 
 ## Applicability: is this a TV surface?
 
@@ -163,7 +163,7 @@ Focus is the primary cursor: on a D-pad-driven surface, losing it strands the us
 
 ## Constrained Runtime & Memory Budget
 
-**Lane: `react-performance-reviewer`.** Inherits the **measurement discipline** in `react-performance.md` in full — a magnitude claim is a measurement request (metric, scenario, threshold), never asserted from reading code; production-build-only items are marked as such. On TV, measured **on the target device tier**: a desktop profile is not weak evidence, it is no evidence.
+**Lane: `performance-reviewer`.** Inherits the **measurement discipline** in `react-performance.md` in full — a magnitude claim is a measurement request (metric, scenario, threshold), never asserted from reading code; production-build-only items are marked as such. On TV, measured **on the target device tier**: a desktop profile is not weak evidence, it is no evidence.
 
 - `REACT-TV-PERF-1` **A TV surface has an explicit, stated memory and performance budget**, sourced from the device tier the product ships to — not inherited from the phone-web budget and not left implicit. Derive it in this order: the repository's existing TV budget convention → the vendor's published tier floor → an unresolved decision naming who supplies the tier. A manifest memory declaration is a **minimum required to launch**, not a ceiling and not the peak, so it does not substitute for a measured budget, though the two must be mutually plausible. Where no budget is stated, a measurement request records its threshold as *unset — no stated TV budget*, and the absence is filed once against the change consuming budget without one.
 - `REACT-TV-PERF-2` **Memory is released, not merely dereferenced, on navigation away from a screen.** Large image and video assets, player instances (`REACT-TV-MEDIA-3`), caches, and detached DOM subtrees are disposed. A retained reference harmless on a desktop browser is a termination on a TV. Verified against the `REACT-TV-PERF-1` budget rather than asserted from reading code.

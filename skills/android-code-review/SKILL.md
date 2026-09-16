@@ -50,7 +50,7 @@ Map each changed file to zero or more buckets. Files matching no bucket are mark
 | `A11Y-*` | user-facing interactive surfaces | `standards/shared/accessibility.md` |
 | `I18N-*` | files carrying user-visible copy, formatting, or layout direction | `standards/shared/i18n-rtl.md` |
 
-`AND-PERF-*` is deliberately absent from this table — it belongs to `android-performance-reviewer` (`skills/platform-review/SKILL.md` §2 rung 3).
+`AND-PERF-*` is deliberately absent from this table — it belongs to `performance-reviewer` (`skills/platform-review/SKILL.md` §2 rung 3).
 
 ## 6. Framework-neutral family selection
 
@@ -125,8 +125,8 @@ Three standards files cite IDs rooted in another family: `android-performance.md
 
 **The ID's own root decides the owner, not the file it appears in:**
 
-- Any `AND-PERF-*` ID → `android-performance-reviewer`, always.
-- Every other ID → `android-code-reviewer`, always.
+- Any `AND-PERF-*` ID → `performance-reviewer`, always.
+- Every other ID → `code-reviewer`, always.
 
 This prevents the two agents double-filing the same issue from two directions.
 
@@ -143,5 +143,5 @@ This prevents the two agents double-filing the same issue from two directions.
 
 - **`commands/review-code.md`** — scope, file attribution, standards loading, lane routing, the readiness gate, and the merge.
 - **`skills/platform-review/SKILL.md`** — the platform-independent review methodology. It names every other owner; that table is not repeated here.
-- **`agents/android-code-reviewer.md`** and **`agents/android-performance-reviewer.md`** — the two executors that run both halves over this platform's files.
+- **`agents/code-reviewer.md`** and **`agents/performance-reviewer.md`** — the two executors that run both halves over this platform's files.
 - **This skill** — the Android review content itself, and nothing a platform-independent layer could state.

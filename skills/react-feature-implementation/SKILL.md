@@ -1,6 +1,6 @@
 ---
 name: react-feature-implementation
-description: React (web)-specific implementation methodology — the repository dimensions to inspect, the per-area coding guidance, device_type handling, the validation tooling, and the REACT-* standards-citation map. Used by /implement-task via the react-feature-developer agent, alongside the shared platform-implementation skill, which owns the lifecycle mechanics.
+description: React (web)-specific implementation methodology — the repository dimensions to inspect, the per-area coding guidance, device_type handling, the validation tooling, and the REACT-* standards-citation map. Used by /implement-task via the feature-implementer agent, alongside the shared platform-implementation skill, which owns the lifecycle mechanics.
 ---
 
 # React Feature Implementation
@@ -120,7 +120,7 @@ existing implementation before creating any** new component, hook, store module,
 route, data client or utility, and reusing or extending what is there →
 `REACT-ARCH-FOLDERS-*`, `REACT-FC-2`, `REACT-API-ORG-*`, `REACT-STATE-SLICE-1`.
 
-Record which standard IDs were **applied** (not merely reviewed) — this is the trace `react-code-reviewer`, `react-performance-reviewer`, and QA handoff rely on.
+Record which standard IDs were **applied** (not merely reviewed) — this is the trace `code-reviewer`, `performance-reviewer`, and QA handoff rely on.
 
 | Area | Standard file | IDs |
 |---|---|---|
@@ -153,7 +153,7 @@ Responsibilities stay separated:
 
 - **`commands/implement-task.md`** — task-id resolution, repository-root resolution, document-path resolution, approval/dependency/blocker gates, platform routing, the context handoff, lifecycle state, and verification of the completion report.
 - **`skills/platform-implementation/SKILL.md`** — the platform-independent implementation methodology.
-- **`agents/react-feature-developer.md`** — the React specialist and executor that runs both.
+- **`agents/feature-implementer.md`** — the React specialist and executor that runs both.
 - **This skill** — the React implementation methodology itself, and nothing a platform-independent layer could state.
 - **Hooks** — `require-approval-before-code`, `block-main-branch-changes`, and `protect-secrets`.
 

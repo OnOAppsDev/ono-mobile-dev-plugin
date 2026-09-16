@@ -2,7 +2,7 @@
 
 ## Purpose & Scope
 
-These standards govern the iOS UI layer — how views are composed, who owns state, how lists and cells behave, and how SwiftUI and UIKit meet. They are used by `ios-architect` when proposing a technical approach (`/analyze-feature`, `/dev-design-start`), by `ios-feature-developer` during implementation, and by `ios-code-reviewer` in `/review-code`. Each bullet carries a stable `IOS-UI-*` ID so proposals, implementation summaries, and review findings can cite the exact rule. Lane boundaries between the five iOS documents are defined once, in `standards/ios/swift-standards.md`.
+These standards govern the iOS UI layer — how views are composed, who owns state, how lists and cells behave, and how SwiftUI and UIKit meet. They are used by `feature-architect` when proposing a technical approach (`/analyze-feature`, `/dev-design-start`), by `feature-implementer` during implementation, and by `code-reviewer` in `/review-code`. Each bullet carries a stable `IOS-UI-*` ID so proposals, implementation summaries, and review findings can cite the exact rule. Lane boundaries between the five iOS documents are defined once, in `standards/ios/swift-standards.md`.
 
 **Framework neutrality is the governing principle of this document.** SwiftUI, UIKit, and hybrid codebases are all first-class. Rules are grouped by the family they apply to, and `IOS-UI-FRAMEWORK-1` governs which family a given file is judged under.
 

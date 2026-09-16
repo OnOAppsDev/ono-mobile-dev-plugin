@@ -2,7 +2,7 @@
 
 ## Purpose & Scope
 
-These standards cover the performance of native iOS app code: main-thread responsiveness, scrolling and rendering cost, image and memory handling, launch time, and app size. This is the **only source of rules** for `ios-performance-reviewer`, which serves both `/review-code` and `/prepare-mobile-release` — it files no finding that is not an `IOS-PERF-*` rule below. Correctness, style, architecture, and security are other reviewers' lanes and must not appear in performance findings. Each bullet carries a stable `IOS-PERF-*` ID.
+These standards cover the performance of native iOS app code: main-thread responsiveness, scrolling and rendering cost, image and memory handling, launch time, and app size. This is the **only source of rules** for `performance-reviewer`, which serves both `/review-code` and `/prepare-mobile-release` — it files no finding that is not an `IOS-PERF-*` rule below. Correctness, style, architecture, and security are other reviewers' lanes and must not appear in performance findings. Each bullet carries a stable `IOS-PERF-*` ID.
 
 The four **governing sections** at the top of `standards/ios/swift-standards.md` — lane boundaries, severity, missing antecedents, applicability stage, plus the shared neutrality/TV/status notes — govern this document too and are not repeated here. Three rules below (`RENDER-7`, `SIZE-3`, `LAUNCH-3`) describe costs whose owning IDs live in documents this reviewer does not read: file them when observed and let the merge step dedupe.
 

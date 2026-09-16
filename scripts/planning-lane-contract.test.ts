@@ -70,7 +70,8 @@ const PLATFORMS = LANES.map((l) => ({
   prefix: l.prefix,
   standardsDir: l.standardsDir,
   skill: `skills/${l.prefix}dev-planning/SKILL.md`,
-  architect: `agents/${l.prefix}architect.md`,
+  // OWNERSHIP MOVED (Stage 5d + cleanup): one shared role agent for every platform.
+  architect: "agents/feature-architect.md",
 }));
 
 const ANALYZE = "commands/analyze-feature.md";

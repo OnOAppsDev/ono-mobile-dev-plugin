@@ -1,6 +1,6 @@
 ---
 name: rn-dev-planning
-description: React Native-specific planning methodology — the repository evidence dimensions to inspect, the vocabulary a Detailed Design's Technical Implementation Approach and Impacted Modules are written in, the RN+TV unsupported stop, and the RN standard-ID citation map. Used by /analyze-feature, /dev-design-start and /dev-feature-start via the rn-architect agent, alongside the shared platform-planning skill which owns the planning methodology.
+description: React Native-specific planning methodology — the repository evidence dimensions to inspect, the vocabulary a Detailed Design's Technical Implementation Approach and Impacted Modules are written in, the RN+TV unsupported stop, and the RN standard-ID citation map. Used by /analyze-feature, /dev-design-start and /dev-feature-start via the feature-architect agent, alongside the shared platform-planning skill which owns the planning methodology.
 ---
 
 # React Native Dev Planning
@@ -125,5 +125,5 @@ These are the React Native-specific conditions. Generic stop conditions belong t
 - **`commands/analyze-feature.md`**, **`commands/dev-design-start.md`**, **`commands/dev-feature-start.md`** — detection, the confirmation gate, artifact resolution, approval gates and routing.
 - **`skills/platform-planning/SKILL.md`** — the platform-independent planning methodology. It names every other owner; that table is not repeated here.
 - **`skills/dev-design-start/SKILL.md`** — the DD section rules, Classification, Risk classification and the source-of-truth hierarchy.
-- **`agents/rn-architect.md`** — the React Native specialist that executes all of it.
+- **`agents/feature-architect.md`** — the React Native specialist that executes all of it.
 - **This skill** — the React Native planning content itself, and nothing a platform-independent layer could state.

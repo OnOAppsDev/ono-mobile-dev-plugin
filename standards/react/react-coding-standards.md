@@ -2,7 +2,7 @@
 
 ## Purpose & Scope
 
-These standards apply to all React (web) application code reviewed by `react-code-reviewer` via `/review-code` — components, hooks, utilities, and TypeScript types across a browser SPA (Vite/CRA/Next.js/Remix or any other bundler/framework). They cover general code shape and hygiene; architecture, routing, API service layer, state management, performance, i18n/RTL, and accessibility have their own dedicated standards documents. Each rule below carries a stable ID so review findings can cite the exact rule they violate. This list is a baseline, not exhaustive — reviewers use judgment for cases not covered here.
+These standards apply to all React (web) application code reviewed by `code-reviewer` via `/review-code` — components, hooks, utilities, and TypeScript types across a browser SPA (Vite/CRA/Next.js/Remix or any other bundler/framework). They cover general code shape and hygiene; architecture, routing, API service layer, state management, performance, i18n/RTL, and accessibility have their own dedicated standards documents. Each rule below carries a stable ID so review findings can cite the exact rule they violate. This list is a baseline, not exhaustive — reviewers use judgment for cases not covered here.
 
 Findings are limited to code **introduced or modified in the reviewed scope**; that similar legacy code already exists is not a defense for a new violation, but pre-existing untouched code is not in scope. This is a deliberately separate module from React Native — the two overlap on JS/TS/React fundamentals but target different runtimes (browser vs. native shell), so they do not share standards or rule IDs.
 

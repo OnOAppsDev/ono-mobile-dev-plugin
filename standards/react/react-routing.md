@@ -2,7 +2,7 @@
 
 ## Purpose & Scope
 
-These standards are **library-agnostic** — the org does not mandate React Router, TanStack Router, the Next.js App/Pages Router, or any specific routing solution. Detecting which router a given repo actually uses is the `repo-analyst` agent's job, not this standard's; whatever router is in use, the rules below still apply. They are reviewed by `react-code-reviewer` via `/review-code` and used by `react-architect` via `/analyze-feature` and `/dev-design-start`. Each rule carries a stable ID so findings and design proposals can cite the exact rule they apply. This is a baseline, not exhaustive.
+These standards are **library-agnostic** — the org does not mandate React Router, TanStack Router, the Next.js App/Pages Router, or any specific routing solution. Detecting which router a given repo actually uses is the `repo-analyst` agent's job, not this standard's; whatever router is in use, the rules below still apply. They are reviewed by `code-reviewer` via `/review-code` and used by `feature-architect` via `/analyze-feature` and `/dev-design-start`. Each rule carries a stable ID so findings and design proposals can cite the exact rule they apply. This is a baseline, not exhaustive.
 
 This document inherits the **React lane conventions** in `standards/react/react-coding-standards.md` — the repository-first source-of-truth hierarchy (a repo's established routing approach, as detected by `repo-analyst`, outranks these rules; official docs are rank-5 supporting only; absence of a convention is not compliance), technology-neutrality, the no-modernization-aside stance, the `REACT-` ID prefix, and the `## External references` pattern. Findings are limited to code introduced or modified in the reviewed scope.
 

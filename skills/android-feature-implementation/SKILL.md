@@ -1,6 +1,6 @@
 ---
 name: android-feature-implementation
-description: Android-specific implementation methodology — the repository dimensions to inspect, the per-area coding guidance, the validation tooling, and the AND-* standards-citation map. Used by /implement-task via the android-feature-developer agent, alongside the shared platform-implementation skill, which owns the lifecycle mechanics.
+description: Android-specific implementation methodology — the repository dimensions to inspect, the per-area coding guidance, the validation tooling, and the AND-* standards-citation map. Used by /implement-task via the feature-implementer agent, alongside the shared platform-implementation skill, which owns the lifecycle mechanics.
 ---
 
 # Android Feature Implementation
@@ -102,7 +102,7 @@ existing implementation before creating any** new abstraction, helper, use-case,
 UI component, navigation pattern, state container or networking primitive, and reusing or
 extending what is there → `AND-ARCH-*`, `AND-UI-*`, `AND-NET-CLIENT-1`, `AND-NAV-DEST-2`.
 
-Record which standard IDs were **applied** (not merely reviewed) — this is the trace `android-code-reviewer`, `android-performance-reviewer`, and QA handoff rely on.
+Record which standard IDs were **applied** (not merely reviewed) — this is the trace `code-reviewer`, `performance-reviewer`, and QA handoff rely on.
 
 | Area | Standard file | IDs |
 |---|---|---|
@@ -136,4 +136,4 @@ to `skills/platform-implementation/SKILL.md` and are not repeated here.
 
 `skills/platform-implementation/SKILL.md` names every owner in this chain; that table is
 not repeated here. This skill adds the Android methodology, the `AND-*` citation map and
-the Android stop conditions, and `agents/android-feature-developer.md` executes both.
+the Android stop conditions, and `agents/feature-implementer.md` executes both.
