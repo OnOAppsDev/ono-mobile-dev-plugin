@@ -2,7 +2,7 @@
 
 ## Purpose & Scope
 
-These standards govern automated tests for native Android app code — unit tests, ViewModel/use-case/repository tests, instrumentation tests, and Compose UI tests. They are applied by `android-feature-developer` when a task adds or changes testable code, and referenced by `android-code-reviewer` and `mobile-testing-and-qa-handoff`. Each bullet carries a stable `AND-TEST-*` ID. This is a baseline, not exhaustive — follow the repository's detected test setup (JUnit4/5, Turbine, MockK/Mockito, Robolectric, Espresso, Compose test) rather than imposing a different framework.
+These standards govern automated tests for native Android app code — unit tests, ViewModel/use-case/repository tests, instrumentation tests, and Compose UI tests. They are applied by `feature-implementer` when a task adds or changes testable code, and referenced by `code-reviewer` and `mobile-testing-and-qa-handoff`. Each bullet carries a stable `AND-TEST-*` ID. This is a baseline, not exhaustive — follow the repository's detected test setup (JUnit4/5, Turbine, MockK/Mockito, Robolectric, Espresso, Compose test) rather than imposing a different framework.
 
 ## Unit Tests
 

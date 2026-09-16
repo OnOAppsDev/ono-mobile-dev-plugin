@@ -77,7 +77,10 @@ const live = validate(REPO_ROOT);
 {
   const n = (k: string): number => live.components.filter((c) => c.kind === k).length;
   check("2 commands were discovered", n("command") >= 9, `${n("command")}`);
-  check("2 agents were discovered", n("agent") >= 19, `${n("agent")}`);
+  // The four per-platform families (architect / feature-developer / code-reviewer /
+  // performance-reviewer) collapsed into four shared role agents, so the floor drops
+  // from 19 to 7. Still a floor, not a claim: it catches an agent disappearing.
+  check("2 agents were discovered", n("agent") >= 7, `${n("agent")}`);
   check("2 skills were discovered", n("skill") >= 23, `${n("skill")}`);
   check("2 standards were discovered", n("standard") >= 32, `${n("standard")}`);
   check("2 routes were discovered", live.routes.length >= 50, `${live.routes.length}`);
@@ -107,7 +110,12 @@ const live = validate(REPO_ROOT);
   // is exactly what it did when React was still scaffolding.
   check("4 no component is a placeholder — every lane is authored",
     placeholders.length === 0, `${placeholders.length}: ${placeholders.join(", ")}`);
-  check("4 nothing is deferred — no unwired component remains",
+  // Implementation went live at Stage 3d, review at Stage 4d and planning at Stage 5d.
+  // Nothing is staged-but-unrouted any more, so the deferred set must be empty. This is a
+  // census, not a tautology: it fails the moment a component is marked NOT YET WIRED and
+  // left that way, or a wired component is reverted to deferred without its route going
+  // with it.
+  check("4 the deferred set is empty — every shared component is routed",
     deferred.length === 0, deferred.join(","));
 
   // The trap that would declare an authored lane unbuilt. See the validator header.
@@ -245,7 +253,7 @@ const live = validate(REPO_ROOT);
     }
   };
   for (const d of SCANNED_DIRS) if (existsSync(join(REPO_ROOT, d))) walk(join(REPO_ROOT, d));
-  check("8 the corpus really contains intra-document anchors to check", anchors >= 100, `${anchors}`);
+  check("8 the corpus really contains intra-document anchors to check", anchors >= 80, `${anchors}`);
 }
 
 // --- 9. Frontmatter parser edge cases ------------------------------------

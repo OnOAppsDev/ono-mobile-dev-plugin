@@ -22,9 +22,9 @@ claude --plugin-dir /path/to/ono-mobile-dev-plugin
 ## What this plugin supports
 
 - **React Native** — the plugin's original, most fully-built-out platform. Full standards, skills, and agents.
-- **Native iOS** — routing, platform detection, and folder structure are fully wired up. The five iOS **standards are authored** (IOS-001) with citable `IOS-*` IDs, and the **planning lane is authored** (IOS-002) — `ios-architect` plus the `ios-dev-planning` skill, so `/analyze-feature`, `/dev-design-start`, and `/dev-feature-start` produce grounded, standards-cited iOS output. The **implementation lane is authored** (IOS-003) — `ios-feature-developer` plus the `ios-feature-implementation` skill, so `/implement-task` produces grounded, standards-cited iOS work and the iOS halves of `/fix-review-comments` and `/create-dev-qa-notes` are served. The **review lane is authored** (IOS-004) — `ios-code-reviewer` and `ios-performance-reviewer` plus the `ios-code-review` skill, so `/review-code` and the iOS perf sign-off in `/prepare-mobile-release` produce grounded, standards-cited output. tvOS-context sections are pending ATV-001/002.
-- **Native Android** — routing, platform detection, and folder structure are fully wired up, and the lane is **authored**: ten `standards/android/` documents with citable `AND-*` IDs (ANDROID-001), the planning lane (`android-architect` + `android-dev-planning`, ANDROID-002), the implementation lane (`android-feature-developer` + `android-feature-implementation`), and the review lane (`android-code-reviewer`, `android-performance-reviewer` + `android-code-review`). Device types `mobile` and `tv` are both handled.
-- **React (web)** — a plain browser SPA (Vite/CRA/Next.js), not React Native for Web. **Complete end to end.** The six base React **standards are authored** (REACT-001) with citable `REACT-*` IDs (111 rules, ID skeleton frozen), and all three lanes are authored (REACT-002) — planning (`react-architect` + `react-dev-planning`), implementation (`react-feature-developer` + `react-feature-implementation`), and review (`react-code-reviewer` + `react-performance-reviewer` + `react-code-review`) — so the full pipeline produces grounded, `REACT-*`-cited output. **Smart TV is supported as `device_type: tv`** (REACT-003): a seventh standard, `react-smart-tv.md`, adds 54 `REACT-TV-*` rules covering focus and D-pad spatial navigation, remote input (including cursor mode and the platform IME), 10-foot UI, playback and screensaver handling, app lifecycle, network and auth transport, a constrained-runtime memory budget, and Tizen/webOS packaging — vendor-neutral, and additive over the frozen base IDs. TV is a **context signal inside this platform**, not a platform of its own: there is no `react-tv` value and no TV-specific agent, skill, or command. Kept as a fully separate module from React Native despite overlapping JS/TS/React fundamentals, since the two target genuinely different runtimes (browser vs. native shell).
+- **Native iOS** — routing, platform detection, and folder structure are fully wired up. The five iOS **standards are authored** (IOS-001) with citable `IOS-*` IDs, and the **planning lane is authored** (IOS-002) — `feature-architect` + `platform-planning` against the `ios-dev-planning` lane, so `/analyze-feature`, `/dev-design-start`, and `/dev-feature-start` produce grounded, standards-cited iOS output. The **implementation lane is authored** (IOS-003) — `feature-implementer` + `platform-implementation` against the `ios-feature-implementation` lane, so `/implement-task` produces grounded, standards-cited iOS work and the iOS halves of `/fix-review-comments` and `/create-dev-qa-notes` are served. The **review lane is authored** (IOS-004) — `code-reviewer` and `performance-reviewer` + `platform-review` against the `ios-code-review` skill, so `/review-code` and the iOS perf sign-off in `/prepare-mobile-release` produce grounded, standards-cited output. tvOS-context sections are pending ATV-001/002.
+- **Native Android** — routing, platform detection, and folder structure are fully wired up, and the lane is **authored**: ten `standards/android/` documents with citable `AND-*` IDs (ANDROID-001), the planning lane (`feature-architect` + `platform-planning` + `android-dev-planning`, ANDROID-002), the implementation lane (`feature-implementer` + `platform-implementation` + `android-feature-implementation`), and the review lane (`code-reviewer` + `performance-reviewer` + `platform-review` + `android-code-review`). Device types `mobile` and `tv` are both handled.
+- **React (web)** — a plain browser SPA (Vite/CRA/Next.js), not React Native for Web. **Complete end to end.** The six base React **standards are authored** (REACT-001) with citable `REACT-*` IDs (111 rules, ID skeleton frozen), and all three lanes are authored (REACT-002) — planning (`feature-architect` + `platform-planning` + `react-dev-planning`), implementation (`feature-implementer` + `platform-implementation` + `react-feature-implementation`), and review (`code-reviewer` + `performance-reviewer` + `platform-review` + `react-code-review`) — so the full pipeline produces grounded, `REACT-*`-cited output. **Smart TV is supported as `device_type: tv`** (REACT-003): a seventh standard, `react-smart-tv.md`, adds 54 `REACT-TV-*` rules covering focus and D-pad spatial navigation, remote input (including cursor mode and the platform IME), 10-foot UI, playback and screensaver handling, app lifecycle, network and auth transport, a constrained-runtime memory budget, and Tizen/webOS packaging — vendor-neutral, and additive over the frozen base IDs. TV is a **context signal inside this platform**, not a platform of its own: there is no `react-tv` value and no TV-specific agent, skill, or command. Kept as a fully separate module from React Native despite overlapping JS/TS/React fundamentals, since the two target genuinely different runtimes (browser vs. native shell).
 - **Mixed repos** — a React Native repo with native iOS and/or Android changes, or a native monorepo containing both an iOS and an Android project, or a monorepo pairing a React web app with an RN/native app.
 
 The shared layer keeps its `mobile-*` naming (`mobile-repo-analysis`, `mobile-security-review`, `/prepare-mobile-release`, etc.) even though React (web) isn't literally mobile — Ono Apps is a mobile division that also owns a React web app, so the umbrella name stayed put rather than triggering a broader rename.
@@ -149,11 +149,11 @@ Apple TV, `ANDROID-003` for Android TV, `REACT-003` for Smart TV.
 
 ### Examples
 
-- **React Native only**: `/analyze-feature "add biometric login"` detects `platform: react-native`, routes to `rn-architect`, and the resulting feature analysis, DD, task breakdown, and every later stage stay entirely within the react-native module.
-- **Native iOS only**: a repo with `MyApp.xcodeproj`, a `Podfile` with no RN pod, and Swift sources detects `platform: ios`, routing to `ios-architect`/`ios-feature-developer`/etc.
-- **Native Android only**: a repo with `settings.gradle.kts`, `app/src/main`, and Kotlin sources detects `platform: android`, routing to the `android-*` agents.
-- **React (web) only**: a repo with `react`/`react-dom` in `package.json`, a `vite.config.ts`, and no `react-native` dependency detects `platform: react`, routing to the `react-*` agents.
-- **Multi-platform repo (RN + native)**: an RN repo whose feature could touch `ios/` and/or `android/` native modules detects several *candidate* platforms — `/analyze-feature` then requires the user to select the **single** active platform for this feature, and routes to that one architect. There is no `mixed` authoritative platform; a piece of work that genuinely spans platforms is run as one feature per platform.
+- **React Native only**: `/analyze-feature "add biometric login"` detects `platform: react-native`, routes to `feature-architect` + `platform-planning` + `rn-dev-planning`, and the resulting feature analysis, DD, task breakdown, and every later stage stay entirely within the react-native module.
+- **Native iOS only**: a repo with `MyApp.xcodeproj`, a `Podfile` with no RN pod, and Swift sources detects `platform: ios`, routing to the shared role agents against the `ios-` lanes.
+- **Native Android only**: a repo with `settings.gradle.kts`, `app/src/main`, and Kotlin sources detects `platform: android`, routing to the shared role agents against the `android-` lanes.
+- **React (web) only**: a repo with `react`/`react-dom` in `package.json`, a `vite.config.ts`, and no `react-native` dependency detects `platform: react`, routing to the shared role agents against the `react-` lanes.
+- **Multi-platform repo (RN + native)**: an RN repo whose feature could touch `ios/` and/or `android/` native modules detects several *candidate* platforms — `/analyze-feature` then requires the user to select the **single** active platform for this feature, and routes `feature-architect` to that one lane. There is no `mixed` authoritative platform; a piece of work that genuinely spans platforms is run as one feature per platform.
 - **Mixed (monorepo, web + mobile)**: a monorepo with `apps/web` (React) and `apps/mobile` (RN) — a diff touching only `apps/web` loads shared + react; a diff touching only `apps/mobile` loads shared + react-native (+ native platforms if RN's own shells are touched).
 
 ## Quick start
@@ -226,16 +226,21 @@ The pipeline is deliberately gated: `/dev-design-start` refuses to run on a feat
 
 ## Pipeline
 
-| Stage | Command | Shared skill/agent | Platform-specific skill/agent (per platform touched) |
-|---|---|---|---|
-| 1. Analyze | `/analyze-feature` | `mobile-repo-analysis`, `repo-analyst` | `rn-architect` / `ios-architect` / `android-architect` / `react-architect` |
-| 2. Design | `/dev-design-start` | `dev-design-start` | `rn-dev-planning` / `ios-dev-planning` / `android-dev-planning` / `react-dev-planning` (via the matching architect) |
-| 3. Feature start | `/dev-feature-start` | `dev-feature-start` | `rn-dev-planning` / `ios-dev-planning` / `android-dev-planning` / `react-dev-planning` (via the matching architect) |
-| 4. Implement | `/implement-task` | — (no shared implementation skill; the approval gate applies to all) | `rn-feature-implementation`/`rn-feature-developer`, and the `ios-`/`android-`/`react-` equivalents |
-| 5. Review | `/review-code`, `/review-security` | `mobile-security-review`, `mobile-security-reviewer` (security only) | `rn-code-review`/`rn-code-reviewer`/`rn-performance-reviewer`, and the `ios-`/`android-`/`react-` equivalents (code review + performance) |
-| 6. Fix | `/fix-review-comments` | `mobile-debugging` (root-causing) | `rn-feature-developer` / `ios-feature-developer` / `android-feature-developer` / `react-feature-developer` (applies the fix) |
-| 7. QA handoff | `/create-dev-qa-notes` | `mobile-testing-and-qa-handoff` | the relevant platform feature-developer agent(s), for build/install/testing instructions |
-| 8. Release | `/prepare-mobile-release` | `mobile-release-readiness`, `mobile-release-engineer` | `rn-performance-reviewer` / `ios-performance-reviewer` / `android-performance-reviewer` / `react-performance-reviewer` (perf sign-off per shipping platform) |
+Every stage runs one **role agent** plus one **shared lifecycle methodology**, against
+**exactly one platform lane** resolved from the confirmed platform. The role agent and the
+methodology are platform-independent; the lane is the only source of platform content.
+
+| Stage | Command | Role agent | Shared methodology | Platform lane (exactly one) |
+|---|---|---|---|---|
+| 1. Analyze | `/analyze-feature` | `feature-architect` | `platform-planning` | `rn-` / `ios-` / `android-` / `react-dev-planning` |
+| 2. Design | `/dev-design-start` | `feature-architect` | `platform-planning` + `dev-design-start` | `*-dev-planning` |
+| 3. Feature start | `/dev-feature-start` | `feature-architect` | `platform-planning` + `dev-feature-start` | `*-dev-planning` |
+| 4. Implement | `/implement-task` | `feature-implementer` | `platform-implementation` | `*-feature-implementation` |
+| 5. Review | `/review-code` | `code-reviewer` + `performance-reviewer` | `platform-review` | `*-code-review` |
+| 5b. Security | `/review-security` | `mobile-security-reviewer` | `mobile-security-review` | — (shared standards only) |
+| 6. Fix | `/fix-review-comments` | `feature-implementer` | `mobile-debugging` (root-causing) + `platform-implementation` | `*-feature-implementation` |
+| 7. QA handoff | `/create-dev-qa-notes` | `feature-implementer` | `mobile-testing-and-qa-handoff` | `*-feature-implementation` |
+| 8. Release | `/prepare-mobile-release` | `mobile-release-engineer`, then `performance-reviewer` once per shipping platform | `mobile-release-readiness` + `platform-review` | `*-code-review` |
 
 `repo-analyst` has no dedicated command — it's invoked by other agents/skills as a first step, on every stage that needs to know the platform.
 
@@ -345,10 +350,9 @@ skills/                             (flat, one level — prefix = scope)
 
 agents/                             (flat)
   repo-analyst.md  mobile-security-reviewer.md  mobile-release-engineer.md
-  rn-architect.md  rn-feature-developer.md  rn-code-reviewer.md  rn-performance-reviewer.md
-  ios-architect.md ios-feature-developer.md ios-code-reviewer.md ios-performance-reviewer.md      (authored)
-  android-architect.md android-feature-developer.md android-code-reviewer.md android-performance-reviewer.md  (authored)
-  react-architect.md   react-feature-developer.md   react-code-reviewer.md   react-performance-reviewer.md    (authored, REACT-002)
+  feature-architect.md  feature-implementer.md  code-reviewer.md  performance-reviewer.md
+                                      (four shared role agents — one per lifecycle stage,
+                                       each run against exactly one platform lane)
 
 standards/
   shared/       mobile-security.md, accessibility.md, i18n-rtl.md, release-readiness.md, qa-handoff.md

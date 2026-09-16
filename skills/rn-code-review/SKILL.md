@@ -1,32 +1,83 @@
 ---
 name: rn-code-review
-description: Methodology for reviewing React Native code changes against org standards. Used by /review-code, scoped to files attributed to the react-native platform, via the rn-code-reviewer and rn-performance-reviewer agents and the code-review template.
+description: React Native-specific review content — the standards families and RN-*/ARCH-*/API-*/STATE-*/NAV-* citation map, the review buckets, and this lane's own out-of-lane policy. Used by /review-code, scoped to files attributed to the react-native platform, alongside the shared platform-review skill which owns the review methodology.
 ---
 
-## Methodology
+# React Native Code Review
 
-This skill runs only against files the command has attributed to the react-native platform — for a mixed-repo review, iOS/Android/React-web-attributed files are handled by their own platform's code-review skill in parallel, and findings are merged into one `templates/code-review-template.md` with `[platform]` tags, not produced as separate documents.
+## Overview
 
-1. **Resolve scope.** Use the react-native-attributed file list/diff handed in by the caller. If this is a whole-repo audit rather than a diff review, state that mode explicitly at the top of the output.
+This skill is the **React Native half** of a code review. It owns what a platform-independent
+layer could not state: which standards families and IDs may be cited, and how changed files
+map to review buckets.
 
-2. **Triage changed files into standards-relevant buckets.** Map each changed file to zero or more of: `RN-*` (any component/hook/TS file), `API-*` (endpoint/service files — the Universal Principles in `rn-api-service-layer.md` always apply; its RTK Query section only when `repo-analyst` detected RTK Query as the data-fetching layer), `STATE-*` (slices/selectors — the Universal Principles in `rn-state-management.md` always apply; its Redux Toolkit section only when `repo-analyst` detected Redux Toolkit as the state-management library), `I18N-*` (files with user-facing copy), `A11Y-*` (screens/interactive components), `ARCH-*` (folder placement, layering, composition, reuse), `NAV-*` (navigator/route files). Files matching no bucket are marked out of scope and skipped — keep the review free of manufactured noise, mirroring `mobile-security-review`'s triage-and-skip step.
+The methodology half — the delegation ladder, the filing gate, citation discipline, evidence
+reach, predicate versus claim, mechanism versus magnitude, scope discipline, severity and the
+two-pass rule — lives in **`skills/platform-review/SKILL.md`** and is not restated here.
+Apply both.
 
-3. **`rn-code-reviewer` walks each bucketed file** against its standards section's checklist, recording pass / fail / not-applicable per bullet, noting the standard ID for anything that fails.
+This skill runs only against files the command attributed to the react-native platform. For
+a mixed-repo review, iOS/Android/React-web files are handled by their own lane in parallel,
+and findings merge into one `templates/code-review-template.md` with `[platform]` tags —
+never a separate document per platform.
 
-4. **`rn-performance-reviewer` independently audits the same scope** against `standards/react-native/rn-performance.md`'s `RN-PERF-*` rules — this step runs separately from step 3, not as a sub-step of it, so a perf-only change doesn't get miscategorized as a correctness finding.
+**React Native is mobile-only in this lane.**
 
-5. **Merge both agents' findings, tagged `[react-native]`, into the single `templates/code-review-template.md`** shared across all platforms touched by this review. Do not produce a separate document per platform.
+## Triage into standards-relevant buckets
 
-6. **Assign severity** using this rubric, consistent with the security lane:
-   - **Blocking** — breaks functionality or violates a hard rule (e.g. a class component in new code, an untyped exported function, a missing `keyExtractor` causing incorrect list behavior).
-   - **Major** — likely to cause a real bug or meaningfully hurts maintainability (e.g. business logic inside a component instead of a hook/service, a non-normalized error shape leaking to the UI).
-   - **Minor** — a standards deviation without immediate functional risk (e.g. hardcoded copy instead of an i18n key, a missing memoized selector).
-   - **Nit** — style/hygiene suggestion (e.g. inconsistent naming, a missing prop-typing default).
+Map each changed file to zero or more buckets, and skip files matching none — keep the
+review free of manufactured noise:
 
-7. **Write concrete remediation per finding** — a specific fix pointer, not just a restatement that something is wrong.
+- `RN-*` — any component, hook or TypeScript file.
+- `ARCH-*` — folder placement, layering, composition, reuse.
+- `API-*` — endpoint and service files. The Universal Principles in `rn-api-service-layer.md` always apply; its RTK Query section only when RTK Query is the detected data-fetching layer.
+- `STATE-*` — slices and selectors. The Universal Principles in `rn-state-management.md` always apply; its Redux Toolkit section only when Redux Toolkit is the detected state library.
+- `NAV-*` — navigator and route files.
+- `I18N-*` — files carrying user-facing copy.
+- `A11Y-*` — screens and interactive components.
 
-8. **Cite the standard ID** for every finding so it traces back to the specific standards doc.
+## The two passes over this lane
 
-9. **Populate `templates/code-review-template.md` in full**, including explicit "None found" for sections with no issues, and an overall verdict (Approved / Approved with follow-ups / Blocked).
+`code-reviewer` walks each bucketed file against its standards section's checklist,
+recording pass / fail / not-applicable per bullet. `performance-reviewer` **independently**
+audits the same scope against `standards/react-native/rn-performance.md`'s `RN-PERF-*` rules —
+a separate pass, not a sub-step, so a perf-only change is never miscategorised.
 
-10. **Exclude security and out-of-scope performance findings.** Security issues defer to `mobile-security-review`'s methodology; anything outside `RN-PERF-*`'s scope stays with `rn-code-reviewer`, not `rn-performance-reviewer`.
+## Exclusions
+
+Security defers to `mobile-security-review`'s methodology. Anything outside `RN-PERF-*`'s
+scope stays with `code-reviewer` rather than `performance-reviewer`.
+
+## Standards citation
+
+| Area | Standard file | IDs |
+|---|---|---|
+| TypeScript, components, hooks, naming, props, constants, styling, lint | `standards/react-native/rn-coding-standards.md` | `RN-TS-*`, `RN-FC-*`, `RN-NAME-*`, `RN-PROPS-*`, `RN-CONST-*`, `RN-STYLE-*`, `RN-LINT-*` |
+| Layering, structure, dependency direction, reuse | `standards/react-native/rn-architecture.md` | `ARCH-LAYERS-*`, `ARCH-FOLDERS-*`, `ARCH-DEPS-*`, `ARCH-LOGIC-*`, `ARCH-REUSE-*` |
+| Data fetching & API layer | `standards/react-native/rn-api-service-layer.md` | `API-ORG-*`, `API-CACHE-*`, `API-BASEQ-*`, `API-ERR-*` |
+| Shared & global state | `standards/react-native/rn-state-management.md` | `STATE-SLICE-*`, `STATE-SELECT-*`, `STATE-ENTITY-*`, `STATE-BOUNDARY-*` |
+| Navigation & deep links | `standards/react-native/rn-navigation.md` | `NAV-TYPED-*`, `NAV-SERVICE-*`, `NAV-DEEPLINK-*` |
+| Performance | `standards/react-native/rn-performance.md` | `RN-PERF-RERENDER-*`, `RN-PERF-LIST-*`, `RN-PERF-JSTHREAD-*`, `RN-PERF-IMAGE-*`, `RN-PERF-BUNDLE-*` |
+| Accessibility (shared) | `standards/shared/accessibility.md` | `A11Y-ROLES-*`, `A11Y-TOUCH-*`, `A11Y-FONT-*`, `A11Y-SR-*` |
+| Localization & RTL (shared) | `standards/shared/i18n-rtl.md` | `I18N-COPY-*`, `I18N-RTL-*`, `I18N-FMT-*`, `I18N-TEST-*` |
+
+## Out-of-lane observations — React Native's policy
+
+**This lane permits a one-line out-of-lane aside.** A performance or security issue
+noticed incidentally gets at most a one-line aside outside the Findings section — never a
+filed finding here, since performance belongs to `performance-reviewer` and security to
+`mobile-security-reviewer`.
+
+**This policy is React Native's alone.** The iOS, Android and React lanes each forbid any
+out-of-lane aside, and each forbids a modernization or preference observation appearing
+anywhere in the output. That divergence is deliberate and long-standing — it is recorded
+here, in the lane that owns it, rather than in shared methodology. Do not normalise it in
+either direction without an explicit decision; `skills/platform-review/SKILL.md` is
+deliberately neutral on this policy and delegates it to each lane.
+
+## Relationship with command, agents, skills
+
+- **`commands/review-code.md`** — scope, file attribution, standards loading, lane routing, the readiness gate, and the merge.
+- **`skills/platform-review/SKILL.md`** — the platform-independent review methodology. It names every other owner; that table is not repeated here.
+- **`agents/code-reviewer.md`** and **`agents/performance-reviewer.md`** — the two executors that run both halves over this platform's files.
+- **This skill** — the React Native review content itself, and nothing a platform-independent layer could state.

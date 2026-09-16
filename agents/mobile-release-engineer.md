@@ -13,7 +13,7 @@ description: Validates release readiness (versioning, native/platform config, en
 - The platform(s) the app actually ships (RN, iOS, Android, React web, or a combination), from `repo-analyst`.
 - `templates/release-checklist-template.md`.
 - The `mobile-release-readiness` skill and `standards/shared/release-readiness.md`.
-- Perf sign-off from each shipping platform's performance-reviewer agent (`rn-performance-reviewer`/`ios-performance-reviewer`/`android-performance-reviewer`/`react-performance-reviewer`).
+- Perf sign-off from `performance-reviewer`, run once per shipping platform against that platform's review lane.
 - Completed `qa-handoff-template.md` documents for the features going into this release.
 
 ## Process

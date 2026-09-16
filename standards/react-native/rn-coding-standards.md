@@ -2,7 +2,7 @@
 
 ## Purpose & Scope
 
-These standards apply to all React Native application code reviewed by `rn-code-reviewer` via `/review-code` — components, hooks, utilities, and TypeScript types across the app. They cover general code shape and hygiene; API service layer, state management, i18n/RTL, and accessibility have their own dedicated standards documents. Each bullet below carries a stable ID so review findings can cite the exact rule they violate. This list is a baseline, not exhaustive — reviewers should use judgment for cases not covered here.
+These standards apply to all React Native application code reviewed by `code-reviewer` via `/review-code` — components, hooks, utilities, and TypeScript types across the app. They cover general code shape and hygiene; API service layer, state management, i18n/RTL, and accessibility have their own dedicated standards documents. Each bullet below carries a stable ID so review findings can cite the exact rule they violate. This list is a baseline, not exhaustive — reviewers should use judgment for cases not covered here.
 
 ## TypeScript Strictness
 
@@ -93,7 +93,7 @@ A rule met with only one of a pair is met on one platform and silently unmet on 
 
 ## AI Agent Execution Directives
 
-This section is the single normative reference for how any agent (`rn-code-reviewer`, `rn-performance-reviewer`, `rn-architect`, `rn-feature-developer`, or a generic review/implementation agent) consumes every stable ID across all `standards/react-native/*.md` documents. It governs severity handling, citation format, and anti-hallucination behavior uniformly — an agent does not need a per-document version of this section.
+This section is the single normative reference for how any agent (`code-reviewer`, `performance-reviewer`, `feature-architect`, `feature-implementer`, or a generic review/implementation agent) consumes every stable ID across all `standards/react-native/*.md` documents. It governs severity handling, citation format, and anti-hallucination behavior uniformly — an agent does not need a per-document version of this section.
 
 - **Severity hierarchy is exact and non-negotiable:**
   - `[CRITICAL]` — blocks the build/PR. `/review-code` and any equivalent gate must report a failing/"changes requested" outcome when a `[CRITICAL]` finding is present, and the finding must be resolved (not suppressed) before merge.

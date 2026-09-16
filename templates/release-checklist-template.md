@@ -22,7 +22,7 @@
      - React (web): production build artifact, deploy target — no store-readiness section. -->
 ## Platform-Specific Release Validation
 
-<!-- One perf sign-off block per shipping platform, tagged [platform], populated by that platform's performance-reviewer agent (rn-/ios-/android-/react-performance-reviewer): bundle size delta and the platform's own performance concerns, plus verdict. Per REL-PERF-1. -->
+<!-- One perf sign-off block per shipping platform, tagged [platform], populated by `performance-reviewer` run against that platform's resolved review lane: bundle size delta and the platform's own performance concerns, plus verdict. Per REL-PERF-1. -->
 ## Perf Sign-off
 
 <!-- Populated from a completed qa-handoff-template.md for every feature going into this release. Per REL-QA-1. -->

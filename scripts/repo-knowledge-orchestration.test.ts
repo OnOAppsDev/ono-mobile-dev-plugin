@@ -58,7 +58,7 @@ const consumer = read("skills/repo-knowledge-consumer/SKILL.md");
 /** `/analyze-feature` step 3, sliced between its own numbered heading and step 4. */
 function step3(): string {
   const from = analyze.indexOf("\n3. Once the platform is confirmed");
-  const to = analyze.indexOf("\n4. Invoke the confirmed platform's architect", from);
+  const to = analyze.indexOf("\n4. Invoke the `feature-architect`", from);
   return from !== -1 && to !== -1 ? analyze.slice(from, to) : "";
 }
 const S3 = step3();
@@ -93,27 +93,34 @@ const S3 = step3();
     /iOS, Android and React — reused at the architect/.test(S3));
   check("3 step 3 says this is not a reuse gap",
     /is not a gap in canonical-knowledge reuse/.test(S3));
-  check("3 step 3 names all three architects as the resolvers",
-    /`ios-architect`/.test(S3) && /`android-architect`/.test(S3) && /`react-architect`/.test(S3));
-  check("3 step 3 routes them through the consumer, not its internals",
-    /resolve canonical repository knowledge themselves through `repo-knowledge-consumer`/.test(S3));
+  // OWNERSHIP MOVED (Stage 5d). The three per-platform architects were replaced by one
+  // role agent, so step 3 names the resolver once instead of three times. The claim being
+  // pinned is unchanged: resolution happens at the architect layer, through the consumer.
+  check("3 step 3 names the architect-layer resolver",
+    /`feature-architect`/.test(S3));
+  check("3 step 3 routes it through the consumer, not its internals",
+    /resolves canonical repository knowledge itself through `repo-knowledge-consumer`/.test(S3));
   check("3 step 3 cites the three dev-planning evidence sections",
     /skills\/ios-dev-planning\/SKILL\.md` §3/.test(S3) && /skills\/android-dev-planning\/SKILL\.md` §3/.test(S3) &&
       /skills\/react-dev-planning\/SKILL\.md` §3/.test(S3));
 
   // The architects must actually do what step 3 now claims.
   for (const lane of ["ios", "android", "react"]) {
-    const agent = read(`agents/${lane}-architect.md`);
-    check(`3 ${lane}-architect resolves canonical knowledge via the consumer`,
-      /repo-knowledge-consumer/.test(agent) && /[Rr]esolve canonical repository knowledge/.test(agent));
-    const skill = read(`skills/${lane}-dev-planning/SKILL.md`);
-    check(`3 ${lane}-dev-planning has a §2 Repository-knowledge reuse section`,
-      /## 2\. Repository-knowledge reuse/.test(skill));
-    check(`3 ${lane}-dev-planning routes resolution through the consumer`,
-      /`repo-knowledge-consumer`/.test(skill));
-    check(`3 ${lane}-dev-planning never parses the manifest itself`,
-      !/(read|parse)[^.\n]{0,40}`?\.ono\/repo-knowledge\.json`?[^.\n]{0,30}(yourself|directly)(?![^.]*Never)/i.test(skill) ||
-        /Never read or parse `\.ono\/repo-knowledge\.json` directly/.test(skill));
+    // OWNERSHIP MOVED (Stage 5c). Repository-knowledge resolution is platform-independent
+    // and is owned once by skills/platform-planning; each lane delegates to it rather than
+    // carrying a copy. Asserted against the ROUTE — lane plus shared methodology — which is
+    // what an architect actually loads.
+    const lanText = read(`skills/${lane}-dev-planning/SKILL.md`);
+    const shared = read("skills/platform-planning/SKILL.md");
+    const skill = lanText + "\n" + shared;
+    check(`3 ${lane} route has a repository-knowledge resolution step`,
+      /Repository[- ]knowledge (reuse|before live derivation)/i.test(skill));
+    check(`3 ${lane} route routes resolution through the consumer`,
+      /`?skills\/repo-knowledge-consumer`?|`repo-knowledge-consumer`/.test(skill));
+    check(`3 ${lane} lane delegates rather than restating the procedure`,
+      /platform-planning/.test(lanText));
+    check(`3 ${lane} route never parses the manifest itself`,
+      /Never parse `\.ono\/repo-knowledge\.json` yourself|Never read or parse `\.ono\/repo-knowledge\.json` directly/.test(skill));
     // NOTE (React divergence, reported not silently accepted): ios- and
     // android-dev-planning §2 delegate with "Apply it as written; it is not restated
     // here", while react-dev-planning §2 restates the usableCategories/deriveLive
@@ -123,10 +130,22 @@ const S3 = step3();
     // therefore pins the shared substance, and the wording difference is tracked as a
     // React-lane follow-up rather than papered over.
     if (lane !== "react") {
-      check(`3 ${lane}-dev-planning §2 does not restate the procedure`,
-        /it is not restated here/.test(skill));
+      check(`3 ${lane} lane does not restate the procedure`,
+        /is not restated here/.test(lanText));
     }
   }
+}
+
+// --- 3b. The routed architect performs the resolution step 3 claims ------
+{
+  // Re-pointed from the four per-platform architects (Stage 5d). They still exist but are
+  // no longer routed from any planning command, so the route's resolver is the assertion
+  // that matters. Not weakened: the same two facts are still required of the live agent.
+  const agent = read("agents/feature-architect.md");
+  check("3b feature-architect resolves canonical knowledge via the consumer",
+    /repo-knowledge-consumer/.test(agent));
+  check("3b feature-architect carries the shared methodology that owns resolution",
+    /platform-planning/.test(agent));
 }
 
 // --- 4. THE REGRESSION GUARD: no lane is described as unauthored ----------
@@ -208,7 +227,7 @@ const S3 = step3();
     /\*\*Android\*\*: lightweight existence checks only/.test(repoAnalyst));
   check("6 repo-analyst does lightweight React checks for the same deliberate reason",
     /\*\*React \(web\)\*\*: lightweight existence checks only/.test(repoAnalyst) &&
-      /react-architect` runs its own deeper React inspection/.test(repoAnalyst));
+      /feature-architect` runs its own deeper React inspection/.test(repoAnalyst));
   check("6 repo-analyst no longer defers React depth to unauthored standards",
     !/deferred until `standards\/react\/\*` is authored/.test(repoAnalyst));
   check("6 repo-analyst still labels every stack finding reused or derived",
@@ -220,12 +239,15 @@ const S3 = step3();
   // Inverted by REACT-001/002/003. These were status assertions ("React is still a
   // placeholder"); with the lane authored they become the same coverage assertions
   // group 3 already makes for iOS and Android — a stronger check, not a weaker one.
-  const reactAgent = read("agents/react-architect.md");
+  // Re-pointed (cleanup): one shared role agent serves React like every other lane.
+  const reactAgent = read("agents/feature-architect.md");
   const reactSkill = read("skills/react-dev-planning/SKILL.md");
-  check("7 react-architect resolves canonical knowledge via the consumer",
+  check("7 the React route resolves canonical knowledge via the consumer",
     /repo-knowledge-consumer/.test(reactAgent));
-  check("7 react-dev-planning delegates to the consumer", /repo-knowledge-consumer/.test(reactSkill));
-  for (const rel of ["agents/react-architect.md", "skills/react-dev-planning/SKILL.md"]) {
+  // The React lane delegates via platform-planning, which owns the consumer step.
+  check("7 react-dev-planning delegates repository knowledge to the shared methodology",
+    /platform-planning/.test(reactSkill));
+  for (const rel of ["agents/feature-architect.md", "skills/react-dev-planning/SKILL.md"]) {
     check(`7 ${rel} is no longer a placeholder`, !/^## Status: Not yet authored$/m.test(read(rel)));
   }
   const reactStandards = readdirSync(join(REPO_ROOT, "standards", "react")).filter((f) => f.endsWith(".md"));

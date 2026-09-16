@@ -2,7 +2,7 @@
 
 ## Purpose & Scope
 
-These standards apply to all native Android application code written in Kotlin, implemented by `android-feature-developer` via `/implement-task` (using the `android-feature-implementation` skill) and reviewed by `android-code-reviewer` via `/review-code`. They cover Kotlin language and style: null-safety, type usage, language constructs, coroutines/Flow usage, and static analysis. Architecture, UI-framework, and threading-topology concerns have their own dedicated Android standards documents. Each bullet below carries a stable `AND-KT-*` ID so review findings and implementation summaries can cite the exact rule. This list is a baseline, not exhaustive — follow the repository's detected Kotlin style and language level first, and use judgment for cases not covered here.
+These standards apply to all native Android application code written in Kotlin, implemented by `feature-implementer` via `/implement-task` (using the `android-feature-implementation` skill) and reviewed by `code-reviewer` via `/review-code`. They cover Kotlin language and style: null-safety, type usage, language constructs, coroutines/Flow usage, and static analysis. Architecture, UI-framework, and threading-topology concerns have their own dedicated Android standards documents. Each bullet below carries a stable `AND-KT-*` ID so review findings and implementation summaries can cite the exact rule. This list is a baseline, not exhaustive — follow the repository's detected Kotlin style and language level first, and use judgment for cases not covered here.
 
 ## Null Safety & Types
 

@@ -1,6 +1,6 @@
 # Code Review
 
-<!-- Files/PR/branch reviewed, commit SHA, date, reviewers (the code-reviewer + performance-reviewer agent for each platform touched, e.g. rn-code-reviewer/rn-performance-reviewer, ios-code-reviewer/ios-performance-reviewer, etc.). Also note "Platforms Reviewed" — the platform(s) this diff was attributed to. -->
+<!-- Files/PR/branch reviewed, commit SHA, date, reviewers (the `code-reviewer` + `performance-reviewer` agents, one pair of passes per platform touched, each run against that platform's resolved review lane). Also note "Platforms Reviewed" — the platform(s) this diff was attributed to. -->
 ## Scope
 
 <!-- List of standard IDs from standards/shared/*.md and each touched platform's standards/<platform>/*.md that were applicable and checked. -->

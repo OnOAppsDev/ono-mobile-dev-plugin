@@ -21,7 +21,7 @@ description: Shared methodology for validating a release is ready to ship, acros
    - **Android**: Gradle variant, signing config, Play Console readiness — per `standards/android/gradle-build-signing.md`.
    - **React (web)**: production build artifact, deploy target — no store-readiness section.
 
-7. **Get perf sign-off**, per `REL-PERF-1`. Pull each shipping platform's performance-reviewer agent's findings (`rn-performance-reviewer`/`ios-performance-reviewer`/`android-performance-reviewer`/`react-performance-reviewer`) into a platform-tagged Perf Sign-off subsection.
+7. **Get perf sign-off**, per `REL-PERF-1`. Pull `performance-reviewer`'s findings from each shipping platform's run — one invocation per platform, each against that platform's review lane — into a platform-tagged Perf Sign-off subsection.
 
 8. **Get QA sign-off**, per `REL-QA-1`. Pull the completed `qa-handoff-template.md` for every feature going into this release; a feature without QA handoff notes is a blocker.
 

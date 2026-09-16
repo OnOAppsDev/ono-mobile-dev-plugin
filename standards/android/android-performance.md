@@ -2,7 +2,7 @@
 
 ## Purpose & Scope
 
-These standards apply to native Android app code audited by the `android-performance-reviewer` agent via `/review-code` (diff-scoped) and `/prepare-mobile-release` (release-scoped), and are applied by `android-feature-developer` during implementation. Each bullet carries a stable `AND-PERF-*` ID so findings can cite a rule instead of restating the concern. This is a baseline, not exhaustive — flag suspected issues that need profiling (Android Studio Profiler, Macrobenchmark, LeakCanary) to confirm as such, rather than stating a guess as a confirmed blocking finding.
+These standards apply to native Android app code audited by the `performance-reviewer` agent via `/review-code` (diff-scoped) and `/prepare-mobile-release` (release-scoped), and are applied by `feature-implementer` during implementation. Each bullet carries a stable `AND-PERF-*` ID so findings can cite a rule instead of restating the concern. This is a baseline, not exhaustive — flag suspected issues that need profiling (Android Studio Profiler, Macrobenchmark, LeakCanary) to confirm as such, rather than stating a guess as a confirmed blocking finding.
 
 ## Main-Thread & Threading
 

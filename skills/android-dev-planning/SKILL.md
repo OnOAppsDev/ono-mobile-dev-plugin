@@ -1,53 +1,29 @@
 ---
 name: android-dev-planning
-description: Repository-first planning methodology for native Android features — discovers the repo's actual implementation model, then supplies the Android vocabulary and AND-*/shared standard IDs for a Detailed Design's Technical Implementation Approach, Impacted Modules, and task breakdown. Used by /dev-design-start and /dev-feature-start via the android-architect agent, alongside the shared dev-design-start / dev-feature-start skills, which own the overall mechanics. Assumes no UI toolkit, architecture, or library, and handles device_type mobile and tv.
+description: Android-specific planning methodology — the repository evidence dimensions to inspect, the vocabulary a Detailed Design's approach and change surface are written in, Android detection traps, device_type handling and the AND-* citation map. Used by /analyze-feature, /dev-design-start and /dev-feature-start via the feature-architect agent, alongside the shared platform-planning skill which owns the planning methodology.
 ---
 
 # Android Dev Planning
 
 ## Overview
 
-This skill is the methodology the `android-architect` agent follows when planning native Android work. It owns *how* an Android feature is understood, grounded in repository evidence, analysed, classified, and expressed as a design — for `/analyze-feature`'s Proposed Technical Approach, `/dev-design-start`'s DD §19/§20, and `/dev-feature-start`'s task vocabulary.
+This skill is the **Android half** of planning a feature. It owns what a
+platform-independent layer could not state: which dimensions of a Android repository must be
+inspected, the vocabulary the approach and change surface are written in, this platform's
+detection traps and device-type handling, and which `AND-*` and shared standard IDs may be
+cited.
 
-It is not orchestration. The shared `dev-design-start` and `dev-feature-start` skills own the overall mechanics: DD structure and gap discipline; existing-file strategy; task decomposition, dependencies, rollback plan, and draft-until-approved gates. This skill does not re-implement any of that — it supplies the Android-specific content those mechanics consume.
+The methodology half — the confirmed-context rule, standards readiness, repository-knowledge
+resolution, evidence discipline and its labelling vocabulary, reuse-before-new,
+detected-conventions-govern, output discipline and the generic stop conditions — lives in
+**`skills/platform-planning/SKILL.md`** and is not restated here. The DD's own section
+rules, the statement classification, the risk taxonomy and the source-of-truth hierarchy
+belong to **`skills/dev-design-start/SKILL.md`**. Apply all three.
 
-**This skill assumes no technology.** Jetpack Compose, XML/Views, Fragments, Activities, single-activity, Hilt, Dagger, Koin, manual DI, Room, DataStore, Retrofit, Ktor, Coroutines/Flow, RxJava, LiveData, WorkManager, MVVM, MVI, Clean Architecture, multi-module layout, and — on TV — Leanback or Compose for TV are **possible findings, never defaults**. The repository's existing conventions are the source of truth. Official Android documentation is supporting guidance only and never overrides a valid existing implementation.
+**This skill assumes no technology.** Everything this lane names is a *possible finding*,
+never a default. What the repository already does is the source of truth.
 
-**This skill never writes code and never modifies repository files.** It plans.
-
-## Inputs this skill requires (resolved, never invented)
-
-Before anything else, obtain and **verify the existence of** the concrete inputs below. They are resolved and passed by the invoking command — artifact resolution is `commands/dev-design-start.md`'s, not this skill's. This skill **never guesses or fabricates a path** to a feature document.
-
-- The confirmed **`platform`** (must be `android`) and **`device_type`** (`mobile` or `tv`), read from frontmatter. Never re-detected here.
-- The target **repository / module root**.
-- **At Analyze:** the feature description and `repo-analyst`'s findings summary.
-- **At Design:** the absolute path to the **approved Feature Analysis**.
-- **At Feature-start:** the absolute path to the **approved Detailed Design (DD)**.
-- The four **design-reference fields** (`design_reference_status`, `design_reference_type`, `design_reference`, `figma_link`).
-
-If any required input is missing, **stop and report exactly which input is missing** — do not proceed against an assumed location. If `platform` is not `android`, stop: this skill does not run for another platform. If `device_type` is missing, empty, or any value other than `mobile`/`tv` (including `mixed`), **stop and report it** — never default to `mobile`.
-
-## 0. Standards readiness gate
-
-This skill grounds every Android-specific rule in an authored `AND-*` standard under `standards/android/`. Before planning, confirm those standards are authored (not placeholders). If any cited `standards/android/*` file is missing or is still a structure-only placeholder, **stop and report that real Android planning is blocked until it is authored** — do not silently fall back to assumed defaults. (As of authoring, all ten `standards/android/*` files and the shared `A11Y-*`/`I18N-*`/`SEC-*` standards are authored; this gate exists so the skill fails loudly if that regresses.)
-
-## 1. Source-of-truth hierarchy
-
-Defined once in `skills/dev-design-start/SKILL.md` § *Shared planning rules → Source-of-truth hierarchy*. Apply it as written; it is not restated here.
-
-Android's parameters for the two parameterised ranks:
-
-- **Rank 4** — `standards/android/*` plus `standards/shared/*`.
-- **Rank 5** — official Android documentation.
-
-## 2. Repository-knowledge reuse
-
-Repository knowledge is resolved by the invoking command and consumed through the `repo-knowledge-consumer` skill, which owns the resolution procedure, what may be reused, and the citation shape. Apply it as written; it is not restated here.
-
-What this lane adds on top of it:
-
-- **Derive live the Android detail no repository-wide document can hold** — the actual signatures, state shape, and call sites of the specific classes *this feature* touches, alongside the categories the consumer reports as `deriveLive`. That feature-specific reading is required and is not duplication of the manifest.
+**This skill plans. It never writes code and never modifies repository files.**
 
 ## 3. Repository evidence collection
 
@@ -214,60 +190,11 @@ Likewise, D-pad focus traversal, always-visible focus indication, and predictabl
 
 This skill does **not** author TV standards or TV rules — that is a separate, later scope. Its TV responsibility is discovery and respect for the existing model.
 
-## 15. Classification: Existing, Required, Recommended, Unresolved
-
-Defined once in `skills/dev-design-start/SKILL.md` § *Shared planning rules → Classification*. Every statement in an Android plan carries one of those four labels; the taxonomy is not restated here.
-
-## 16. Risk classification
-
-Defined once in `skills/dev-design-start/SKILL.md` § *Shared planning rules → Risk classification*. Apply the three classes as written; they are not restated here.
-
-## 17. Traceability and output requirements
-
-Every element of the plan traces to something concrete:
-
-- **Repository claims** → a path, via `[evidence: <path>]` or `[reused: <path>#<anchor>]`.
-- **Requirements** → the upstream document section they come from.
-- **Rules** → a real `AND-*` or shared ID, cited only where it genuinely applies.
-- **Recommendations** → an explicit justification.
-
-Never cite an ID that does not exist, and never cite one that is merely adjacent to the point being made. **Never use React Native's generically-named `ARCH-*`/`API-*`/`STATE-*`/`NAV-*` IDs for Android** — those are RN-specific; Android cites the `AND-*` roots.
-
-Output shape, consumed by the shared skills:
-
-- **At Analyze** → the flat "Proposed Technical Approach" section of `templates/feature-analysis-template.md`. The evidence base belongs in that document.
-- **At Design** → the DD's §19 Technical Implementation Approach and §20 Impacted Modules, **as conclusions rather than as a transcript.** The evidence sweep from [§3](#3-repository-evidence-collection), the `[evidence: <path>]` / `[reused: …]` / `[inference]` / `[unknown]` labelling, and the [§14](#14-device_type-handling) TV discovery pass are research that grounds the design — they are not DD content, and are never pasted into it. §19 receives the decisions taken and the standard IDs each follows; §20 receives modules and change classes per [§6](#6-module-and-dependency-impact). The shared `dev-design-start` skill's Step 6 and Step 7 govern what actually lands in the document.
-- **At Feature-start** → the Android vocabulary and standard IDs used in each task's description and acceptance criteria.
-
-Exactly one confirmed platform always applies, so these sections are **always flat** — never split into per-platform subsections.
-
-## 18. Approval gates and failure behavior
-
-- Approval gating is owned by `commands/dev-design-start.md` and `commands/dev-feature-start.md`. **This skill never flips a status.**
-- The design-reference gate is owned by `/analyze-feature`; this lane reads what it recorded and never re-runs it.
-- **Stop and report** — never work around — when: a required input is missing; `device_type` is absent or invalid; evidence is missing, contradictory, or ambiguous on a load-bearing dimension; upstream documents conflict; the plan would require violating or expanding an approved decision; a backend contract is unconfirmed; a cited standard file is missing or a placeholder.
-
-## Definition of Done
-
-The plan is complete when all of the following hold:
-
-- [ ] `platform: android` and a valid `device_type` were read from frontmatter, not re-detected.
-- [ ] Repository knowledge was resolved through `repo-knowledge-consumer`; reused categories are cited by path and anchor.
-- [ ] Every dimension in [§3](#3-repository-evidence-collection) was inspected or explicitly marked `[unknown]`.
-- [ ] The UI implementation model is identified **per affected surface**.
-- [ ] Every repository claim carries an evidence, reuse, inference, or unknown label.
-- [ ] State ownership, event flow, lifecycle, process-recreation behavior, and concurrency are each stated.
-- [ ] Navigation, persistence, networking, testing, performance, security, accessibility, i18n and RTL are addressed or marked `N/A — [reason]`.
-- [ ] When `device_type: tv`, the TV discovery pass ran and no mobile/touch assumption was carried over.
-- [ ] Every statement is classified Existing / Required / Recommended / Unresolved.
-- [ ] Every cited standard ID exists and genuinely applies.
-- [ ] Unresolved decisions are listed with options and implications.
-- [ ] No code was written and no repository file was modified.
-- [ ] No new architecture, library, or migration is proposed as required work without an approval gate.
-
 ## Standards citation
 
-Cite only IDs that exist in these files and genuinely apply to the point being made.
+**This lane's parameters for the two parameterised source-of-truth ranks** (`skills/dev-design-start/SKILL.md` § *Shared planning rules → Source-of-truth hierarchy*): **rank 4** is `standards/android/*` plus `standards/shared/*`; **rank 5** is official Android documentation, which is supporting guidance only and never overrides rank 2.
+
+Cite only IDs that exist in these files and genuinely apply to the point being made. **Never use React Native's generically-named `ARCH-*`/`API-*`/`STATE-*`/`NAV-*` IDs for Android** — those are RN-specific; Android cites the `AND-*` roots.
 
 | Area | Standard file | IDs |
 |---|---|---|
@@ -295,18 +222,13 @@ Cite only IDs that exist in these files and genuinely apply to the point being m
 - The feature depends on an unconfirmed backend contract.
 - The plan would require introducing a new architecture, toolkit, or library as required work.
 - The Feature Analysis and DD conflict, or an upstream document is unapproved, stale, or draft.
-- A cited `standards/android/*` file is missing or is a structure-only placeholder (see [§0](#0-standards-readiness-gate)).
+- A cited `standards/android/*` file is missing or is a structure-only placeholder (see `skills/platform-planning/SKILL.md` §2).
 - You are about to state a repository fact you did not verify.
 
 ## Relationship with commands, agent, skills
 
-Responsibilities stay separated:
-
-- **`commands/analyze-feature.md`** — platform/device-type detection, the user confirmation gate, the design-reference gate, and invoking the architect.
-- **`commands/dev-design-start.md` / `commands/dev-feature-start.md`** — stage orchestration and approval gating.
-- **Shared `dev-design-start` / `dev-feature-start` skills** — DD structure and gap discipline; task decomposition, dependencies, rollback plan, draft-until-approved gates.
-- **`agents/android-architect.md`** — the Android specialist that runs this methodology.
-- **This skill** — the Android planning methodology itself.
-- **`skills/android-feature-implementation/SKILL.md`** — the separate methodology used at Implement time, not here.
-
-This skill does not move command logic into itself, does not re-run platform or device-type detection, and does not invent paths to feature documents — the resolved paths from [Inputs](#inputs-this-skill-requires-resolved-never-invented) are verified before use.
+- **`commands/analyze-feature.md`**, **`commands/dev-design-start.md`**, **`commands/dev-feature-start.md`** — detection, the confirmation gate, artifact resolution, approval gates and routing.
+- **`skills/platform-planning/SKILL.md`** — the platform-independent planning methodology. It names every other owner; that table is not repeated here.
+- **`skills/dev-design-start/SKILL.md`** — the DD section rules, Classification, Risk classification and the source-of-truth hierarchy.
+- **`agents/feature-architect.md`** — the Android specialist that executes all of it.
+- **This skill** — the Android planning content itself, and nothing a platform-independent layer could state.

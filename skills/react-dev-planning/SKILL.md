@@ -1,68 +1,29 @@
 ---
 name: react-dev-planning
-description: Repository-first planning methodology for React (web) features — discovers the repo's actual stack and rendering model, then supplies the React vocabulary and REACT-*/shared standard IDs for a Detailed Design's Technical Implementation Approach, Impacted Modules, and task breakdown. Used by /analyze-feature, /dev-design-start and /dev-feature-start via the react-architect agent, alongside the shared dev-design-start / dev-feature-start skills, which own the overall mechanics. Assumes no framework, router, state, or data library, and handles device_type mobile and tv.
+description: React (web)-specific planning methodology — the repository evidence dimensions to inspect, the vocabulary a Detailed Design's approach and change surface are written in, React (web) detection traps, device_type handling and the REACT-* citation map. Used by /analyze-feature, /dev-design-start and /dev-feature-start via the feature-architect agent, alongside the shared platform-planning skill which owns the planning methodology.
 ---
 
-# React Dev Planning
+# React (web) Dev Planning
 
 ## Overview
 
-This skill is the methodology the `react-architect` agent follows when planning React (web) work. It owns *how* a React feature is understood, grounded in repository evidence, analysed, classified, and expressed as a design — for `/analyze-feature`'s Proposed Technical Approach, `/dev-design-start`'s DD §19/§20, and `/dev-feature-start`'s task vocabulary.
+This skill is the **React (web) half** of planning a feature. It owns what a
+platform-independent layer could not state: which dimensions of a React (web) repository must be
+inspected, the vocabulary the approach and change surface are written in, this platform's
+detection traps and device-type handling, and which `REACT-*` and shared standard IDs may be
+cited.
 
-It is not orchestration. The shared `dev-design-start` and `dev-feature-start` skills own the overall mechanics: DD structure and gap discipline; existing-file strategy; task decomposition, dependencies, rollback plan, and draft-until-approved gates. This skill supplies the React-specific content those mechanics consume.
+The methodology half — the confirmed-context rule, standards readiness, repository-knowledge
+resolution, evidence discipline and its labelling vocabulary, reuse-before-new,
+detected-conventions-govern, output discipline and the generic stop conditions — lives in
+**`skills/platform-planning/SKILL.md`** and is not restated here. The DD's own section
+rules, the statement classification, the risk taxonomy and the source-of-truth hierarchy
+belong to **`skills/dev-design-start/SKILL.md`**. Apply all three.
 
-**This skill assumes no technology.** The build tool (Vite, webpack, esbuild, Turbopack, CRA), framework (plain React SPA, Next.js Pages Router, Next.js App Router / RSC, Remix, or none), language (JavaScript or TypeScript), router (React Router, TanStack Router, a framework router), state library (Redux Toolkit, Zustand, Jotai, Recoil, MobX, Context + `useReducer`), data-fetching library (TanStack Query, RTK Query, SWR, bare `fetch`), styling approach (CSS Modules, CSS-in-JS, Tailwind, plain CSS), and test runner are all **possible findings, never defaults**. The repository's existing conventions are the source of truth. Official React/TypeScript/framework documentation is supporting guidance only and never overrides a valid existing implementation.
+**This skill assumes no technology.** Everything this lane names is a *possible finding*,
+never a default. What the repository already does is the source of truth.
 
-This is a deliberately separate module from React Native — the two overlap on JS/TS/React fundamentals but target different runtimes (browser vs. native shell). It never reuses React Native's `RN-*` / bare `ARCH-*`/`API-*`/`STATE-*`/`NAV-*` IDs, nor Android's `AND-*` or iOS's `IOS-*`.
-
-**This skill never writes code and never modifies repository files.** It plans.
-
-## Inputs this skill requires (resolved, never invented)
-
-Obtain and **verify the existence of** these inputs first. They are passed by the invoking command/agent or deterministically resolved from the feature name and repo layout — this skill **never guesses or fabricates a path** to a feature document.
-
-- The confirmed **`platform`** (must be `react`) and **`device_type`** (`mobile` or `tv`). **At Analyze these are passed by the command from its own step-2 confirmation** — no document exists yet, so there is no frontmatter to read and their absence there is not a stop condition. **From Design onward they are read from frontmatter** and never re-detected.
-- The target **repository / package root** (the correct workspace, in a monorepo).
-- **At Analyze:** the feature description and `repo-analyst`'s findings summary.
-- **At Design:** the absolute path to the **approved Feature Analysis**.
-- **At Feature-start:** the absolute path to the **approved Detailed Design (DD)**.
-- The four **design-reference fields** (`design_reference_status`, `design_reference_type`, `design_reference`, `figma_link`).
-
-If any required input is missing or cannot be resolved deterministically, **stop and report exactly which input is missing**. If `platform` is not `react`, stop: this skill does not run for another platform. If `device_type` is missing, empty, or any value other than `mobile`/`tv` (including `mixed`), **stop and report it** — never default to `mobile`.
-
-## 0. Standards readiness gate
-
-This skill grounds every React-specific rule in an authored `REACT-*` standard under `standards/react/`. Before planning, confirm those standards are authored (not placeholders). If any cited `standards/react/*` file is missing or is still a structure-only placeholder, **stop and report that real React planning is blocked until it is authored** — do not silently fall back to assumed defaults. (As of authoring, all **seven** `standards/react/*` files and the shared `A11Y-*`/`I18N-*`/`SEC-*` standards are authored: the six base standards with the `REACT-*` ID skeleton frozen (REACT-001-7), plus `react-smart-tv.md` (`REACT-TV-*`, added additively by REACT-003-1). This gate exists so the skill fails loudly if that regresses — on a `device_type: tv` feature it covers `react-smart-tv.md` too.)
-
-The React Smart TV standard is authored: `standards/react/react-smart-tv.md` owns the `REACT-TV-*` root, and on `device_type: tv` it is planned against alongside the base standards — every base `REACT-*` rule still applies on a TV surface. See [§14](#14-device_type-handling).
-
-## 1. Source-of-truth hierarchy
-
-When sources disagree, this order decides — highest first:
-
-| Rank | Source | Authoritative for |
-|---|---|---|
-| 1 | **Approved upstream documents** (Feature Analysis → DD) | Scope, requirements, and every already-approved decision |
-| 2 | **Inspected repository evidence** | What the codebase actually does today |
-| 3 | **Canonical repository knowledge** (`docs/project/*.md`, `CLAUDE.md`) | Repository-wide conventions, as citations |
-| 4 | **Ono standards** (`standards/react/*`, `standards/shared/*`) | The bar new work must meet |
-| 5 | **Official React / TypeScript / framework documentation** | Supporting guidance only |
-
-Hard rules:
-
-- **Rank 5 never overrides rank 2.** A valid existing implementation is not a defect because official guidance now recommends something else. Note the divergence as an *optional* suggestion, never as required work. (This matches the no-modernization-aside stance in `standards/react/react-coding-standards.md`.)
-- **Never reinterpret a decision already approved in an upstream document.** If the plan requires violating or expanding it, stop and request approval.
-- **Never resolve conflicting evidence silently.** Report the conflict and ask.
-- If the Feature Analysis and DD conflict, stop and report — do not pick one.
-
-## 2. Repository-knowledge reuse
-
-Apply the `repo-knowledge-consumer` skill before deriving anything. **Never read or parse `.ono/repo-knowledge.json` directly** — that skill is the only component that understands the manifest.
-
-- Reuse every category in `usableCategories` by **reading the cited document and citing it by path plus anchor** — `docs/project/patterns.md#<anchor>` for conventions, `docs/project/components.md#<anchor>` for existing components, `docs/project/integrations.md#<anchor>` for services and SDKs, the `CLAUDE.md` structure pointers for the module map. Reuse means read and cite, never paste.
-- Derive live exactly the categories in `deriveLive`, plus the feature-specific detail no repository-wide document could contain — the actual props, state shape, and call sites of the specific components/hooks *this feature* touches. That feature-specific reading is required and is not duplication.
-- **Knowledge unavailable is the normal path.** Say so in one line and derive everything live. Never stop, never ask permission, never treat it as a warning to resolve.
-- `device_type` is **never** reused from the manifest — the manifest carries no device information.
+**This skill plans. It never writes code and never modifies repository files.**
 
 ## 3. Repository evidence collection
 
@@ -157,7 +118,7 @@ Plan against the repo's detected router — never a second, parallel one. The UR
 
 Use the repo's existing data-fetching library and base client; no ad-hoc client per feature → `REACT-API-ORG-1..4`, `REACT-API-BASEQ-1`. Plan cache keys/tags and precise invalidation → `REACT-API-CACHE-1..4`. Plan **web auth transport** — prefer `httpOnly` cookies with `credentials: 'include'` (**on `device_type: tv` this preference is conditional, not a default: `REACT-TV-API-1` requires establishing the app type and whether cookie transport works on the target before choosing, and `REACT-TV-API-3` the cross-origin model**), never tokens in script-readable storage, CSRF on state-changing requests, CORS as a read boundary not authorization, and no secrets inlined into the bundle → `REACT-API-BASEQ-1..7` (including `-4` central 401/refresh-and-retry and `-7` no auth headers or PII in base-layer logging), `SEC-COOKIE-1`, `SEC-COOKIE-2`, `SEC-WEB-3`, `SEC-WEB-6`, `SEC-SECRETS-2`. Plan request cancellation on unmount / supersede → `REACT-API-ASYNC-1`. On a server-rendering surface, plan server fetch + cache hydration and credential forwarding → `REACT-API-SSR-1`, `REACT-API-SSR-2`. Normalize error shapes centrally and distinguish aborts from failures → `REACT-API-ERR-1..3`. Never log tokens/PII → `SEC-LOG-1`.
 
-**If the feature depends on an unconfirmed backend contract, record it as a blocking unresolved decision and continue planning** — do not decide the contract unilaterally, and do not stop. Most features carry one at Design time; it blocks *decomposition* at Feature-start ([§16](#16-risk-classification)), not the design itself.
+**If the feature depends on an unconfirmed backend contract, record it as a blocking unresolved decision and continue planning** — do not decide the contract unilaterally, and do not stop. Most features carry one at Design time; it blocks *decomposition* at Feature-start (`skills/dev-design-start/SKILL.md` § *Shared planning rules → Risk classification*), not the design itself.
 
 ## 10. Module and dependency impact
 
@@ -225,77 +186,11 @@ Run this discovery pass **before** proposing anything, recording evidence for ea
 
 This skill does **not** author TV standards. Its TV responsibility is discovery and respect for the existing model.
 
-## 15. Classification: Existing, Required, Recommended, Unresolved
-
-Every statement in the plan is exactly one of these four, explicitly labelled:
-
-| Class | Meaning | Rule |
-|---|---|---|
-| **Existing project pattern** | What the repository already does | Cite the evidence path. Followed by default. |
-| **Required feature-specific extension** | What this feature genuinely needs | Must trace to a requirement in the approved upstream document. |
-| **Recommended deviation with justification** | A departure this feature warrants | Requires explicit justification and an approval gate. Never applied silently. |
-| **Unresolved decision requiring human approval** | A question the evidence cannot settle | Stated with options and implications. Blocks decomposition when it affects scope or contracts. |
-
-**Optional modernization suggestions are always the third or fourth class, never the second.** "The repo uses X, but Y is now recommended" is never required work.
-
-## 16. Risk classification
-
-- **Blocking** — decomposition cannot proceed (unconfirmed backend contract, unresolved architectural decision, missing design reference for UI work, ambiguous evidence on a load-bearing dimension).
-- **Non-blocking, must be tracked** — known risk with a mitigation, recorded in the DD's Risks section.
-- **Needs profiling or investigation** — a suspected issue inspection alone cannot confirm; say so rather than asserting it.
-
-## 17. Traceability and output requirements
-
-Every element of the plan traces to something concrete:
-
-- **Repository claims** → a path, via `[evidence: <path>]` or `[reused: <path>#<anchor>]`.
-- **Requirements** → the upstream document section they come from.
-- **Rules** → a real `REACT-*` or shared ID, cited only where it genuinely applies.
-- **Recommendations** → an explicit justification.
-
-Never cite an ID that does not exist, and never cite one merely adjacent to the point. **Never use React Native's `RN-*` or the bare `ARCH-*`/`API-*`/`STATE-*`/`NAV-*` IDs for React (web)** — React cites the `REACT-*` roots.
-
-Output shape, consumed by the shared skills:
-
-- **At Analyze** → the flat "Proposed Technical Approach" section of `templates/feature-analysis-template.md`. The evidence base belongs in that document.
-- **At Design** → the DD's §19 Technical Implementation Approach and §20 Impacted Modules, **as conclusions rather than as a transcript.** The [§3](#3-repository-evidence-collection) evidence sweep, the labelling, and the [§14](#14-device_type-handling) TV discovery pass are research that grounds the design — not DD content, never pasted in. §19 receives the decisions taken and the IDs each follows; §20 receives modules and change classes per [§10](#10-module-and-dependency-impact). The shared `dev-design-start` skill's Step 6 and Step 7 govern what actually lands in the document.
-- **At Feature-start** → the React vocabulary and standard IDs used in each task's description and acceptance criteria.
-
-Exactly one confirmed platform always applies, so these sections are **always flat** — never split into per-platform subsections.
-
-**Where each output part lands.** Parts 2–3 (Technical Approach, Impacted Modules) supply DD **§19** and **§20**. Part 4's **Recommended** deviations go to **§23 Assumptions** with their justification, never into §19 as though already decided; optional modernization is reported to the developer and **not written to the DD at all**. Part 5's **Unresolved Decisions** go to **§24 Open Questions**. Part 1 (Implementation Model Found) is research and is not DD content.
-
-**React decomposition hazards at `/dev-feature-start`** — call these out so two tasks do not collide:
-
-- **Shared-registry contention.** Two tasks both editing the route table, the store registry, or a barrel/index file will conflict; sequence them or assign both edits to one task.
-- **A `'use client'` boundary change ripples to importers.** Moving a module across the boundary is not a local edit — it changes what every importer ships. Scope it as its own task with its importers named.
-- **A dependency change touches the lockfile.** Any task adding or upgrading a dependency owns the lockfile edit alone; parallel tasks doing so conflict every time.
-
-## 18. Approval gates and failure behavior
-
-- The Feature Analysis must be `approved` before it is designed against; the DD must be `approved` before it is decomposed. This skill never flips a status.
-- Documents remain `draft` until a human approves them.
-- A UI-changing feature requires a design reference of any supported type; `not_required` is never valid for one.
-- **Stop and report** — never work around — when: a required input is missing; `device_type` is absent or invalid; evidence is missing, contradictory, or ambiguous on a load-bearing dimension; upstream documents conflict; the plan would violate or expand an approved decision; a cited standard file is missing or a placeholder.
-
-## Definition of Done
-
-- [ ] `platform: react` and a valid `device_type` were read from frontmatter, not re-detected.
-- [ ] Repository knowledge was resolved through `repo-knowledge-consumer`; reused categories are cited by path and anchor.
-- [ ] Every dimension in [§3](#3-repository-evidence-collection) was inspected or explicitly marked `[unknown]`, with the [§4](#4-react-detection-traps) traps applied.
-- [ ] The rendering model is identified **per affected surface**.
-- [ ] Every repository claim carries an evidence, reuse, inference, or unknown label.
-- [ ] State placement (local / URL / global), routing, data/API layer, testing, performance, security, accessibility, i18n and RTL are each addressed or marked `N/A — [reason]`.
-- [ ] When `device_type: tv`, the TV discovery pass ran (including item 8, transport), no pointer/touch assumption was carried over, and the plan cites `REACT-TV-*` IDs grounded in the discovered model — never against an assumed one. Where the feature touches memory, assets, or playback, either a stated `REACT-TV-PERF-1` budget is present **or** an unresolved decision is recorded naming who supplies the target device tier; an invented number satisfies neither.
-- [ ] Every statement is classified Existing / Required / Recommended / Unresolved.
-- [ ] Every cited standard ID exists and genuinely applies.
-- [ ] Unresolved decisions are listed with options and implications.
-- [ ] No code was written and no repository file was modified.
-- [ ] No new framework, router, state/data library, or migration is proposed as required work without an approval gate.
-
 ## Standards citation
 
-Cite only IDs that exist in these files and genuinely apply.
+**This lane's parameters for the two parameterised source-of-truth ranks** (`skills/dev-design-start/SKILL.md` § *Shared planning rules → Source-of-truth hierarchy*): **rank 4** is `standards/react/*` plus `standards/shared/*`; **rank 5** is official React and framework documentation, which is supporting guidance only and never overrides rank 2.
+
+Cite only IDs that exist in these files and genuinely apply. **Never use React Native's `RN-*` or the bare `ARCH-*`/`API-*`/`STATE-*`/`NAV-*` IDs for React (web)** — React cites the `REACT-*` roots.
 
 | Area | Standard file | IDs |
 |---|---|---|
@@ -312,6 +207,14 @@ Cite only IDs that exist in these files and genuinely apply.
 
 The Smart TV row applies **only** when `device_type: tv`; on `mobile` those rules are not cited at all. On `tv` they are cited **in addition to** every row above, never instead of them.
 
+## React decomposition hazards at `/dev-feature-start`
+
+Call these out so two tasks do not collide:
+
+- **Shared-registry contention.** Two tasks both editing the route table, the store registry, or a barrel/index file will conflict; sequence them or assign both edits to one task.
+- **A `'use client'` boundary change ripples to importers.** Moving a module across the boundary is not a local edit — it changes what every importer ships. Scope it as its own task with its importers named.
+- **A dependency change touches the lockfile.** Any task adding or upgrading a dependency owns the lockfile edit alone; parallel tasks doing so conflict every time.
+
 ## Red flags — STOP and report instead of proceeding
 
 - A required input is missing, or `device_type` is absent, empty, or not exactly `mobile`/`tv`.
@@ -322,16 +225,13 @@ The Smart TV row applies **only** when `device_type: tv`; on `mobile` those rule
 - A design reference is recorded but **cannot be read** (a dead link, an unreachable MCP server, a missing export) — report the exact error rather than proceeding. (An unconfirmed **backend contract** is *not* here: it is recorded as a blocking unresolved decision and planning continues — see [§9](#9-data-and-api-layer-analysis).)
 - The plan would require introducing a new framework, router, state/data library, or migration as required work.
 - The Feature Analysis and DD conflict, or an upstream document is unapproved, stale, or draft.
-- A cited `standards/react/*` file is missing or is a structure-only placeholder (see [§0](#0-standards-readiness-gate)).
+- A cited `standards/react/*` file is missing or is a structure-only placeholder (see `skills/platform-planning/SKILL.md` §2).
 - You are about to state a repository fact you did not verify.
 
 ## Relationship with commands, agent, skills
 
-- **`commands/analyze-feature.md`** — platform/device-type detection, the user confirmation gate, the design-reference gate, and invoking the architect.
-- **`commands/dev-design-start.md` / `commands/dev-feature-start.md`** — stage orchestration and approval gating.
-- **Shared `dev-design-start` / `dev-feature-start` skills** — DD structure and gap discipline; task decomposition, dependencies, rollback plan, draft-until-approved gates.
-- **`agents/react-architect.md`** — the React specialist that runs this methodology.
-- **This skill** — the React planning methodology itself.
-- **`skills/react-feature-implementation/SKILL.md`** — the separate methodology used at Implement time, not here.
-
-This skill does not move command logic into itself, does not re-run platform or device-type detection, and does not invent paths to feature documents.
+- **`commands/analyze-feature.md`**, **`commands/dev-design-start.md`**, **`commands/dev-feature-start.md`** — detection, the confirmation gate, artifact resolution, approval gates and routing.
+- **`skills/platform-planning/SKILL.md`** — the platform-independent planning methodology. It names every other owner; that table is not repeated here.
+- **`skills/dev-design-start/SKILL.md`** — the DD section rules, Classification, Risk classification and the source-of-truth hierarchy.
+- **`agents/feature-architect.md`** — the React (web) specialist that executes all of it.
+- **This skill** — the React (web) planning content itself, and nothing a platform-independent layer could state.

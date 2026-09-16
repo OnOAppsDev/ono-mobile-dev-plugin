@@ -2,7 +2,7 @@
 
 ## Purpose & Scope
 
-These standards apply to React Native app code audited by the `rn-performance-reviewer` agent via `/review-code` (diff-scoped) and `/prepare-mobile-release` (release-scoped). Extracted from `rn-performance-reviewer`'s prior inline instructions so findings can cite a stable ID instead of restating the concern as prose each time. Each bullet below carries a stable `RN-PERF-*` ID. This is a baseline, not exhaustive — flag suspected issues that need profiling to confirm as such, rather than stating a guess as a confirmed Blocking finding.
+These standards apply to React Native app code audited by the `performance-reviewer` agent via `/review-code` (diff-scoped) and `/prepare-mobile-release` (release-scoped). Extracted from the reviewer's prior inline instructions so findings can cite a stable ID instead of restating the concern as prose each time. Each bullet below carries a stable `RN-PERF-*` ID. This is a baseline, not exhaustive — flag suspected issues that need profiling to confirm as such, rather than stating a guess as a confirmed Blocking finding.
 
 ## Re-renders
 
@@ -38,5 +38,5 @@ These standards apply to React Native app code audited by the `rn-performance-re
 ## References
 
 - This document is a living baseline; reviewers should flag standards gaps found during review rather than working around them silently.
-- Extracted from `agents/rn-performance-reviewer.md`'s prior inline process description as part of the mobile-division plugin migration.
+- Extracted from `agents/performance-reviewer.md`'s prior inline process description as part of the mobile-division plugin migration.
 - See the "AI Agent Execution Directives" section in `standards/react-native/rn-coding-standards.md` for the severity hierarchy, citation format, and anti-hallucination thresholds that govern how findings against the IDs above are reported.

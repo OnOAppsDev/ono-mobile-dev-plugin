@@ -2,7 +2,7 @@
 
 ## Purpose & Scope
 
-These standards apply to state management in React Native app code reviewed by `rn-code-reviewer` via `/review-code`. `repo-analyst` detects which state-management library a project actually uses (Redux Toolkit, Zustand, MobX, Context + `useReducer`, etc.) before this document is applied — see [Applicability](#applicability). Each bullet below carries a stable ID so review findings can cite the exact rule they violate. This list is a baseline, not exhaustive — reviewers should use judgment for app-specific structure.
+These standards apply to state management in React Native app code reviewed by `code-reviewer` via `/review-code`. `repo-analyst` detects which state-management library a project actually uses (Redux Toolkit, Zustand, MobX, Context + `useReducer`, etc.) before this document is applied — see [Applicability](#applicability). Each bullet below carries a stable ID so review findings can cite the exact rule they violate. This list is a baseline, not exhaustive — reviewers should use judgment for app-specific structure.
 
 ## Applicability
 

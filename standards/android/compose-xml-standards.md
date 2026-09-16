@@ -2,7 +2,7 @@
 
 ## Purpose & Scope
 
-These standards govern the Android UI layer — Jetpack Compose, XML/View-based UI (ViewBinding/DataBinding, Fragments, Activities), RecyclerView-backed lists, and resource usage. They are implemented by `android-feature-developer` via `/implement-task` and reviewed by `android-code-reviewer` via `/review-code`. Each bullet carries a stable `AND-UI-*` ID. This list is a baseline, not exhaustive. **Which subsection applies depends on the surface the task touches:** a Compose screen applies `AND-UI-COMPOSE-*`, an XML/Fragment screen applies `AND-UI-XML-*`, and a mixed project applies whichever matches each changed surface. Do not migrate a surface from XML to Compose (or the reverse) unless the DD explicitly approves it. Follow the repository's existing design-system components, theme, and tokens rather than introducing new ones.
+These standards govern the Android UI layer — Jetpack Compose, XML/View-based UI (ViewBinding/DataBinding, Fragments, Activities), RecyclerView-backed lists, and resource usage. They are implemented by `feature-implementer` via `/implement-task` and reviewed by `code-reviewer` via `/review-code`. Each bullet carries a stable `AND-UI-*` ID. This list is a baseline, not exhaustive. **Which subsection applies depends on the surface the task touches:** a Compose screen applies `AND-UI-COMPOSE-*`, an XML/Fragment screen applies `AND-UI-XML-*`, and a mixed project applies whichever matches each changed surface. Do not migrate a surface from XML to Compose (or the reverse) unless the DD explicitly approves it. Follow the repository's existing design-system components, theme, and tokens rather than introducing new ones.
 
 ## Jetpack Compose
 

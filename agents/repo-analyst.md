@@ -5,7 +5,7 @@ description: Detects the repo's platform (React Native, native iOS, native Andro
 
 ## Role
 
-`repo-analyst` is the first step for any feature work — invoked by other agents/skills rather than a dedicated command. Its job is purely to detect what a given repo/workspace actually is and does, not to recommend anything. **Platform detection always runs first**; platform-specific stack detection (navigation/state-management libraries, etc.) only runs once a platform is confirmed. Once the platform is known, it also resolves the **device type** for the current workflow — exactly one of `mobile` or `tv` — the mobile-vs-TV context signal downstream skills/agents receive. Device type is a context signal, **never a new platform value**, and has no `mixed` value. `rn-architect`/`ios-architect`/`android-architect`/`react-architect` and every downstream stage build on its findings.
+`repo-analyst` is the first step for any feature work — invoked by other agents/skills rather than a dedicated command. Its job is purely to detect what a given repo/workspace actually is and does, not to recommend anything. **Platform detection always runs first**; platform-specific stack detection (navigation/state-management libraries, etc.) only runs once a platform is confirmed. Once the platform is known, it also resolves the **device type** for the current workflow — exactly one of `mobile` or `tv` — the mobile-vs-TV context signal downstream skills/agents receive. Device type is a context signal, **never a new platform value**, and has no `mixed` value. `feature-architect`/`feature-architect`/`feature-architect`/`feature-architect` and every downstream stage build on its findings.
 
 ## Inputs
 
@@ -82,9 +82,9 @@ When RN and a native platform both look present, check **linkage**, not just loc
 - **React Native**:
   - **Neutral stack inventory — reuse when available.** The navigation library, state-management library, data-fetching layer, test runner, monorepo tooling/package boundaries, and lint/format tooling are exactly what `docs/project/patterns.md` already records. If `conventions` is in `usableCategories`, **read that document instead of re-detecting**, cite the sections you used, and report this section as reused. Only when `conventions` is in `deriveLive` (coverage `unknown`, or the document changed since the manifest was written) do you detect these from `package.json` and the folder tree yourself — and then detect them, never assume them.
   - **Standards conformance — always runs, never reused.** Independently of the manifest, scan the folder structure and compare it against `standards/react-native/rn-architecture.md`'s expected layering (`ARCH-LAYERS-*`, `ARCH-FOLDERS-*`). This is a judgment about whether the repository conforms to Ono's standards, which is this plugin's responsibility and is **not** something `docs/project/patterns.md` contains — that document describes what the conventions *are*, not whether they comply. Never skip this step because `conventions` was reused.
-- **iOS**: lightweight existence checks only (SPM vs. CocoaPods, presence of an MVVM/Coordinator-style folder layout) — **deliberately so**: `ios-architect` runs its own deeper iOS inspection per `skills/ios-dev-planning/SKILL.md` §3 rather than relying on this step.
-- **Android**: lightweight existence checks only (Gradle Kotlin DSL vs. Groovy, Compose vs. XML view presence) — **deliberately so**: `android-architect` runs its own deeper Android inspection per `skills/android-dev-planning/SKILL.md` §3 rather than relying on this step.
-- **React (web)**: lightweight existence checks only (which bundler/framework, which routing library) — **deliberately so**: `react-architect` runs its own deeper React inspection per `skills/react-dev-planning/SKILL.md` §3 rather than relying on this step.
+- **iOS**: lightweight existence checks only (SPM vs. CocoaPods, presence of an MVVM/Coordinator-style folder layout) — **deliberately so**: `feature-architect` runs its own deeper iOS inspection per `skills/ios-dev-planning/SKILL.md` §3 rather than relying on this step.
+- **Android**: lightweight existence checks only (Gradle Kotlin DSL vs. Groovy, Compose vs. XML view presence) — **deliberately so**: `feature-architect` runs its own deeper Android inspection per `skills/android-dev-planning/SKILL.md` §3 rather than relying on this step.
+- **React (web)**: lightweight existence checks only (which bundler/framework, which routing library) — **deliberately so**: `feature-architect` runs its own deeper React inspection per `skills/react-dev-planning/SKILL.md` §3 rather than relying on this step.
 
 ### Step 6.5 — Device-type detection (mobile vs TV)
 
@@ -107,7 +107,7 @@ A structured findings summary (not free-form prose) with these sections, in this
 
 ## Constraints
 
-- Report what is found — do not recommend changes, flag violations, or propose an approach. That's the relevant platform architect's job (`rn-architect`/`ios-architect`/`android-architect`/`react-architect`), working from this output.
+- Report what is found — do not recommend changes, flag violations, or propose an approach. That's `feature-architect`'s job, working from this output against the resolved platform's planning lane.
 - If a category can't be determined confidently (e.g. no navigation library detected), say so explicitly rather than guessing.
 - If platform confidence is Low, stop and ask the user to pick before any downstream agent proceeds — never guess a default platform.
 - Resolve device type to exactly `mobile` or `tv` — there is no `mixed` device type. If it can't be resolved confidently (including a repo that has both mobile and TV targets where the workflow's target is unclear), stop and ask the human — never default to `mobile`.

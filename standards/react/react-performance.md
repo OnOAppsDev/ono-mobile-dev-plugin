@@ -2,13 +2,13 @@
 
 ## Purpose & Scope
 
-These standards apply to React (web) application code audited by the `react-performance-reviewer` agent via `/review-code` (diff-scoped) and `/prepare-mobile-release` (release-scoped). Each rule carries a stable `REACT-PERF-*` ID so findings cite a stable rule rather than restating the concern each time. This is a baseline, not exhaustive.
+These standards apply to React (web) application code audited by the `performance-reviewer` agent via `/review-code` (diff-scoped) and `/prepare-mobile-release` (release-scoped). Each rule carries a stable `REACT-PERF-*` ID so findings cite a stable rule rather than restating the concern each time. This is a baseline, not exhaustive.
 
 This document inherits the **React lane conventions** in `standards/react/react-coding-standards.md` — the repository-first source-of-truth hierarchy, technology/bundler-neutrality (Vite, webpack, esbuild, Turbopack, CRA are all possible findings; no default, no build-tool migration proposed), the no-modernization-aside stance, the `REACT-` ID prefix, and the `## External references` pattern. Findings are limited to code introduced or modified in the reviewed scope.
 
 **Measurement discipline.** A magnitude or regression claim is written as a **measurement request** — the metric, the scenario, and the threshold to check — never asserted as a fact from reading code. A concern that needs profiling to confirm is flagged as *to-be-profiled*, not filed as a Blocking finding on a guess. Items observable only in a production build (minification, tree-shaking, bundle size) are marked as such and verified against a production build, not a dev server.
 
-**Lane ownership.** Every `REACT-PERF-*` rule belongs to the `react-performance-reviewer`, even when a performance concern is cited from another document; correctness/security concerns are not filed here (see the lane separation in `react-coding-standards.md`).
+**Lane ownership.** Every `REACT-PERF-*` rule belongs to the `performance-reviewer`, even when a performance concern is cited from another document; correctness/security concerns are not filed here (see the lane separation in `react-coding-standards.md`).
 
 ## Re-renders
 
@@ -52,7 +52,7 @@ This document inherits the **React lane conventions** in `standards/react/react-
 
 **[Applies only on an established TV surface — `standards/react/react-smart-tv.md` owns the applicability gate and detection traps; where none is established this section is N/A. It defines no new rule ID: each obligation is owned by the `REACT-TV-*` ID named, and the Not-Applicable determinations below are recording duties, not findings.]**
 
-**Lane note.** `REACT-TV-PERF-*` is `react-performance-reviewer`'s at both call sites, exactly as `REACT-PERF-*` is. **Every other `REACT-TV-*` family is `react-code-reviewer`'s** — including two this section cites for context and must not file: `REACT-TV-UI-6` (virtualization vs. focus) and `REACT-TV-MEDIA-3` (player teardown). The routing table lives in `react-smart-tv.md`.
+**Lane note.** `REACT-TV-PERF-*` is `performance-reviewer`'s at both call sites, exactly as `REACT-PERF-*` is. **Every other `REACT-TV-*` family is `code-reviewer`'s** — including two this section cites for context and must not file: `REACT-TV-UI-6` (virtualization vs. focus) and `REACT-TV-MEDIA-3` (player teardown). The routing table lives in `react-smart-tv.md`.
 
 **The measurement discipline applies unchanged, and TV narrows it: a magnitude claim must be measured on the target device tier** — a desktop profile is not weak evidence, it is none.
 

@@ -3,7 +3,7 @@
 
 ## Purpose & Scope
 
-These principles apply to how React Native app code is organized and layered, and to how it interacts with React Native's runtime architecture (New Architecture / Bridgeless Mode vs. Legacy Architecture) — reviewed by `rn-code-reviewer` via `/review-code` and used by `rn-architect` when proposing a technical approach via `/analyze-feature` and `/dev-design-start`. Each bullet below carries a stable ID so review findings and design proposals can cite the exact rule they apply. This is a baseline, not exhaustive — reviewers should use judgment for app-specific structure inherited from `repo-analyst`'s detection.
+These principles apply to how React Native app code is organized and layered, and to how it interacts with React Native's runtime architecture (New Architecture / Bridgeless Mode vs. Legacy Architecture) — reviewed by `code-reviewer` via `/review-code` and used by `feature-architect` when proposing a technical approach via `/analyze-feature` and `/dev-design-start`. Each bullet below carries a stable ID so review findings and design proposals can cite the exact rule they apply. This is a baseline, not exhaustive — reviewers should use judgment for app-specific structure inherited from `repo-analyst`'s detection.
 
 ## Layered Architecture
 

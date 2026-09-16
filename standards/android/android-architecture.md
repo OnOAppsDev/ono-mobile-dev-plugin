@@ -2,7 +2,7 @@
 
 ## Purpose & Scope
 
-These principles govern how native Android app code is layered, organized into Gradle modules, wired with dependency injection, and structured around ViewModels and UI state. They are used by `android-architect` when proposing a technical approach (`/analyze-feature`, `/dev-design-start`), by `android-feature-developer` during implementation, and by `android-code-reviewer` in `/review-code`. Each bullet carries a stable ID (`AND-ARCH-*`, `AND-VM-*`, `AND-DI-*`) so design proposals, implementation summaries, and review findings can cite the exact rule. This is a baseline, not exhaustive — the repository's already-detected architecture (as reported by `repo-analyst`) takes precedence, and these rules describe how to stay consistent with it rather than a pattern to impose.
+These principles govern how native Android app code is layered, organized into Gradle modules, wired with dependency injection, and structured around ViewModels and UI state. They are used by `feature-architect` when proposing a technical approach (`/analyze-feature`, `/dev-design-start`), by `feature-implementer` during implementation, and by `code-reviewer` in `/review-code`. Each bullet carries a stable ID (`AND-ARCH-*`, `AND-VM-*`, `AND-DI-*`) so design proposals, implementation summaries, and review findings can cite the exact rule. This is a baseline, not exhaustive — the repository's already-detected architecture (as reported by `repo-analyst`) takes precedence, and these rules describe how to stay consistent with it rather than a pattern to impose.
 
 ## Layering & Dependency Direction
 
