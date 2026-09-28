@@ -209,6 +209,7 @@ function frontmatter(path: string): Record<string, string> {
     standardIds: ["ARCH-LAYERS-3"],
     validation: [{ command: "tsc --noEmit", result: "pass" }],
     acceptanceCriteria: [{ criterion: "Hook reports availability", met: true }],
+    developerTesting: { framework: null, required: false, testsChanged: [], justification: "fixture: no runtime behaviour under developer test", runs: [], notRunReason: null },
   });
   check("A8 complete is written once verified",
     ts(["write", ...base, "--task", "T1", "--state", "complete", "--head", "abc1234", "--payload", payload]).json?.status === "written");

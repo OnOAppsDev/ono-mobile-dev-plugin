@@ -209,6 +209,36 @@ The plugin only ever writes `status: "pending"`, and the record has no field in 
 plugin-recorded discharge could be expressed. Evidence produced by a human stays
 human-attested; it never becomes `plugin-verified`.
 
+## Developer testing (Stage 3)
+
+One additive record field, `developerTesting` — the mandatory developer-testing decision
+(`skills/platform-implementation/SKILL.md` §7a). Developer testing means tests in the code
+repository (unit, component, repository integration), never QA automation.
+
+| Field | Meaning |
+| --- | --- |
+| `framework` | The in-repo developer test framework detected, or `null` when there is none. |
+| `required` | Whether developer tests were required for this change. |
+| `testsChanged` | Test files added or updated. |
+| `justification` | Required when `required` is `false`, or when a framework exists and `testsChanged` is empty. |
+| `runs` | Developer tests that actually ran, each `{ command, result }` with `result` `pass` or `fail`. |
+| `notRunReason` | Required when tests are required and `runs` is empty. |
+
+**Writer preconditions.** `complete` without the block is refused as
+`complete-without-developer-testing`. In any state, `invalid-developer-testing` refuses a
+missing justification; a run result other than `pass`/`fail`; a run whose command and
+result do not also appear in `validation` (a result cannot be recorded for a test the
+report never ran); required-but-unrun tests without a `notRunReason` and a
+`developer-testing` debt entry; and any `developer-testing` debt whose `owner` is not
+`developer` (`VERIFY-4`). A failing run blocks `complete`. Developer-testing debt, like all
+debt, does not.
+
+**Reader.** `developerTestingStatus` is `notRecorded` (block absent — a legacy record; never
+read as "not required"), `required` or `notRequired`. Debt is split by owner:
+`qaVerificationDebt` (`owner: "qa"`) is what a QA handoff lists as owed to QA;
+`developerVerificationDebt` (`owner: "developer"`) is never presented as owed to QA.
+`verificationDebt` still carries every entry, unchanged.
+
 ## Known limitations
 
 - **No locking.** `in-progress` is an advisory marker, not a lock. Two concurrent runs against the

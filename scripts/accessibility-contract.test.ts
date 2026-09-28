@@ -277,6 +277,7 @@ const QA_TPL = read("templates/qa-handoff-template.md");
     standardIds: ["AND-UI-COMPOSE-1"],
     validation: [{ command: "./gradlew test", result: "pass" }],
     acceptanceCriteria: [{ criterion: "it works", met: true }],
+    developerTesting: { framework: null, required: false, testsChanged: [], justification: "fixture: no runtime behaviour under developer test", runs: [], notRunReason: null },
   });
 
   const A11Y_OK = {

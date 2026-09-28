@@ -246,6 +246,10 @@ After the platform skill finishes, require its structured completion report and 
 - the **accessibility outcome** decided in step 5b — the applicability decision and, where
   it applies, the rules cited, the mechanical checks run with their tier and result, and
   the manual verification that remains outstanding,
+- the **developer-testing outcome** (`skills/platform-implementation/SKILL.md` §7a) — the
+  framework detected, whether developer tests were required, the tests added or updated or
+  the justification for none, the developer tests that actually ran with their real
+  results, and the developer-owned debt for anything that could not be written or run,
 - confirmation that no unrelated scope was added,
 - confirmation that the writes landed inside `TARGET_ROOT` (not in `.claude/worktrees/…`).
 
@@ -257,7 +261,7 @@ After the platform skill finishes, require its structured completion report and 
   node --no-warnings "${CLAUDE_PLUGIN_ROOT}/scripts/task-state.ts" write \
     --root "<TARGET_ROOT>" --feature "<feature>" --task "<task-id>" --state complete \
     --breakdown "<absolute Task Breakdown path>" --head "<git HEAD sha>" \
-    --payload '{"platform":"…","filesChanged":[…],"standardIds":[…],"validation":[{"command":"…","result":"pass"}],"acceptanceCriteria":[{"criterion":"…","met":true}],"deviations":[],"blockers":[]}'
+    --payload '{"platform":"…","filesChanged":[…],"standardIds":[…],"validation":[{"command":"…","result":"pass"}],"acceptanceCriteria":[{"criterion":"…","met":true}],"developerTesting":{…},"deviations":[],"blockers":[]}'
   ```
 
   **A terminal `complete` may only be written after the verification above succeeds.** The helper enforces this structurally: it refuses `complete` unless every acceptance criterion is recorded and met and at least one validation entry is present, returning `refused: complete-without-verification`. If it refuses, report that verbatim and record `failed` instead.
@@ -308,6 +312,46 @@ and refuses a malformed block whatever the state):
 }
 ```
 
+**Developer testing.** The payload of every terminal write carries the `developerTesting`
+decision. The helper refuses `complete` without it (`refused:
+complete-without-developer-testing`), and refuses a malformed one in any state
+(`invalid-developer-testing`):
+
+- **Not required**, or a framework exists but **no test was added or updated** → a
+  `justification` is required.
+- Each entry in `runs` is a developer test that **actually ran**, with result `pass` or
+  `fail`, and must also appear with the same result in `validation`. A failing run blocks
+  `complete`: record `failed`.
+- **Required but not run** (or not writable) → a `notRunReason` and a `verificationDebt`
+  entry with `domain: "developer-testing"`, `ruleId: "VERIFY-4"` and `owner: "developer"`.
+  That debt is the developer's, never QA's; like all debt it does not block `complete`.
+
+```json
+{
+  "developerTesting": {
+    "framework": "<detected in-repo test framework, or null>",
+    "required": true,
+    "testsChanged": ["<test file added or updated>"],
+    "justification": null,
+    "runs": [{ "command": "<narrowest test command actually run>", "result": "pass" }],
+    "notRunReason": null
+  },
+  "verificationDebt": [
+    {
+      "domain": "developer-testing",
+      "ruleId": "VERIFY-4",
+      "requiredVerification": "<the developer tests still to write or run>",
+      "whyNotAutomatable": "<why they could not be written or run here>",
+      "owner": "developer",
+      "status": "pending"
+    }
+  ]
+}
+```
+
+The debt entry appears only when required tests did not run; the example shows both
+shapes together.
+
 Choose validation commands from the repository's own tooling. Do **not** assume or
 introduce a particular automation framework; if the repository has no mechanical
 accessibility check, say so and record the requirement as debt rather than inventing a
@@ -316,7 +360,7 @@ tool to satisfy it.
 - **Verification failed** → record `failed` with the failing criteria and validation results in `blockers`.
 - **A blocker or unproven dependency stopped the run** → record `blocked` with the blocker text.
 
-The recorded `filesChanged`, `standardIds`, `validation`, `acceptanceCriteria`, `accessibility` and `verificationDebt` are what `/create-dev-qa-notes` later reads, so a QA handoff — including the list of accessibility verification still owed — no longer depends on a session transcript.
+The recorded `filesChanged`, `standardIds`, `validation`, `acceptanceCriteria`, `accessibility`, `developerTesting` and `verificationDebt` are what `/create-dev-qa-notes` later reads, so a QA handoff — including the list of accessibility verification still owed — no longer depends on a session transcript.
 
 Do not report success if any acceptance criterion failed, required validation failed, a dependency is unproven, a blocker remains, the implementation deviates from the DD without approval, or changes exist only inside a worktree. **Approval is unaffected: recording lifecycle state neither confers nor revokes any document's `status`.**
 

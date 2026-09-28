@@ -133,6 +133,43 @@ export interface VerificationDebtEntry {
 /** Absent block vs. a recorded decision — three distinct readings, never collapsed. */
 export type AccessibilityStatus = "notRecorded" | "applicable" | "notApplicable";
 
+/**
+ * Stage 3. One developer test command that actually executed. `result` is `pass` or
+ * `fail` and nothing softer — "assumed", "expected" and "skipped" are not results — and
+ * the command must also appear, with the same result, in the record's `validation`.
+ */
+export interface DeveloperTestingRun {
+  command: string;
+  result: "pass" | "fail";
+}
+
+/**
+ * Stage 3. The mandatory developer-testing decision: tests that live in the code
+ * repository (unit, component, repository integration). Not QA automation.
+ *
+ * A terminal `complete` cannot be written without it. Absent on records written before
+ * Stage 3 — that reads as `notRecorded`, never as "not required".
+ */
+export interface DeveloperTestingBlock {
+  /** The in-repo developer test framework detected, or null when the repository has none. */
+  framework: string | null;
+  required: boolean;
+  /** Test files added or updated by this change. */
+  testsChanged: string[];
+  /** Required when not required, or when a framework exists and no test was touched. */
+  justification: string | null;
+  /** Only what actually ran. */
+  runs: DeveloperTestingRun[];
+  /** Required when tests are required and none ran. */
+  notRunReason: string | null;
+}
+
+export type DeveloperTestingStatus = "notRecorded" | "required" | "notRequired";
+
+/** Stage 3. The debt domain developer testing records, and the only owner it may name. */
+export const DEVELOPER_TESTING_DOMAIN = "developer-testing";
+export const DEVELOPER_OWNER = "developer";
+
 export interface TaskRecord {
   state: TaskState;
   provenance: Provenance;
@@ -151,6 +188,8 @@ export interface TaskRecord {
   accessibility?: AccessibilityBlock;
   /** SHARED-014. Absent on records written before it; absence is not "no debt". */
   verificationDebt?: VerificationDebtEntry[];
+  /** Stage 3. Absent on records written before it — read via `developerTestingStatus`. */
+  developerTesting?: DeveloperTestingBlock;
 }
 
 export interface TaskStateFile {
@@ -179,6 +218,13 @@ export interface TaskView {
   accessibility: AccessibilityBlock | null;
   /** Empty for a legacy record; `accessibilityStatus` says whether that means anything. */
   verificationDebt: VerificationDebtEntry[];
+  /** Stage 3. The subset of `verificationDebt` owned by QA — what a QA handoff lists. */
+  qaVerificationDebt: VerificationDebtEntry[];
+  /** Stage 3. The subset owned by the developer. Never presented as owed to QA. */
+  developerVerificationDebt: VerificationDebtEntry[];
+  /** Stage 3. `notRecorded` for legacy records: never conflated with `notRequired`. */
+  developerTestingStatus: DeveloperTestingStatus;
+  developerTesting: DeveloperTestingBlock | null;
 }
 
 /**
@@ -229,6 +275,43 @@ function readAccessibility(raw: Record<string, unknown>): {
   };
 }
 
+/**
+ * Stage 3. Reads the developer-testing dimension and splits debt by owner, so a consumer
+ * never has to filter — and never forgets to — before telling QA what it owes.
+ */
+function readDeveloperTesting(
+  raw: Record<string, unknown>,
+  verificationDebt: VerificationDebtEntry[],
+): Pick<
+  TaskView,
+  "qaVerificationDebt" | "developerVerificationDebt" | "developerTestingStatus" | "developerTesting"
+> {
+  const qaVerificationDebt = verificationDebt.filter((d) => d.owner === "qa");
+  const developerVerificationDebt = verificationDebt.filter((d) => d.owner === DEVELOPER_OWNER);
+  const t = raw.developerTesting;
+  if (!isRecord(t) || typeof t.required !== "boolean") {
+    return { qaVerificationDebt, developerVerificationDebt, developerTestingStatus: "notRecorded", developerTesting: null };
+  }
+  const runsRaw = Array.isArray(t.runs) ? t.runs : [];
+  const block: DeveloperTestingBlock = {
+    framework: typeof t.framework === "string" ? t.framework : null,
+    required: t.required,
+    testsChanged: strArray(t.testsChanged),
+    justification: typeof t.justification === "string" ? t.justification : null,
+    runs: runsRaw.filter(isRecord).map((r) => ({
+      command: String(r.command ?? ""),
+      result: (r.result === "pass" ? "pass" : "fail") as "pass" | "fail",
+    })),
+    notRunReason: typeof t.notRunReason === "string" ? t.notRunReason : null,
+  };
+  return {
+    qaVerificationDebt,
+    developerVerificationDebt,
+    developerTestingStatus: block.required ? "required" : "notRequired",
+    developerTesting: block,
+  };
+}
+
 export interface ReadResult {
   available: boolean;
   status: ReadStatus;
@@ -251,6 +334,8 @@ export interface WriteResult {
   runId?: string;
   reason?:
     | "complete-without-verification"
+    | "complete-without-developer-testing"
+    | "invalid-developer-testing"
     | "feature-mismatch"
     | "schema-too-new"
     | "invalid-state"
@@ -354,6 +439,10 @@ function unknownView(dependsOn: string[] | null): TaskView {
     accessibilityStatus: "notRecorded",
     accessibility: null,
     verificationDebt: [],
+    qaVerificationDebt: [],
+    developerVerificationDebt: [],
+    developerTestingStatus: "notRecorded",
+    developerTesting: null,
   };
 }
 
@@ -587,6 +676,7 @@ export function readTaskState(
       stale = current === undefined || recordedFp === null ? true : current.fingerprint !== recordedFp;
     }
 
+    const a11y = readAccessibility(raw);
     tasks[id] = {
       state,
       provenance,
@@ -597,7 +687,8 @@ export function readTaskState(
       dependsOn: breakdownRows === null ? null : (breakdownRows[id]?.dependsOn ?? null),
       filesChanged: strArray(raw.filesChanged),
       standardIds: strArray(raw.standardIds),
-      ...readAccessibility(raw),
+      ...a11y,
+      ...readDeveloperTesting(raw, a11y.verificationDebt),
     };
   }
 
@@ -667,6 +758,7 @@ export interface WritePayload {
   blockers?: string[];
   accessibility?: AccessibilityBlock;
   verificationDebt?: VerificationDebtEntry[];
+  developerTesting?: DeveloperTestingBlock;
 }
 
 /**
@@ -723,6 +815,74 @@ export function accessibilityProblem(payload: WritePayload): string | null {
   return null;
 }
 
+const nonEmpty = (v: unknown): boolean => typeof v === "string" && v.trim() !== "";
+
+/**
+ * Stage 3. Validates the developer-testing block and developer-owned debt.
+ *
+ * Returns null when acceptable, or the refusal reason. Called for every write: a
+ * malformed decision is a malformed record whatever the state. What must not be left to
+ * prose:
+ *   - Not required → a justification. A framework exists but no test touched → a justification.
+ *   - A run is `pass`/`fail` only, and must be a command `validation` records with the same
+ *     result — a test result cannot be asserted that the completion report never ran.
+ *   - Required tests that did not run need a reason AND a `developer-testing` debt entry.
+ *   - `developer-testing` debt is owned by the developer, never by QA.
+ */
+export function developerTestingProblem(payload: WritePayload): string | null {
+  for (const d of payload.verificationDebt ?? []) {
+    if (d.domain === DEVELOPER_TESTING_DOMAIN && d.owner !== DEVELOPER_OWNER) {
+      return `Refused: developer-testing verification debt is owned by "${DEVELOPER_OWNER}", not "${d.owner}". It is the developer's obligation and is never transferred to QA (VERIFY-4).`;
+    }
+  }
+
+  const t = payload.developerTesting as unknown;
+  if (t === undefined) return null;
+  if (!isRecord(t) || typeof t.required !== "boolean") {
+    return "Refused: developerTesting.required must be a boolean.";
+  }
+  const framework = t.framework === null || t.framework === undefined ? null : t.framework;
+  if (framework !== null && !nonEmpty(framework)) {
+    return "Refused: developerTesting.framework must be the detected framework's name, or null when the repository has none.";
+  }
+  const testsChanged = Array.isArray(t.testsChanged) ? t.testsChanged : null;
+  const runs = Array.isArray(t.runs) ? t.runs : null;
+  if (testsChanged === null || runs === null) {
+    return "Refused: developerTesting requires testsChanged and runs arrays (empty when none).";
+  }
+
+  if (t.required === false && !nonEmpty(t.justification)) {
+    return "Refused: developerTesting.required=false requires a non-empty justification.";
+  }
+  if (framework !== null && testsChanged.length === 0 && !nonEmpty(t.justification)) {
+    return `Refused: the repository has a developer test framework ("${String(framework)}") but no test was added or updated; record a justification for not modifying tests.`;
+  }
+
+  const validation = payload.validation ?? [];
+  for (const r of runs) {
+    if (!isRecord(r) || !nonEmpty(r.command)) {
+      return "Refused: every developerTesting run requires the command that was executed.";
+    }
+    if (r.result !== "pass" && r.result !== "fail") {
+      return `Refused: developer test "${String(r.command)}" has result "${String(r.result)}"; only "pass" or "fail" from an actual run is recordable.`;
+    }
+    if (!validation.some((v) => v.command === r.command && v.result === r.result)) {
+      return `Refused: developer test "${String(r.command)}" (${String(r.result)}) is not in the validation commands this report says were run. A test result is recorded only for a test that actually ran.`;
+    }
+  }
+
+  if (t.required === true && runs.length === 0) {
+    if (!nonEmpty(t.notRunReason)) {
+      return "Refused: developer tests are required but none ran; record notRunReason.";
+    }
+    const debt = (payload.verificationDebt ?? []).filter((d) => d.domain === DEVELOPER_TESTING_DOMAIN);
+    if (debt.length === 0) {
+      return `Refused: developer tests are required but none ran; record a "${DEVELOPER_TESTING_DOMAIN}" verificationDebt entry owned by "${DEVELOPER_OWNER}".`;
+    }
+  }
+  return null;
+}
+
 /**
  * Structural gate for the terminal `complete` state: at least one acceptance criterion,
  * every one met, and at least one validation entry. The contract requires that a
@@ -743,6 +903,10 @@ export function verificationSatisfied(payload: WritePayload): boolean {
     if (a.standardIds.length === 0 || a.checks.length === 0) return false;
     if (a.checks.some((c) => c.result === "fail")) return false;
   }
+
+  // Stage 3. A failing developer test is a proven defect and blocks, exactly like a
+  // failing Tier 1 check. Developer-testing debt, like all debt, does not.
+  if (payload.developerTesting?.runs?.some((r) => r.result === "fail")) return false;
   return true;
 }
 
@@ -778,6 +942,17 @@ export function writeTaskState(
     };
   }
 
+  const devTestProblem = developerTestingProblem(payload);
+  if (devTestProblem !== null) {
+    return {
+      status: "refused",
+      path,
+      taskId,
+      reason: "invalid-developer-testing",
+      summary: devTestProblem,
+    };
+  }
+
   if (nextState === "complete" && !verificationSatisfied(payload)) {
     return {
       status: "refused",
@@ -785,7 +960,18 @@ export function writeTaskState(
       taskId,
       reason: "complete-without-verification",
       summary:
-        "Refused: a terminal `complete` requires every acceptance criterion recorded and met, plus at least one validation entry; and where accessibility applies, cited standard IDs, at least one recorded check, and no failing Tier 1/2 check. Record `failed` or `blocked` instead.",
+        "Refused: a terminal `complete` requires every acceptance criterion recorded and met, plus at least one validation entry; and where accessibility applies, cited standard IDs, at least one recorded check, and no failing Tier 1/2 check or developer test. Record `failed` or `blocked` instead.",
+    };
+  }
+
+  if (nextState === "complete" && payload.developerTesting === undefined) {
+    return {
+      status: "refused",
+      path,
+      taskId,
+      reason: "complete-without-developer-testing",
+      summary:
+        "Refused: a terminal `complete` requires the developer-testing decision — whether developer tests were required, which were added or updated or why none were, what actually ran, and developer-owned debt for anything that could not be written or run.",
     };
   }
 
@@ -871,6 +1057,7 @@ export function writeTaskState(
     blockers: payload.blockers ?? [],
     ...(payload.accessibility !== undefined ? { accessibility: payload.accessibility } : {}),
     ...(payload.verificationDebt !== undefined ? { verificationDebt: payload.verificationDebt } : {}),
+    ...(payload.developerTesting !== undefined ? { developerTesting: payload.developerTesting } : {}),
   };
 
   const ordered: Record<string, TaskRecord> = {};
