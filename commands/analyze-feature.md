@@ -92,10 +92,19 @@ Analyze the feature described in `$ARGUMENTS` (a feature description, product re
    - `feature-architect`'s proposed approach as a single flat "Proposed Technical Approach" section.
    - The four design-reference fields exactly as resolved in step 5 (`design_reference_status` — `provided` or `not_required`, never left `pending`; `design_reference_type`; `design_reference`; `figma_link`).
    - Any open questions/risks. When the status is `not_required`, record in "Open Questions & Risks" why the feature has no user-facing UI change.
+   - The **upstream fingerprints** (ENG-003), so `/implement-task` can later tell that an input moved. When the request came from a file in the repository (a spec, PRD or story), set `source_link` to its repository-relative path and `source_fingerprint` to its raw-bytes fingerprint; when it was given inline, set both to `null` — the analysis body is then the root of the chain. After the four design-reference fields are written, stamp `design_reference_fingerprint`:
+
+     ```
+     node --no-warnings "${CLAUDE_PLUGIN_ROOT}/scripts/task-state.ts" fingerprint --file "<absolute spec path>" --raw
+     node --no-warnings "${CLAUDE_PLUGIN_ROOT}/scripts/task-state.ts" design-fingerprint \
+       --root "<TARGET_ROOT>" --file "<absolute feature analysis path>"
+     ```
+
+     Never invent either value; when a helper reports anything other than `ok`, leave the field `null` (unknown, never a mismatch).
 
    Every downstream stage reads these fields rather than re-asking or re-detecting.
 7a. **If a feature analysis already exists for this feature**, ask how to handle it — `Overwrite` / `Update` (merge new findings) / `Preserve` (write to a new filename) / `Version` (rename the existing file, e.g. append its date) — the same four options `/dev-design-start` offers for a DD. This is the chain root, so it is where an upstream requirement change re-enters the pipeline.
 
-   **The plugin never edits the requirements itself and never confers or revokes approval.** A human amends the analysis and re-approves it; this command only writes the document it is asked to write and leaves `status: proposed`. When downstream artifacts already exist, say so plainly: a regenerated analysis makes the DD's `source_fingerprint` mismatch, which is what sends the next stage back through `/dev-design-start`.
+   **The plugin never edits the requirements itself and never confers or revokes approval.** A human amends the analysis and re-approves it; this command only writes the document it is asked to write and leaves `status: proposed`. When downstream artifacts already exist, say so plainly: a regenerated analysis makes the DD's `source_fingerprint` mismatch, which is what sends the next stage back through `/dev-design-start`. Re-stamp `source_fingerprint` and `design_reference_fingerprint` on every regeneration — if the regenerated body is byte-identical, the DD still matches and nothing downstream is rerun.
 
 8. This is a proposal, not a design. A human reviews the populated feature analysis and flips its status to `approved` before `/dev-design-start` turns it into a Detailed Design (DD).

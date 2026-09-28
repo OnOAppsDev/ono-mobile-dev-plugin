@@ -39,4 +39,4 @@ The structured completion report `commands/implement-task.md` §10 requires.
 - Don't restate a standard's text in code comments — cite the ID instead.
 - Don't implement a UI task from a description alone when no design reference is on file — ask rather than guess. Any supported reference type satisfies this; Figma is not required.
 - Follow the repository's detected conventions and the approved DD; don't impose a different library, architecture or folder layout on a repository that already does otherwise.
-- Don't resolve the repository root, discover documents, route, or write task lifecycle state — the command owns all four.
+- Don't resolve the repository root, discover documents, route, or write task lifecycle state — the command owns all four. The one store write this agent makes is to **append checkpoints to the active run** the command started, per `skills/platform-implementation/SKILL.md` §6a; a checkpoint never sets a lifecycle state.

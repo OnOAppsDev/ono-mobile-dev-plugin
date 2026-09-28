@@ -1,6 +1,6 @@
 ---
 description: Implement a single approved task from a feature's task breakdown.
-argument-hint: [feature] [task-id]
+argument-hint: [feature] [task-id] [--restart | --abandon]
 ---
 
 Orchestrate the implementation of **exactly one** approved task. This command is an orchestrator only: it resolves and verifies the full implementation context, enforces the approval/readiness gates, routes to the correct platform, and hands the resolved context to that platform's feature-implementation skill. It contains **no platform coding methodology** — the platform skill owns how the code is written; the `require-approval-before-code`, `block-main-branch-changes`, and `protect-secrets` hooks gate the writes.
@@ -14,6 +14,7 @@ Parse `$ARGUMENTS` as `[feature] [task-id]` (e.g. `biometric-login T3`).
 - A **task id is required** and must be explicit (e.g. `T3`). Do not accept a vague feature description as a substitute for a task id.
 - A **feature identifier is required** to disambiguate — task ids are not globally unique (every feature's breakdown starts at `T1`).
 - If the task id is missing, or the feature is missing/ambiguous, or the pair cannot identify exactly one task, **stop and ask the user for `[feature] [task-id]`.** Do not guess.
+- An optional **lifecycle flag** may follow: `--restart` (discard the active run and start a new attempt) or `--abandon` (end the active run as `failed`). Without one, an interrupted run is **resumed automatically** when §6 verifies it — the developer is never asked to choose. Both flags act only on an `in-progress` task; see §6.
 
 ## 2. Resolve one authoritative repository root (via the helper)
 
@@ -78,17 +79,34 @@ node --no-warnings "${CLAUDE_PLUGIN_ROOT}/scripts/task-state.ts" fingerprint --f
 ```
 
 - **Equal** → continue.
-- **Different** → **hard stop.** Every row in this breakdown, including the one you were asked to implement, was derived from a DD that has since changed, so no row's validity is known. Report both values and say: **"The DD changed after this breakdown was generated. Re-approve the DD, then run `/dev-feature-start` to regenerate the breakdown."**
+- **Different** → **do not implement against this breakdown.** Every row in it, including the one you were asked to implement, was derived from a DD that has since changed, so no row's validity is known. Report both values and say: **"The DD changed after this breakdown was generated. Re-approve the DD, then run `/dev-feature-start` to regenerate the breakdown."** The full chain check below confirms whether this is the earliest stale stage, and reconciles it rather than leaving the developer to.
 - **Absent** on the breakdown (a document written before SHARED-013) → report `source_fingerprint: unknown` in one line and continue. **Absent is never a mismatch.**
 
-**Design reference.** Compare the four design-reference fields carried in the Task Breakdown against the same four in the DD. They are contractually carried byte-verbatim, so any difference means the reference was re-pointed after the breakdown was generated. On a difference, **hard stop** and say: **"The design reference changed after this breakdown was generated. Run `/dev-design-start` to rebuild the DD against the current reference."**
+**Design reference.** Compare the four design-reference fields carried in the Task Breakdown against the same four in the DD. They are contractually carried byte-verbatim, so any difference means the reference was re-pointed after the breakdown was generated. On a difference, **do not implement** and say: **"The design reference changed after this breakdown was generated. Run `/dev-design-start` to rebuild the DD against the current reference."** — then reconcile through the full chain check below, which names the earliest stage to rerun.
 
-Figma content that changed behind an unchanged URL cannot be detected — the Figma MCP exposes no version, revision or content hash. For a UI-touching task, ask the developer to confirm the reference is still current, and record that as an attestation, never as verification.
+Figma content that changed behind an unchanged URL cannot be detected — the Figma MCP exposes no version, revision or content hash. For a UI-touching task, ask the developer to confirm the reference is still current, and record that as an attestation, never as verification. On a **resumed** run the attestation recorded in the run's `context` is re-read, not asked again.
+
+**Full upstream chain (ENG-003).** The two checks above guard the last link. Then check the whole chain — source specification, design reference, feature analysis, DD and Task Breakdown — through the helper:
+
+```
+node --no-warnings "${CLAUDE_PLUGIN_ROOT}/scripts/task-state.ts" chain \
+  --root "<TARGET_ROOT>" --breakdown "<absolute Task Breakdown path>"
+```
+
+Each stage is compared with the stage above it using the fingerprints it recorded at generation (`docs/task-state-contract.md` § *The upstream chain and the earliest stale stage*). Show the returned `summary` in one line. When `earliestStale` is set, **reconcile instead of stopping blind**:
+
+1. **Rerun only the earliest stale stage** — the `command` the verdict names (`/analyze-feature`, `/dev-design-start` or `/dev-feature-start`) — for this feature, now. Never rerun a stage above it, and never rerun every stage by reflex.
+2. **The regenerated document is a draft; approval stays a human act.** Pause and ask the developer to review and re-approve it — the plugin never flips `status`, and §5's gates are not bypassed. This pause is the approval gate working, not a failure.
+3. **Re-run `chain` after each re-approval** and rerun the next stage only if the verdict now marks it stale. Stages reported `pending-upstream` wait for the stage above them; if regenerating it left their input byte-identical, they come back `current` and are **not** rerun.
+4. Once the chain is current, continue to §6: implementation already written is reconciled there, checkpoint by checkpoint — never discarded wholesale.
+
+Hard stop only when the reconciliation cannot proceed deterministically — the stage command itself stops (for example it needs a design reference nobody has supplied), or the chain is stale in a way no single command resolves — and name the stage command that must be run: `/analyze-feature`, `/dev-design-start` or `/dev-feature-start`.
 
 ## 5b. Accessibility applicability (decide once, from the confirmed context)
 
 Decide here whether the mobile accessibility flow applies to this task, and carry the
-decision into steps 8 and 10. `device_type` was resolved in step 5 — **never re-detect it
+decision into steps 8 and 10. On a **resumed** run, the decision is already recorded in the
+run's `context` — re-read it from the resume verdict; never decide it a second time. `device_type` was resolved in step 5 — **never re-detect it
 here, and never default it.**
 
 - **`device_type: tv` → skip this flow, explicitly.** Record `applicable: false` with a
@@ -127,7 +145,31 @@ It always exits 0 and always prints one JSON object; branch on `status`, never o
 
 - **`complete` with `deterministicProof: true`** → **stop and report that it is already complete**, naming its `runId`. Proceed only if the developer explicitly overrides.
 - **`complete` but `stale: true`** → **stop and report that the task row changed since it was completed.** The recorded work no longer describes this row; the developer decides whether to re-implement.
-- **`in-progress`** → **stop and report the earlier attempt** by `runId`, together with the `filesChanged` it recorded. A previous run did not finish; the developer decides resume vs. restart.
+- **`in-progress`** → a previous run was interrupted. **Evaluate it deterministically — never hand the decision to the developer:**
+
+  ```
+  node --no-warnings "${CLAUDE_PLUGIN_ROOT}/scripts/task-state.ts" resume \
+    --root "<TARGET_ROOT>" --feature "<feature>" --task "<task-id>" --breakdown "<absolute Task Breakdown path>"
+  ```
+
+  The verdict compares the recorded baseline, checkpoints and validations with the repository and the current documents, by hash (`docs/task-state-contract.md` § *The resume verdict*). Show its `summary` in one line, then branch on `status`:
+
+  | `status` | Action |
+  |---|---|
+  | `resume` | **Resume automatically**, as the same run: §7a writes `--mode resume` (same `runId`, same `attempt`), and §8 hands the verdict to the agent so it continues from `nextStep`, keeps every `matches-checkpoint` file, finishes each `partial` file, re-runs only `validations.rerun` and re-reads the saved `context` instead of recomputing it |
+  | `reconcile-upstream` | the chain check above found a stale stage — reconcile it there first, then evaluate again |
+  | `restart` | nothing recorded can be verified (a legacy record), or the platform or `device_type` changed. Say which in one line and start a new attempt: §7a writes `--mode restart`. The current tree is the new baseline |
+  | `hard-stop` | **hard stop** and report every entry in `mismatches` verbatim — the exact path, the recorded hash and the current one, or the HEAD/branch difference. The repository changed in a way the run cannot account for. Continue only when the developer tells you what happened: then `/implement-task <feature> <task-id> --restart` builds on the tree as it now is, or `/implement-task <feature> <task-id> --abandon` ends the run |
+
+  **`--restart`** on an `in-progress` task skips the verdict and writes `--mode restart`. **`--abandon`** ends the run through the helper and stops — it never touches the working tree:
+
+  ```
+  node --no-warnings "${CLAUDE_PLUGIN_ROOT}/scripts/task-state.ts" abandon \
+    --root "<TARGET_ROOT>" --feature "<feature>" --task "<task-id>" --run "<runId>" \
+    --reason "<the developer's reason>" --breakdown "<absolute Task Breakdown path>"
+  ```
+
+  Report `taskOwnedChanges` — the task's edits still in the tree. Reverting any of them is a separate action the developer must confirm; never revert them as part of abandoning.
 - **`blocked` or `failed`** → report the prior outcome and its `blockers`, then continue only if the condition that caused it is resolved.
 - **`unknown`** → nothing was recorded; continue.
 
@@ -146,7 +188,7 @@ For each problem found, **hard stop and report the exact dependency path** — `
 |---|---|
 | a task in the closure is **stale** (its row changed) | `/implement-task <that task>` |
 | a task in the closure was **removed** from the breakdown | `/dev-feature-start` — the dependency graph itself is wrong |
-| a task in the closure is **in-progress** | `/implement-task <that task>` — finish or reset it first |
+| a task in the closure is **in-progress** | `/implement-task <that task>` — it resumes automatically; or `--abandon` it |
 | a `depends-on` names a task with **no row** | `/dev-feature-start` — the graph references a task that does not exist |
 | a **dependency cycle** (`T3 → T5 → T3`) | `/dev-feature-start` — proof is undecidable inside a cycle and an approved breakdown should not contain one |
 
@@ -191,18 +233,30 @@ platform content, and no other platform's lane or standards may be loaded.
 
 ## 7a. Record `in-progress` before handing off
 
-Immediately before invoking the agent, record the attempt through the helper:
+Immediately before invoking the agent, record the attempt through the helper, with the mode §6 decided — `start` for a task with no active run, `resume` or `restart` for an interrupted one:
 
 ```
 node --no-warnings "${CLAUDE_PLUGIN_ROOT}/scripts/task-state.ts" write \
   --root "<TARGET_ROOT>" --feature "<feature>" --task "<task-id>" --state in-progress \
+  --mode <start|resume|restart> \
   --breakdown "<absolute Task Breakdown path>" --head "<git HEAD sha>" \
   --payload '{"platform":"<platform>"}'
 ```
 
-This is what makes an interrupted run visible to the next one: the write advances the task's attempt counter and stamps its `runId` (`<task-id>-attempt-N`). If the run dies after this point, step 6 reports the unfinished attempt instead of silently starting over.
+This is what makes an interrupted run recoverable by the next one. `start` and `restart` advance the attempt counter, stamp the `runId` (`<task-id>-attempt-N`) and capture the run's **baseline** — HEAD, branch, and every pre-existing dirty or untracked file with its hash — plus the upstream fingerprints the run is built against. `resume` keeps the `runId` and `attempt` and every recorded checkpoint; the helper re-verifies the run itself and refuses (`resume-inconsistent`) if the repository no longer matches. A plain `start` over an active checkpointed run is refused (`active-run-exists`), so an interruption is never silently discarded.
 
-**Write lifecycle state only through this helper.** Never hand-edit the state file, and never record state from a platform skill or agent — the command owns lifecycle, the skill owns implementation.
+Right after a `start` or `restart`, record the §5b accessibility decision and any design-reference attestation as the run's `context` checkpoint (below), so a resume re-reads them instead of deciding again.
+
+**Write lifecycle state only through this helper.** Never hand-edit the state file, and never record lifecycle state from a platform skill or agent — the command owns lifecycle, the skill owns implementation. The one write the shared implementation methodology may make is to **append checkpoints to the active run** (`skills/platform-implementation/SKILL.md` § *Checkpoints*):
+
+```
+node --no-warnings "${CLAUDE_PLUGIN_ROOT}/scripts/task-state.ts" checkpoint \
+  --root "<TARGET_ROOT>" --feature "<feature>" --task "<task-id>" --run "<runId>" \
+  --kind <context|plan|step|validation|probe|developer-testing|review> \
+  --breakdown "<absolute Task Breakdown path>" --payload '<json>'
+```
+
+A checkpoint can never set a lifecycle state, and is refused for any run other than the active one.
 
 ## 8. Pass explicit resolved context to the selected agent + skill
 
@@ -221,6 +275,8 @@ Invoke the `feature-implementer` agent with the shared `platform-implementation`
 - **dependency status** (from step 6)
 - **approval status** (from step 5)
 - **unresolved-blocker status**
+- the active **`runId`** from §7a, which every checkpoint names
+- on a resumed run, the **resume verdict** from §6 — `nextStep`, `checkpoints.valid` and `checkpoints.invalidated`, `files`, `partialFiles`, `validations.carried` and `validations.rerun`, `developerTesting` and the saved `context`. It is authoritative: completed work it lists is not redone, and decisions it carries are not recomputed
 
 Pass the actual document **paths**, preserving the source-of-truth hierarchy — do not collapse them into a single generated summary that omits the source documents:
 
@@ -265,6 +321,8 @@ After the platform skill finishes, require its structured completion report and 
   ```
 
   **A terminal `complete` may only be written after the verification above succeeds.** The helper enforces this structurally: it refuses `complete` unless every acceptance criterion is recorded and met and at least one validation entry is present, returning `refused: complete-without-verification`. If it refuses, report that verbatim and record `failed` instead.
+
+  **Every validation the report cites must still hold.** On a resumed run, a result carried forward is valid only while its covered files and planning basis are unchanged; anything in `validations.rerun` must have been re-run and checkpointed. The helper refuses `complete` citing a recorded validation that no longer holds (`refused: complete-with-stale-validation`) — re-run it rather than restating the old result.
 
 **Accessibility and verification debt.** `standards/shared/verification.md` owns the
 Tier 1 / Tier 2 / Tier 3 vocabulary; do not restate it here or in a platform skill.
@@ -366,4 +424,4 @@ Do not report success if any acceptance criterion failed, required validation fa
 
 ## Responsibility boundary
 
-This command orchestrates (task-id resolution, repo-root resolution via the helper, document-path resolution, approval/dependency/blocker checks, platform routing, hook gating, invoking the correct agent+skill, passing resolved context, and recording lifecycle state through `scripts/task-state.ts` — it is the only writer). It does **not** contain Android/iOS/RN/React coding methodology, architecture guidance, review methodology, or the implementation logic itself — those live in the platform feature-implementation skills.
+This command orchestrates (task-id resolution, repo-root resolution via the helper, document-path resolution, approval/dependency/blocker checks, upstream-chain reconciliation, the resume verdict, platform routing, hook gating, invoking the correct agent+skill, passing resolved context, and recording lifecycle state through `scripts/task-state.ts` — it is the only lifecycle writer: start, resume, restart, abandon, complete, failed, blocked). The shared implementation methodology may only append checkpoints to the run this command started. It does **not** contain Android/iOS/RN/React coding methodology, architecture guidance, review methodology, or the implementation logic itself — those live in the platform feature-implementation skills.

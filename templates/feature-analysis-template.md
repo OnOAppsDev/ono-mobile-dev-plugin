@@ -3,11 +3,14 @@
 ```yaml
 doc_schema_version: 3 # the frontmatter contract version this document was written against. Set by /analyze-feature at generation; upgraded only by scripts/migrate-planning-doc.ts. See docs/planning-doc-contract.md — never edit by hand.
 feature: # feature name
+source_link: # repository-relative path to the source specification this analysis was written from (spec, PRD or story file), or null when the request was given inline — ENG-003
+source_fingerprint: # sha256: of the source specification's raw BYTES when this analysis was generated — ENG-003, extending SHARED-013. Written by /analyze-feature; verified by /implement-task's upstream chain check. Absent or null (a legacy analysis, or an inline request) means unknown, never mismatch
 dd_link: # link to the Detailed Design doc, if one exists
 design_reference_status: pending # pending | provided | not_required — `provided` = a design reference exists (MANDATORY for any feature with new or changed user-facing UI); `not_required` = valid ONLY when the feature introduces no new or changed user-facing UI. /analyze-feature must resolve this away from `pending`.
 design_reference_type: # figma | document | screenshots | existing_ui | other — the kind of design reference provided. `none` when design_reference_status is not_required.
 design_reference: # the non-Figma design reference — URL, file path, document location, or a precise existing-screen/component reference. null when the type is `figma` (the link lives in figma_link) or when no reference is required.
 figma_link: # optional — the Figma URL when design_reference_type is `figma`, otherwise null. Figma is one supported reference type, not a requirement.
+design_reference_fingerprint: # sha256: of the four design-reference fields plus the content of a local reference file or folder — ENG-003. Written by /analyze-feature (scripts/task-state.ts design-fingerprint); verified by /implement-task's upstream chain check. A URL contributes only its text. Absent means unknown, never mismatch
 platform: # react-native | ios | android | react — exactly one confirmed platform. Resolved from repo-analyst after user confirmation; must never be mixed.
 device_type: # mobile | tv — the mobile-vs-TV target for this feature, resolved by repo-analyst; ask the human if ambiguous. No "mixed" — resolve to exactly one.
 # repo_knowledge_* fields: exact values and encoding are defined by the repo-knowledge-consumer skill's Step 6 (skills/repo-knowledge-consumer/SKILL.md) — do not guess from the prose below. In particular: absent values are the bare YAML keyword `null` (never the string "null", never empty), and repo_knowledge_reused/repo_knowledge_derived mirror the reader's usableCategories/deriveLive verbatim — no summarizing, reordering, or abbreviating.
