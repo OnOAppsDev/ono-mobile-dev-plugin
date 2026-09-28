@@ -39,15 +39,19 @@ Read these fields:
 | `reason` | Why it is unavailable: `absent`, `unparseable`, `invalid`, `schema-too-new`, `worktree`, `root-not-found`. |
 | `freshness` | `fresh`, `stale-head`, `stale-artifacts`, or `unknown`. |
 | `staleDetail` | Human-readable staleness explanation, when present. |
-| `usableCategories` | Categories you may reuse. |
+| `usableCategories` | Categories you may reuse — the union of the next two. |
+| `trustedCategories` | Usable categories you may reuse **as-is** (Step 3). |
+| `verifyOnUse` | Usable categories source drift may have moved: a **starting point only**, verified on use (Step 3a). |
 | `deriveLive` | Categories you **must** derive yourself. |
+| `sourceDrift` | Source drift since `fingerprint.knowledgeHead`, in the producer's vocabulary: `status` `COMPLETE` / `REFRESH_RECOMMENDED` / `BASELINE_UNKNOWN`, with `reason`, `changedSourceFiles` and `analysisSignals`. `null` when unavailable. |
+| `refreshRecommendation` | The one-line refresh advice when source drift is possible, otherwise `null`. |
 | `knowledge` | The manifest: `stack`, `commands`, `structure`, `documents`, `auditTopics`. |
 | `knowledge.fingerprint.gitHead` | The recorded git HEAD — the value the citation block's `repo_knowledge_fingerprint` records. |
 | `summary` | The one line to show the developer. |
 
-## Step 3 — Reuse the usable categories
+## Step 3 — Reuse the trusted categories
 
-For every category in `usableCategories`, use the manifest instead of deriving it:
+For every category in `trustedCategories`, use the manifest instead of deriving it. A category in `verifyOnUse` is read the same way, but only as a starting point — Step 3a applies to it:
 
 | Category | What you get | Read it from |
 |---|---|---|
@@ -62,6 +66,17 @@ For every category in `usableCategories`, use the manifest instead of deriving i
 For a pointer category, **open the document and read the relevant section** — the manifest deliberately carries no prose. Use `anchors` to cite the exact section. Do not re-derive a fact the document already states.
 
 **Reuse means read, not copy.** Record a citation (path plus anchor), never a verbatim paste, per Step 6.
+
+## Step 3a — Verify on use
+
+A category lands in `verifyOnUse` when the repository's source changed after its knowledge was generated (`sourceDrift.status: REFRESH_RECOMMENDED`), or when that cannot be established (`BASELINE_UNKNOWN`). The helper marks only the categories the drift can affect — `inventory`, `conventions` and `integrations` on any source change; `stack`, `commands` and `structure` too when a build/dependency manifest or a top-level entry changed. Everything else stays in `trustedCategories`. Knowledge in `verifyOnUse` is **potentially stale, never authoritative as-is**:
+
+1. **Use it as a starting point.** Read the cited document to learn where to look, exactly as in Step 3.
+2. **Verify only the facts this feature actually uses** — the specific convention, component, integration, command or module the design or change relies on — against the current repository source. Keep verification proportional to the feature's scope. **Never re-scan the whole repository**, never re-verify a category the feature does not use, and never treat the drift as invalidating Project Knowledge wholesale.
+3. **Verification succeeds** → reuse continues, but the evidence shown comes from the current repository: label the fact `[evidence: <path>]` with the current source path, never `[reused: <path>#<anchor>]` citing the stale document alone.
+4. **Verification fails** (the fact no longer holds, or cannot be confirmed) → the current repository code is authoritative: derive that knowledge live, label it `[evidence: <path>]`, and record the category as derived in Step 6.
+
+`changedSourceFiles` narrows where to look first; it is a hint, not the boundary of what verification may read.
 
 ## Step 4 — Derive only what is in `deriveLive`
 
@@ -98,7 +113,7 @@ repo_knowledge_derived:     # comma-separated categories derived live, or none
 
 Write the bare YAML keyword `null` (not the string `"null"`, and not an empty value) for any field that has no value. `repo_knowledge_reused` and `repo_knowledge_derived` are comma-separated category lists; write `none` only when the list is genuinely empty.
 
-`repo_knowledge_reused` and `repo_knowledge_derived` mirror the reader's `usableCategories` and `deriveLive` verbatim — do not summarize, reorder, or abbreviate them. When knowledge is unavailable every category is derived live, so all seven are listed.
+`repo_knowledge_reused` and `repo_knowledge_derived` mirror the reader's `usableCategories` and `deriveLive` verbatim — do not summarize, reorder, or abbreviate them. The one exception is Step 3a: a `verifyOnUse` category whose verification failed moves from `repo_knowledge_reused` to `repo_knowledge_derived`. In the body table, a `verifyOnUse` category that passed verification lists the current source paths it was verified against, with `verified on use` in the Section column. When knowledge is unavailable every category is derived live, so all seven are listed.
 
 Body section:
 
@@ -138,7 +153,9 @@ That last sentence matters: it marks the content as a snapshot rather than a cit
 
 ## Step 7 — Report staleness, never repair it
 
-When `freshness` is `stale-head` or `stale-artifacts`, state it in one line and recommend `/inspect-sync` (or `/inspect`). Then continue — the helper has already moved affected categories into `deriveLive`, so the work is already correct.
+When `sourceDrift.status` is `REFRESH_RECOMMENDED` or `BASELINE_UNKNOWN`, state it in one line and recommend `/inspect` → **Refresh Project Knowledge** (the reader's `refreshRecommendation`). Never recommend `/inspect-sync` for source drift: it re-indexes the artifacts and the manifest but never refreshes source-backed knowledge. Then continue — Step 3a already keeps the work correct.
+
+When `freshness` is `stale-artifacts` (an inspector-owned document was edited after the manifest was written), state it in one line and recommend `/inspect-sync` (or `/inspect`). Then continue — the helper has already moved affected categories into `deriveLive`, so the work is already correct.
 
 **Never** write, regenerate, or "fix" `.ono/repo-knowledge.json`, `CLAUDE.md`, `AUDIT.md`, `docs/project/**`, `audits/**`, or `.ono/state.json`. Those belong to the inspector. Repairing them from here would create two writers for the same file.
 
@@ -147,7 +164,8 @@ When `freshness` is `stale-head` or `stale-artifacts`, state it in one line and 
 - Never parse `.ono/repo-knowledge.json` directly — always go through `scripts/read-repo-knowledge.ts`.
 - Never write any inspector-owned artifact.
 - Never block, warn repeatedly, or ask the developer to run an inspection before continuing.
-- Never re-derive a category listed in `usableCategories`.
+- Never re-derive a category listed in `usableCategories`. A `verifyOnUse` category is verified fact-by-fact for what the feature uses (Step 3a), never re-derived wholesale.
+- Never treat a `verifyOnUse` category as authoritative as-is.
 - Never skip deriving a category listed in `deriveLive`.
 - Never copy repository knowledge verbatim into a generated document — cite it per Step 6.
 - **Never treat `knowledge.stack.platformHints` as the platform.** It is advisory corroboration only. The authoritative platform is whatever `repo-analyst` detects and the human confirms in `/analyze-feature`, every time, regardless of what the manifest says.

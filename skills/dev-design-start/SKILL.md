@@ -183,6 +183,7 @@ Read, in this order, everything that exists — do not skip any:
 3. `docs/` and any architecture/integration/ADR notes, if present.
 4. **Canonical repository knowledge first, source inspection only for the gaps.** Apply the `repo-knowledge-consumer` skill, then:
    - Read the documents it reports reusable rather than re-deriving them: `docs/project/components.md` for existing screens, components, and hooks the design should reuse; `docs/project/patterns.md` for the state-management, API, navigation, styling, error-handling, and i18n conventions the design must follow; `docs/project/integrations.md` for the services and SDKs §11 and §21 will reference; and the `CLAUDE.md` structure pointers for the module map §20 builds on.
+   - For a category in `verifyOnUse`, the repository changed after that knowledge was generated: verify the facts this design relies on against current source (the consumer skill's Step 3a) — only those facts, never a repository-wide re-scan.
    - **Then inspect source only for what canonical knowledge does not cover**: any category in `deriveLive`, plus the feature-specific detail no repository-wide document could contain — the actual signatures, props, state shape, and call sites of the specific components and services *this feature* touches. That feature-specific reading is required and is not duplication.
    - When knowledge is unavailable, browse the relevant source directories, existing components, services, and API routes directly — **exactly as this step always did.**
 

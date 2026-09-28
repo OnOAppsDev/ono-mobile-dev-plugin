@@ -21,7 +21,7 @@ description: Detects the repo's platform (React Native, native iOS, native Andro
 
 ### Step −1 — Resolve canonical repository knowledge first
 
-Before any detection, apply the `repo-knowledge-consumer` skill to resolve the repository knowledge the Ono Project Inspector may already have published at `.ono/repo-knowledge.json`. Record its `available`, `freshness`, `usableCategories`, and `deriveLive` values — every later step branches on them.
+Before any detection, apply the `repo-knowledge-consumer` skill to resolve the repository knowledge the Ono Project Inspector may already have published at `.ono/repo-knowledge.json`. Record its `available`, `freshness`, `usableCategories`, `verifyOnUse`, and `deriveLive` values — every later step branches on them. A category in `verifyOnUse` is reused only as a starting point: verify the facts you use against current source per the skill's Step 3a, and label them `[evidence: <path>]`.
 
 This exists so this agent stops re-deriving repository facts that already exist in an approved form. It changes what you *inventory*, never what you *decide*:
 
