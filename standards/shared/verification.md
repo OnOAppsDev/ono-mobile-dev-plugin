@@ -48,6 +48,11 @@ that checks a label exists. Presence is not meaning.
   serves, the verification still required, why the plugin cannot perform it, and who owns
   it. Verification debt does not block task completion — it transfers a known, named
   obligation to the party that can discharge it.
+- `VERIFY-4` Developer testing — unit, component and repository integration tests that
+  live in the code repository — is the developer's obligation. When required developer
+  tests cannot be written or run, the debt is recorded with domain `developer-testing` and
+  owner `developer`, **never** `qa`: it is not QA automation, and it is never presented as
+  verification owed to QA.
 
 ## Verification Debt and Completion
 

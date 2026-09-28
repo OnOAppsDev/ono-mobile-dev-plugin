@@ -79,6 +79,7 @@ const PASSING = {
   standardIds: ["RN-TS-1"],
   validation: [{ command: "tsc --noEmit", result: "pass" }],
   acceptanceCriteria: [{ criterion: "Hook returns availability", met: true }],
+  developerTesting: { framework: null, required: false, testsChanged: [], justification: "fixture: no runtime behaviour under developer test", runs: [], notRunReason: null },
 };
 
 /* ── 1. row fingerprint normalization ─────────────────────────────────── */

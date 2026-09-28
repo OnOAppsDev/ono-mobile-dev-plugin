@@ -114,6 +114,38 @@ requires:
 - Do not fix unrelated pre-existing failures unless approved; distinguish new from pre-existing.
 - **Validate every acceptance criterion individually.**
 
+## 7a. Developer testing
+
+Every change answers one question explicitly: **are developer tests required?** The
+decision is mandatory — silence is not "no tests needed". It applies to every change this
+methodology produces, whichever command invoked it.
+
+**Developer testing** means tests that live in the code repository: unit tests, component
+tests and repository integration tests. It is the developer's implementation-time
+responsibility. It is **not** QA automation — not QA plans, manual QA, Appium, WebdriverIO,
+or anything in a QA repository — and none of those satisfy or replace it.
+
+1. **Detect the repository's developer test framework** — runner, libraries, where the
+   tests live and how the repository actually runs them. Apply the lane's testing guidance
+   where the lane has one; otherwise follow the repository's own conventions. Never invent
+   a testing standard, and never introduce a framework the repository does not use.
+2. **Decide whether tests are required** for this change. Where the repository has an
+   applicable framework, the **default expectation is to update existing tests or add new
+   ones** covering the changed behaviour. Where no test is added or updated, record an
+   explicit justification for not modifying tests (e.g. existing tests already assert the changed behaviour and
+   were run; the change has no runtime behaviour under test). Not required at all also
+   needs a reason.
+3. **Run the narrowest relevant developer tests** — the files or targets covering the
+   change — then broaden only as the lane's validation guidance requires.
+4. **Record what actually happened.** Never claim a test passed unless it actually ran, and
+   record each run exactly as it was run, with its real `pass` or `fail`. A failing
+   developer test is a proven defect: it blocks completion.
+5. **Tests that cannot be written or run** (no framework, an unavailable toolchain,
+   environment or credential) become verification debt with `domain: "developer-testing"`
+   and `owner: "developer"` (`VERIFY-4` in `standards/shared/verification.md`). It is the
+   developer's obligation and **never QA debt** — never hand it to QA, and never let it
+   appear as verification owed to QA.
+
 ## 8. Self-review and completion
 
 Before reporting, self-review against task scope · DD compliance · layering and dependency
@@ -144,6 +176,7 @@ Platform-independent stop conditions; the lane adds its own.
 - A UI task has no design reference of any supported type, or a recorded one cannot be accessed.
 - Completing the task requires touching files outside its approved scope.
 - You are about to claim a typecheck, lint, test, build or manual check passed that you did not run.
+- You are about to finish without a recorded developer-testing decision, or hand developer-testing debt to QA.
 - You are about to record a Tier 3 obligation as satisfied by mechanical evidence.
 - A standard the lane cites is missing or is a structure-only placeholder.
 - You are about to write a repository-knowledge artifact owned by `ono-project-inspector`.

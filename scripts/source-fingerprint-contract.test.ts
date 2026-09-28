@@ -260,6 +260,7 @@ function fmValue(text: string, key: string): string | null {
       filesChanged: [`src/${task}.ts`], standardIds: ["RN-TS-1"],
       validation: [{ command: "tsc --noEmit", result: "pass" }],
       acceptanceCriteria: [{ criterion: "done", met: true }],
+      developerTesting: { framework: null, required: false, testsChanged: [], justification: "fixture: no runtime behaviour under developer test", runs: [], notRunReason: null },
     }, bdPath);
   }
   // T3 goes in-progress — this is the task in flight.
@@ -277,6 +278,7 @@ function fmValue(text: string, key: string): string | null {
     filesChanged: ["src/features/auth/authSlice.ts"], standardIds: ["RN-STATE-1"],
     validation: [{ command: "tsc --noEmit", result: "pass" }],
     acceptanceCriteria: [{ criterion: "Flag survives restart", met: true }],
+    developerTesting: { framework: null, required: false, testsChanged: [], justification: "fixture: no runtime behaviour under developer test", runs: [], notRunReason: null },
   }, bdPath);
 
   const after = readTaskState(root, feature, bdPath);
