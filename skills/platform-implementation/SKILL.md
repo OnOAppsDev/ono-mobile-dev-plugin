@@ -24,7 +24,8 @@ standards-citation content. This skill never restates the lane and never names a
 | Platform routing and the lane's readiness gate | **`commands/implement-task.md`** §7 |
 | **The resolved inputs, and the source-of-truth hierarchy over them** | **`commands/implement-task.md`** §8 |
 | **The completion-report shape** | **`commands/implement-task.md`** §10 |
-| Task lifecycle state — the command is **sole writer** | **`docs/task-state-contract.md`**, via `scripts/task-state.ts` |
+| Task lifecycle state — the command is **sole lifecycle writer**; this skill only appends checkpoints | **`docs/task-state-contract.md`**, via `scripts/task-state.ts` |
+| Whether an interrupted run resumes, and from where — the **resume verdict** | **`commands/implement-task.md`** §6, via `scripts/task-state.ts` |
 | Verification tiers, and what may be recorded as proven | **`standards/shared/verification.md`** |
 | Accessibility rules | **`standards/shared/accessibility.md`** |
 | Which repository knowledge may be reused, and what must be derived | **`skills/repo-knowledge-consumer/SKILL.md`** |
@@ -42,8 +43,32 @@ Breakdown are approved, that the task is not complete, that every `depends-on` i
 satisfied and that no blocker remains. Read their verdicts; **never re-derive them here**.
 If a verdict is absent or inconclusive, stop rather than assume.
 
-**This skill never modifies a planning document, and never writes task state.** It reads
-approved artifacts and writes application code.
+**This skill never modifies a planning document, and never writes lifecycle state.** It reads
+approved artifacts and writes application code. Its one write to the task-state store is to
+**append checkpoints to the active run** — see [Checkpoints](#6a-checkpoints) — which can never
+set `complete`, `failed`, `blocked` or any other lifecycle state.
+
+## 0. Resuming an interrupted run
+
+When §8 of `/implement-task` passes a **resume verdict**, this is the same run continuing, not a
+new one. The verdict is authoritative, and it was computed from hashes — follow it rather than
+re-deriving any of it:
+
+- **Start at `nextStep`.** Steps in `checkpoints.valid` are done: their files are
+  `matches-checkpoint`, and they are **not reimplemented**. Steps in `checkpoints.invalidated`
+  are redone from their recorded reason — typically an upstream section they cite changed.
+- **Finish `partialFiles` from the code as it now is.** A `partial` or `changed-after-checkpoint`
+  file holds work in flight when the run stopped. The current repository code is authoritative:
+  read it, complete the step that owns it, then checkpoint the step. Never restore an earlier
+  version and never rewrite it from scratch without cause.
+- **Re-run only `validations.rerun`.** Each names the exact file or basis that moved.
+  `validations.carried` results still hold and are not re-run to "be safe".
+- **Re-read the saved `context` and `developerTesting`** — the accessibility decision, the design
+  attestation, the developer-testing decision. Recomputing a recorded decision is the
+  non-determinism resume exists to remove.
+- **Never touch `preexisting-unchanged` files.** They are the developer's work, not the task's.
+- With `nextStep: plan`, no plan was recorded before the interruption: plan again (§4), treating
+  every edit already in the tree as existing code.
 
 ## 1. Standards readiness gate
 
@@ -55,7 +80,11 @@ defaults. The lane owns *which* files; this skill owns the obligation to check.
 ## 2. Design reference
 
 **Resolve it before writing UI code.** For Figma, pull Dev Mode specs and any code
-mappings for the frame via the `figma` MCP server. Otherwise read what `design_reference`
+mappings for the frame via the `figma` MCP server. When the command passed a design evidence
+file, it holds exactly those reads for the linked node; use it, and pass it as
+`--design-evidence` on every checkpoint whose basis cites `design`. If you read the design
+yourself, save `get_metadata` and `get_design_context` for the linked node as that file first
+(`commands/analyze-feature.md` step 6), outside the repository. Otherwise read what `design_reference`
 points at — the specification, the exported mockups, or the named existing screen to
 mirror. Never guess spacing, colour or typography. **If a recorded reference cannot be
 accessed, stop with the exact error.** `design_reference_status: not_required` needs none.
@@ -101,6 +130,44 @@ Work in small steps. After each: inspect the diff, check imports and compilation
 errors, verify layering and module boundaries, verify no unrelated files changed, and run
 the narrowest useful validation. Do not wait until the end to discover the project no
 longer builds.
+
+## 6a. Checkpoints
+
+A checkpoint is the durable evidence that lets an interruption resume deterministically. Append
+one at each boundary below, for the `runId` the command passed, through the helper. Only
+`/implement-task` starts a run; when the invoking command passed no `runId`, there is no active
+run and nothing is checkpointed.
+
+```
+node --no-warnings "${CLAUDE_PLUGIN_ROOT}/scripts/task-state.ts" checkpoint \
+  --root "<TARGET_ROOT>" --feature "<feature>" --task "<task-id>" --run "<runId>" \
+  --kind <kind> --breakdown "<absolute Task Breakdown path>" --payload '<json>'
+```
+
+| Boundary | `--kind` | Payload |
+|---|---|---|
+| the §4 plan is settled | `plan` | `expectedFiles`, and ordered `steps` — each `{ id, description, files, basis }` |
+| a toolchain probe the lane requires has run | `probe` | `{ name, command, output }` |
+| a §6 step is complete and its narrowest check passed | `step` | `{ stepId }` |
+| any validation or developer test has run | `validation` | `{ command, result, kind, covers, basis, evidence? }` |
+| the §7a developer-testing decision is made | `developer-testing` | `{ developerTesting, verificationDebt }` |
+| self-review is complete | `review` | `{ completed, findings }` |
+
+- **`basis` names the planning inputs a step or validation is built on** — the DD sections it
+  implements (`dd#<heading-anchor>`), the row cells it satisfies (`row:acceptance criteria`),
+  `design` for UI work, `probe:<name>` for a toolchain-dependent result. Cite the narrowest
+  sections that genuinely apply: after an upstream change, only work whose cited sections moved is
+  redone. A reference that does not resolve is refused.
+- **A basis citing `design` or `requirements` needs the evidence of the external read** the
+  work was built against when that source is external (`--design-evidence` /
+  `--source-evidence`); without it the helper refuses, rather than record a basis it cannot
+  verify later.
+- **`covers` names the files a validation actually exercised.** Omitted, it covers every
+  task-owned file — correct, but it re-runs on any edit.
+- **The helper hashes every file and every basis reference itself.** Never pass a hash, and never
+  checkpoint a step before its files are written: a checkpoint states what is on disk.
+- **Record only what actually happened.** A `validation` checkpoint is a command that ran, with its
+  real `pass` or `fail` — the same rule §7 applies to the completion report.
 
 ## 7. Validation methodology
 

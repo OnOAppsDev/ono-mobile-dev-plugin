@@ -86,7 +86,11 @@ stop names exactly one recovery command so nobody has to guess where to re-enter
 Recorded task work is never erased by any of this. A row that changed makes its completion
 `stale`, which withdraws deterministic proof while keeping the record, its `filesChanged`,
 its `standardIds` and its `runId` intact; re-implementing increments `attempt` so the new
-run sits beside the old one rather than replacing it.
+run sits beside the old one rather than replacing it. A run that was **in progress** when
+the change landed is not restarted either: `/implement-task` names the earliest stale stage
+through its upstream chain check, and once the chain is current again it resumes that run,
+invalidating only the checkpoints whose cited DD sections or row cells moved
+(`docs/task-state-contract.md` § *The resume verdict*).
 
 
 

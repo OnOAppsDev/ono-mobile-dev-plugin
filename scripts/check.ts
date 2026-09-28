@@ -65,6 +65,7 @@ const PHASES: Phase[] = [
       "read-repo-knowledge",
       "migrate-planning-doc",
       "task-state",
+      "task-resume",
       "figma-theme-tokens",
     ],
   },

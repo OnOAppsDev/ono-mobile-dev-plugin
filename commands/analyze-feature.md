@@ -82,6 +82,11 @@ Analyze the feature described in `$ARGUMENTS` (a feature description, product re
 
    In all `provided` cases set `design_reference_status: provided`. **Figma is one supported reference type, not a requirement** — never tell the user Figma specifically is mandatory. If the supplied reference cannot be accessed (Figma MCP failure, unreadable path, missing document, unresolvable screen name), **stop with the exact error** rather than guessing.
 6. The `feature-architect` agent proposes screens/views from whatever reference step 5 resolved — reading Figma via the `figma` MCP server when the type is `figma`, otherwise reading the recorded reference through the appropriate available mechanism. The agent does not raise its own Figma request and does not gate on Figma specifically.
+
+   **Keep what that read returned as evidence (ENG-003)** whenever the reference — or the source specification — lives outside the repository, so step 7 can fingerprint the content actually consumed rather than its URL. Save it as one JSON file per source, **outside `TARGET_ROOT`** (the session's scratch directory), shaped `{ "source": "<the URL read>", "parts": [{ "name": "<read>", "content": "<its raw output>" }] }`:
+
+   - **Figma** — exactly two parts, the raw output of the two reads the design step makes for the linked node: `get_metadata` (the node tree) and `get_design_context` (its styles, text and layout). No screenshot — a rendering is not a stable byte stream. This is the design read the agent already performs; it adds no extra scan.
+   - **A hosted specification or other external document** — one part, `content`: the raw text as retrieved. Never a summarizing fetch: a model-processed summary is not the same bytes twice, so it cannot evidence the content.
 7. Populate `templates/feature-analysis-template.md` in full:
 
    - `doc_schema_version`, set to the feature-analysis kind's current version per `docs/planning-doc-contract.md`. This makes the document self-describing so a later stage can tell an older contract from a malformed one; it is stamped here at generation and upgraded only by `scripts/migrate-planning-doc.ts`. Do not run the migration framework here — migration happens on **load**, never during generation.
@@ -92,10 +97,20 @@ Analyze the feature described in `$ARGUMENTS` (a feature description, product re
    - `feature-architect`'s proposed approach as a single flat "Proposed Technical Approach" section.
    - The four design-reference fields exactly as resolved in step 5 (`design_reference_status` — `provided` or `not_required`, never left `pending`; `design_reference_type`; `design_reference`; `figma_link`).
    - Any open questions/risks. When the status is `not_required`, record in "Open Questions & Risks" why the feature has no user-facing UI change.
+   - The **upstream fingerprints** (ENG-003), so `/implement-task` can later tell that an input moved — by its **content**, never by its URL alone. When the request came from a specification (a spec, PRD or story), set `source_link` to its repository-relative path or its URL and stamp `source_fingerprint`; when it was given inline, set both to `null` — the analysis body is then the root of the chain. After the four design-reference fields are written, stamp `design_reference_fingerprint`. Pass the step 6 evidence file for any external source:
+
+     ```
+     node --no-warnings "${CLAUDE_PLUGIN_ROOT}/scripts/task-state.ts" source-fingerprint \
+       --root "<TARGET_ROOT>" --source "<source_link>" [--source-evidence "<spec evidence file>"]
+     node --no-warnings "${CLAUDE_PLUGIN_ROOT}/scripts/task-state.ts" design-fingerprint \
+       --root "<TARGET_ROOT>" --file "<absolute feature analysis path>" [--design-evidence "<design evidence file>"]
+     ```
+
+     A repository file is hashed by its bytes and needs no evidence; an external source is fingerprinted from its evidence. Never invent either value: when a helper reports `unverifiable` or anything else but `ok`, leave the field `null` (unknown, never a mismatch) and say so.
 
    Every downstream stage reads these fields rather than re-asking or re-detecting.
 7a. **If a feature analysis already exists for this feature**, ask how to handle it — `Overwrite` / `Update` (merge new findings) / `Preserve` (write to a new filename) / `Version` (rename the existing file, e.g. append its date) — the same four options `/dev-design-start` offers for a DD. This is the chain root, so it is where an upstream requirement change re-enters the pipeline.
 
-   **The plugin never edits the requirements itself and never confers or revokes approval.** A human amends the analysis and re-approves it; this command only writes the document it is asked to write and leaves `status: proposed`. When downstream artifacts already exist, say so plainly: a regenerated analysis makes the DD's `source_fingerprint` mismatch, which is what sends the next stage back through `/dev-design-start`.
+   **The plugin never edits the requirements itself and never confers or revokes approval.** A human amends the analysis and re-approves it; this command only writes the document it is asked to write and leaves `status: proposed`. When downstream artifacts already exist, say so plainly: a regenerated analysis makes the DD's `source_fingerprint` mismatch, which is what sends the next stage back through `/dev-design-start`. Re-stamp `source_fingerprint` and `design_reference_fingerprint` on every regeneration — if the regenerated body is byte-identical, the DD still matches and nothing downstream is rerun.
 
 8. This is a proposal, not a design. A human reviews the populated feature analysis and flips its status to `approved` before `/dev-design-start` turns it into a Detailed Design (DD).

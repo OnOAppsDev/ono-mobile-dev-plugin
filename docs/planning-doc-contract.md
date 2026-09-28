@@ -437,8 +437,18 @@ version of its upstream document that is on disk now?**
 
 | Document | Field records the body fingerprint of | Written by | Verified by |
 |---|---|---|---|
+| `feature-analysis` | the source specification at `source_link` — a repository file's **raw bytes**, or an external document's **content evidence**, since it is not a planning document (ENG-003) | `/analyze-feature` | `/implement-task` (upstream chain) |
 | `dd` | the approved feature analysis | `/dev-design-start` | `/dev-feature-start` |
 | `task-breakdown` | the approved DD | `/dev-feature-start` | `/implement-task` |
+
+ENG-003 extends the same mechanism to the chain's root rather than adding a second one. The
+feature analysis also carries `design_reference_fingerprint` — the four design-reference
+fields plus the design content consumed (a local file's bytes, or the evidence of a Figma or
+other external read) — so a design change is detected at the stage that consumed it, even
+behind an unchanged URL. `/implement-task` checks every link in one pass
+(`task-state.ts chain`) and names the **earliest stale stage**; see
+`docs/task-state-contract.md` § *The upstream chain and the earliest stale stage*. All three
+fields are additive and outside the version chain, exactly as below.
 
 `dev-plan` deliberately **does not** carry the field. It has no independent generation
 point — `/dev-feature-start` step 6 writes it in the same run that writes the breakdown,
