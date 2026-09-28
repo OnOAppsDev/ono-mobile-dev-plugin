@@ -56,7 +56,7 @@ change that shipped.
 
 ```yaml
 dd_generation: single          # single | partitioned — how this DD was produced
-dd_complexity_band: unassessed # low | medium | high | unassessed
+dd_complexity_band: unassessed # reserved: unassessed (historical: low | medium | high)
 ```
 
 **A DD Package is one canonical DD file that is the sole authoritative
@@ -77,11 +77,14 @@ must not branch on the field. The value stays in the enum so that implementing
 partitioned generation later would not require a schema bump — it is a reserved
 contract value, never a supported mode.
 
-`dd_complexity_band` is written by the complexity assessment and is **advisory
-only** — it records what the assessment computed, and **never routes anything.**
-Generation always takes the single-DD path regardless of the band. The scoring
-model is an initial hypothesis being calibrated against real features; it is not
-allowed to control behavior until that calibration is done.
+`dd_complexity_band` is retained for backward compatibility as a **reserved
+field.** New DDs write `unassessed`. The complexity assessment that once wrote a
+measured band no longer exists: it was removed (ENG-006) because it changed no
+behavior and nothing read its result. DDs written while it existed may carry
+`low`, `medium` or `high`, and those values remain valid — they are historical
+measurements, never rewritten and never migrated. No workflow may branch on
+`dd_complexity_band`, whatever value it holds. Keeping the field avoids a schema
+bump that would buy nothing.
 
 A field for the partition inventory is intentionally **not** part of v2. It has
 no producer and no consumer until partitioned generation exists, and a field

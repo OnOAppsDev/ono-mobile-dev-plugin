@@ -22,7 +22,7 @@ author: # the relevant platform architect / human author
 status: draft # draft | approved
 detail_level: standard # standard | comprehensive
 dd_generation: single # single | partitioned — how this DD was produced. Always `single` today; `partitioned` is reserved for partitioned generation, which is not implemented. Never branch on this field.
-dd_complexity_band: unassessed # low | medium | high | unassessed — what the complexity assessment computed. ADVISORY ONLY: it records a measurement and never routes generation. Every feature takes the single-DD path regardless of the band.
+dd_complexity_band: unassessed # reserved — always `unassessed` for new DDs. Kept for schema compatibility; historical `low` / `medium` / `high` stay valid. Never branch on it.
 date: # YYYY-MM-DD
 ```
 

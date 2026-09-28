@@ -46,11 +46,6 @@ Turn an approved feature analysis into a Detailed Design (DD).
    platform content, and no other platform's lane or standards may be loaded.
 
    - **Readiness gate (any platform).** Before invoking, check the **resolved planning lane** for the placeholder marker — a frontmatter `description` ending "not yet authored, currently a structure-only placeholder" **and** a `## Status: Not yet authored` heading. Match on those markers only, never on the phrase appearing in ordinary prose (an authored skill may legitimately mention "structure-only placeholder" when telling an agent to stop if a *standards* file is one). If present, **stop with: "Platform design methodology for `<platform>` is not yet authored"** — do not invoke a placeholder lane, do not substitute the shared methodology alone for the missing platform vocabulary, and do not author it here. The gate is on the lane, not the agent: `feature-architect` and `platform-planning` are platform-independent and always authored, so a lane's readiness is the only thing that can gate a route. (When a lane is later authored and the marker is gone, the route opens automatically.) **No lane is gated today** — `react-native`, `ios`, `android` and `react` are all authored. The gate is retained because it is the invariant, not a note about any one platform: a lane added or reverted to placeholder state is caught here automatically, with no edit to this command.
-3a. **Measure the feature's complexity, report it, and change nothing.** While `feature-architect` performs the repository sweep in step 3, apply the `dd-complexity-assessment` skill to record its eleven signals and score them with `scripts/assess-dd-complexity.ts`. Show the developer the returned `summary` line.
-
-   **This is a measurement, not a decision.** Generation always continues on the single-DD path below, for every band including `high` and `unclassified`. Do not branch on the band, do not ask the developer to confirm it, do not offer an alternative generation mode, and do not let it change the detail level, the section rules, or the contraction pass. Partitioned generation does not exist, and the scoring model is being calibrated against real features before it is allowed to influence anything.
-
-   The assessment adds **no prompt and no gate**. If it cannot classify the feature, report that in the same one line and carry on unchanged.
 4. **Use the design information the feature analysis already recorded — never ask for it again.** Apply exactly one branch:
 
    - `figma_link` is set (`design_reference_type: figma`) → read the design through the Figma MCP.
@@ -64,7 +59,6 @@ Turn an approved feature analysis into a Detailed Design (DD).
    Pass it the two values this command produced, and let Step 6 place them:
 
    - the **`source_fingerprint`** of the approved feature analysis's body, so `/dev-feature-start` can later detect that the analysis moved, and
-   - the `dd_complexity_band` measured in step 3a (`unassessed` only if the assessment did not run at all), and
    - the six `repo_knowledge_*` values from **this run's** resolution in step 2 — never copied from the feature analysis.
 6. **The skill's Step 7 contraction pass must have run before the DD is handed over — it is mandatory, not optional.** Step 7 owns what it removes and the one-line report it produces; this command's only obligation is not to accept a DD that skipped it.
 7. Leave `status: draft` in the DD's frontmatter — do not mark it `approved`. This is a design, not a task list. A human reviews and flips that status before `/dev-feature-start` turns the DD into a task breakdown.

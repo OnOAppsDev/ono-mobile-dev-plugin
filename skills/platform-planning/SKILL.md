@@ -27,7 +27,7 @@ output differs, and the command and `dev-design-start` own that.
 | Platform and device-type detection, and the human confirmation gate | **`commands/analyze-feature.md`** steps 1–2 |
 | The design-reference branch and its stop conditions | **`commands/analyze-feature.md`** step 5, **`commands/dev-design-start.md`** step 4 |
 | Locating the upstream artifact, migration loading, the approval gate | **`commands/dev-design-start.md`** steps 1–2 |
-| Architect routing and complexity-assessment triggering | **`commands/dev-design-start.md`** steps 3, 3a |
+| Architect routing | **`commands/dev-design-start.md`** step 3 |
 | Task decomposition mechanics and the breakdown contract | **`commands/dev-feature-start.md`**, **`skills/dev-feature-start/SKILL.md`** |
 | **DD section rules, the `N/A — [reason]` discipline, the frontmatter contract, §20 change-class resolution and its site threshold, the contraction pass** | **`skills/dev-design-start/SKILL.md`** Steps 2, 6, 7 |
 | **Statement classification, risk taxonomy, the ranked source-of-truth hierarchy** | **`skills/dev-design-start/SKILL.md`** § *Shared planning rules* — defined once there as Classification, Risk classification and Source-of-truth hierarchy. Apply them as written; never introduce a per-platform copy |

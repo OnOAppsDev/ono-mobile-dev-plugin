@@ -317,12 +317,12 @@ optional. Only <span class="chip deferred">Deferred</span> is outside the comple
 </tr>
 <tr>
   <td>ENG-006</td><td>Skill — <code>dd-complexity-assessment</code></td><td>Plugin Owner</td><td>—</td>
-  <td><b>Decision required: integrate or remove.</b> The skill runs at
-      <code>/dev-design-start</code> step 3a, measures eleven signals and changes nothing —
-      live but inert, pending calibration against real features. Either wire the band to a
-      real effect, or remove the skill and its scorer. <b>This must be decided before
-      Gate C</b>; shipping a live-but-inert component is not a finished state.</td>
-  <td><span class="chip known">Known</span></td>
+  <td><b>Decided: removed.</b> The skill, its scorer and <code>/dev-design-start</code>
+      step 3a are gone — nothing read the band and every signal was already owned by an
+      existing gate. <code>dd_complexity_band</code> stays in DD schema v2 as a reserved field:
+      new DDs write <code>unassessed</code>, historical <code>low</code>/<code>medium</code>/<code>high</code>
+      remain valid, and no workflow branches on it (<code>docs/planning-doc-contract.md</code>).</td>
+  <td><span class="chip done">Done</span></td>
 </tr>
 </table>
 

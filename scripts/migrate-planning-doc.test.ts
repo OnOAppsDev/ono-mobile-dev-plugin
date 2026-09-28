@@ -666,6 +666,17 @@ try {
     check("19c stamped v2 dd bytes unchanged", bytes(v2).equals(v2Before));
     check("19c stamped v2 dd mtime unchanged", statSync(v2).mtimeMs === v2Stat.mtimeMs);
     check("19c stamped v2 dd preserves its computed band", /^dd_complexity_band: medium$/m.test(readFileSync(v2, "utf-8")));
+
+    // ENG-006: the assessment that wrote these bands is removed, but the field is reserved
+    // in v2. Every historical value, and the reserved `unassessed`, stays valid and untouched.
+    for (const band of ["low", "medium", "high", "unassessed"]) {
+      const p = scratch("dd-v2-stamped.md", `dd-v2-band-${band}`);
+      writeFileSync(p, readFileSync(p, "utf-8").replace(/^dd_complexity_band: medium$/m, `dd_complexity_band: ${band}`));
+      const before = bytes(p);
+      const rb = run(p, ["--kind", "dd"]);
+      check(`19c a v2 dd with dd_complexity_band: ${band} is current`, rb.json?.status === "current", String(rb.json?.status));
+      check(`19c a v2 dd with dd_complexity_band: ${band} is left byte-identical`, bytes(p).equals(before));
+    }
   }
 
   // --- 19b. Every shipped template parses as current for its own kind --------

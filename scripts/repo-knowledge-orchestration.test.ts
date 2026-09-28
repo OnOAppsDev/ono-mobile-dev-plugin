@@ -173,7 +173,7 @@ const S3 = step3();
    * INVOCATION, not mention. A document may name the helper as precedent without
    * invoking it — `skills/rn-nativewind-theme-sync/SKILL.md` cites it in a prose list
    * of deterministic scripts ("Same split this plugin uses everywhere else:
-   * `assess-dd-complexity.ts`, `read-repo-knowledge.ts`, `migrate-planning-doc.ts`")
+   * `read-repo-knowledge.ts`, `migrate-planning-doc.ts`")
    * to explain the observe-vs-decide boundary. Treating that as an invocation was a
    * false positive that failed this suite the moment that skill merged. An invocation
    * is a runnable command line: `node ... scripts/read-repo-knowledge.ts ...`.

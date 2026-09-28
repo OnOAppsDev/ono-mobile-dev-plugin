@@ -61,7 +61,7 @@ Collect evidence for each dimension, recording the path that proves it:
 
 This vocabulary is **owned by the React Native planning lane as part of the platform planning contract** — `skills/dev-design-start/SKILL.md` delegates it to the platform dev-planning skill and neither defines nor requires it. It is **not a React Native concept**; it is a platform-owned responsibility under the current architecture.
 
-**Record the change surface while sweeping**, not afterwards: which packages and feature folders the change enters, the distinct *kinds* of change it makes, and roughly how many sites each kind repeats across. Those observations are what [§4](#4-technical-implementation-approach-dd-19) and the change-surface inventory in [§4b](#4b-impacted-modules-dd-20) are written from, and they are also what the complexity assessment records during this same sweep — collect them once.
+**Record the change surface while sweeping**, not afterwards: which packages and feature folders the change enters, the distinct *kinds* of change it makes, and roughly how many sites each kind repeats across. Those observations are what [§4](#4-technical-implementation-approach-dd-19) and the change-surface inventory in [§4b](#4b-impacted-modules-dd-20) are written from.
 
 ## 4. Technical Implementation Approach (DD §19)
 
