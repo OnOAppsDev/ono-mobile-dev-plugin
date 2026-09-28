@@ -44,7 +44,31 @@
 
 <h1>Ono Mobile Dev Plugin — Roadmap</h1>
 <div class="sub">Authoritative roadmap. Supersedes the completion plan it replaces.
-Last updated 2026-09-15 · <code>node scripts/check.ts --strict</code> → 18 suites · 1,973 assertions · 0 failures · 0 skipped</div>
+Last updated 2026-09-16 · <code>node scripts/check.ts --strict</code> → 18 suites · 1,973 assertions · 0 failures · 0 skipped</div>
+
+<section>
+<h2>Legend</h2>
+<table>
+<tr><th>Chip</th><th>Meaning</th></tr>
+<tr><td><span class="chip done">Done</span></td><td>Delivered and verified. Not completion work.</td></tr>
+<tr><td><span class="chip open">Open</span></td><td>Outstanding work. Blocks completion until delivered, or until removed or reclassified by a documented decision.</td></tr>
+<tr><td><span class="chip known">Known</span></td><td>A recorded defect or an unresolved decision. Recorded so it is never mistaken for intended behaviour — <b>also completion work</b>, on the same terms as Open.</td></tr>
+<tr><td><span class="chip deferred">Deferred</span></td><td>Explicitly out of scope by a recorded decision. The only status that does not block completion.</td></tr>
+</table>
+<h3>Ticket prefixes</h3>
+<table>
+<tr><th>Prefix</th><th>Area</th></tr>
+<tr><td><code>SHARED-###</code></td><td>Shared infrastructure and orchestration</td></tr>
+<tr><td><code>DOC-###</code></td><td>Shared documentation</td></tr>
+<tr><td><code>IOS-###</code></td><td>iOS platform</td></tr>
+<tr><td><code>ATV-###</code></td><td>Apple TV context inside the iOS platform</td></tr>
+<tr><td><code>ANDROID-###</code></td><td>Android platform, mobile and Android TV context</td></tr>
+<tr><td><code>REACT-###</code></td><td>React web platform, including the Smart TV context</td></tr>
+<tr><td><code>ENG-###</code></td><td>Engineering defect or decision raised by the platform-layer refactor</td></tr>
+<tr><td><code>QA-###</code></td><td>Cross-plugin item owned by <code>ono-plugin-qa</code></td></tr>
+</table>
+<p class="note">The number is a sequence within the area, never a schedule.</p>
+</section>
 
 <section>
 <h2>1. Architecture</h2>
@@ -113,7 +137,31 @@ reports, <code>/prepare-mobile-release</code> records unverifiable as a no-go.</
 </section>
 
 <section>
-<h2>3. Legacy platform agents — removed</h2>
+<h2>3. Readiness matrix</h2>
+<p><b>Ready</b> — every component on that platform's <code>command → role agent → shared
+methodology → lane</code> path is authored and reachable. <b>Blocked</b> — the path reaches
+authored components, but the standards carry no rules for that context, so the lane can
+discover and avoid regression without citing guidance. <b>Unsupported</b> — a defined hard
+stop, not a gap. <b>Unproven</b> — nothing is known to be wrong, and nothing has
+demonstrated it right either.</p>
+<table>
+<tr><th>Platform</th><th><code>device_type: mobile</code></th><th><code>device_type: tv</code></th><th>End-to-end proven?</th></tr>
+<tr><td><code>react-native</code></td><td>Ready</td><td><b>Unsupported</b> — defined hard stop; RN + TV is a product decision that does not exist</td><td><span class="chip open">Unproven</span></td></tr>
+<tr><td><code>ios</code></td><td>Ready</td><td><b>Blocked</b> — no tvOS rules exist (ATV-001). Reserved roots <code>IOS-UI-TV-*</code> / <code>IOS-PERF-TV-*</code> carry no rules; no TV ID may be cited</td><td><span class="chip open">Unproven</span></td></tr>
+<tr><td><code>android</code></td><td>Ready</td><td><b>Blocked</b> — no Android TV rules exist (ANDROID-003)</td><td><span class="chip open">Unproven</span></td></tr>
+<tr><td><code>react</code></td><td>Ready</td><td>Ready — <code>react-smart-tv.md</code> is authored (54 <code>REACT-TV-*</code> rules)</td><td><span class="chip open">Unproven</span></td></tr>
+</table>
+<p class="note"><code>/review-security</code> is Ready on all four platforms and for both
+device types, because that stage loads no platform lane — <code>mobile-security-reviewer</code>
+works from shared standards only.<br>
+<b>"End-to-end proven" is Unproven for every row, including the four Ready ones.</b> Readiness
+is a structural statement: the route resolves and the deterministic suite is green. Only
+Gate B can change that column, and only one platform — Android — has been measured on a real
+repository at all (implementation stage only).</p>
+</section>
+
+<section>
+<h2>4. Legacy platform agents — removed</h2>
 <p>The sixteen per-platform agents were deleted once every reference was re-pointed to the
 role that replaced them. Four families collapsed to four role agents:</p>
 <table>
@@ -129,7 +177,7 @@ all of which describe the repository as it stood at a point in time.</p>
 </section>
 
 <section>
-<h2>4. Completed refactor stages</h2>
+<h2>5. Completed refactor stages</h2>
 <table>
 <tr><th>Stage</th><th>Delivered</th><th></th></tr>
 <tr><td>1</td><td>Context-isolation contract — encodes the plugin/knowledge ownership boundary and the cross-lane allowlist</td><td><span class="chip done">Done</span></td></tr>
@@ -150,42 +198,241 @@ severity, applicability or path was changed at any stage.</p>
 </section>
 
 <section>
-<h2>5. Remaining backlog</h2>
+<h2>6. Remaining backlog</h2>
+<p>Every row below is completion work. <span class="chip known">Known</span> marks a
+recorded defect or an unresolved decision rather than unstarted work — it does not mean
+optional. Only <span class="chip deferred">Deferred</span> is outside the completion bar.</p>
 
 <h3>Platform work</h3>
 <table>
-<tr><th>ID</th><th>Owner</th><th>Scope</th><th></th></tr>
-<tr><td>ATV-001</td><td>Noam Haba</td><td>Author tvOS rules. <code>IOS-UI-TV-*</code> and <code>IOS-PERF-TV-*</code> are reserved roots with no rules behind them; a bare <code>IOS-TV-*</code> root is not permitted. Until authored, the iOS lane's TV responsibility is discovery and non-regression, and no TV ID may be cited.</td><td><span class="chip open">Open</span></td></tr>
-<tr><td>ATV-002</td><td>Noam Haba</td><td>Branch the iOS lane deeply on <code>device_type</code>. Blocked on ATV-001.</td><td><span class="chip open">Open</span></td></tr>
-<tr><td>ANDROID-003</td><td>Guy Gur Arie</td><td>Author Android TV rules. Same position as ATV-001 for the Android lane.</td><td><span class="chip open">Open</span></td></tr>
-<tr><td>SHARED-012</td><td>Plugin Owner</td><td>Optional CI opt-in running the identical <code>check.ts</code> command. Deferred by decision — validation is developer tooling, never a mandatory runtime step.</td><td><span class="chip deferred">Deferred</span></td></tr>
+<tr><th>ID</th><th>Component</th><th>Owner</th><th>Depends on</th><th>Effort</th><th>Scope / required action</th><th></th></tr>
+<tr>
+  <td>ATV-001</td>
+  <td>Standards — iOS, Apple TV context</td>
+  <td>Noam Haba</td>
+  <td>IOS-001 ✓, SHARED-001 ✓ — unblocked</td>
+  <td>4 d</td>
+  <td>Add Apple TV / tvOS knowledge into the five <code>standards/ios/*</code> documents as
+      TV-context sections, covering all six subject areas:
+      <b>focus engine</b>; <b>Siri Remote / remote input</b>; <b>media playback</b>;
+      <b>Top Shelf and lifecycle</b>; <b>tvOS memory and performance</b>;
+      <b>tvOS signing and release</b>.
+      The reserved roots <code>IOS-UI-TV-*</code> and <code>IOS-PERF-TV-*</code> are where those
+      rules land; a bare <code>IOS-TV-*</code> root is not permitted. Until this ships the iOS
+      lane's TV responsibility is discovery and non-regression only, and <b>no TV ID may be
+      cited</b>.</td>
+  <td><span class="chip open">Open</span></td>
+</tr>
+<tr>
+  <td>ATV-002</td>
+  <td>Platform lanes — iOS</td>
+  <td>Noam Haba</td>
+  <td><b>ATV-001</b> — cannot start before the rules exist</td>
+  <td>4 d</td>
+  <td>Branch the three iOS <b>lanes</b> — <code>ios-dev-planning</code>,
+      <code>ios-feature-implementation</code>, <code>ios-code-review</code> — deeply on
+      <code>device_type</code>, so Apple TV work is planned, implemented and reviewed with
+      focus, remote-input, playback and lifecycle concerns and cites the ATV-001 rules.
+      <b>The work is lane-side only.</b> <code>feature-architect</code>,
+      <code>feature-implementer</code>, <code>code-reviewer</code> and
+      <code>performance-reviewer</code> stay platform-neutral and must not gain TV content;
+      so must the three shared methodologies. Exactly one lane still loads per invocation.</td>
+  <td><span class="chip open">Open</span></td>
+</tr>
+<tr>
+  <td>ANDROID-003</td>
+  <td>Standards + platform lanes — Android, TV context</td>
+  <td>Guy Gur Arie</td>
+  <td>ANDROID-001 ✓, ANDROID-002 ✓, SHARED-001 ✓ — unblocked</td>
+  <td>4 d</td>
+  <td>Add Android TV knowledge via the <code>device_type</code> context, to the
+      <code>AND-*</code> standards and the three Android lanes.
+      <b>Discovery first.</b> An Android TV application may use any implementation model, so
+      the planning lane must <b>inspect the real repository and identify the actual
+      implementation before making any architectural or planning decision</b> — standard
+      Android TV frameworks, a custom framework, or a repository-specific solution are all
+      possible findings, never defaults. Discovery covers focus handling, D-pad/remote input,
+      navigation abstractions, TV UI components, playback integration, screen lifecycle, and
+      reusable base classes or framework modules.
+      <b>Repository conventions are the source of truth; Android platform documentation is
+      guidance only and never overrides an existing repository implementation.</b></td>
+  <td><span class="chip open">Open</span></td>
+</tr>
+<tr>
+  <td>SHARED-012</td>
+  <td>Infrastructure — optional CI enforcement</td>
+  <td>Plugin Owner</td>
+  <td>SHARED-005 ✓, SHARED-006 ✓</td>
+  <td>0.5 d</td>
+  <td>Run the identical <code>node scripts/check.ts --strict</code> automatically on
+      <code>pull_request</code>. Adds <b>enforcement, not capability</b> — the validators have
+      no CI dependency, so enabling it later changes nothing about how they work.
+      <b>Deferred by decision: excluded from the completion bar.</b></td>
+  <td><span class="chip deferred">Deferred</span></td>
+</tr>
 </table>
-<p class="note">React Native, iOS Mobile, Android Mobile and React Web (incl. Smart TV via
-<code>device_type: tv</code>, 54 <code>REACT-TV-*</code> rules) are complete end to end.
-Apple TV and Android TV can discover and avoid regression, but cannot cite guidance.</p>
 
 <h3>Engineering backlog</h3>
 <table>
-<tr><th>Item</th><th>Detail</th><th></th></tr>
-<tr><td><code>mobile-repo-analysis</code> cross-platform standards defect</td><td>The one recorded cross-lane defect. Pinned by <code>context-isolation-contract</code> as <code>kind: "defect"</code> — recorded, never endorsed.</td><td><span class="chip known">Known</span></td></tr>
-<tr><td>Project Knowledge reuse gap</td><td>Canonical knowledge is resolved but not reused as fully as the contract allows.</td><td><span class="chip known">Known</span></td></tr>
-<tr><td>Partially-applied-task methodology gap</td><td>No methodology covers resuming a task already partly applied to the working tree.</td><td><span class="chip known">Known</span></td></tr>
-<tr><td>React lane delegation wording</td><td><code>react-dev-planning</code> restates the <code>repo-knowledge-consumer</code> procedure inline where iOS and Android delegate to it. Behaviour agrees; the ownership convention does not. Tracked, not papered over, in <code>repo-knowledge-orchestration</code>.</td><td><span class="chip known">Known</span></td></tr>
-<tr><td>Live A/B evidence</td><td>Only Android was measured on a real repository (ExoPlayer → Media3). React Native, iOS and React remain unmeasured.</td><td><span class="chip open">Open</span></td></tr>
-<tr><td>End-to-end exercise</td><td>No lane has been run end to end on a real repository through the full command chain.</td><td><span class="chip open">Open</span></td></tr>
-<tr><td><code>dd-complexity-assessment</code></td><td>Scoring model still being calibrated against real features; it measures and never decides. Retained pending a final reachability audit.</td><td><span class="chip known">Known</span></td></tr>
+<tr><th>ID</th><th>Component</th><th>Owner</th><th>Depends on</th><th>Scope / required action</th><th></th></tr>
+<tr>
+  <td>ENG-001</td><td>Skill — <code>mobile-repo-analysis</code></td><td>Plugin Owner</td><td>—</td>
+  <td>Cross-platform standards defect: the skill reaches standards outside the resolved lane.
+      It is the one entry in <code>context-isolation-contract</code>'s allowlist marked
+      <code>kind: "defect"</code> — recorded so it is never mistaken for an endorsed exception.
+      Fix the reach, then remove the allowlist entry and tighten the assertion to two.</td>
+  <td><span class="chip known">Known</span></td>
+</tr>
+<tr>
+  <td>ENG-002</td><td>Orchestration — Project Knowledge reuse</td><td>Plugin Owner</td><td>—</td>
+  <td>Canonical repository knowledge is resolved through <code>repo-knowledge-consumer</code>
+      but not reused as fully as <code>docs/repo-knowledge-contract.md</code> allows, so work
+      is re-derived live that a manifest already answers. Close the gap without changing the
+      contract or letting any lane parse the manifest itself.</td>
+  <td><span class="chip known">Known</span></td>
+</tr>
+<tr>
+  <td>ENG-003</td><td>Methodology — partially-applied task</td><td>Plugin Owner</td><td>—</td>
+  <td>No methodology covers resuming a task already partly applied to the working tree.
+      <code>/implement-task</code> assumes a clean start, so a re-entry after an interrupted
+      run is undefined. Define the detect-and-resume behaviour in
+      <code>platform-implementation</code>, not per lane.</td>
+  <td><span class="chip known">Known</span></td>
+</tr>
+<tr>
+  <td>ENG-004</td><td>Lane — <code>react-dev-planning</code></td><td>Plugin Owner</td><td>—</td>
+  <td>The React lane restates the <code>repo-knowledge-consumer</code> procedure inline where
+      the iOS and Android lanes delegate to it. Behaviour agrees; the ownership convention does
+      not. Tracked deliberately in <code>repo-knowledge-orchestration</code> rather than
+      papered over by loosening the assertion.</td>
+  <td><span class="chip known">Known</span></td>
+</tr>
+<tr>
+  <td>ENG-005</td><td>Validation — live A/B evidence</td><td>Plugin Owner</td><td>Gate B tooling</td>
+  <td>Only Android has been measured on a real repository, at the implementation stage only
+      (ExoPlayer → Media3). Run the same shared-route vs pre-refactor comparison for
+      <b>React Native, iOS and React</b> so the consolidation's cost is evidenced on every
+      platform rather than extrapolated from one.</td>
+  <td><span class="chip open">Open</span></td>
+</tr>
+<tr>
+  <td>ENG-006</td><td>Skill — <code>dd-complexity-assessment</code></td><td>Plugin Owner</td><td>—</td>
+  <td><b>Decision required: integrate or remove.</b> The skill runs at
+      <code>/dev-design-start</code> step 3a, measures eleven signals and changes nothing —
+      live but inert, pending calibration against real features. Either wire the band to a
+      real effect, or remove the skill and its scorer. <b>This must be decided before
+      Gate C</b>; shipping a live-but-inert component is not a finished state.</td>
+  <td><span class="chip known">Known</span></td>
+</tr>
 </table>
 
-<h3>Cross-plugin (ono-plugin-qa)</h3>
+<h3>Cross-plugin — <code>ono-plugin-qa</code></h3>
 <table>
-<tr><th>Item</th><th>Detail</th><th></th></tr>
-<tr><td><code>/check-qa-coverage</code> discovery bug</td><td>Still greps for a <code># QA Handoff</code> first line that no longer exists. Fix by following <code>qa_handoff_link</code> instead.</td><td><span class="chip open">Open</span></td></tr>
-<tr><td>Global git-block hook</td><td><code>ono-plugin-qa</code> 0.4.0 registers a <code>PreToolUse</code> hook with a bare <code>"matcher": "Bash"</code>, blocking <code>git commit</code>/<code>push</code> in <i>every</i> repository, not only the QA repo. Scope it to the QA working tree.</td><td><span class="chip open">Open</span></td></tr>
+<tr><th>ID</th><th>Component</th><th>Depends on</th><th>Scope / required action</th><th></th></tr>
+<tr>
+  <td>QA-001</td><td>Hook — <code>block-qa-repo-git-writes</code></td><td>—</td>
+  <td><b>Global git-block hook.</b> <code>ono-plugin-qa</code> 0.4.0 registers a
+      <code>PreToolUse</code> hook with a bare <code>"matcher": "Bash"</code> and no scope check,
+      so it blocks <code>git commit</code> and <code>git push</code> in <b>every</b> repository
+      wherever the plugin is installed — not only the QA repo its name and description claim.
+      Scope it to the QA working tree, or to QA agent sessions.</td>
+  <td><span class="chip open">Open</span></td>
+</tr>
+<tr>
+  <td>QA-002</td><td>Command — <code>/check-qa-coverage</code></td><td>—</td>
+  <td><b>QA handoff discovery bug.</b> Still greps for a <code># QA Handoff</code> first line
+      that the handoff template no longer emits, so a valid handoff is not found. Follow
+      <code>qa_handoff_link</code> from the task breakdown instead of matching on a heading.</td>
+  <td><span class="chip open">Open</span></td>
+</tr>
 </table>
 </section>
 
 <section>
-<h2>6. Standing constraints</h2>
+<h2>7. Path to completion</h2>
+<p>Three gates, in order. <b>Nothing in §6 is non-blocking.</b> An item leaves the completion
+bar only by being delivered, or by a documented decision that removes or reclassifies it —
+never by ageing.</p>
+
+<h3>Gate A — Remaining implementation and defect work</h3>
+<p>Every open item in §6 is closed, or carries a recorded decision that removes or
+reclassifies it. All ten:</p>
+<table>
+<tr><th>Item</th><th>Kind</th><th>Blocks</th></tr>
+<tr><td>QA-001 — QA plugin global git-block hook</td><td>Cross-plugin defect</td><td>Gate A</td></tr>
+<tr><td>ENG-001 — <code>mobile-repo-analysis</code> cross-platform defect</td><td>Defect</td><td>Gate A</td></tr>
+<tr><td>ENG-002 — Project Knowledge reuse gap</td><td>Gap</td><td>Gate A</td></tr>
+<tr><td>ENG-003 — partially-applied task behaviour</td><td>Methodology gap</td><td>Gate A</td></tr>
+<tr><td>ENG-005 — live A/B validation for React Native, iOS and React</td><td>Evidence</td><td>Gate A</td></tr>
+<tr><td>ENG-006 — <code>dd-complexity-assessment</code>: integrate or remove</td><td>Decision</td><td>Gate A, and explicitly Gate C</td></tr>
+<tr><td>QA-002 — QA handoff discovery bug in <code>/check-qa-coverage</code></td><td>Cross-plugin defect</td><td>Gate A</td></tr>
+<tr><td>ATV-001 — tvOS standards, all six subject areas</td><td>Platform</td><td>Gate A, and ATV-002</td></tr>
+<tr><td>ATV-002 — iOS lanes branch on <code>device_type</code></td><td>Platform</td><td>Gate A</td></tr>
+<tr><td>ANDROID-003 — Android TV standards and lanes, discovery-first</td><td>Platform</td><td>Gate A</td></tr>
+</table>
+<p class="note">ENG-004 (React lane delegation wording) is recorded in §6 and tracked in the
+deterministic suite. It is a convention divergence with no behavioural effect, and is the one
+item a documented decision may reasonably close as "accepted" rather than fixed — but that
+decision has not been taken, so it stands as completion work today.</p>
+
+<h3>Gate B — End-to-end validation</h3>
+<p>A real Claude-driven <code>claude plugin eval</code> run of the <b>complete workflow</b> —
+<code>/analyze-feature</code> → <code>/dev-design-start</code> → <code>/dev-feature-start</code>
+→ <code>/implement-task</code> → <code>/review-code</code> → <code>/fix-review-comments</code>
+→ <code>/create-dev-qa-notes</code> → <code>/prepare-mobile-release</code> — on a real
+repository.</p>
+<ul>
+<li><b>All four platforms</b> — <code>react-native</code>, <code>ios</code>, <code>android</code>, <code>react</code>.</li>
+<li><b>Both device types where applicable</b> — <code>mobile</code> and <code>tv</code> on iOS, Android and React. React Native is mobile-only; its <code>tv</code> path is validated by confirming the hard stop fires and never falls through.</li>
+<li>Gate A first for the TV paths: an Apple TV or Android TV run before ATV-001 / ANDROID-003 can only demonstrate discovery, not guidance.</li>
+</ul>
+<div class="rule">What <code>check.ts</code> cannot prove, and never will</div>
+<p>The deterministic suite validates the deterministic layer only. These are out of its reach
+<b>by design</b> and are the reason Gate B exists as separate work:</p>
+<ul>
+<li>Platform and <code>device_type</code> detection, and per-file attribution — specified in prose, executed by Claude.</li>
+<li>Design-document content quality, implementation correctness, review findings, QA prose.</li>
+<li>That any command, skill or agent behaves correctly when Claude actually runs it.</li>
+<li>That a readiness or approval gate, once present, actually stops or degrades correctly — gate text is prose.</li>
+<li><b>Any TV behaviour at all.</b> The harness deliberately carries no TV fixture, because no helper or hook reads <code>device_type</code> — a TV fixture would exercise no deterministic branch. TV coverage is therefore a <code>claude plugin eval</code> obligation, not a harness one: <b>still required, simply not provable here</b>.</li>
+</ul>
+
+<h3>Gate C — Release readiness</h3>
+<ul>
+<li><b>Documentation matches actual behaviour</b> — <code>README.md</code>, <code>CHANGELOG.md</code> and every pipeline/routing table describe the shared-lifecycle architecture as it actually routes.</li>
+<li><b>No stale references to deleted legacy agents</b> outside <code>CHANGELOG.md</code>, dated records under <code>docs/planning/</code>, test fixtures and git history.</li>
+<li><b>ENG-006 decided</b> — <code>dd-complexity-assessment</code> is either wired to a real effect or removed. No live-but-inert component ships.</li>
+<li><b>Plugin version intentionally finalized</b> — <code>plugin.json</code> is bumped as a deliberate act. It has been held un-bumped on purpose throughout; the bump is separate work, not a side effect of any ticket.</li>
+<li><b><code>[Unreleased]</code> cut</b> — the accumulated CHANGELOG entries are moved under the finalized version with its date.</li>
+<li><b>Final regression green</b> — <code>node scripts/check.ts --strict</code> passes with zero failures and zero skipped, and <code>git diff --check</code> is clean.</li>
+<li><b>Explicit sign-off</b> — per §8.</li>
+</ul>
+</section>
+
+<section>
+<h2>8. Definition of Done</h2>
+<p>A platform — including its TV context, where it has one — is <b>supported</b> only when
+all ten hold. The plugin is <b>complete</b> when all four platforms are supported and Gates
+A, B and C have passed.</p>
+<table>
+<tr><th>#</th><th>Condition</th></tr>
+<tr><td>1</td><td><b>Platform standards complete and enforceable.</b> No file left <code>Not yet authored</code>; no re-inheriting of React-Native-flavoured shared rules; every rule carries a citable stable ID. For a TV context, the TV subject areas are authored — focus, remote input, playback, lifecycle, TV signing and packaging.</td></tr>
+<tr><td>2</td><td><b>Platform lanes complete.</b> All three lanes — <code>*-dev-planning</code>, <code>*-feature-implementation</code>, <code>*-code-review</code> — are authored, carry only platform-specific content, and branch correctly on <code>device_type</code>.</td></tr>
+<tr><td>3</td><td><b>Shared role agents resolve correctly to the lanes.</b> <code>feature-architect</code>, <code>feature-implementer</code>, <code>code-reviewer</code> and <code>performance-reviewer</code> each resolve to a real, non-placeholder lane for that platform, loading <b>exactly one</b>; the agents and the three shared methodologies stay platform-neutral and carry no platform content.</td></tr>
+<tr><td>4</td><td><b>Context propagates end to end.</b> Confirmed <code>platform</code> and <code>device_type</code> are carried in frontmatter from <code>/analyze-feature</code>'s human confirmation through every later stage, are never re-detected downstream, and are never emitted as <code>mixed</code>. Templates and metadata carry both, and the per-platform review, QA and release sections render.</td></tr>
+<tr><td>5</td><td><b>Approval and readiness gates never fall back silently.</b> Each gate's declared semantics hold — <code>/implement-task</code> hard-stops, <code>/review-code</code> excludes and declares, <code>/fix-review-comments</code> skips and reports, <code>/prepare-mobile-release</code> records unverifiable as a no-go. A TV target is never handled as mobile without the TV context applied, and no gate degrades into another platform's lane.</td></tr>
+<tr><td>6</td><td><b>Representative deterministic coverage exists where it is possible.</b> The document-chain fixtures cover the mobile path, and <code>node scripts/check.ts --strict</code> is green with nothing skipped. <b>No TV fixture is expected</b> — no deterministic branch reads <code>device_type</code>, so one would prove nothing.</td></tr>
+<tr><td>7</td><td><b>Real Claude-driven end-to-end validation where the harness cannot prove behaviour.</b> Gate B has run for that platform, covering both device types where applicable. This is the only evidence that detection, attribution, gate behaviour and output quality actually work.</td></tr>
+<tr><td>8</td><td><b>Documentation matches actual behaviour.</b> README, CHANGELOG and the pipeline tables describe the routing that exists, naming no deleted component.</td></tr>
+<tr><td>9</td><td><b>Release and version state consistent.</b> <code>plugin.json</code> is at its intended finalized version and <code>[Unreleased]</code> has been cut to it.</td></tr>
+<tr><td>10</td><td><b>Explicit owner sign-off.</b> The platform owner confirms the mobile bar is met; for Apple TV, Noam Haba confirms the TV context is genuinely applied; for Android TV, Guy Gur Arie; for Smart TV, Boris Molotsky. React Native is owned by Pavel Tarnopolski; iOS Mobile by Tom Zion; Android Mobile by Guy Gur Arie; React Web by Boris Molotsky; shared infrastructure by the Plugin Owner.</td></tr>
+</table>
+<p class="note">Conditions 1–6 are structurally verifiable today. Condition 7 is Gate B and is
+unmet for every platform. Conditions 8–10 are Gate C.</p>
+</section>
+
+<section>
+<h2>9. Standing constraints</h2>
 <ul>
 <li><b>Four platforms only</b> — React Native, React, iOS, Android. TV is a <code>device_type</code> context signal inside a platform, never a new platform value.</li>
 <li><b>Standards are frozen</b> in content. IDs are never renumbered or re-homed; rules, severity, applicability and paths do not move. Reference-only edits replacing retired agent names with role names are the sole exception, and were applied once during the cleanup.</li>
