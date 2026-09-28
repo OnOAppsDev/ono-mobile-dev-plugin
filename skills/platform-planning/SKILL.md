@@ -57,7 +57,8 @@ to assumed defaults. The lane owns *which* files; this skill owns the obligation
 
 Resolve canonical repository knowledge through **`skills/repo-knowledge-consumer`** before
 deriving anything. Reuse every category it reports reusable by reading the cited document;
-derive live only what it reports as `deriveLive`.
+verify on use what it reports as `verifyOnUse` (the repository changed since that knowledge
+was generated — its Step 3a); derive live only what it reports as `deriveLive`.
 
 **Never parse `.ono/repo-knowledge.json` yourself** — one component owns that. **An absent
 manifest is the normal case, not an error:** say so in one line and proceed with full live

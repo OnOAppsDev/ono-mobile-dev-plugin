@@ -63,6 +63,73 @@ const CATEGORY_SOURCE: Record<string, string> = {
   auditTopics: "AUDIT.md",
 };
 
+/**
+ * Stage 4B. Paths the producer owns, exactly as docs/repo-knowledge-contract.md
+ * § "Producer-side source drift" lists them (pinned by repo-knowledge-staleness.test.ts).
+ * A change confined to these is the inspector's own bookkeeping, never source drift.
+ */
+export const INSPECTOR_OWNED_PATHS = [
+  ".ono/**",
+  "CLAUDE.md",
+  "AUDIT.md",
+  "CLAUDE.md.bak",
+  "AUDIT.md.bak",
+  "docs/project/**",
+  "audits/**",
+] as const;
+
+function isInspectorOwned(rel: string): boolean {
+  return INSPECTOR_OWNED_PATHS.some((p) => (p.endsWith("/**") ? rel.startsWith(p.slice(0, -2)) : rel === p));
+}
+
+/**
+ * Stage 4B. Mirrors the producer's build/dependency/CI manifest signal (Stage 4A
+ * `inspection-state.ts`): a change to one can move what CLAUDE.md records as stack
+ * and commands, so the analysis-backed categories must be verified on use.
+ */
+const ANALYSIS_MANIFEST_BASENAMES = new Set([
+  "package.json", "pnpm-workspace.yaml", "lerna.json", "nx.json", "turbo.json",
+  "Podfile", "Package.swift", "Cartfile", "project.pbxproj",
+  "build.gradle", "build.gradle.kts", "settings.gradle", "settings.gradle.kts",
+  "pom.xml", "Cargo.toml", "go.mod", "pyproject.toml", "setup.py", "setup.cfg",
+  "requirements.txt", "Pipfile", "Gemfile", "pubspec.yaml", "composer.json",
+  "Makefile", "Dockerfile", "docker-compose.yml", "docker-compose.yaml",
+  ".gitlab-ci.yml", "Jenkinsfile",
+]);
+
+function isAnalysisManifest(rel: string): boolean {
+  const base = rel.split("/").pop() ?? rel;
+  return (
+    ANALYSIS_MANIFEST_BASENAMES.has(base) ||
+    /\.csproj$/.test(base) ||
+    rel.startsWith(".github/workflows/") ||
+    rel.startsWith(".circleci/")
+  );
+}
+
+/** Source-backed categories, split by which inspection stage regenerates them. */
+const ANALYSIS_BACKED = ["stack", "commands", "structure"];
+const DOCS_BACKED = ["inventory", "conventions", "integrations"];
+
+const MAX_LISTED_FILES = 50;
+
+const REFRESH_RECOMMENDATION =
+  "Run /inspect and choose Refresh Project Knowledge to regenerate source-backed knowledge.";
+
+export type SourceDriftStatus = "COMPLETE" | "REFRESH_RECOMMENDED" | "BASELINE_UNKNOWN";
+
+export interface SourceDrift {
+  /** The producer's Stage 4A vocabulary, derived here the same way (it is never persisted). */
+  status: SourceDriftStatus;
+  knowledgeHead: string | null;
+  currentHead: string | null;
+  reason: string;
+  changedSourceCount: number;
+  /** Sorted; capped at 50 — changedSourceCount is the full count. */
+  changedSourceFiles: string[];
+  analysisSignals: string[];
+}
+
 type Unavailable = "absent" | "unparseable" | "invalid" | "schema-too-new" | "worktree" | "root-not-found";
 type Freshness = "fresh" | "stale-head" | "stale-artifacts" | "unknown";
 
@@ -74,8 +141,20 @@ export interface KnowledgeResult {
   generatedAt: string | null;
   freshness: Freshness | null;
   staleDetail: string | null;
-  /** Categories the consumer may trust as-is. */
+  /** Categories the consumer may reuse — as-is (`trustedCategories`) or as a starting point (`verifyOnUse`). */
   usableCategories: string[];
+  /** Stage 4B. Usable categories that are authoritative as-is. */
+  trustedCategories: string[];
+  /**
+   * Stage 4B. Usable categories that source drift may have moved: reuse them as a starting
+   * point only, verify each fact actually used against the current repository, and derive
+   * it live when verification fails. Never authoritative as-is.
+   */
+  verifyOnUse: string[];
+  /** Stage 4B. Source drift since `fingerprint.knowledgeHead`; null when knowledge is unavailable. */
+  sourceDrift: SourceDrift | null;
+  /** Stage 4B. `/inspect` → Refresh Project Knowledge when source drift is possible; otherwise null. */
+  refreshRecommendation: string | null;
   /** Categories the consumer MUST derive itself. */
   deriveLive: string[];
   /** The manifest, verbatim, when available. Never partially rewritten. */
@@ -96,6 +175,10 @@ function unavailable(reason: Unavailable, summary: string, schemaVersion: number
     freshness: null,
     staleDetail: null,
     usableCategories: [],
+    trustedCategories: [],
+    verifyOnUse: [],
+    sourceDrift: null,
+    refreshRecommendation: null,
     deriveLive: [...ALL_CATEGORIES],
     knowledge: null,
     platformHintsAreAdvisory: true,
@@ -103,16 +186,78 @@ function unavailable(reason: Unavailable, summary: string, schemaVersion: number
   };
 }
 
-function currentHead(targetRoot: string): string | null {
+function git(targetRoot: string, args: string[]): string | null {
   try {
-    return execFileSync("git", ["rev-parse", "HEAD"], {
+    return execFileSync("git", args, {
       cwd: targetRoot,
       encoding: "utf-8",
       stdio: ["ignore", "pipe", "ignore"],
-    }).trim() || null;
+    }).trim();
   } catch {
     return null;
   }
+}
+
+function currentHead(targetRoot: string): string | null {
+  return git(targetRoot, ["rev-parse", "HEAD"]) || null;
+}
+
+/**
+ * Stage 4B. Derives source drift since the knowledge-authoring HEAD exactly as the
+ * producer's Stage 4A `detect` does: diff `knowledgeHead..HEAD`, ignore Inspector-owned
+ * paths, and flag build/dependency manifests and top-level entries as analysis signals.
+ */
+function computeSourceDrift(targetRoot: string, knowledgeHead: string | null, head: string | null): SourceDrift {
+  const base = { knowledgeHead, currentHead: head, changedSourceCount: 0, changedSourceFiles: [] as string[], analysisSignals: [] as string[] };
+  const unknown = (reason: string): SourceDrift => ({ ...base, status: "BASELINE_UNKNOWN", reason });
+
+  if (!knowledgeHead) {
+    return unknown("No knowledge-authoring HEAD recorded (fingerprint.knowledgeHead absent or null). Freshness of source-backed knowledge cannot be established.");
+  }
+  if (!head) return unknown("Current git HEAD cannot be determined.");
+  if (git(targetRoot, ["cat-file", "-e", `${knowledgeHead}^{commit}`]) === null) {
+    return unknown(`Recorded knowledgeHead ${knowledgeHead.slice(0, 12)} is not in this repository's history (rewritten or shallow).`);
+  }
+  if (knowledgeHead === head) {
+    return { ...base, status: "COMPLETE", reason: "Knowledge was generated at the current HEAD." };
+  }
+
+  const diff = git(targetRoot, ["diff", "--name-only", "--no-renames", knowledgeHead, head]);
+  if (diff === null) return unknown("git diff between knowledgeHead and HEAD failed.");
+  const changed = Array.from(new Set(diff.split("\n").filter((l) => l.length > 0)))
+    .filter((rel) => !isInspectorOwned(rel))
+    .sort();
+  if (changed.length === 0) {
+    return { ...base, status: "COMPLETE", reason: "Only Inspector-owned artifacts changed since knowledge was generated." };
+  }
+
+  const topAt = (rev: string): Set<string> =>
+    new Set((git(targetRoot, ["ls-tree", "--name-only", rev]) ?? "").split("\n").filter(Boolean));
+  const topBefore = topAt(knowledgeHead);
+  const topNow = topAt(head);
+  const signals = new Set<string>();
+  for (const rel of changed) {
+    if (isAnalysisManifest(rel)) signals.add(`build/dependency manifest changed: ${rel}`);
+    const top = rel.split("/")[0];
+    if (!topBefore.has(top)) signals.add(`top-level entry added: ${top}`);
+    else if (!topNow.has(top)) signals.add(`top-level entry removed: ${top}`);
+  }
+
+  return {
+    ...base,
+    status: "REFRESH_RECOMMENDED",
+    reason: `${changed.length} source file(s) changed since knowledge was generated.`,
+    changedSourceCount: changed.length,
+    changedSourceFiles: changed.slice(0, MAX_LISTED_FILES),
+    analysisSignals: Array.from(signals).sort(),
+  };
+}
+
+/** Stage 4B. The source-backed categories a drift verdict can have moved. */
+function affectedCategories(drift: SourceDrift): string[] {
+  if (drift.status === "BASELINE_UNKNOWN") return [...ANALYSIS_BACKED, ...DOCS_BACKED];
+  if (drift.status === "COMPLETE") return [];
+  return drift.analysisSignals.length > 0 ? [...ANALYSIS_BACKED, ...DOCS_BACKED] : [...DOCS_BACKED];
 }
 
 function sha256OfFile(targetRoot: string, rel: string): string | null {
@@ -140,6 +285,8 @@ function structuralErrors(m: any): string[] {
   if (!m.producedBy?.plugin) errors.push("producedBy.plugin missing");
   if (typeof m.generatedAt !== "string") errors.push("generatedAt missing");
   if (!m.fingerprint || typeof m.fingerprint.artifacts !== "object") errors.push("fingerprint.artifacts missing");
+  const kh = m.fingerprint?.knowledgeHead;
+  if (kh !== undefined && kh !== null && typeof kh !== "string") errors.push("fingerprint.knowledgeHead must be a string or null");
 
   if (!m.coverage || typeof m.coverage !== "object") {
     errors.push("coverage missing");
@@ -270,9 +417,20 @@ export function readRepoKnowledge(targetRootInput: string): KnowledgeResult {
     staleDetail = "Freshness could not be established (no git HEAD recorded, or git unavailable). Using the manifest as-is.";
   } else if (recordedHead !== head) {
     freshness = "stale-head";
-    staleDetail = `HEAD moved since the manifest was written (recorded ${recordedHead.slice(0, 8)}, current ${head.slice(0, 8)}), but every indexed document is unchanged. Using the manifest as-is.`;
+    staleDetail = `HEAD moved since the manifest was written (recorded ${recordedHead.slice(0, 8)}, current ${head.slice(0, 8)}), but every indexed document is unchanged.`;
   } else {
     freshness = "fresh";
+  }
+
+  // --- Source drift since the knowledge was generated (Stage 4B) ---
+  const sourceDrift = computeSourceDrift(targetRoot, parsed.fingerprint.knowledgeHead ?? null, head);
+  const affected = affectedCategories(sourceDrift);
+  if (sourceDrift.status !== "COMPLETE") {
+    const drift =
+      sourceDrift.status === "REFRESH_RECOMMENDED"
+        ? `Source changed since the knowledge was generated (${sourceDrift.reason})`
+        : `Source-backed knowledge freshness is unknown (${sourceDrift.reason})`;
+    staleDetail = `${staleDetail ? `${staleDetail} ` : ""}${drift} Affected reused categories are verified on use against the current repository. ${REFRESH_RECOMMENDATION}`;
   }
 
   // --- Usable vs derive-live, per contract obligations 5 and 6 ---
@@ -290,9 +448,13 @@ export function readRepoKnowledge(targetRootInput: string): KnowledgeResult {
     }
   }
 
+  const verifyOnUse = usableCategories.filter((c) => affected.includes(c));
+  const trustedCategories = usableCategories.filter((c) => !affected.includes(c));
+
   const summary =
     `Repository knowledge available (contract v${schemaVersion}, produced by ${parsed.producedBy.plugin} ${parsed.producedBy.version}, ${freshness}). ` +
-    `Reusing: ${usableCategories.length ? usableCategories.join(", ") : "nothing"}. ` +
+    `Reusing: ${trustedCategories.length ? trustedCategories.join(", ") : "nothing"}. ` +
+    (verifyOnUse.length ? `Verify on use (source changed since the knowledge was generated): ${verifyOnUse.join(", ")}. ` : "") +
     `Deriving live: ${deriveLive.length ? deriveLive.join(", ") : "nothing"}.`;
 
   return {
@@ -304,6 +466,10 @@ export function readRepoKnowledge(targetRootInput: string): KnowledgeResult {
     freshness,
     staleDetail,
     usableCategories,
+    trustedCategories,
+    verifyOnUse,
+    sourceDrift,
+    refreshRecommendation: sourceDrift.status === "COMPLETE" ? null : REFRESH_RECOMMENDATION,
     deriveLive,
     knowledge: parsed,
     platformHintsAreAdvisory: true,
