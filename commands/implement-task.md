@@ -84,7 +84,9 @@ node --no-warnings "${CLAUDE_PLUGIN_ROOT}/scripts/task-state.ts" fingerprint --f
 
 **Design reference.** Compare the four design-reference fields carried in the Task Breakdown against the same four in the DD. They are contractually carried byte-verbatim, so any difference means the reference was re-pointed after the breakdown was generated. On a difference, **do not implement** and say: **"The design reference changed after this breakdown was generated. Run `/dev-design-start` to rebuild the DD against the current reference."** — then reconcile through the full chain check below, which names the earliest stage to rerun.
 
-Figma content that changed behind an unchanged URL cannot be detected — the Figma MCP exposes no version, revision or content hash. For a UI-touching task, ask the developer to confirm the reference is still current, and record that as an attestation, never as verification. On a **resumed** run the attestation recorded in the run's `context` is re-read, not asked again.
+**External sources are judged by their content, not their URL.** A Figma design — or a hosted specification — can change behind an unchanged link, and the Figma MCP exposes no version or content hash, so the fingerprint `/analyze-feature` stamped is of the content it actually read. For a UI-touching task with an external design reference, **re-read the linked node now** with the same two reads (`get_metadata` and `get_design_context`) — the design read the implementation needs anyway — and save them as the design evidence file, outside `TARGET_ROOT` (`commands/analyze-feature.md` step 6 defines the shape). Do the same for an external `source_link`. Pass the files as `--design-evidence` / `--source-evidence` to every `chain`, `resume`, `write` and `checkpoint` call in this run, and hand their paths to the agent in §8.
+
+**When an external source cannot be read** (MCP unavailable, authentication, timeout), its checks come back `unverifiable` — never `current`, never `stale`. Fall back to the attestation gate: ask the developer to confirm the reference is still what was planned against, and record the answer as the run's `designAttestation` — an attestation, never verification. Work that cites the unread source is neither redone nor treated as verified (`unverified` in the resume verdict), and a validation built on it cannot back a `complete`: if the source is still unreadable when the task is otherwise done, record `blocked` naming it. On a **resumed** run the recorded attestation is re-read, not asked again.
 
 **Full upstream chain (ENG-003).** The two checks above guard the last link. Then check the whole chain — source specification, design reference, feature analysis, DD and Task Breakdown — through the helper:
 
@@ -156,7 +158,7 @@ It always exits 0 and always prints one JSON object; branch on `status`, never o
 
   | `status` | Action |
   |---|---|
-  | `resume` | **Resume automatically**, as the same run: §7a writes `--mode resume` (same `runId`, same `attempt`), and §8 hands the verdict to the agent so it continues from `nextStep`, keeps every `matches-checkpoint` file, finishes each `partial` file, re-runs only `validations.rerun` and re-reads the saved `context` instead of recomputing it |
+  | `resume` | **Resume automatically**, as the same run. If the verdict lists `unverified` inputs, the external source was not read: re-read it and evaluate again, or take the attestation fallback in §5a first. Then: §7a writes `--mode resume` (same `runId`, same `attempt`), and §8 hands the verdict to the agent so it continues from `nextStep`, keeps every `matches-checkpoint` file, finishes each `partial` file, re-runs only `validations.rerun` and re-reads the saved `context` instead of recomputing it |
   | `reconcile-upstream` | the chain check above found a stale stage — reconcile it there first, then evaluate again |
   | `restart` | nothing recorded can be verified (a legacy record), or the platform or `device_type` changed. Say which in one line and start a new attempt: §7a writes `--mode restart`. The current tree is the new baseline |
   | `hard-stop` | **hard stop** and report every entry in `mismatches` verbatim — the exact path, the recorded hash and the current one, or the HEAD/branch difference. The repository changed in a way the run cannot account for. Continue only when the developer tells you what happened: then `/implement-task <feature> <task-id> --restart` builds on the tree as it now is, or `/implement-task <feature> <task-id> --abandon` ends the run |
@@ -276,6 +278,7 @@ Invoke the `feature-implementer` agent with the shared `platform-implementation`
 - **approval status** (from step 5)
 - **unresolved-blocker status**
 - the active **`runId`** from §7a, which every checkpoint names
+- the **design and source evidence files** from §5a, when the design reference or the specification is external — checkpoints citing `design` or `requirements` pass them
 - on a resumed run, the **resume verdict** from §6 — `nextStep`, `checkpoints.valid` and `checkpoints.invalidated`, `files`, `partialFiles`, `validations.carried` and `validations.rerun`, `developerTesting` and the saved `context`. It is authoritative: completed work it lists is not redone, and decisions it carries are not recomputed
 
 Pass the actual document **paths**, preserving the source-of-truth hierarchy — do not collapse them into a single generated summary that omits the source documents:

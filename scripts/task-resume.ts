@@ -109,6 +109,138 @@ export function readFrontmatter(buf: Buffer): Frontmatter | null {
   return out;
 }
 
+/* ------------------------------------------------ external-source evidence */
+
+const isObj = (v: unknown): v is Record<string, unknown> => typeof v === "object" && v !== null && !Array.isArray(v);
+
+/** A reference whose authoritative content lives outside the repository. */
+export function isExternalRef(ref: string): boolean {
+  return /^[a-z][a-z0-9+.-]*:\/\//i.test(ref.trim());
+}
+
+/**
+ * What an external reference points at, independent of how the link was shared. A Figma
+ * link is its file key and node — `?m=dev`, `?t=…` share tokens and the file-name slug do
+ * not change which design was read. Any other URL is itself, minus its fragment.
+ */
+export function sourceIdentity(url: string): { kind: "figma" | "generic"; id: string } | null {
+  let u: URL;
+  try {
+    u = new URL(url.trim());
+  } catch {
+    return null;
+  }
+  const host = u.hostname.toLowerCase();
+  if (host === "figma.com" || host.endsWith(".figma.com")) {
+    const m = /^\/(?:design|file|proto|board|make)\/([A-Za-z0-9]+)/.exec(u.pathname);
+    if (m !== null) {
+      const node = (u.searchParams.get("node-id") ?? "").replace(/:/g, "-");
+      return { kind: "figma", id: `figma:${m[1]}:${node || "root"}` };
+    }
+  }
+  return { kind: "generic", id: `${u.protocol}//${host}${u.port ? `:${u.port}` : ""}${u.pathname}${u.search}` };
+}
+
+/**
+ * The exact reads that make up the evidence for each kind of external source — always the
+ * same set, so a later reading compares like with like. For Figma they are the two reads
+ * the normal design step already performs for the linked node: `get_metadata` (the node
+ * tree — ids, names, types, geometry) and `get_design_context` (styles, text, layout, the
+ * content a design is built from). Screenshots are excluded: rendering is not a stable byte
+ * stream. For any other source it is the raw retrieved text as `content`.
+ */
+export const CANONICAL_PARTS = { figma: ["get_design_context", "get_metadata"], generic: ["content"] } as const;
+
+/**
+ * The one canonicalization applied to evidence text: line endings, trailing whitespace,
+ * and the query string of every URL inside it. Asset URLs a design read returns are signed
+ * per request (`X-Amz-Signature=…`); their path still identifies the asset, so a different
+ * asset remains a different design while a re-signed one does not.
+ */
+export function canonicalizePart(text: string): string {
+  return text
+    .replace(/\r\n?/g, "\n")
+    .split("\n")
+    .map((l) => l.replace(/[ \t]+$/, ""))
+    .join("\n")
+    .trim()
+    .replace(/(\bhttps?:\/\/[^\s"'<>()?#]+)\?[^\s"'<>()#]*/g, "$1");
+}
+
+export interface EvidenceResult {
+  /** `ok` — verified content. `absent` — not read in this invocation. `invalid` — a failed or mismatched read. */
+  status: "ok" | "absent" | "invalid";
+  fingerprint: string | null;
+  detail: string;
+}
+
+/**
+ * The content fingerprint of an external source, from the evidence the reading step
+ * captured: `{ source, parts: [{ name, content }] }`. Anything else in the evidence — a
+ * retrieval time, a `lastModified` — is ignored, so no timestamp can make a source look
+ * changed or unchanged. Absent or unusable evidence yields no fingerprint at all: an
+ * unread source is never reported as unchanged.
+ */
+export function evidenceFingerprint(evidence: unknown, expectedRef: string): EvidenceResult {
+  const fail = (status: "absent" | "invalid", detail: string): EvidenceResult => ({ status, fingerprint: null, detail });
+  if (evidence === undefined || evidence === null) return fail("absent", `${expectedRef}: not read in this invocation`);
+  if (isObj(evidence) && typeof evidence.error === "string") return fail("invalid", `${expectedRef}: ${evidence.error}`);
+  if (!isObj(evidence) || typeof evidence.source !== "string" || !Array.isArray(evidence.parts)) {
+    return fail("invalid", `${expectedRef}: evidence must be { source, parts: [{ name, content }] }`);
+  }
+  const want = sourceIdentity(expectedRef);
+  const got = sourceIdentity(evidence.source);
+  if (want === null) return fail("invalid", `${expectedRef} is not a URL`);
+  if (got === null || got.id !== want.id) return fail("invalid", `evidence was read from ${evidence.source}, not ${expectedRef}`);
+  const parts: Array<{ name: string; content: string }> = [];
+  for (const p of evidence.parts) {
+    if (!isObj(p) || typeof p.name !== "string" || typeof p.content !== "string" || p.content.trim() === "") {
+      return fail("invalid", `${expectedRef}: every part needs a name and non-empty content`);
+    }
+    parts.push({ name: p.name, content: p.content });
+  }
+  const names = parts.map((p) => p.name).sort();
+  const canonical = [...CANONICAL_PARTS[want.kind]];
+  if (names.join(",") !== canonical.join(",")) {
+    return fail("invalid", `${expectedRef}: evidence parts are [${names.join(", ")}]; a ${want.kind} source requires exactly [${canonical.join(", ")}]`);
+  }
+  const body = parts
+    .sort((a, b) => (a.name < b.name ? -1 : 1))
+    .map((p) => `${p.name}\0${canonicalizePart(p.content)}`)
+    .join("\n\0\n");
+  return { status: "ok", fingerprint: sha(`source=${want.id}\n${body}`), detail: `${expectedRef}: content verified` };
+}
+
+/** Read an evidence file saved by the reading step; a file that cannot be parsed is invalid evidence. */
+export function loadEvidenceFile(path: string | undefined): unknown {
+  if (path === undefined) return undefined;
+  try {
+    return JSON.parse(readFileSync(path, "utf-8"));
+  } catch (e) {
+    return { error: `evidence file ${path} could not be read: ${e instanceof Error ? e.message : String(e)}` };
+  }
+}
+
+/**
+ * The content fingerprint of a source specification — generic over where it lives: a
+ * repository file is hashed by its raw bytes (no evidence needed); an external URL by the
+ * evidence of its content.
+ */
+export function sourceFingerprint(root: string, ref: string, evidence?: unknown): EvidenceResult {
+  if (isExternalRef(ref)) return evidenceFingerprint(evidence, ref);
+  const rel = normalizeRel(root, ref);
+  const fp = rel === null ? null : hashRel(root, rel);
+  return fp === null
+    ? { status: "invalid", fingerprint: null, detail: `${ref}: no such file in the repository` }
+    : { status: "ok", fingerprint: fp, detail: `${ref}: file content` };
+}
+
+/** Evidence the caller supplied for this invocation, keyed by the upstream input it covers. */
+export interface ExternalInput {
+  design?: unknown;
+  requirements?: unknown;
+}
+
 /* ------------------------------------------------ design-reference fingerprint */
 
 export const DESIGN_FIELDS = ["design_reference_status", "design_reference_type", "design_reference", "figma_link"] as const;
@@ -116,21 +248,43 @@ export const DESIGN_FIELDS = ["design_reference_status", "design_reference_type"
 const norm = (v: unknown): string => (v === null || v === undefined || NULLISH.has(String(v).trim()) ? "" : String(v).trim());
 
 /**
- * The design-reference fingerprint: the four carried fields, plus the content of the
- * reference when it is a local file or folder inside the repository (a spec document,
- * exported mockups). A URL — Figma included — contributes only its text: no MCP exposes a
- * version or content hash, so content drift behind an unchanged URL stays an attestation,
- * exactly as `/implement-task` §5a already says.
+ * The design-reference fingerprint and whether it could be verified: the four carried
+ * fields, plus the content of the design actually consumed —
+ *
+ *   an external reference (a Figma link, a hosted spec)  the evidence fingerprint
+ *   a local file or folder in the repository              its bytes
+ *   anything else (a named existing screen, none)          the fields alone
+ *
+ * An external reference with no usable evidence has NO fingerprint: its state is
+ * unverifiable, and the attestation gate is the fallback.
  */
-export function designReferenceFingerprint(root: string, fields: Record<string, unknown>): string {
-  const parts = DESIGN_FIELDS.map((k) => `${k}=${norm(fields[k])}`);
+export function designReferenceState(root: string, fields: Record<string, unknown>, evidence?: unknown): EvidenceResult {
+  // A URL field contributes the identity of what it points at, so a re-shared link to the
+  // same node is the same reference while a different file or node is a different one.
+  const parts = DESIGN_FIELDS.map((k) => {
+    const v = norm(fields[k]);
+    return `${k}=${isExternalRef(v) ? (sourceIdentity(v)?.id ?? v) : v}`;
+  });
+  const external = norm(fields.design_reference_status) === "not_required"
+    ? undefined
+    : [norm(fields.figma_link), norm(fields.design_reference)].find((v) => v !== "" && isExternalRef(v));
+  if (external !== undefined) {
+    const r = evidenceFingerprint(evidence, external);
+    if (r.fingerprint === null) return r;
+    parts.push(`content=${r.fingerprint}`);
+    return { status: "ok", fingerprint: sha(parts.join("\n")), detail: r.detail };
+  }
   const ref = norm(fields.design_reference);
-  if (ref !== "" && !/^[a-z][a-z0-9+.-]*:\/\//i.test(ref)) {
+  if (ref !== "") {
     const rel = normalizeRel(root, ref);
     const fp = rel === null ? null : hashRel(root, rel);
     if (fp !== null) parts.push(`content=${fp}`);
   }
-  return sha(parts.join("\n"));
+  return { status: "ok", fingerprint: sha(parts.join("\n")), detail: "design reference: fields and local content" };
+}
+
+export function designReferenceFingerprint(root: string, fields: Record<string, unknown>, evidence?: unknown): string | null {
+  return designReferenceState(root, fields, evidence).fingerprint;
 }
 
 /* ------------------------------------------------------ section fingerprints */
@@ -322,6 +476,11 @@ export interface ChainDocs {
   analysis: Doc | null;
   dd: Doc | null;
   devPlanRel: string | null;
+  /** Evidence supplied for external upstream sources in this invocation, verified against the reference. */
+  design: EvidenceResult;
+  /** The raw design evidence, so the analysis's own design fields are judged against the same read. */
+  designEvidence: unknown;
+  requirements: EvidenceResult | null;
 }
 
 function loadDoc(root: string, p: string): Doc {
@@ -332,7 +491,7 @@ function loadDoc(root: string, p: string): Doc {
 }
 
 /** Every upstream document is resolved from the breakdown's own link fields — no filename guessing. */
-export function resolveDocs(root: string, breakdownPath: string | undefined): ChainDocs {
+export function resolveDocs(root: string, breakdownPath: string | undefined, external: ExternalInput = {}): ChainDocs {
   const breakdown = loadDoc(root, breakdownPath ?? "");
   const link = (d: Doc | null, key: string): Doc | null => {
     const v = d?.fm?.[key];
@@ -341,7 +500,17 @@ export function resolveDocs(root: string, breakdownPath: string | undefined): Ch
   const dd = link(breakdown, "dd_link");
   const analysis = link(breakdown, "feature_analysis_link") ?? link(dd, "feature_analysis_link");
   const devPlan = breakdown.fm?.dev_plan_link ? normalizeRel(root, breakdown.fm.dev_plan_link) : null;
-  return { root, breakdown, analysis, dd, devPlanRel: devPlan };
+  const srcLink = analysis?.fm?.source_link ?? null;
+  return {
+    root,
+    breakdown,
+    analysis,
+    dd,
+    devPlanRel: devPlan,
+    design: designReferenceState(root, breakdown.fm ?? {}, external.design),
+    designEvidence: external.design,
+    requirements: srcLink === null ? null : sourceFingerprint(root, srcLink, external.requirements),
+  };
 }
 
 /**
@@ -353,13 +522,13 @@ export function upstreamArtifacts(docs: ChainDocs): Set<string> {
   for (const d of [docs.breakdown, docs.dd, docs.analysis]) if (d?.rel) out.add(d.rel);
   if (docs.devPlanRel) out.add(docs.devPlanRel);
   const fa = docs.analysis?.fm;
-  if (fa?.source_link) {
+  if (fa?.source_link && !isExternalRef(fa.source_link)) {
     const r = normalizeRel(docs.root, fa.source_link);
     if (r) out.add(r);
   }
   for (const fm of [fa, docs.dd?.fm, docs.breakdown.fm]) {
     const ref = fm?.design_reference;
-    if (ref && !/^[a-z][a-z0-9+.-]*:\/\//i.test(ref)) {
+    if (ref && !isExternalRef(ref)) {
       const r = normalizeRel(docs.root, ref);
       if (r && hashRel(docs.root, r) !== null) out.add(r);
     }
@@ -368,7 +537,12 @@ export function upstreamArtifacts(docs: ChainDocs): Set<string> {
 }
 
 export type StageName = "feature-analysis" | "dd" | "task-breakdown";
-export type CheckStatus = "current" | "stale" | "unknown";
+/**
+ * `unverifiable`: the input lives outside the repository and its content was not (or could
+ * not be) read in this invocation. It is never `current` — nothing was compared — and never
+ * `stale` — nothing was shown to change. The attestation gate is the fallback.
+ */
+export type CheckStatus = "current" | "stale" | "unverifiable" | "unknown";
 
 export interface ChainCheck {
   name: string;
@@ -393,6 +567,8 @@ export interface StageVerdict {
 export interface ChainResult {
   stages: StageVerdict[];
   earliestStale: StageVerdict | null;
+  /** Every check that could not be verified because an external source was not read. */
+  unverifiable: Array<{ stage: StageName; check: string; detail: string }>;
   summary: string;
 }
 
@@ -418,6 +594,7 @@ const bodyFp = (d: Doc | null): string | null => (d?.buf ? fingerprintBody(d.buf
 
 function ownStatus(checks: ChainCheck[]): CheckStatus {
   if (checks.some((c) => c.status === "stale")) return "stale";
+  if (checks.some((c) => c.status === "unverifiable")) return "unverifiable";
   return checks.some((c) => c.status === "current") ? "current" : "unknown";
 }
 
@@ -432,14 +609,22 @@ export function chainFromDocs(docs: ChainDocs): ChainResult {
   const { root, analysis: fa, dd, breakdown: tb } = docs;
 
   const faChecks: ChainCheck[] = [];
-  const src = fa?.fm?.source_link ? normalizeRel(root, fa.fm.source_link) : null;
+  const link = fa?.fm?.source_link ?? null;
+  const req = docs.requirements;
   faChecks.push(
-    fa?.fm?.source_link
-      ? compare("requirements", fa.fm.source_fingerprint, src === null ? null : hashRel(root, src), `source specification ${fa.fm.source_link}`)
-      : { name: "requirements", status: "unknown", recorded: null, current: null, detail: "source specification: none linked (the request was given inline, so the analysis body is the root)" },
+    link === null || req === null
+      ? { name: "requirements", status: "unknown", recorded: null, current: null, detail: "source specification: none linked (the request was given inline, so the analysis body is the root)" }
+      : isExternalRef(link) && req.fingerprint === null && fa?.fm?.source_fingerprint
+        ? unverifiable("requirements", fa.fm.source_fingerprint, `source specification ${link}`, req.detail)
+        : compare("requirements", fa?.fm?.source_fingerprint, req.fingerprint, `source specification ${link}`),
   );
+  // The analysis's design fields, verified against the same evidence the breakdown's are:
+  // the stage that consumed the design is judged by the design as it is read now.
+  const faDesign = fa?.fm ? designReferenceState(root, fa.fm, docs.designEvidence) : null;
   faChecks.push(
-    compare("design-reference", fa?.fm?.design_reference_fingerprint, fa?.fm ? designReferenceFingerprint(root, fa.fm) : null, "design reference"),
+    faDesign !== null && faDesign.fingerprint === null && fa?.fm?.design_reference_fingerprint
+      ? unverifiable("design-reference", fa.fm.design_reference_fingerprint, "design reference", faDesign.detail)
+      : compare("design-reference", fa?.fm?.design_reference_fingerprint, faDesign?.fingerprint ?? null, "design reference"),
   );
 
   const ddChecks = [compare("source", dd?.fm?.source_fingerprint, bodyFp(fa), "feature analysis body"), compareDesignFields(dd, fa)];
@@ -458,18 +643,29 @@ export function chainFromDocs(docs: ChainDocs): ChainResult {
     return v;
   });
   const e = earliest as StageVerdict | null;
+  const unver = stages.flatMap((st) => st.checks.filter((c) => c.status === "unverifiable").map((c) => ({ stage: st.stage, check: c.name, detail: c.detail })));
+  const unverNote = unver.length > 0
+    ? ` Unverifiable (external content not read — re-read it, or fall back to attestation): ${unver.map((u) => u.detail).join("; ")}.`
+    : "";
   return {
     stages,
     earliestStale: e,
+    unverifiable: unver,
     summary:
-      e === null
-        ? "Upstream chain: current — no stage needs regenerating."
-        : `Upstream chain: ${e.stage} is the earliest stale stage (${e.checks.filter((c) => c.status === "stale").map((c) => c.detail).join("; ")}). Rerun ${e.command}; stages below it wait for its result.`,
+      (e === null
+        ? unver.length > 0
+          ? "Upstream chain: no stage is known to be stale, but it is not verified."
+          : "Upstream chain: current — no stage needs regenerating."
+        : `Upstream chain: ${e.stage} is the earliest stale stage (${e.checks.filter((c) => c.status === "stale").map((c) => c.detail).join("; ")}). Rerun ${e.command}; stages below it wait for its result.`) + unverNote,
   };
 }
 
-export function chainStatus(root: string, breakdownPath: string): ChainResult {
-  return chainFromDocs(resolveDocs(root, breakdownPath));
+function unverifiable(name: string, recorded: string, what: string, why: string): ChainCheck {
+  return { name, status: "unverifiable", recorded, current: null, detail: `${what}: unverifiable — ${why}` };
+}
+
+export function chainStatus(root: string, breakdownPath: string, external: ExternalInput = {}): ChainResult {
+  return chainFromDocs(resolveDocs(root, breakdownPath, external));
 }
 
 /* ------------------------------------------------------------------ basis */
@@ -503,11 +699,20 @@ export function currentBasis(
     for (const [slug, fp] of Object.entries(sectionFingerprints(body))) out[`${key}#${slug}`] = fp;
   }
   out.breakdown = bodyFp(docs.breakdown);
-  const fa = docs.analysis?.fm;
-  const src = fa?.source_link ? normalizeRel(docs.root, fa.source_link) : null;
-  out.requirements = src === null ? null : hashRel(docs.root, src);
-  out.design = docs.breakdown.fm ? designReferenceFingerprint(docs.root, docs.breakdown.fm) : null;
+  out.requirements = docs.requirements?.fingerprint ?? null;
+  out.design = docs.breakdown.fm ? docs.design.fingerprint : null;
   for (const p of latestProbes(probes)) out[`probe:${p.name}`] = p.outputFingerprint;
+  return out;
+}
+
+/**
+ * Basis references whose current value is missing only because an external source was not
+ * read — distinct from a reference that moved or no longer exists.
+ */
+export function unverifiableRefs(docs: ChainDocs): Set<string> {
+  const out = new Set<string>();
+  if (docs.breakdown.fm && docs.design.fingerprint === null) out.add("design");
+  if (docs.requirements !== null && docs.requirements.fingerprint === null && isExternalRef(docs.analysis?.fm?.source_link ?? "")) out.add("requirements");
   return out;
 }
 
@@ -633,32 +838,54 @@ export function taskOwnedFiles(ex: ExecutionBlock, currentRowFiles: string[], ex
   return [...out].filter((p) => !excluded(p)).sort();
 }
 
-/** Why a recorded file snapshot or basis no longer holds; empty when it still does. */
-function drift(root: string, files: FileHash[], basis: Record<string, string | null>, now: Record<string, string | null>): string[] {
-  const out: string[] = [];
+/**
+ * Why a recorded file snapshot or basis no longer holds (`changed`), and which basis
+ * references cannot be judged at all because their external source was not read
+ * (`unverified`). Both empty: it still holds. An unverified reference is never counted as
+ * unchanged.
+ */
+function drift(
+  root: string,
+  files: FileHash[],
+  basis: Record<string, string | null>,
+  now: Record<string, string | null>,
+  unver: Set<string> = new Set(),
+): { changed: string[]; unverified: string[] } {
+  const changed: string[] = [];
+  const unverified: string[] = [];
   for (const f of files) {
     const cur = hashRel(root, f.path);
-    if (cur !== f.hash) out.push(`${f.path} changed since it was recorded`);
+    if (cur !== f.hash) changed.push(`${f.path} changed since it was recorded`);
   }
   for (const [ref, h] of Object.entries(basis)) {
-    if (!(ref in now)) out.push(`basis ${ref} no longer exists`);
-    else if (now[ref] !== h) out.push(`basis ${ref} changed`);
+    if (unver.has(ref) && now[ref] === null) unverified.push(ref);
+    else if (!(ref in now)) changed.push(`basis ${ref} no longer exists`);
+    else if (now[ref] !== h) changed.push(`basis ${ref} changed`);
   }
-  return out;
+  return { changed, unverified };
 }
 
 export interface ValidationVerdict {
   record: ValidationRecord;
+  /** True only when every file and basis reference was verified unchanged. */
   valid: boolean;
   reasons: string[];
+  /** Basis references that could not be verified; the result is neither carried nor rerun. */
+  unverified: string[];
 }
 
 /** Part D: a result is reusable only while its files AND its planning basis are unchanged. */
-export function validationVerdicts(root: string, ex: ExecutionBlock, now: Record<string, string | null>): ValidationVerdict[] {
+export function validationVerdicts(
+  root: string,
+  ex: ExecutionBlock,
+  now: Record<string, string | null>,
+  unver: Set<string> = new Set(),
+): ValidationVerdict[] {
   return latestValidations(ex.validations).map((v) => {
-    const reasons = drift(root, v.covers, v.basis, now);
+    const d = drift(root, v.covers, v.basis, now, unver);
+    const reasons = [...d.changed, ...d.unverified.map((r) => `basis ${r} is unverifiable: its external source was not read`)];
     if (v.evidence !== null && hashRel(root, v.evidence.path) === null) reasons.push(`evidence ${v.evidence.path} is gone`);
-    return { record: v, valid: reasons.length === 0, reasons };
+    return { record: v, valid: reasons.length === 0, reasons, unverified: d.unverified };
   });
 }
 
@@ -699,17 +926,25 @@ export interface ResumeVerdict {
   reasons: string[];
   mismatches: Mismatch[];
   files: FileClass[];
-  checkpoints: { valid: string[]; invalidated: Array<{ stepId: string; reason: string }> };
+  checkpoints: {
+    valid: string[];
+    invalidated: Array<{ stepId: string; reason: string }>;
+    /** Completed steps whose basis cites an external source that was not read: not redone, not verified. */
+    unverified: Array<{ stepId: string; refs: string[] }>;
+  };
   nextStep: { kind: "plan" | "step" | "validation" | "developer-testing" | "review" | "report"; stepId: string | null };
   partialFiles: string[];
   validations: {
     carried: Array<{ seq: number; command: string; kind: string; result: string }>;
     rerun: Array<{ seq: number; command: string; kind: string; reason: string }>;
+    unverified: Array<{ seq: number; command: string; kind: string; refs: string[] }>;
   };
   developerTesting: { block: DeveloperTestingCheckpoint["developerTesting"]; verificationDebt: unknown[]; runs: Array<{ command: string; result: string; valid: boolean }> } | null;
   review: { completed: string[]; valid: boolean } | null;
   upstream: ChainResult;
   upstreamChanged: string[];
+  /** Upstream inputs that could not be verified in this invocation: re-read them, or attest. */
+  unverified: string[];
   context: ExecutionContext | null;
   summary: string;
 }
@@ -723,6 +958,8 @@ export interface EvaluateInput {
   execution: ExecutionBlock | null;
   rowFingerprint: string | null;
   breakdownPath: string;
+  /** Evidence for external upstream sources, read in this invocation. */
+  external?: ExternalInput;
 }
 
 /**
@@ -738,8 +975,9 @@ export interface EvaluateInput {
  */
 export function evaluateExecution(input: EvaluateInput): ResumeVerdict {
   const { root, taskId, execution: ex } = input;
-  const docs = resolveDocs(root, input.breakdownPath);
+  const docs = resolveDocs(root, input.breakdownPath, input.external);
   const upstream = chainFromDocs(docs);
+  const unver = unverifiableRefs(docs);
   const verdict: ResumeVerdict = {
     status: "resume",
     taskId,
@@ -748,14 +986,15 @@ export function evaluateExecution(input: EvaluateInput): ResumeVerdict {
     reasons: [],
     mismatches: [],
     files: [],
-    checkpoints: { valid: [], invalidated: [] },
+    checkpoints: { valid: [], invalidated: [], unverified: [] },
     nextStep: { kind: "plan", stepId: null },
     partialFiles: [],
-    validations: { carried: [], rerun: [] },
+    validations: { carried: [], rerun: [], unverified: [] },
     developerTesting: null,
     review: null,
     upstream,
     upstreamChanged: [],
+    unverified: [...unver].sort(),
     context: ex?.context ?? null,
     summary: "",
   };
@@ -777,7 +1016,8 @@ export function evaluateExecution(input: EvaluateInput): ResumeVerdict {
   const row = rowCells(bdText, taskId);
   const rowFiles = filesFromCell(row?.["files touched"]).map((f) => normalizeRel(root, f)).filter((f): f is string => f !== null);
   const now = currentBasis(docs, taskId, input.rowFingerprint, ex.probes);
-  verdict.upstreamChanged = UPSTREAM_KEYS.filter((k) => k in ex.upstream && ex.upstream[k] !== now[k]);
+  // Only a verified value on both sides can show movement; an unread source is `unverified`, not moved.
+  verdict.upstreamChanged = UPSTREAM_KEYS.filter((k) => k in ex.upstream && ex.upstream[k] !== null && now[k] !== null && ex.upstream[k] !== now[k]);
 
   /* 1. git: HEAD and branch */
   const g = gitState(root);
@@ -840,6 +1080,7 @@ export function evaluateExecution(input: EvaluateInput): ResumeVerdict {
   for (const c of ex.checkpoints) if ((latestCp.get(c.stepId)?.seq ?? -1) < c.seq) latestCp.set(c.stepId, c);
   const invalid = new Map<string, string>();
   const done = new Set<string>();
+  const unverifiedSteps = new Map<string, string[]>();
   for (const s of steps) {
     const c = latestCp.get(s.id);
     if (c === undefined) continue;
@@ -847,9 +1088,13 @@ export function evaluateExecution(input: EvaluateInput): ResumeVerdict {
       invalid.set(s.id, "the step was redefined by a later plan");
       continue;
     }
-    const d = drift(root, [], c.basis, now);
-    if (d.length > 0) invalid.set(s.id, d.join("; "));
-    else done.add(s.id);
+    const d = drift(root, [], c.basis, now, unver);
+    if (d.changed.length > 0) invalid.set(s.id, d.changed.join("; "));
+    else {
+      // Done either way — an unverified step is not redone — but never reported valid.
+      done.add(s.id);
+      if (d.unverified.length > 0) unverifiedSteps.set(s.id, d.unverified);
+    }
   }
   const stepIndex = new Map(steps.map((s, i) => [s.id, i]));
   const ownerAfter = (p: string, after: number): string | null =>
@@ -887,15 +1132,20 @@ export function evaluateExecution(input: EvaluateInput): ResumeVerdict {
   }
   verdict.files.sort((a, b) => (a.path < b.path ? -1 : a.path > b.path ? 1 : 0));
   verdict.partialFiles.sort();
-  verdict.checkpoints.valid = steps.filter((s) => done.has(s.id)).map((s) => s.id);
+  verdict.checkpoints.valid = steps.filter((s) => done.has(s.id) && !unverifiedSteps.has(s.id)).map((s) => s.id);
+  verdict.checkpoints.unverified = steps
+    .filter((s) => done.has(s.id) && unverifiedSteps.has(s.id))
+    .map((s) => ({ stepId: s.id, refs: unverifiedSteps.get(s.id) ?? [] }));
   verdict.checkpoints.invalidated = steps.filter((s) => invalid.has(s.id)).map((s) => ({ stepId: s.id, reason: invalid.get(s.id) ?? "" }));
 
   /* 6. validations, developer testing, self-review (Part D) */
-  const vv = validationVerdicts(root, ex, now);
+  const vv = validationVerdicts(root, ex, now, unver);
   for (const v of vv) {
     const r = v.record;
     if (v.valid) verdict.validations.carried.push({ seq: r.seq, command: r.command, kind: r.kind, result: r.result });
-    else verdict.validations.rerun.push({ seq: r.seq, command: r.command, kind: r.kind, reason: v.reasons.join("; ") });
+    else if (v.reasons.length === v.unverified.length) {
+      verdict.validations.unverified.push({ seq: r.seq, command: r.command, kind: r.kind, refs: v.unverified });
+    } else verdict.validations.rerun.push({ seq: r.seq, command: r.command, kind: r.kind, reason: v.reasons.join("; ") });
   }
   if (ex.developerTesting !== null) {
     const dt = ex.developerTesting.developerTesting;
@@ -909,7 +1159,7 @@ export function evaluateExecution(input: EvaluateInput): ResumeVerdict {
     };
   }
   if (ex.review !== null) {
-    verdict.review = { completed: ex.review.completed, valid: drift(root, ex.review.covers, {}, now).length === 0 };
+    verdict.review = { completed: ex.review.completed, valid: drift(root, ex.review.covers, {}, now).changed.length === 0 };
   }
 
   const firstOpen = steps.find((s) => !done.has(s.id));
@@ -940,6 +1190,9 @@ export function evaluateExecution(input: EvaluateInput): ResumeVerdict {
     return finish("reconcile-upstream", [upstream.summary]);
   }
   const why: string[] = [];
+  if (verdict.unverified.length > 0) {
+    why.push(`unverifiable upstream input(s): ${verdict.unverified.join(", ")} — re-read the external source and pass its evidence, or fall back to the developer's attestation; work citing it is neither redone nor treated as verified`);
+  }
   if (verdict.upstreamChanged.length > 0) why.push(`upstream inputs moved since the run began and the chain is current again: ${verdict.upstreamChanged.join(", ")}`);
   if (verdict.checkpoints.invalidated.length > 0) why.push(`invalidated checkpoints: ${verdict.checkpoints.invalidated.map((i) => i.stepId).join(", ")}`);
   why.push(`next: ${verdict.nextStep.kind}${verdict.nextStep.stepId ? ` ${verdict.nextStep.stepId}` : ""}`);

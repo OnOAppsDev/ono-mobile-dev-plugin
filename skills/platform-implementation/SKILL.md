@@ -80,7 +80,11 @@ defaults. The lane owns *which* files; this skill owns the obligation to check.
 ## 2. Design reference
 
 **Resolve it before writing UI code.** For Figma, pull Dev Mode specs and any code
-mappings for the frame via the `figma` MCP server. Otherwise read what `design_reference`
+mappings for the frame via the `figma` MCP server. When the command passed a design evidence
+file, it holds exactly those reads for the linked node; use it, and pass it as
+`--design-evidence` on every checkpoint whose basis cites `design`. If you read the design
+yourself, save `get_metadata` and `get_design_context` for the linked node as that file first
+(`commands/analyze-feature.md` step 6), outside the repository. Otherwise read what `design_reference`
 points at — the specification, the exported mockups, or the named existing screen to
 mirror. Never guess spacing, colour or typography. **If a recorded reference cannot be
 accessed, stop with the exact error.** `design_reference_status: not_required` needs none.
@@ -154,6 +158,10 @@ node --no-warnings "${CLAUDE_PLUGIN_ROOT}/scripts/task-state.ts" checkpoint \
   `design` for UI work, `probe:<name>` for a toolchain-dependent result. Cite the narrowest
   sections that genuinely apply: after an upstream change, only work whose cited sections moved is
   redone. A reference that does not resolve is refused.
+- **A basis citing `design` or `requirements` needs the evidence of the external read** the
+  work was built against when that source is external (`--design-evidence` /
+  `--source-evidence`); without it the helper refuses, rather than record a basis it cannot
+  verify later.
 - **`covers` names the files a validation actually exercised.** Omitted, it covers every
   task-owned file — correct, but it re-runs on any edit.
 - **The helper hashes every file and every basis reference itself.** Never pass a hash, and never

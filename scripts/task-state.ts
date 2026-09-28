@@ -45,7 +45,12 @@
  *                                                 --reason <text> --breakdown <path>
  *   node --no-warnings scripts/task-state.ts chain --root <dir> --breakdown <path>
  *   node --no-warnings scripts/task-state.ts fingerprint --file <path> [--raw]
- *   node --no-warnings scripts/task-state.ts design-fingerprint --root <dir> --file <planning doc>
+ *   node --no-warnings scripts/task-state.ts design-fingerprint --root <dir> --file <planning doc> [--design-evidence <json>]
+ *   node --no-warnings scripts/task-state.ts source-fingerprint --root <dir> --source <path|url> [--source-evidence <json>]
+ *
+ * chain, resume, write and checkpoint also accept --design-evidence / --source-evidence: the
+ * evidence file the design- or spec-reading step saved, so an external source is judged by
+ * the content actually read rather than by its URL.
  */
 
 import {
@@ -69,22 +74,26 @@ import {
   chainStatus,
   changedSinceBaseline,
   currentBasis,
-  designReferenceFingerprint,
+  designReferenceState,
   evaluateExecution,
   filesFromCell,
   fingerprintFile,
   hashRel,
   isStoreArtifact,
   latestValidations,
+  loadEvidenceFile,
   normalizeRel,
   readFrontmatter,
   resolveDocs,
   rowCells,
+  sourceFingerprint,
   stepFingerprint,
   taskOwnedFiles,
+  unverifiableRefs,
   upstreamArtifacts,
   validationVerdicts,
   type ExecutionBlock,
+  type ExternalInput,
   type PlanStep,
   type ResumeVerdict,
 } from "./task-resume.ts";
@@ -1010,6 +1019,8 @@ export function verificationSatisfied(payload: WritePayload): boolean {
  */
 export interface WriteOptions {
   mode?: "start" | "resume" | "restart";
+  /** Evidence for external upstream sources (a Figma design, a hosted spec) read in this invocation. */
+  external?: ExternalInput;
 }
 
 export function writeTaskState(
@@ -1097,7 +1108,7 @@ export function writeTaskState(
     }
     const verdict = evaluateExecution({
       root: targetRoot, taskId, state: prior.state, runId: prior.runId, attempt: prior.attempt,
-      execution: priorExec, rowFingerprint: fingerprint, breakdownPath,
+      execution: priorExec, rowFingerprint: fingerprint, breakdownPath, external: options.external,
     });
     if (verdict.status !== "resume") {
       return { ...refuse(path, taskId, "resume-inconsistent", `Refused: ${verdict.summary}`), detail: JSON.stringify(verdict.mismatches) };
@@ -1123,7 +1134,7 @@ export function writeTaskState(
   let execution: ExecutionBlock | undefined;
   if (nextState === "in-progress") {
     execution = newExecution(targetRoot, taskId, runId, payload, breakdownPath, fingerprint,
-      mode === "restart" ? (prior?.runId ?? null) : null);
+      mode === "restart" ? (prior?.runId ?? null) : null, options.external);
   } else if (priorExec !== null && priorExec.runId === runId) {
     execution = { ...priorExec, outcome: nextState };
   }
@@ -1131,9 +1142,9 @@ export function writeTaskState(
   // Part D. A terminal `complete` may not cite a validation the run recorded if that
   // result no longer holds — its files or its planning basis moved after it ran.
   if (nextState === "complete" && execution !== undefined) {
-    const docs = resolveDocs(targetRoot, breakdownPath);
+    const docs = resolveDocs(targetRoot, breakdownPath, options.external);
     const now = currentBasis(docs, taskId, fingerprint, execution.probes);
-    const verdicts = validationVerdicts(targetRoot, execution, now);
+    const verdicts = validationVerdicts(targetRoot, execution, now, unverifiableRefs(docs));
     const stale: string[] = [];
     for (const v of payload.validation ?? []) {
       const match = verdicts.find((x) => x.record.command === v.command);
@@ -1280,8 +1291,9 @@ function newExecution(
   breakdownPath: string | undefined,
   rowFingerprint: string | null,
   restartedFrom: string | null,
+  external?: ExternalInput,
 ): ExecutionBlock {
-  const docs = resolveDocs(targetRoot, breakdownPath);
+  const docs = resolveDocs(targetRoot, breakdownPath, external);
   const now = currentBasis(docs, taskId, rowFingerprint);
   const upstream: Record<string, string | null> = {};
   for (const k of UPSTREAM_KEYS) upstream[k] = now[k] ?? null;
@@ -1330,6 +1342,7 @@ export function writeCheckpoint(
   kind: string,
   payload: unknown,
   breakdownPath?: string,
+  external?: ExternalInput,
 ): WriteResult {
   const path = stateFilePath(targetRoot, feature);
   const loaded = loadForWrite(path, feature, taskId);
@@ -1351,7 +1364,8 @@ export function writeCheckpoint(
   if (!isRecord(payload)) return bad("the payload must be a JSON object");
 
   const ex: ExecutionBlock = structuredClone(ex0);
-  const docs = resolveDocs(targetRoot, breakdownPath);
+  const docs = resolveDocs(targetRoot, breakdownPath, external);
+  const unver = unverifiableRefs(docs);
   const fingerprint = rowFingerprintFor(breakdownPath, taskId) ?? prior.rowFingerprint ?? null;
   const now = currentBasis(docs, taskId, fingerprint, ex.probes);
   const excluded = excludedFor(docs);
@@ -1367,6 +1381,9 @@ export function writeCheckpoint(
   const resolveBasis = (refs: string[]): Record<string, string | null> | string => {
     const out: Record<string, string | null> = {};
     for (const r of refs) {
+      if (unver.has(r) && now[r] === null) {
+        return `basis reference "${r}" cites an external source whose content was not read in this invocation — pass the evidence of the read the work was built against (--${r === "design" ? "design" : "source"}-evidence)`;
+      }
       if (!(r in now) || now[r] === null) return `basis reference "${r}" does not resolve against the current documents`;
       out[r] = now[r];
     }
@@ -1492,7 +1509,7 @@ export function writeCheckpoint(
 /* ------------------------------------------------------- resume / abandon */
 
 /** ENG-003. Read-only: the deterministic resume verdict for a task's recorded run. */
-export function resumeTask(targetRoot: string, feature: string, taskId: string, breakdownPath: string): ResumeVerdict {
+export function resumeTask(targetRoot: string, feature: string, taskId: string, breakdownPath: string, external?: ExternalInput): ResumeVerdict {
   const r = readTaskState(targetRoot, feature, breakdownPath);
   let raw: Record<string, unknown> | null = null;
   if (r.available) {
@@ -1513,6 +1530,7 @@ export function resumeTask(targetRoot: string, feature: string, taskId: string, 
     execution: readExecution(raw?.execution),
     rowFingerprint: rowFingerprintFor(breakdownPath, taskId),
     breakdownPath,
+    external,
   });
 }
 
@@ -1609,6 +1627,13 @@ function main(): void {
     process.exit(0);
   }
 
+  // ENG-003: evidence the reading step saved for external upstream sources. Absent means
+  // not read in this invocation — the sources are then unverifiable, never unchanged.
+  const external: ExternalInput = {
+    design: loadEvidenceFile(flag("design-evidence")),
+    requirements: loadEvidenceFile(flag("source-evidence")),
+  };
+
   const print = (v: unknown): never => {
     process.stdout.write(`${JSON.stringify(v, null, 2)}\n`);
     process.exit(0);
@@ -1625,16 +1650,29 @@ function main(): void {
   if (mode === "design-fingerprint") {
     const file = flag("file");
     const fm = file !== undefined && existsSync(file) ? readFrontmatter(readFileSync(file)) : null;
-    print(fm === null
-      ? { status: file === undefined ? "invalid" : "unparseable", path: file ?? null, fingerprint: null }
-      : { status: "ok", path: file, fingerprint: designReferenceFingerprint(root, fm) });
+    if (fm === null) print({ status: file === undefined ? "invalid" : "unparseable", path: file ?? null, fingerprint: null });
+    const st = designReferenceState(root, fm as Record<string, string | null>, external.design);
+    print(st.fingerprint === null
+      ? { status: "unverifiable", path: file, fingerprint: null, detail: st.detail }
+      : { status: "ok", path: file, fingerprint: st.fingerprint, detail: st.detail });
+  }
+
+  // ENG-003: the content fingerprint of a source specification — a repository file by its
+  // bytes, an external URL by the evidence of its content — stamped as `source_fingerprint`.
+  if (mode === "source-fingerprint") {
+    const source = flag("source");
+    if (source === undefined) print({ status: "invalid", detail: "--source is required" });
+    const r = sourceFingerprint(root, source as string, external.requirements);
+    print(r.fingerprint === null
+      ? { status: "unverifiable", source, fingerprint: null, detail: r.detail }
+      : { status: "ok", source, fingerprint: r.fingerprint, detail: r.detail });
   }
 
   // ENG-003: the upstream SDLC chain verdict and its earliest stale stage.
-  if (mode === "chain") print({ status: "ok", ...chainStatus(root, requireBreakdown()) });
+  if (mode === "chain") print({ status: "ok", ...chainStatus(root, requireBreakdown(), external) });
 
   // ENG-003: the read-only resume verdict for one task's recorded run.
-  if (mode === "resume") print(resumeTask(root, feature, flag("task") ?? "", requireBreakdown()));
+  if (mode === "resume") print(resumeTask(root, feature, flag("task") ?? "", requireBreakdown(), external));
 
   // ENG-003: append a checkpoint to the active run. The only write the shared
   // implementation methodology may perform; it can never set a lifecycle state.
@@ -1645,7 +1683,7 @@ function main(): void {
     } catch (e) {
       print({ status: "refused", path: stateFilePath(root, feature), taskId: flag("task") ?? "", reason: "unparseable", summary: "Refused: --payload is not valid JSON.", detail: e instanceof Error ? e.message : String(e) });
     }
-    print(writeCheckpoint(root, feature, flag("task") ?? "", flag("run") ?? "", flag("kind") ?? "", payload, requireBreakdown()));
+    print(writeCheckpoint(root, feature, flag("task") ?? "", flag("run") ?? "", flag("kind") ?? "", payload, requireBreakdown(), external));
   }
 
   // ENG-003: abandon the active run. Lifecycle — /implement-task only.
@@ -1682,7 +1720,7 @@ function main(): void {
     const head = flag("head");
     if (head !== undefined) payload.head = head;
     process.stdout.write(
-      `${JSON.stringify(writeTaskState(root, feature, taskId, state, payload, breakdown, { mode: (flag("mode") ?? "start") as WriteOptions["mode"] }), null, 2)}\n`,
+      `${JSON.stringify(writeTaskState(root, feature, taskId, state, payload, breakdown, { mode: (flag("mode") ?? "start") as WriteOptions["mode"], external }), null, 2)}\n`,
     );
     process.exit(0);
   }
@@ -1694,7 +1732,7 @@ function main(): void {
         path: "",
         taskId: "",
         reason: "invalid-state",
-        summary: 'Refused: first argument must be one of read, write, checkpoint, resume, abandon, chain, fingerprint, design-fingerprint.',
+        summary: 'Refused: first argument must be one of read, write, checkpoint, resume, abandon, chain, fingerprint, design-fingerprint, source-fingerprint.',
       },
       null,
       2,

@@ -49,6 +49,9 @@ import {
   fingerprintFile,
   sectionFingerprints,
   slugify,
+  canonicalizePart,
+  evidenceFingerprint,
+  sourceFingerprint,
 } from "./task-resume.ts";
 import { fingerprintBody } from "./migrate-planning-doc.ts";
 
@@ -635,6 +638,190 @@ const cleanup = (fx: Fx) => rmSync(fx.root, { recursive: true, force: true });
   cleanup(fx);
 }
 
+/* ── X. external sources: fingerprint the content consumed, not the URL ── */
+const FIGMA = "https://www.figma.com/design/AbC123xyz/Unlock?node-id=12-34&m=dev";
+const figmaEvidence = (context: string, metadata = '<frame id="12:34" name="Unlock" width="390" height="844"/>', source = FIGMA) => ({
+  source,
+  parts: [
+    { name: "get_metadata", content: metadata },
+    { name: "get_design_context", content: context },
+  ],
+});
+const FIGMA_FIELDS = { design_reference_status: "provided", design_reference_type: "figma", design_reference: "null", figma_link: FIGMA };
+{
+  const root = realpathSync(mkdtempSync(join(tmpdir(), "task-resume-ext-")));
+  const a = designReferenceFingerprint(root, FIGMA_FIELDS, figmaEvidence("<Button label=\"Unlock\" color=\"#0A84FF\"/>"));
+  const b = designReferenceFingerprint(root, FIGMA_FIELDS, figmaEvidence("<Button label=\"Unlock\" color=\"#0A84FF\"/>"));
+  check("X same URL + same canonical design content → fingerprint unchanged", a !== null && a === b);
+  const c = designReferenceFingerprint(root, FIGMA_FIELDS, figmaEvidence("<Button label=\"Unlock now\" color=\"#0A84FF\"/>"));
+  check("X same URL + changed design content → fingerprint changes", c !== null && c !== a);
+  const d = designReferenceFingerprint(root, FIGMA_FIELDS, figmaEvidence("<Button label=\"Unlock\" color=\"#0A84FF\"/>", '<frame id="12:34" name="Unlock" width="390" height="900"/>'));
+  check("X a changed node tree (metadata) also changes it", d !== null && d !== a);
+
+  const OTHER = "https://www.figma.com/design/AbC123xyz/Unlock?node-id=99-1";
+  const e = designReferenceFingerprint(root, { ...FIGMA_FIELDS, figma_link: OTHER },
+    figmaEvidence("<Button label=\"Unlock\" color=\"#0A84FF\"/>", undefined, OTHER));
+  check("X changed URL → fingerprint changes, even with identical content", e !== null && e !== a);
+
+  const same = designReferenceFingerprint(root, { ...FIGMA_FIELDS, figma_link: FIGMA.replace("&m=dev", "&t=share") },
+    figmaEvidence("<Button label=\"Unlock\" color=\"#0A84FF\"/>", undefined, FIGMA.replace("&m=dev", "&t=share")));
+  check("X the same node reached through a different share link is the same source", same === a);
+
+  check("X unavailable content → no fingerprint, never an 'unchanged' value", designReferenceFingerprint(root, FIGMA_FIELDS) === null);
+  const unread = evidenceFingerprint(undefined, FIGMA);
+  check("X unavailable content is reported, with a reason", unread.status === "absent" && unread.fingerprint === null && unread.detail.length > 0);
+  const failed = evidenceFingerprint({ error: "Figma MCP: 401 unauthorized" }, FIGMA);
+  check("X a failed read is invalid evidence carrying the error", failed.status === "invalid" && /401/.test(failed.detail));
+  const wrongNode = evidenceFingerprint(figmaEvidence("x", undefined, OTHER), FIGMA);
+  check("X evidence read from a different node is refused", wrongNode.status === "invalid" && wrongNode.fingerprint === null);
+  const partial = evidenceFingerprint({ source: FIGMA, parts: [{ name: "get_metadata", content: "<frame/>" }] }, FIGMA);
+  check("X evidence missing a canonical part is refused — a subset would compare unlike with like", partial.status === "invalid");
+  const withShot = evidenceFingerprint({ ...figmaEvidence("x"), parts: [...figmaEvidence("x").parts, { name: "get_screenshot", content: "iVBOR..." }] }, FIGMA);
+  check("X an extra, non-canonical part is refused", withShot.status === "invalid");
+
+  const stamped = evidenceFingerprint(figmaEvidence("<Button/>"), FIGMA).fingerprint;
+  const timed = evidenceFingerprint({ ...figmaEvidence("<Button/>"), retrievedAt: "2027-01-01T00:00:00Z", lastModified: "2027-01-01" }, FIGMA).fingerprint;
+  check("X a timestamp in the evidence can make it neither changed nor unchanged", stamped !== null && stamped === timed);
+
+  const signed1 = canonicalizePart('<img src="https://figma-alpha-api.s3.amazonaws.com/images/abc123?X-Amz-Signature=111&X-Amz-Date=1"/>\r\n  ');
+  const signed2 = canonicalizePart('<img src="https://figma-alpha-api.s3.amazonaws.com/images/abc123?X-Amz-Signature=222&X-Amz-Date=2"/>');
+  check("X canonicalization drops per-request URL signatures and line-ending noise", signed1 === signed2);
+  const otherAsset = canonicalizePart('<img src="https://figma-alpha-api.s3.amazonaws.com/images/def456?X-Amz-Signature=111"/>');
+  check("X but a different asset is still a different design", otherAsset !== signed2);
+
+  // Local references keep working exactly as before.
+  put(root, "design/spec.md", "one button\n");
+  const localFields = { design_reference_status: "provided", design_reference_type: "document", design_reference: "design/spec.md", figma_link: "null" };
+  const l1 = designReferenceFingerprint(root, localFields);
+  put(root, "design/spec.md", "two buttons\n");
+  const l2 = designReferenceFingerprint(root, localFields);
+  check("X a local design file is still hashed by its bytes, with no evidence needed", l1 !== null && l2 !== null && l1 !== l2);
+  const ui = designReferenceFingerprint(root, { design_reference_status: "provided", design_reference_type: "existing_ui", design_reference: "the existing PasscodeUnlockScreen", figma_link: "null" });
+  check("X a named in-repo screen still fingerprints its fields", ui !== null);
+
+  put(root, "specs/s.md", "spec v1\n");
+  check("X a local specification is hashed by its raw bytes", sourceFingerprint(root, "specs/s.md").fingerprint === fingerprintFile(join(root, "specs/s.md")));
+  const SPEC = "https://docs.example.com/specs/biometric-login";
+  const s1 = sourceFingerprint(root, SPEC, { source: SPEC, parts: [{ name: "content", content: "Users unlock with Face ID." }] });
+  const s2 = sourceFingerprint(root, SPEC, { source: SPEC, parts: [{ name: "content", content: "Users unlock with Face ID or Touch ID." }] });
+  check("X an external specification at a constant URL is fingerprinted by its content", s1.status === "ok" && s2.status === "ok" && s1.fingerprint !== s2.fingerprint);
+  check("X an unread external specification is unverifiable, never unchanged", sourceFingerprint(root, SPEC).fingerprint === null && sourceFingerprint(root, SPEC).status === "absent");
+  rmSync(root, { recursive: true, force: true });
+}
+
+/** A chain whose design reference is a Figma URL and whose spec is an external URL. */
+function setupExternal(): Fx & { spec: string } {
+  const fx = setup();
+  const SPEC = "https://docs.example.com/specs/biometric-login";
+  const specEv = { source: SPEC, parts: [{ name: "content", content: "Users unlock with Face ID." }] };
+  const design = designReferenceFingerprint(fx.root, FIGMA_FIELDS, figmaEvidence("<Button label=\"Unlock\"/>"));
+  let fa = readFileSync(fx.fa, "utf-8")
+    .replace(/^source_link: .*$/m, `source_link: ${SPEC}`)
+    .replace(/^source_fingerprint: .*$/m, `source_fingerprint: ${sourceFingerprint(fx.root, SPEC, specEv).fingerprint}`)
+    .replace(/^design_reference_type: .*$/m, "design_reference_type: figma")
+    .replace(/^design_reference: .*$/m, "design_reference: null")
+    .replace(/^figma_link: .*$/m, `figma_link: ${FIGMA}`)
+    .replace(/^design_reference_fingerprint: .*$/m, `design_reference_fingerprint: ${design}`);
+  writeFileSync(fx.fa, fa);
+  for (const p of [fx.dd, fx.bd]) {
+    writeFileSync(p, readFileSync(p, "utf-8")
+      .replace(/^design_reference_type: .*$/m, "design_reference_type: figma")
+      .replace(/^design_reference: .*$/m, "design_reference: null")
+      .replace(/^figma_link: .*$/m, `figma_link: ${FIGMA}`));
+  }
+  restamp(fx.dd, "source_fingerprint", fingerprintBody(readFileSync(fx.fa)) ?? "");
+  restamp(fx.bd, "source_fingerprint", fingerprintBody(readFileSync(fx.dd)) ?? "");
+  git(fx.root, "add", "-A");
+  git(fx.root, "commit", "-qm", "external references");
+  return { ...fx, spec: SPEC };
+}
+const specEvidence = (spec: string, content = "Users unlock with Face ID.") => ({ source: spec, parts: [{ name: "content", content }] });
+
+{
+  const fx = setupExternal();
+  const ext = (design: string, spec = "Users unlock with Face ID.") => ({ design: figmaEvidence(design), requirements: specEvidence(fx.spec, spec) });
+
+  const current = chainStatus(fx.root, fx.bd, ext("<Button label=\"Unlock\"/>"));
+  check("X the chain is current when the re-read design and spec match what planning consumed",
+    current.earliestStale === null && current.stages.every((s) => s.status === "current"), JSON.stringify(current.stages.map((s) => [s.stage, s.status])));
+
+  const redesigned = chainStatus(fx.root, fx.bd, ext("<Button label=\"Unlock\" variant=\"secondary\"/>"));
+  check("X a design changed behind the same Figma URL makes the feature analysis the earliest stale stage",
+    redesigned.earliestStale?.stage === "feature-analysis" && redesigned.stages[0].checks.some((c) => c.name === "design-reference" && c.status === "stale"));
+  check("X and the stages below it wait for it", redesigned.stages.slice(1).every((s) => s.status === "pending-upstream"));
+
+  const respec = chainStatus(fx.root, fx.bd, ext("<Button label=\"Unlock\"/>", "Users unlock with Face ID or a passcode."));
+  check("X a specification changed at the same URL is detected the same way",
+    respec.earliestStale?.stage === "feature-analysis" && respec.stages[0].checks.some((c) => c.name === "requirements" && c.status === "stale"));
+
+  const unread = chainStatus(fx.root, fx.bd);
+  check("X unread external sources are unverifiable — never current, never stale",
+    unread.stages[0].status === "unverifiable" && unread.earliestStale === null, JSON.stringify(unread.stages[0]));
+  check("X the chain names what could not be verified", unread.unverifiable.map((u) => u.check).sort().join(",") === "design-reference,requirements");
+  check("X an external spec is never mistaken for a missing local file",
+    !unread.stages[0].checks.some((c) => /no longer exists/.test(c.detail)));
+  cleanup(fx);
+}
+{
+  // A UI step built against the design: verified with evidence, unverifiable without it.
+  const fx = setupExternal();
+  const ext = (design: string) => ({ design: figmaEvidence(design), requirements: specEvidence(fx.spec) });
+  const start = writeTaskState(fx.root, F, "T1", "in-progress", { platform: "react-native" }, fx.bd, { external: ext("<Button label=\"Unlock\"/>") });
+  const runId = start.runId ?? "";
+  const cp = (kind: string, payload: unknown, design = "<Button label=\"Unlock\"/>") =>
+    writeCheckpoint(fx.root, F, "T1", runId, kind, payload, fx.bd, ext(design));
+  cp("plan", { expectedFiles: ["src/a.ts", "src/b.ts"], steps: [
+    { id: "S1", description: "hook", files: ["src/a.ts"], basis: ["dd#191-hook"] },
+    { id: "S2", description: "screen", files: ["src/b.ts"], basis: ["dd#192-screen", "design"] },
+  ] });
+  put(fx.root, "src/a.ts", "export const a = 2;\n");
+  cp("step", { stepId: "S1" });
+  put(fx.root, "src/b.ts", "export const b = 2;\n");
+  cp("step", { stepId: "S2" });
+  cp("validation", { command: "jest src/b.test.ts", result: "pass", covers: ["src/b.ts"], basis: ["design"] });
+
+  const refused = writeCheckpoint(fx.root, F, "T1", runId, "validation", { command: "x", result: "pass", basis: ["design"] }, fx.bd);
+  check("X a checkpoint cannot cite the design without the design content it was built against",
+    refused.status === "refused" && refused.reason === "invalid-checkpoint" && /design/.test(refused.summary));
+
+  const ok = resumeTask(fx.root, F, "T1", fx.bd, ext("<Button label=\"Unlock\"/>"));
+  check("X with the design re-read and unchanged, the UI step is valid", ok.status === "resume" && ok.checkpoints.valid.includes("S2"), `${ok.status} ${JSON.stringify(ok.checkpoints)}`);
+
+  const blind = resumeTask(fx.root, F, "T1", fx.bd);
+  check("X without the design, the UI step is neither valid nor invalidated — unverifiable",
+    !blind.checkpoints.valid.includes("S2") && !blind.checkpoints.invalidated.some((i) => i.stepId === "S2") && blind.checkpoints.unverified.some((u) => u.stepId === "S2"),
+    JSON.stringify(blind.checkpoints));
+  check("X and work that does not cite it stays valid", blind.checkpoints.valid.includes("S1"));
+  check("X a validation built on the unread design is not carried", !blind.validations.carried.some((v) => v.command === "jest src/b.test.ts") &&
+    blind.validations.unverified.some((v) => v.command === "jest src/b.test.ts"));
+  check("X the verdict names what must be re-read or attested", blind.unverified.includes("design") && /attest/i.test(blind.reasons.join(" ")));
+
+  const done = writeTaskState(fx.root, F, "T1", "complete", {
+    platform: "react-native", filesChanged: ["src/a.ts", "src/b.ts"], standardIds: [],
+    validation: [{ command: "jest src/b.test.ts", result: "pass" }],
+    acceptanceCriteria: [{ criterion: "Hook reports availability", met: true }],
+    developerTesting: { framework: "jest", required: true, testsChanged: [], justification: "existing tests cover it", runs: [{ command: "jest src/b.test.ts", result: "pass" }], notRunReason: null },
+  }, fx.bd);
+  check("X complete cannot cite a design-based validation it cannot verify", done.status === "refused" && done.reason === "complete-with-stale-validation", done.summary);
+  cleanup(fx);
+}
+{
+  // The design-fingerprint CLI takes the evidence file the reading step saved.
+  const fx = setupExternal();
+  const ev = join(fx.root, "..", `${slugify(fx.root)}-figma-evidence.json`);
+  writeFileSync(ev, JSON.stringify(figmaEvidence("<Button label=\"Unlock\"/>")));
+  const run = (...args: string[]) => JSON.parse(spawnSync(process.execPath, ["--no-warnings", join(HERE, "task-state.ts"), ...args], { encoding: "utf-8" }).stdout);
+  const withEv = run("design-fingerprint", "--root", fx.root, "--file", fx.fa, "--design-evidence", ev);
+  check("X CLI: design-fingerprint with evidence reproduces the recorded value",
+    withEv.status === "ok" && withEv.fingerprint === readFileSync(fx.fa, "utf-8").match(/^design_reference_fingerprint: (.*)$/m)?.[1]);
+  const noEv = run("design-fingerprint", "--root", fx.root, "--file", fx.fa);
+  check("X CLI: without evidence it is unverifiable, with no fingerprint", noEv.status === "unverifiable" && noEv.fingerprint === null);
+  const chain = run("chain", "--root", fx.root, "--breakdown", fx.bd, "--design-evidence", ev);
+  check("X CLI: chain accepts the evidence file", chain.stages?.[0]?.checks?.some((c: { name: string; status: string }) => c.name === "design-reference" && c.status === "current"));
+  rmSync(ev, { force: true });
+  cleanup(fx);
+}
+
 /* ── determinism: identical runs produce identical stores ─────────────── */
 {
   const a = setup();
@@ -688,6 +875,11 @@ const cleanup = (fx: Fx) => rmSync(fx.root, { recursive: true, force: true });
   const fa = read("templates/feature-analysis-template.md");
   check("the feature analysis records its requirements source and fingerprint", /^source_link:/m.test(fa) && /^source_fingerprint:/m.test(fa));
   check("the feature analysis records a design-reference fingerprint", /^design_reference_fingerprint:/m.test(fa));
+  check("the contract documents external-source evidence", /external source/i.test(contract) && /unverifiable/.test(contract) && /evidence/.test(contract));
+  check("the contract no longer claims a URL contributes only its text", !/URL contributes only its\s+text/.test(contract));
+  check("implement-task passes design evidence and falls back to attestation",
+    /--design-evidence/.test(read("commands/implement-task.md")) && /unverifiable/.test(impl) && /attest/i.test(impl));
+  check("analyze-feature captures evidence from its normal design read", /--design-evidence/.test(read("commands/analyze-feature.md")));
   check("analyze-feature stamps both", /source_fingerprint/.test(read("commands/analyze-feature.md")) && /design_reference_fingerprint/.test(read("commands/analyze-feature.md")));
 }
 

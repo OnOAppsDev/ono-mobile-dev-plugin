@@ -394,7 +394,7 @@ fingerprints each stage recorded at generation. It extends SHARED-013's `source_
 
 | Stage | Rerun with | Stale when |
 |---|---|---|
-| `feature-analysis` | `/analyze-feature` | its `source_fingerprint` no longer matches the bytes of the specification at `source_link`, or its `design_reference_fingerprint` no longer matches the design reference |
+| `feature-analysis` | `/analyze-feature` | its `source_fingerprint` no longer matches the content of the specification at `source_link`, or its `design_reference_fingerprint` no longer matches the design content — for an external source, as re-read now ([External sources](#external-sources-content-not-urls)) |
 | `dd` | `/dev-design-start` | its `source_fingerprint` no longer matches the feature analysis body, or its design-reference fields differ from the analysis's |
 | `task-breakdown` | `/dev-feature-start` | its `source_fingerprint` no longer matches the DD body, or its design-reference fields differ from the DD's |
 
@@ -406,9 +406,47 @@ and are not rerun. Absent fingerprints (legacy documents, an inline feature requ
 `source_link`) are `unknown`, never a mismatch. Only content is compared: a changed `date:`
 or a newer file timestamp invalidates nothing.
 
+A check whose external source was not read in this invocation is **`unverifiable`** — never
+`current` (nothing was compared), never `stale` (nothing was shown to change). A stage with
+one is `unverifiable` rather than current; the chain lists every such check in
+`unverifiable`, and `/implement-task` falls back to the attestation gate for it.
+
 The implementation stage is judged by the resume verdict: once the chain is current again,
 checkpoints and validations whose basis references moved are invalidated, and everything
 else is kept.
+
+### External sources: content, not URLs
+
+A Figma design, or a specification hosted outside the repository, can change behind an
+unchanged link — and the Figma MCP exposes no version, revision or content hash. Hashing the
+URL would report such a change as "unchanged", so an external source is fingerprinted by the
+**content the workflow actually read**, through one generic mechanism for both:
+
+| Source | Fingerprinted from |
+|---|---|
+| a repository file or folder (spec, mockups, design document) | its bytes — no evidence needed, exactly as before |
+| an external URL (a Figma link, a hosted spec) | the **evidence** of the read: `{ source, parts: [{ name, content }] }`, saved by the reading step outside the repository and passed as `--design-evidence` / `--source-evidence` |
+| a named in-repo screen (`existing_ui`), or no reference | the design-reference fields alone |
+
+- **The parts are fixed per kind of source**, so two reads compare like with like: a Figma
+  source is exactly `get_metadata` (the node tree) and `get_design_context` (styles, text,
+  layout) for the linked node — the reads the design step already performs; any other source
+  is exactly `content`, its raw retrieved text. Any other set is refused. Screenshots are not
+  evidence: a rendering is not a stable byte stream.
+- **The evidence must be of the referenced source.** A Figma source is identified by file key
+  and node, so a re-shared link to the same node (`?m=dev`, `?t=…`) is the same source and a
+  different node is not; evidence read from another source is refused.
+- **One canonicalization, and only content counts.** Line endings, trailing whitespace and the
+  query strings of URLs inside the content (per-request asset signatures) are normalized.
+  Every other field of the evidence — a retrieval time, a `lastModified` — is ignored, so no
+  timestamp can make a source look changed or unchanged.
+- **Unread is unverifiable, never unchanged.** Without usable evidence an external source has
+  no fingerprint. Its chain checks are `unverifiable`; the basis references `design` and
+  `requirements` cannot be cited by a new checkpoint; completed work citing them is listed in
+  the verdict's `checkpoints.unverified` and validations built on them in
+  `validations.unverified` — neither redone nor treated as verified; `unverified` names the
+  inputs to re-read; and `complete` citing such a validation is refused. The attestation gate
+  (`context.designAttestation`) remains the fallback, and an attestation is never verification.
 
 ### Lifecycle operations
 
@@ -443,9 +481,10 @@ above.
 - **`human-attested` is trusted as written.** The reader cannot tell an honest manual entry from a
   mistaken one — the same trust model as a human flipping a document's `status: approved`. What it
   guarantees is that such an entry is never mistaken for deterministic proof.
-- **Figma content behind an unchanged URL is invisible.** The design-reference fingerprint
-  covers the four fields and the content of a local file or folder; a URL contributes only its
-  text. That drift stays an attestation (`context.designAttestation`), never verification.
+- **External evidence is only as stable as the read.** The Figma parts are the MCP's own
+  output; if that output ever varies for an unchanged design beyond what the canonicalization
+  normalizes, the fingerprint changes and the analysis is reported stale — the safe direction:
+  a spurious rerun, never a missed change.
 - **Outside git, scope cannot be enumerated.** A run that began outside a git repository still
   verifies its task-owned files by hash, but changes elsewhere cannot be listed; the verdict
   says so.
