@@ -18,6 +18,7 @@
  *  11  /dev-feature-start consumes an approved DD and produces the same breakdown contract
  *  12  no component loads another platform's standards
  *  13  every platform standard ID and path is unchanged
+ *  14  the removed complexity assessment stays removed; dd_complexity_band is reserved
  *
  * WHY THIS IS WRITTEN FIRST. The planning lane is the one place where three separate
  * contracts meet: the human confirmation gate at /analyze-feature, the repository-knowledge
@@ -45,7 +46,7 @@
  *   node scripts/check.ts --only planning-lane
  */
 
-import { readFileSync, existsSync } from "fs";
+import { readFileSync, existsSync, readdirSync, statSync } from "fs";
 import { join, dirname } from "path";
 import { LANES } from "./reference-integrity.ts";
 
@@ -301,7 +302,7 @@ const route = (p: (typeof PLATFORMS)[number]): string =>
   check("11 every task row is tagged with the confirmed platform",
     /every task row is tagged with that same platform/i.test(f));
   check("11 the DD package fields are not decomposition inputs",
-    /not decomposition inputs|Never branch on either/i.test(f));
+    /not decomposition inputs|not a decomposition input|Never branch on either|never branch on it/i.test(f));
 }
 
 // ---------------------------------------------------------------------------
@@ -373,6 +374,77 @@ const route = (p: (typeof PLATFORMS)[number]): string =>
       check(`13b ${label} no longer routes \`${old}\``, !new RegExp("`" + old + "`").test(c));
     }
   }
+}
+
+// ---------------------------------------------------------------------------
+// 14. The complexity assessment is removed; dd_complexity_band is reserved
+// ---------------------------------------------------------------------------
+{
+  // ENG-006 (Stage 5): the assessment ran at /dev-design-start, changed nothing and was
+  // read by nothing. It is removed; the frontmatter field stays for schema compatibility.
+  check("14 the dd-complexity-assessment skill no longer exists", !has("skills/dd-complexity-assessment"));
+  check("14 the scorer no longer exists", !has("scripts/assess-dd-complexity.ts"));
+  check("14 the scorer's dedicated suite no longer exists", !has("scripts/assess-dd-complexity.test.ts"));
+  check("14 check.ts no longer registers the scorer suite", !/"assess-dd-complexity"/.test(read("scripts/check.ts")));
+
+  const d = flat(read(DESIGN));
+  const ds = flat(read("skills/dev-design-start/SKILL.md"));
+  check("14 /dev-design-start has no complexity step", !/^3a\. /m.test(read(DESIGN)) && !/complexity/i.test(d));
+  check("14 the dev-design-start skill has no complexity step", !/### Step 3a/.test(read("skills/dev-design-start/SKILL.md")) && !/complexity assessment|Measure complexity/i.test(ds));
+
+  // No live component names the removed capability.
+  const LIVE_DIRS = ["commands", "skills", "agents", "templates", "hooks", "standards"];
+  const files: string[] = [];
+  const walk = (rel: string): void => {
+    for (const e of readdirSync(join(REPO_ROOT, rel))) {
+      const r = `${rel}/${e}`;
+      if (statSync(join(REPO_ROOT, r)).isDirectory()) walk(r);
+      else files.push(r);
+    }
+  };
+  for (const dir of LIVE_DIRS) if (has(dir)) walk(dir);
+  const naming = files.filter((f) => /dd-complexity-assessment|assess-dd-complexity/.test(read(f)));
+  check("14 no live command, skill, agent, template, hook or standard references the removed capability",
+    naming.length === 0, naming.join(", "));
+
+  // No workflow branches on, or produces, a band: every live mention pins it to `unassessed`.
+  const bandLines = files.flatMap((f) =>
+    read(f).split("\n").filter((l) => /dd_complexity_band/.test(l)).map((l) => `${f}: ${l.trim()}`));
+  check("14 live components mention dd_complexity_band only to write `unassessed`",
+    bandLines.length > 0 && bandLines.every((l) => /unassessed/.test(l)), bandLines.join(" | "));
+  check("14 the dev-design-start skill writes dd_complexity_band: unassessed",
+    /`dd_complexity_band: unassessed`/.test(ds));
+  check("14 nothing tells a workflow to read a measured band",
+    !files.some((f) => /band (it returns|Step 3a measured|measured in step 3a)/i.test(read(f))));
+
+  // The template writes the reserved value, and `unclassified` has no producer left.
+  const tpl = read("templates/dd-template.md");
+  check("14 the DD template writes dd_complexity_band: unassessed", /^dd_complexity_band: unassessed\b/m.test(tpl));
+  const unclassified = files.filter((f) => /\bunclassified\b/.test(read(f)) && !/rn-nativewind-theme-sync|rn-sync-figma-theme/.test(f));
+  check("14 no planning component can emit `unclassified`", unclassified.length === 0, unclassified.join(", "));
+
+  // The contract states the retained-field semantics.
+  const c = flat(read("docs/planning-doc-contract.md"));
+  check("14 contract: the field is retained for backward compatibility",
+    /`dd_complexity_band` is retained for backward compatibility/.test(c));
+  check("14 contract: new DDs write unassessed", /New DDs write `unassessed`/.test(c));
+  check("14 contract: historical low/medium/high stay valid",
+    /`low`, `medium` or `high`[^.]*remain valid/.test(c));
+  check("14 contract: no workflow may branch on it", /No workflow may branch on `dd_complexity_band`/.test(c));
+  check("14 contract: the assessment capability no longer exists",
+    /complexity assessment[^.]*no longer exists/i.test(c));
+  check("14 contract: the enum lists only the reserved and historical values",
+    !/unclassified/.test(c));
+
+  // Existing planning behaviour is untouched.
+  check("14 the Step 7 contraction pass is still mandatory", /contraction pass must have run/.test(d));
+  check("14 the detail-level choice is still asked", /Decide detail level and existing-file strategy/.test(ds));
+  check("14 dd_generation is still single", /Set `dd_generation: single`/.test(ds));
+  const fs = flat(read("skills/dev-feature-start/SKILL.md"));
+  check("14 decomposition is still driven by §19/§20/§25/§26",
+    /Decompose from §19\/§20\/§25\/§26/.test(fs) || /§19.*§20.*§25.*§26/.test(fs));
+  check("14 the task decomposition rule is unchanged",
+    /sized for one `\/implement-task` run/.test(fs));
 }
 
 // ---------------------------------------------------------------------------

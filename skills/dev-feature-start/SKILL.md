@@ -13,7 +13,7 @@ Turn an approved DD into discrete, implementable tasks — the task-generation s
 
    **Then confirm its frontmatter `status` is `approved`** — if it is still `draft`, stop and ask a human to review and approve it first. Do not generate tasks against an unapproved design. Migration never changes approval, so a successfully migrated but unapproved DD still stops here.
 
-   The DD Package fields the loader guarantees are present (`dd_generation`, `dd_complexity_band`) are **not decomposition inputs**. `dd_generation` is always `single`; `dd_complexity_band` records what the complexity assessment measured and routes nothing. Decompose from §19/§20/§25/§26 exactly as before, and never branch on either field.
+   The DD Package field the loader guarantees is present, `dd_generation`, is **not a decomposition input** — it is always `single`. Decompose from §19/§20/§25/§26 exactly as before, and never branch on it.
 
 2. **Read the `platform` frontmatter field** to know which platform-specific dev-planning skill to consult — always exactly one, since the DD carries exactly one confirmed platform — and read the four design-reference fields (`design_reference_status`, `design_reference_type`, `design_reference`, `figma_link`) to carry forward unchanged. **Do not re-run platform detection** — the DD carries the platform decided at Analyze time — and do not re-ask for design input.
 

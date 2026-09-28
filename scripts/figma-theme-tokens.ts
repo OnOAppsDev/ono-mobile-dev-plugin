@@ -3,9 +3,9 @@
  *
  * Deterministic policy engine behind `/rn-sync-figma-theme` and the
  * `rn-nativewind-theme-sync` skill. Same split this plugin uses everywhere
- * else (assess-dd-complexity.ts, read-repo-knowledge.ts,
- * migrate-planning-doc.ts): the skill OBSERVES (talks to the live `figma` MCP
- * tools, reads the repository, talks to the human), this script DECIDES.
+ * else (read-repo-knowledge.ts, migrate-planning-doc.ts): the skill
+ * OBSERVES (talks to the live `figma` MCP tools, reads the repository, talks
+ * to the human), this script DECIDES.
  * Every classification rule, normalization rule, diff rule, and render rule
  * lives here as code, not as model judgment re-derived per run — that is what
  * makes two runs against the same inputs produce byte-identical output.
@@ -27,7 +27,7 @@
  *
  * CLI usage (every subcommand always exits 0 and always prints one JSON
  * object; callers branch on `ok`/`status`, never on the exit code — the same
- * posture as assess-dd-complexity.ts and read-repo-knowledge.ts):
+ * posture as read-repo-knowledge.ts and migrate-planning-doc.ts):
  *
  *   node scripts/figma-theme-tokens.ts detect-platform --files '<json>' --deps '<json>'
  *   node scripts/figma-theme-tokens.ts find-theme-modules --files '<json>' --tailwind-config '<string>'

@@ -9,7 +9,7 @@ Break an approved Detailed Design (DD) into a development task breakdown and a t
 
    **Load it through the `planning-doc-migration` skill (`--kind dd`) before reading anything from it.** That skill is the single compatibility layer for planning-document frontmatter: a DD written against an older contract is migrated in place (frontmatter only, body untouched) and you read exactly one shape. Do not carry your own tolerance for older shapes here, and never hand-edit a DD's frontmatter to make it load. If the skill reports any status other than `current` or `migrated`, stop and report it verbatim.
 
-   A DD written before the DD Package contract existed migrates silently and deterministically — it gains `dd_generation: single` and `dd_complexity_band: unassessed`, nothing else. Neither field changes how you decompose the DD: **`dd_generation` is always `single` today, and `dd_complexity_band` is advisory only. Never branch on either.**
+   A DD written before the DD Package contract existed migrates silently and deterministically — it gains `dd_generation: single` and `dd_complexity_band: unassessed`, nothing else. **`dd_generation` is always `single` today; never branch on it.**
 
    Then confirm the frontmatter `status` is `approved` — if it's still `draft`, stop and ask a human to review it first. **Migration never changes approval**, so a DD that migrates successfully is still rejected here if it was never approved.
 2. Read the `platform`, `device_type`, `design_reference_status`, `design_reference_type`, `design_reference`, and `figma_link` fields from the approved DD — do not re-run platform or device-type detection, and do not re-ask for design input the DD already carries.

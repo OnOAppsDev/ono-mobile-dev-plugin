@@ -139,16 +139,10 @@ function frontmatter(path: string): Record<string, string> {
   check("A3 feature analysis loads", ["current", "migrated"].includes(mfa.json?.status), mfa.raw.slice(0, 160));
   check("A3 approval survives the load", frontmatter(fa).status === "approved");
 
-  /* ── seam 4: complexity assessment accepts the recorded signals ── */
-  const signals = JSON.stringify({
-    modules_touched: 1, change_classes: 3, change_sites: 3, cross_module_change_classes: 0,
-    surfaces_changed: 1, new_contract: false, new_pattern: false, new_dependency: true,
-    data_migration: false, concurrency_change: false, design_reference_status: "provided",
-  });
-  const cx = helper("assess-dd-complexity.ts", ["--signals", signals]);
-  check("A4 complexity scores without a second repo pass", cx.code === 0 && typeof cx.json?.band === "string");
-  check("A4 the band the DD records is a real band",
-    ["low", "medium", "high", "unclassified"].includes(frontmatter(dd).dd_complexity_band));
+  /* ── seam 4: a historical dd_complexity_band is a reserved value, never a routing input ──
+     The fixture DD predates ENG-006 and carries `low`; it must stay valid as written. */
+  check("A4 the DD's dd_complexity_band is a reserved or historical value",
+    ["low", "medium", "high", "unassessed"].includes(frontmatter(dd).dd_complexity_band));
 
   /* ── seam 5: the DD loads, and carries the DD Package fields ── */
   const mdd = helper("migrate-planning-doc.ts", [dd, "--kind", "dd"]);

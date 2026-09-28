@@ -63,7 +63,6 @@ const PHASES: Phase[] = [
     suites: [
       "resolve-target-repo-root",
       "read-repo-knowledge",
-      "assess-dd-complexity",
       "migrate-planning-doc",
       "task-state",
       "figma-theme-tokens",
