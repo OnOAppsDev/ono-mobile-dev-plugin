@@ -44,6 +44,8 @@ Files matching no bucket are **Not Applicable / Skipped** with a one-line reason
 | `IOS-SWIFT-LIFETIME/CONC-*` | captures, delegates, observation tokens, task handles, isolation | `swift-standards.md` |
 | `IOS-SWIFT-LOG/ANALYTICS-*` | logging and analytics call sites | `swift-standards.md` |
 | `IOS-UI-*` | UI surfaces, view models, lists, cells, SwiftUI/UIKit interop | `swiftui-uikit-standards.md` |
+| `IOS-UI-TV-*` | files on an established TV surface (tvOS target) only — [§12](#12-device_type-handling-at-review) | `swiftui-uikit-standards.md` |
+| `TVB-*` | files on an established TV surface only — [§12](#12-device_type-handling-at-review) | `standards/shared/tv-baseline.md` |
 | `IOS-ARCH-*` | layering, module placement, navigation, DI, persistence, test architecture | `ios-architecture.md` |
 | `A11Y-*` | user-facing interactive surfaces | `standards/shared/accessibility.md` |
 | `I18N-*` | user-visible copy, formatting, layout direction | `standards/shared/i18n-rtl.md` |
@@ -76,8 +78,10 @@ Review has **no confirmed `device_type`**, and Project Knowledge never supplies 
 
 - **Infer, never demand.** Note a TV surface in Scope; **never block a review to ask.**
 - **Suppress inapplicable mobile rules rather than invent TV rules.** `A11Y-TOUCH-1` already states the TV form-factor requirement; honouring it is reading the standard, not adding TV knowledge.
-- **Never file against a rule that does not exist.** No stable tvOS `IOS-*` rules are authored yet (`ATV-001`), and a bare `IOS-TV-*` root has no owner. The shared accessibility rules' TV clauses do apply.
+- **Never file against a rule that does not exist.** `IOS-PERF-TV-*` is reserved and carries no rules, and a bare `IOS-TV-*` root has no owner — never file against either. The shared accessibility rules' TV clauses do apply.
 - **File TV findings against the shared TV baseline.** On an established TV surface, `standards/shared/tv-baseline.md` (`TVB-*`) is authored: a concrete violation — focus dropped or invisible, directional order that ignores the layout, an overlay that leaks focus, a touch-only affordance, a Back that does nothing, a second playback owner or an undisposed player — is filed under its `TVB-*` ID. Judge it against the repository's own TV model, never against a preferred one.
+- **File tvOS-specific findings under `IOS-UI-TV-*`.** A violation only tvOS has — moving focus by intercepting directional presses instead of working with the system focus model (`IOS-UI-TV-1`), Back consumed at the root (`IOS-UI-TV-2`), a custom player missing an obligation the system player meets (`IOS-UI-TV-3`), Top Shelf content changed as an asset rather than its own extension target (`IOS-UI-TV-4`), a capability used without verification against the target SDK (`IOS-UI-TV-5`) — is filed under its `IOS-UI-TV-*` ID, and only on an established TV surface. One defect, one finding: where a `TVB-*` rule and an `IOS-UI-TV-*` rule describe the same defect, file the more specific `IOS-UI-TV-*` ID and cite the `TVB-*` rule inside it.
+- **The diff and the current code are judged first.** Surface attribution and Project Knowledge say where a TV surface is and what its conventions are; the code in front of you is authoritative wherever they disagree.
 - **Never apply touch or gesture assumptions to a TV surface.**
 
 ## 13. Measurement requests
@@ -138,6 +142,8 @@ Cite only IDs that exist in these files and genuinely apply to the change.
 |---|---|---|---|
 | Swift language, safety, lifetime, concurrency, diagnostics | `standards/ios/swift-standards.md` | `IOS-SWIFT-*` | code-reviewer |
 | SwiftUI / UIKit / state / lists / interop | `standards/ios/swiftui-uikit-standards.md` | `IOS-UI-*` | code-reviewer |
+| Apple TV — established TV surface only | `standards/ios/swiftui-uikit-standards.md` | `IOS-UI-TV-*` | code-reviewer |
+| TV obligations common to every platform — established TV surface only | `standards/shared/tv-baseline.md` | `TVB-*` | code-reviewer |
 | Layering, modules, navigation, DI, persistence, test architecture | `standards/ios/ios-architecture.md` | `IOS-ARCH-*` | code-reviewer |
 | Accessibility (shared) | `standards/shared/accessibility.md` | `A11Y-*` | code-reviewer |
 | Localization & RTL (shared) | `standards/shared/i18n-rtl.md` | `I18N-*` | code-reviewer |

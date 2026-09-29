@@ -138,10 +138,11 @@ repository actually uses — come from Project Knowledge, with each planning lan
 discovery pass as the fallback. The platform-neutral TV obligations are the **shared TV
 baseline** (`standards/shared/tv-baseline.md`, `TVB-*`), cited by the iOS, Android and React
 planning, implementation and review lanes; Smart TV realises it through its authored
-standard (`standards/react/react-smart-tv.md`). **Stable tvOS- and Android-TV-specific rules
-are not yet authored**, so those lanes cite the baseline, the shared rules' TV clauses and
-the repository's own model, and no platform TV rule ID. The open work is those two small
-platform rule sets: `ATV-001`/`ATV-002` for Apple TV, `ANDROID-003` for Android TV.
+standard (`standards/react/react-smart-tv.md`), and Apple TV through five tvOS-specific
+rules (`IOS-UI-TV-*`, `standards/ios/swiftui-uikit-standards.md` § *Apple TV (tvOS)*), which
+the iOS planning, implementation and review lanes cite. **Stable Android-TV-specific rules
+are not yet authored** (`ANDROID-003`), so the Android lanes cite the baseline, the shared
+rules' TV clauses and the repository's own model, and no Android TV rule ID.
 
 ## How shared vs. platform-specific context loads
 

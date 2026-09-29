@@ -183,10 +183,14 @@ for (const [lane, dims] of Object.entries(LANES)) {
   for (const rel of ["skills/ios-dev-planning/SKILL.md", "skills/android-dev-planning/SKILL.md", "standards/ios/swift-standards.md"]) {
     const s = flat(read(rel));
     check(`TV ${rel}: repository TV facts come from Project Knowledge`, /Project Knowledge/.test(s));
-    check(`TV ${rel}: stable TV rules are named as not yet authored, not as a blocker`, /stable[^.]{0,60}TV rules/i.test(s));
+    // Android TV's stable rules are still open work; tvOS's are authored since ATV-001.
+    check(`TV ${rel}: stable TV rules are named — authored or not yet — never as a blocker`,
+      /android/.test(rel) ? /stable[^.]{0,60}TV rules/i.test(s) : /`IOS-UI-TV-\*`/.test(s));
   }
+  // Since ATV-001, `IOS-UI-TV-*` is authored; what must still never be cited is an ID with
+  // no rule behind it — the empty `IOS-PERF-TV-*` root and a bare `IOS-TV-*` root.
   check("TV iOS lanes still never cite an unauthored TV rule ID",
-    /Never cite a tvOS TV ID/.test(read("skills/ios-dev-planning/SKILL.md")) && /never cite a tvOS TV/i.test(read("skills/ios-feature-implementation/SKILL.md")));
+    /Never cite `IOS-PERF-TV-\*`/.test(read("skills/ios-dev-planning/SKILL.md")) && /never cite `IOS-PERF-TV-\*`/i.test(read("skills/ios-feature-implementation/SKILL.md")));
   check("TV android-code-review still never files against a nonexistent TV rule",
     /Never file a TV finding against a rule that does not exist/.test(read("skills/android-code-review/SKILL.md")));
   for (const rel of ["skills/ios-code-review/SKILL.md", "skills/android-code-review/SKILL.md"]) {

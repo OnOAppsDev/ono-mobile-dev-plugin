@@ -147,7 +147,7 @@ demonstrated it right either.</p>
 <table>
 <tr><th>Platform</th><th><code>device_type: mobile</code></th><th><code>device_type: tv</code></th><th>End-to-end proven?</th></tr>
 <tr><td><code>react-native</code></td><td>Ready</td><td><b>Unsupported</b> — defined hard stop; RN + TV is a product decision that does not exist</td><td><span class="chip open">Unproven</span></td></tr>
-<tr><td><code>ios</code></td><td>Ready</td><td><b>Partial</b> — planning, implementation and review cite the shared TV baseline (<code>TVB-*</code>) and the shared accessibility rules' TV clauses, with Project-Knowledge-first discovery; tvOS-specific stable rules are not yet authored (ATV-001), so no tvOS TV ID may be cited</td><td><span class="chip open">Unproven</span></td></tr>
+<tr><td><code>ios</code></td><td>Ready</td><td>Ready — planning, implementation and review cite the shared TV baseline (<code>TVB-*</code>), the tvOS rules (<code>IOS-UI-TV-*</code>) and the shared accessibility rules' TV clauses, with Project-Knowledge-first discovery</td><td><span class="chip open">Unproven</span></td></tr>
 <tr><td><code>android</code></td><td>Ready</td><td><b>Partial</b> — planning, implementation and review cite the shared TV baseline (<code>TVB-*</code>) and the shared accessibility rules' TV clauses, with Project-Knowledge-first discovery; Android-TV-specific stable rules remain (ANDROID-003)</td><td><span class="chip open">Unproven</span></td></tr>
 <tr><td><code>react</code></td><td>Ready</td><td>Ready — <code>react-smart-tv.md</code> is authored (54 <code>REACT-TV-*</code> rules) and realises the shared TV baseline</td><td><span class="chip open">Unproven</span></td></tr>
 </table>
@@ -229,31 +229,31 @@ optional. Only <span class="chip deferred">Deferred</span> is outside the comple
   <td>Noam Haba</td>
   <td>IOS-001 ✓, SHARED-001 ✓ — unblocked</td>
   <td>4 d</td>
-  <td>Author the <b>tvOS-specific stable rules only</b> — the residue the shared TV baseline
-      (SHARED-015) deliberately leaves to the platform: how the system focus model is worked with
-      rather than against, the platform's root Back convention, the obligations a custom player
-      takes on when it replaces the system one, the top-shelf surface as an extension target, and
-      capabilities the platform does not offer. A small set under the reserved
-      <code>IOS-UI-TV-*</code> / <code>IOS-PERF-TV-*</code> roots, citing <code>TVB-*</code>
-      rather than restating it. <b>Out of scope:</b> repository-specific TV facts (Project
-      Knowledge) and volatile platform facts (verified against the target SDK). Until this
-      ships, no tvOS TV ID may be cited.</td>
-  <td><span class="chip open">Open</span></td>
+  <td>The tvOS-specific stable rules only — the residue the shared TV baseline (SHARED-015)
+      leaves to the platform. <b>Delivered:</b> five <code>IOS-UI-TV-*</code> rules in one section
+      of <code>swiftui-uikit-standards.md</code> (§ <i>Apple TV (tvOS)</i>): working with the system
+      focus model, Back at the root returning to the system, a custom player owning what the system
+      player supplies, Top Shelf as a separate extension target, and a capability verified against
+      the target SDK before it is used. Each extends a named <code>TVB-*</code> rule or has no shared
+      counterpart; none restates the baseline. <code>IOS-PERF-TV-*</code> stays reserved with no
+      rules by design. Repository-specific TV facts remain Project Knowledge; volatile platform facts
+      remain live target-SDK verification. Pinned by <code>tvos-rules</code>.</td>
+  <td><span class="chip done">Done</span></td>
 </tr>
 <tr>
   <td>ATV-002</td>
   <td>Platform lanes — iOS</td>
   <td>Noam Haba</td>
-  <td><b>ATV-001</b> — only the citing of rules waits on it</td>
+  <td>ATV-001 ✓</td>
   <td>4 d</td>
-  <td><b>Planning, implementation and review handling have landed at baseline level:</b>
-      <code>ios-dev-planning</code> reads Project Knowledge first and cites <code>TVB-*</code>;
-      <code>ios-feature-implementation</code> implements within the repository's TV model and
-      cites <code>TVB-*</code>; <code>ios-code-review</code> §12 files TV findings under
-      <code>TVB-*</code>. <b>What remains:</b> citing the ATV-001 tvOS rules in those three lanes
-      once they exist. The work stays lane-side; the shared agents and methodologies carry no TV
-      content.</td>
-  <td><span class="chip open">Open</span></td>
+  <td>Lane handling for Apple TV. <b>Delivered with ATV-001 — no separate remaining work:</b>
+      <code>ios-dev-planning</code> reads Project Knowledge first and cites <code>TVB-*</code> and
+      the <code>IOS-UI-TV-*</code> rules; <code>ios-feature-implementation</code> follows the
+      repository's TV model from the planning artifacts, applies both rule sets, and builds and tests
+      the tvOS scheme against a tvOS Simulator destination; <code>ios-code-review</code> §12 files TV
+      findings under <code>TVB-*</code> and <code>IOS-UI-TV-*</code> on an established TV surface.
+      The shared agents and methodologies carry no TV content.</td>
+  <td><span class="chip done">Done</span></td>
 </tr>
 <tr>
   <td>ANDROID-003</td>
@@ -386,7 +386,7 @@ never by ageing.</p>
 
 <h3>Gate A — Remaining implementation and defect work</h3>
 <p>Every open item in §6 is closed, or carries a recorded decision that removes or
-reclassifies it. All ten:</p>
+reclassifies it. The items, with those already closed marked:</p>
 <table>
 <tr><th>Item</th><th>Kind</th><th>Blocks</th></tr>
 <tr><td>QA-001 — QA plugin global git-block hook</td><td>Cross-plugin defect</td><td>Gate A</td></tr>
@@ -397,8 +397,7 @@ reclassifies it. All ten:</p>
 <tr><td>ENG-006 — <code>dd-complexity-assessment</code>: integrate or remove</td><td>Decision</td><td>Gate A, and explicitly Gate C</td></tr>
 <tr><td>QA-002 — QA handoff discovery bug in <code>/check-qa-coverage</code></td><td>Cross-plugin defect</td><td>Gate A</td></tr>
 <tr><td>SHARED-015 — shared TV baseline — <b>done</b></td><td>Platform</td><td>—</td></tr>
-<tr><td>ATV-001 — tvOS-specific stable rules (the residue the shared baseline leaves)</td><td>Platform</td><td>Gate A, and ATV-002's rule citations</td></tr>
-<tr><td>ATV-002 — cite the ATV-001 rules in the iOS lanes (baseline handling landed)</td><td>Platform</td><td>Gate A</td></tr>
+<tr><td>ATV-001 — tvOS-specific stable rules — <b>done</b> (ATV-002's lane handling delivered with it)</td><td>Platform</td><td>—</td></tr>
 <tr><td>ANDROID-003 — Android-TV-specific stable rules, and citing them (baseline handling landed)</td><td>Platform</td><td>Gate A</td></tr>
 </table>
 <p class="note">ENG-004 (React lane delegation wording) is recorded in §6 and tracked in the
@@ -415,7 +414,7 @@ repository.</p>
 <ul>
 <li><b>All four platforms</b> — <code>react-native</code>, <code>ios</code>, <code>android</code>, <code>react</code>.</li>
 <li><b>Both device types where applicable</b> — <code>mobile</code> and <code>tv</code> on iOS, Android and React. React Native is mobile-only; its <code>tv</code> path is validated by confirming the hard stop fires and never falls through.</li>
-<li>Gate A first for the TV paths: an Apple TV or Android TV run before ATV-001 / ANDROID-003 can only demonstrate discovery, not guidance.</li>
+<li>Gate A first for the TV paths: an Android TV run before ANDROID-003 lands can demonstrate the shared TV baseline and discovery, not Android-TV-specific guidance. Apple TV has both rule layers.</li>
 </ul>
 <div class="rule">What <code>check.ts</code> cannot prove, and never will</div>
 <p>The deterministic suite validates the deterministic layer only. These are out of its reach
