@@ -124,7 +124,13 @@ Apply these as you write, grounded in what [§4](#4-what-design-handed-over-and-
 
 The rows are a checklist, not a ladder — the file being changed decides which UI family applies (`IOS-UI-FRAMEWORK-1`).
 
-**`device_type: tv`** is a context signal, not a platform — `swift-standards.md` § *Apple TV* governs. Implement within the repository's own TV model, which reaches you through the approved planning artifacts, and meet the shared TV baseline (`standards/shared/tv-baseline.md`, `TVB-*`) through it: keep focus visible and never lost, contain it in overlays and restore it on return, add no touch-only interaction, keep Back deterministic, give playback one owner and tear it down completely, and capture state before suspension. Cite the `TVB-*` rules applied. Never silently carry a touch assumption into a TV surface, and never cite a tvOS TV ID — no stable tvOS rules are authored yet (`ATV-001`). Focus traversal, remote input and screen-reader behaviour are largely not provable headlessly: state what was verified at which tier and record the rest as verification debt ([§15](#15-verification-reach--what-you-may-claim)).
+**`device_type: tv`** is a context signal, not a platform — `swift-standards.md` § *Apple TV* governs. On `tv`:
+
+- **Follow the repository's TV model from the approved planning artifacts** — its focus conventions, player, navigation and its tvOS target, scheme and build selector, as the Feature Analysis and DD recorded them from Project Knowledge or planning's TV discovery. Do not resolve Project Knowledge again; read current source for the feature-specific detail, and where it contradicts the artifacts, the code wins and the contradiction is reported.
+- **Apply the shared TV baseline** (`standards/shared/tv-baseline.md`, `TVB-*`) **and the tvOS rules**: work with the system focus model (`IOS-UI-TV-1`), let Back at the root return to the system (`IOS-UI-TV-2`), meet every system-player obligation in a custom player (`IOS-UI-TV-3`), change Top Shelf content only as its own extension target (`IOS-UI-TV-4`), and use no capability the target SDK the probe recorded does not offer (`IOS-UI-TV-5`). Cite the `TVB-*` and `IOS-UI-TV-*` rules applied; never cite `IOS-PERF-TV-*`, which carries no rules, or a bare `IOS-TV-*` root.
+- **Build and test the tvOS target, not the iOS one.** Run the [§5](#5-toolchain-probe) probe against the tvOS scheme the planning artifacts name, pin a **tvOS Simulator** destination from that scheme's own destination list, and use it for every build and test in [§10](#10-the-implement-loop) and [§13](#13-running-tests). An iOS destination proves nothing about a tvOS target. If the scheme offers no tvOS Simulator destination, stop and report it.
+- **Never silently carry a touch assumption into a TV surface.**
+- **Verification reach.** Focus movement, remote input, Back at the root and screen-reader behaviour are largely not provable headlessly: state what was verified at which tier, and record the rest as verification debt ([§15](#15-verification-reach--what-you-may-claim); screen-reader obligations as QA debt per `TVB-A11Y-1`).
 
 ## 10. The implement loop
 
@@ -313,6 +319,8 @@ Record which IDs were **applied**, not merely reviewed — this is the trace `co
 |---|---|---|
 | Swift language, lifetime, concurrency, diagnostics | `standards/ios/swift-standards.md` | `IOS-SWIFT-*` |
 | SwiftUI, UIKit, interop, cells, identity | `standards/ios/swiftui-uikit-standards.md` | `IOS-UI-*` |
+| Apple TV — `device_type: tv` only | `standards/ios/swiftui-uikit-standards.md` | `IOS-UI-TV-*` |
+| TV obligations common to every platform — `device_type: tv` only | `standards/shared/tv-baseline.md` | `TVB-*` |
 | Architecture, navigation, data, DI, modules, testing | `standards/ios/ios-architecture.md` | `IOS-ARCH-*` |
 | Performance & memory | `standards/ios/ios-performance.md` | `IOS-PERF-*` |
 | Build, signing, dependencies, distribution | `standards/ios/xcode-build-signing.md` | `IOS-BUILD-*` |

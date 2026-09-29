@@ -142,11 +142,12 @@ for (const [plat, label] of [["ios", "5"], ["android", "6"]] as const) {
   const review = read(`skills/${plat}-code-review/SKILL.md`);
   const r12 = review.slice(review.indexOf("## 12. `device_type` handling at review"));
   check(`${label} ${plat}-code-review §12 files TV findings against the baseline`, cites(r12.slice(0, 3000)) && /TVB-/.test(r12.slice(0, 3000)));
-  check(`${label} ${plat} planning still marks platform-specific TV rules as not yet authored`,
-    /not yet authored/i.test(flat(tvSection(plan))));
+  // Platform TV rules are authored for both since ATV-001 and ANDROID-003.
+  check(`${label} ${plat} planning cites its authored platform TV rules alongside the baseline`,
+    new RegExp(`\`${plat === "ios" ? "IOS" : "AND"}-UI-TV-\\d+\``).test(tvSection(plan)));
 }
 check("5 tvOS still never cites an unauthored tvOS TV ID",
-  /Never cite a tvOS TV ID/.test(read("skills/ios-dev-planning/SKILL.md")) && /`IOS-UI-TV-\*`/.test(read("skills/ios-dev-planning/SKILL.md")));
+  /Never cite `IOS-PERF-TV-\*`/.test(read("skills/ios-dev-planning/SKILL.md")) && /`IOS-UI-TV-\*`/.test(read("skills/ios-dev-planning/SKILL.md")));
 check("5 swift-standards points at the shared baseline for TV", /tv-baseline\.md/.test(read("standards/ios/swift-standards.md")));
 
 /* ── 7. React Smart TV coexists with the baseline ─────────────────────── */
