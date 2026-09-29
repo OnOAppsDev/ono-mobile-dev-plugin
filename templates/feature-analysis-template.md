@@ -13,6 +13,8 @@ figma_link: # optional — the Figma URL when design_reference_type is `figma`, 
 design_reference_fingerprint: # sha256: of the four design-reference fields plus the design CONTENT consumed — a local file or folder's bytes, or for Figma and other external references the evidence of the read (get_metadata + get_design_context for the linked node) — ENG-003. Written by /analyze-feature (scripts/task-state.ts design-fingerprint); verified by /implement-task's upstream chain check. Absent means unknown, never mismatch; an external design that cannot be re-read is unverifiable, never unchanged
 platform: # react-native | ios | android | react — exactly one confirmed platform. Resolved from repo-analyst after user confirmation; must never be mixed.
 device_type: # mobile | tv — the mobile-vs-TV target for this feature, resolved by repo-analyst; ask the human if ambiguous. No "mixed" — resolve to exactly one.
+surface: # the Project Knowledge surface id the developer confirmed this feature targets (/analyze-feature step 2a), or null when the repository declares none. Scopes conventions and code; never routing
+capability: # the Project Knowledge capability id the request was located as (/analyze-feature step 3a), or null when it was not found — deterministic identity only, never similarity
 # repo_knowledge_* fields: exact values and encoding are defined by the repo-knowledge-consumer skill's Step 6 (skills/repo-knowledge-consumer/SKILL.md) — do not guess from the prose below. In particular: absent values are the bare YAML keyword `null` (never the string "null", never empty), and repo_knowledge_reused/repo_knowledge_derived mirror the reader's usableCategories/deriveLive verbatim — no summarizing, reordering, or abbreviating.
 repo_knowledge_status: # available | unavailable — whether .ono/repo-knowledge.json was resolved when this analysis was written
 repo_knowledge_schema: # the repository-knowledge contract schema version, or null when unavailable
@@ -45,6 +47,16 @@ Required sections, always present even when the answer is "not detected":
 - Standards Conformance — folder structure vs the platform's ARCH-* expectations. ALWAYS derived live, so always embedded.
 -->
 ## Repo Context
+
+<!--
+Project Knowledge Context — what the repository already knows about the change surface, resolved through the repo-knowledge-consumer skill (Steps 3b and 3c). Cite, never paste. Omit a line that does not apply; when the repository declares no surfaces and the capability was not found, write "Not found in Project Knowledge — change surface discovered live." and nothing else.
+- Surface — the confirmed `surface`, its build selector and source roots, and the convention overrides that apply (`docs/project/patterns.md#<override-anchor>`).
+- Capability — the `capability` id, `docs/project/capabilities.md#capability-<id>`, and the source evidence it was located by.
+- Related capabilities — ONLY the direct relationships relevant to understanding this feature, one line each: relationship id, the neighbour's anchor, and why it is relevant here. Context, not scope: listing one never adds it to this feature.
+- Verified against current source — for each relationship re-checked because it was stale: `verified` with the current `[evidence: <path>]`, or `derived live` when its source edge no longer holds.
+- Likely change surface — the source roots and entry points the feature is expected to touch.
+-->
+## Project Knowledge Context
 
 <!-- The relevant platform architect's proposed approach: Screens/Views / State & Data / Navigation-Routing / Folder Placement. Cite each platform's standard IDs (ARCH-*/NAV-* for react-native, etc.) each part follows. Grounded strictly in the conventions detected above, not assumed defaults. Exactly one confirmed platform applies (react-native, ios, android, or react), so this is always a single flat section authored by that one platform's architect — never split into per-platform subsections. -->
 ## Proposed Technical Approach

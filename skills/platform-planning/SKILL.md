@@ -60,6 +60,21 @@ deriving anything. Reuse every category it reports reusable by reading the cited
 verify on use what it reports as `verifyOnUse` (the repository changed since that knowledge
 was generated — its Step 3a); derive live only what it reports as `deriveLive`.
 
+**Order of authority:** current source → verified Project Knowledge → stable standards →
+external/vendor documentation. Project Knowledge is repository-specific fact the
+`ono-project-inspector` produced from this repository; it never outranks the code it
+describes.
+
+**Consume the confirmed surface and capability, never rediscover them.** When the approved
+upstream document records a confirmed `surface`, read the shared convention sections and then
+that surface's overrides (`surfaceAnchors`, via the consumer's Step 3b) — the conventions that
+apply to the confirmed surface are the shared ones as overridden, not whichever the planner
+finds first. When it records a `capability`, its cited context — evidence, direct
+relationships and related components or integrations — is the starting change surface
+(Step 3c). Do not rediscover a category already trusted unless verify-on-use requires it, the
+current source contradicts it, or the feature needs evidence outside the stored scope; each of
+those is a reason to read source, and the reason is recorded with the finding.
+
 **Never parse `.ono/repo-knowledge.json` yourself** — one component owns that. **An absent
 manifest is the normal case, not an error:** say so in one line and proceed with full live
 inspection. Never block on it, never ask permission, and never tell the developer to run an

@@ -201,7 +201,7 @@ const live = validate(REPO_ROOT);
 
 // --- 7. Path resolution and the foreign-citation list --------------------
 {
-  check("7 the foreign-path list holds exactly three documented entries", FOREIGN_PATHS.length === 3,
+  check("7 the foreign-path list holds exactly four documented entries", FOREIGN_PATHS.length === 4,
     FOREIGN_PATHS.map((f) => f.path).join(", "));
   check("7 every foreign entry carries a reason", FOREIGN_PATHS.every((f) => f.reason.length > 20));
   check("7 every foreign entry really is absent from this repository",

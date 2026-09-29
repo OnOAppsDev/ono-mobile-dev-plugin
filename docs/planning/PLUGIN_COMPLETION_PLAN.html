@@ -212,7 +212,7 @@ optional. Only <span class="chip deferred">Deferred</span> is outside the comple
   <td>Noam Haba</td>
   <td>IOS-001 ✓, SHARED-001 ✓ — unblocked</td>
   <td>4 d</td>
-  <td>Add Apple TV / tvOS knowledge into the five <code>standards/ios/*</code> documents as
+  <td>Add <b>stable tvOS platform rules</b> into the five <code>standards/ios/*</code> documents as
       TV-context sections, covering all six subject areas:
       <b>focus engine</b>; <b>Siri Remote / remote input</b>; <b>media playback</b>;
       <b>Top Shelf and lifecycle</b>; <b>tvOS memory and performance</b>;
@@ -220,7 +220,12 @@ optional. Only <span class="chip deferred">Deferred</span> is outside the comple
       The reserved roots <code>IOS-UI-TV-*</code> and <code>IOS-PERF-TV-*</code> are where those
       rules land; a bare <code>IOS-TV-*</code> root is not permitted. Until this ships the iOS
       lane's TV responsibility is discovery and non-regression only, and <b>no TV ID may be
-      cited</b>.</td>
+      cited</b>.
+      <b>Rescoped by Stage B:</b> repository-specific TV knowledge — which focus model, remote
+      handling, TV components, playback integration and packaging <i>a given repository</i> uses
+      — is Project Knowledge, produced by <code>ono-project-inspector</code> and consumed by the
+      lanes Project-Knowledge-first. It must not be written into these static standards; ATV-001
+      carries only rules that hold for every tvOS app.</td>
   <td><span class="chip open">Open</span></td>
 </tr>
 <tr>
@@ -236,7 +241,11 @@ optional. Only <span class="chip deferred">Deferred</span> is outside the comple
       <b>The work is lane-side only.</b> <code>feature-architect</code>,
       <code>feature-implementer</code>, <code>code-reviewer</code> and
       <code>performance-reviewer</code> stay platform-neutral and must not gain TV content;
-      so must the three shared methodologies. Exactly one lane still loads per invocation.</td>
+      so must the three shared methodologies. Exactly one lane still loads per invocation.
+      <b>Stage B:</b> <code>ios-dev-planning</code>'s TV discovery now reads the confirmed
+      surface's Project Knowledge first and discovers live only what it does not cover. The
+      remaining work is unchanged and still explicit: branch the three lanes on
+      <code>device_type</code> to apply and cite the ATV-001 rules at plan, implement and review.</td>
   <td><span class="chip open">Open</span></td>
 </tr>
 <tr>
@@ -255,7 +264,15 @@ optional. Only <span class="chip deferred">Deferred</span> is outside the comple
       navigation abstractions, TV UI components, playback integration, screen lifecycle, and
       reusable base classes or framework modules.
       <b>Repository conventions are the source of truth; Android platform documentation is
-      guidance only and never overrides an existing repository implementation.</b></td>
+      guidance only and never overrides an existing repository implementation.</b>
+      <b>Rescoped by Stage B:</b> the discovery half is delivered — <code>android-dev-planning</code>'s
+      TV pass reads the confirmed surface's Project Knowledge first (its <i>Input and
+      Interaction</i>, <i>Media and Playback</i>, <i>App Lifecycle and State</i> overrides,
+      surface-scoped inventory and packaging), verifies it when stale, and discovers live only
+      what it does not cover. Repository-specific TV facts belong to Project Knowledge, never to
+      <code>AND-*</code>. What remains: <b>stable Android TV platform rules</b> in the
+      <code>AND-*</code> standards, and TV branches in the implementation and review lanes that
+      cite them.</td>
   <td><span class="chip open">Open</span></td>
 </tr>
 <tr>
@@ -288,8 +305,17 @@ optional. Only <span class="chip deferred">Deferred</span> is outside the comple
   <td>Canonical repository knowledge is resolved through <code>repo-knowledge-consumer</code>
       but not reused as fully as <code>docs/repo-knowledge-contract.md</code> allows, so work
       is re-derived live that a manifest already answers. Close the gap without changing the
-      contract or letting any lane parse the manifest itself.</td>
-  <td><span class="chip known">Known</span></td>
+      contract or letting any lane parse the manifest itself.
+      <b>Closed by Stage B</b> (with the producer's Stage A): surfaces, surface-scoped
+      conventions, capabilities and first-degree relationships are consumed at
+      <code>/analyze-feature</code>, <code>/dev-design-start</code> and
+      <code>platform-planning</code>, reach implementation through the approved planning
+      artifacts, and are resolved for <code>/review-code</code>, whose rung 2 had cited
+      repository knowledge without loading it. Still one parser; the lanes consult it
+      Project-Knowledge-first with live discovery as the fallback. Pinned by
+      <code>project-knowledge-consumption</code>. The release flow is outside this item; live
+      behaviour is evidenced by ENG-005's runs, like every other lane.</td>
+  <td><span class="chip done">Done</span></td>
 </tr>
 <tr>
   <td>ENG-003</td><td>Methodology — partially-applied task</td><td>Plugin Owner</td><td>—</td>
@@ -361,14 +387,14 @@ reclassifies it. All ten:</p>
 <tr><th>Item</th><th>Kind</th><th>Blocks</th></tr>
 <tr><td>QA-001 — QA plugin global git-block hook</td><td>Cross-plugin defect</td><td>Gate A</td></tr>
 <tr><td>ENG-001 — <code>mobile-repo-analysis</code> cross-platform defect</td><td>Defect</td><td>Gate A</td></tr>
-<tr><td>ENG-002 — Project Knowledge reuse gap</td><td>Gap</td><td>Gate A</td></tr>
+<tr><td>ENG-002 — Project Knowledge reuse gap — <b>closed by Stage B</b></td><td>Gap</td><td>—</td></tr>
 <tr><td>ENG-003 — partially-applied task behaviour</td><td>Methodology gap</td><td>Gate A</td></tr>
 <tr><td>ENG-005 — live A/B validation for React Native, iOS and React</td><td>Evidence</td><td>Gate A</td></tr>
 <tr><td>ENG-006 — <code>dd-complexity-assessment</code>: integrate or remove</td><td>Decision</td><td>Gate A, and explicitly Gate C</td></tr>
 <tr><td>QA-002 — QA handoff discovery bug in <code>/check-qa-coverage</code></td><td>Cross-plugin defect</td><td>Gate A</td></tr>
-<tr><td>ATV-001 — tvOS standards, all six subject areas</td><td>Platform</td><td>Gate A, and ATV-002</td></tr>
+<tr><td>ATV-001 — stable tvOS platform rules, all six subject areas</td><td>Platform</td><td>Gate A, and ATV-002</td></tr>
 <tr><td>ATV-002 — iOS lanes branch on <code>device_type</code></td><td>Platform</td><td>Gate A</td></tr>
-<tr><td>ANDROID-003 — Android TV standards and lanes, discovery-first</td><td>Platform</td><td>Gate A</td></tr>
+<tr><td>ANDROID-003 — Android TV platform rules and lane branches (discovery delivered by Stage B)</td><td>Platform</td><td>Gate A</td></tr>
 </table>
 <p class="note">ENG-004 (React lane delegation wording) is recorded in §6 and tracked in the
 deterministic suite. It is a convention divergence with no behavioural effect, and is the one

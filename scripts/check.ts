@@ -90,6 +90,7 @@ const PHASES: Phase[] = [
       "release-metadata",
       "repo-knowledge-orchestration",
       "repo-knowledge-staleness",
+      "project-knowledge-consumption",
       "device-type-contract",
       "source-fingerprint-contract",
       "accessibility-contract",

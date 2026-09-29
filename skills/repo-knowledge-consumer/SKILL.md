@@ -1,6 +1,6 @@
 ---
 name: repo-knowledge-consumer
-description: Resolves the canonical repository knowledge published by the ono-project-inspector plugin at .ono/repo-knowledge.json, decides which knowledge categories may be reused and which must still be derived live, and defines the Repo Knowledge Reference block downstream documents record instead of embedding repository facts verbatim. Used by /analyze-feature and /dev-design-start. This is the only component in this plugin that understands the manifest format. It never writes any inspector-owned artifact and never blocks a command when the manifest is absent.
+description: Resolves the canonical repository knowledge published by the ono-project-inspector plugin at .ono/repo-knowledge.json, decides which knowledge categories may be reused and which must still be derived live, resolves a confirmed surface's scope and a requested capability's first-degree relationships, and defines the Repo Knowledge Reference block downstream documents record instead of embedding repository facts verbatim. Used by /analyze-feature, /dev-design-start and /review-code. This is the only component in this plugin that understands the manifest format. It never writes any inspector-owned artifact and never blocks a command when the manifest is absent.
 ---
 
 ## Purpose
@@ -46,6 +46,10 @@ Read these fields:
 | `sourceDrift` | Source drift since `fingerprint.knowledgeHead`, in the producer's vocabulary: `status` `COMPLETE` / `REFRESH_RECOMMENDED` / `BASELINE_UNKNOWN`, with `reason`, `changedSourceFiles` and `analysisSignals`. `null` when unavailable. |
 | `refreshRecommendation` | The one-line refresh advice when source drift is possible, otherwise `null`. |
 | `knowledge` | The manifest: `stack`, `commands`, `structure`, `documents`, `auditTopics`. |
+| `extendedCategories` | The additive `surfaces` and `capabilities` categories, each `trusted` / `verifyOnUse` / `deriveLive` with its `reason`. Reported apart from the seven base categories, so an older manifest's base lists are unchanged. An older manifest reads `deriveLive` for both — derive live, never an error. |
+| `surfaces`, `sharedCode`, `capabilities`, `capabilityRelationships` | The validated model, or `null` when that category is `deriveLive`. |
+| `invalidRelationships` | Relationships rejected one by one (unknown type, missing endpoint, no evidence) — never context; derive them live. |
+| `sourceDrift.affectedSurfaces` / `affectedCapabilities` / `affectedRelationships` | Which recorded facts the changed files fall under — where to verify first; a hint, never a verdict. |
 | `knowledge.fingerprint.gitHead` | The recorded git HEAD — the value the citation block's `repo_knowledge_fingerprint` records. |
 | `summary` | The one line to show the developer. |
 
@@ -77,6 +81,66 @@ A category lands in `verifyOnUse` when the repository's source changed after its
 4. **Verification fails** (the fact no longer holds, or cannot be confirmed) → the current repository code is authoritative: derive that knowledge live, label it `[evidence: <path>]`, and record the category as derived in Step 6.
 
 `changedSourceFiles` narrows where to look first; it is a hint, not the boundary of what verification may read.
+
+## Step 3b — Surfaces: scope, never routing
+
+When `extendedCategories.surfaces` is not `deriveLive`, the repository declares its
+independently built targets. Surface knowledge may **corroborate** the detected context,
+**scope** the work once the context is confirmed, and identify shared versus
+surface-specific code, build selectors and source roots. It **may not silently choose
+routing**: `platform` and `device_type` are still detected and confirmed by the human at
+`/analyze-feature`'s gate every time, and `formFactor` (`handheld`, `tv`, …) is never read as
+a `device_type`.
+
+After the human confirmed the context, resolve the surface the feature targets:
+
+```
+node --no-warnings "${CLAUDE_PLUGIN_ROOT}/scripts/read-repo-knowledge.ts" "<TARGET_ROOT>" --surface "<surface-id>"
+```
+
+`query.surface` returns the surface (build selector, source roots, packaging), the shared code
+it builds from, and its **convention overrides**: read each shared `docs/project/patterns.md`
+section, then the override `conventions.overrides` lists for it — a section with no override
+is inherited. Inventory and integration rows carry a `Surface` cell; read the rows for this
+surface and `all`. When more than one declared surface fits the confirmed platform, the human
+picks it — never pick one here. When `verification.status` is `failed`, the surface moved:
+the current source is authoritative, derive that scope live.
+
+## Step 3c — Capability lookup and first-degree relationships
+
+When `extendedCategories.capabilities` is not `deriveLive`, try to locate the requested
+feature in the Feature & Capability Map — by **capability id**, by its exact **name**, or by a
+**source root** / entry point the request names:
+
+```
+node --no-warnings "${CLAUDE_PLUGIN_ROOT}/scripts/read-repo-knowledge.ts" "<TARGET_ROOT>" --capability "<id or exact name>" [--path "<repo-relative path>"]...
+```
+
+- **Deterministic identity only — never by semantic similarity.** "video" does not find "Video
+  Playback", and a capability is never inferred from a description that merely sounds alike.
+  Pass `--capability` only with an id or name the request actually uses.
+- `query.capability.status` is `found`, `ambiguous` (the developer picks one; re-query by its
+  id), `not-found`, or `derive-live`. **Not found → keep the existing live discovery exactly as
+  before.** Nothing is invented to fill the gap.
+- On `found`, `query.capability.context` carries the capability's evidence and its **direct
+  (first-degree) relationships** — each with direction, type, evidence kind, evidence refs and
+  the neighbour's id, name and anchor. It never carries a neighbour's own relationships.
+- **Stale relationships are re-checked.** While `capabilities` is `verifyOnUse`, the helper has
+  re-checked each relationship's evidence against the current source: `verified` holds;
+  `invalid` means the source edge moved — the current code is authoritative, so derive that
+  adjacency live. `context.deriveLive` lists every relationship to derive live, including those
+  rejected structurally. Pass `--verify` to re-check trusted knowledge when the source you are
+  reading appears to contradict it.
+- **Relationships are context, not scope.** Report the adjacent capabilities they point at and
+  why each matters to this feature; the developer and architect decide the actual scope. Never
+  traverse beyond first degree, never compute impact scores, never modify an unrelated feature
+  because an edge exists, and never treat `related_to` as proof of impact.
+
+## Step 3d — Path scope
+
+`--path` (repeatable) returns, for each path, the surfaces, shared-code root and capabilities it
+falls under — how `/review-code` scopes Project Knowledge to the files a change touches. A
+path under no recorded root is reported with empty lists, never guessed.
 
 ## Step 4 — Derive only what is in `deriveLive`
 
@@ -130,6 +194,12 @@ Source: `.ono/repo-knowledge.json` (contract v<schema>, produced by <plugin> <ve
 Derived live for this feature: <categories, or "none">
 ```
 
+When the feature used surface or capability knowledge, add one line each under the table —
+`Surface: <id> (<trusted | verified on use>)` and `Capability: <id> — docs/project/capabilities.md#capability-<id>` —
+and list `surfaces` / `capabilities` in `repo_knowledge_reused` (or `repo_knowledge_derived` when
+Step 3a/3c verification failed). They are listed only when used, so a document built on an
+older manifest reads exactly as before.
+
 When knowledge is unavailable, the frontmatter reads:
 
 ```yaml
@@ -169,4 +239,7 @@ When `freshness` is `stale-artifacts` (an inspector-owned document was edited af
 - Never skip deriving a category listed in `deriveLive`.
 - Never copy repository knowledge verbatim into a generated document — cite it per Step 6.
 - **Never treat `knowledge.stack.platformHints` as the platform.** It is advisory corroboration only. The authoritative platform is whatever `repo-analyst` detects and the human confirms in `/analyze-feature`, every time, regardless of what the manifest says.
-- Never use the manifest to resolve `device_type` — it carries no device information.
+- Never use the manifest to resolve `device_type`, and never read `surfaces[].formFactor` as one.
+- Never let a surface choose routing — it may corroborate and scope, never replace the human confirmation gate.
+- Never match a capability by semantic similarity, never expand beyond first-degree relationships, and never treat a relationship as automatic scope — `related_to` in particular is never proof of impact.
+- When current source and Project Knowledge disagree, the current code wins — derive live and recommend `/inspect` → **Refresh Project Knowledge**.

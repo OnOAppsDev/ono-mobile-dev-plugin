@@ -21,7 +21,7 @@
  *   5. Unavailable knowledge still derives live.
  *   6. Stale knowledge never silently becomes authoritative.
  *   7. Refresh recommendations point to /inspect → Refresh Project Knowledge, never /inspect-sync.
- *   8. docs/repo-knowledge-contract.md is byte-identical to the Stage 4A producer copy.
+ *   8. docs/repo-knowledge-contract.md is byte-identical to the current producer copy.
  *
  * OFFLINE. Builds throwaway git repositories under a temp directory.
  *
@@ -343,12 +343,13 @@ const noSyncAdvice = (r: any) =>
 // 8. The contract copy is the Stage 4A producer copy, byte for byte
 // =========================================================================
 {
-  // sha256 of ono-project-inspector d5bf09c:docs/repo-knowledge-contract.md (Stage 4A, 0.10.0).
+  // sha256 of ono-project-inspector 6fa811d:docs/repo-knowledge-contract.md (Stage A, 0.11.0),
+  // which carries Stage 4A's text unchanged and adds the surface and capability model.
   // When the producer changes the contract, update the copy AND this pin in the same release.
-  const STAGE_4A_CONTRACT_SHA256 = "27f4ae497d8bdd7b40e068e8738df2fd254f3b0cd31f80a82b0724c7ca4eb3d3";
+  const PRODUCER_CONTRACT_SHA256 = "b9822771b19460eadf32440bec562cc2508612a41700e399e6be9b8632413957";
   const contract = read("docs/repo-knowledge-contract.md");
-  check("8 contract copy is byte-identical to the Stage 4A producer copy",
-    sha(contract) === STAGE_4A_CONTRACT_SHA256, sha(contract));
+  check("8 contract copy is byte-identical to the current producer copy (Stage A)",
+    sha(contract) === PRODUCER_CONTRACT_SHA256, sha(contract));
   check("8 contract documents Guarantee 7 (knowledgeHead)", /Knowledge-authoring HEAD is never advanced by a re-emit/.test(contract));
   check("8 contract documents producer-side source drift", /^## Producer-side source drift$/m.test(contract));
 

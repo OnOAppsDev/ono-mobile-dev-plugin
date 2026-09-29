@@ -14,6 +14,7 @@ and is never detected, guessed or defaulted here.
 - The platform-attributed file list or diff `commands/review-code.md` resolved.
 - **The resolved platform lane** — the review skill for that platform, named by the command.
 - `skills/platform-review/SKILL.md`, and the standards the lane cites plus `standards/shared/`.
+- The Project Knowledge context `commands/review-code.md` resolved for this platform's files — surface conventions, architecture conventions, capability relationships — when available. Advisory to the code (`skills/platform-review/SKILL.md` §2.0).
 
 **Exactly one lane is ever loaded.** Loading a second lane, or another platform's
 standards, is the failure this consolidation exists to prevent.
