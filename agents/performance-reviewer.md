@@ -14,6 +14,7 @@ the Review pass invoked by `/review-code`, and the Release sign-off invoked by
 - The resolved scope, and the **stage** — Review or Release.
 - **The resolved platform lane**, whose performance rule family and measurement instruments are the only ones in play.
 - `skills/platform-review/SKILL.md`.
+- The Project Knowledge context `commands/review-code.md` resolved for this platform's files — surface conventions, architecture conventions, capability relationships — when available. Advisory to the code (`skills/platform-review/SKILL.md` §2.0).
 
 **Exactly one lane is ever loaded.**
 

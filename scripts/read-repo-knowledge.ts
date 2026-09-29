@@ -27,8 +27,18 @@
  * a caller that merges stderr into stdout (e.g. `2>&1`) would be handed
  * non-JSON, defeating the always-valid-JSON guarantee above.
  *
+ * Stage B adds the consumer side of the generic surface and capability model
+ * (producer 0.11.0): surfaces, shared code, surface-scoped conventions, capabilities and
+ * first-degree capability relationships. They are reported as `extendedCategories`, apart
+ * from the seven base categories, so an older manifest yields exactly the output it always
+ * did. Queries resolve one surface, one capability and its DIRECT relationships, and the
+ * surfaces/capabilities a set of paths falls under — by deterministic identity only, never
+ * by similarity, and never beyond the first degree. Stale facts are re-checked against the
+ * current source; the current source always wins.
+ *
  * Usage:
  *   node --no-warnings scripts/read-repo-knowledge.ts [target-root]   (default: CWD)
+ *        [--surface <id>] [--capability <id-or-name>] [--path <repo-relative path>]... [--verify]
  */
 
 import { readFileSync, existsSync, realpathSync } from "fs";
@@ -95,6 +105,10 @@ const ANALYSIS_MANIFEST_BASENAMES = new Set([
   "requirements.txt", "Pipfile", "Gemfile", "pubspec.yaml", "composer.json",
   "Makefile", "Dockerfile", "docker-compose.yml", "docker-compose.yaml",
   ".gitlab-ci.yml", "Jenkinsfile",
+  // Stage A: files that declare targets / surfaces / flavors / packaging — Xcode project
+  // generators, Android app manifests, RN/Expo app config, Smart TV app descriptors.
+  "project.yml", "Project.swift", "Workspace.swift", "AndroidManifest.xml",
+  "app.json", "eas.json", "config.xml", "appinfo.json",
 ]);
 
 function isAnalysisManifest(rel: string): boolean {
@@ -102,6 +116,8 @@ function isAnalysisManifest(rel: string): boolean {
   return (
     ANALYSIS_MANIFEST_BASENAMES.has(base) ||
     /\.csproj$/.test(base) ||
+    /\.(xcscheme|xcconfig)$/.test(base) ||
+    /^(app\.config|vite\.config|webpack\.config|next\.config)\.(js|cjs|mjs|ts)$/.test(base) ||
     rel.startsWith(".github/workflows/") ||
     rel.startsWith(".circleci/")
   );
@@ -128,6 +144,14 @@ export interface SourceDrift {
   /** Sorted; capped at 50 — changedSourceCount is the full count. */
   changedSourceFiles: string[];
   analysisSignals: string[];
+  /**
+   * Stage B. Change-surface attribution over the FULL changed-file list, as the producer
+   * computes it: the recorded surfaces, capabilities and relationships whose source roots or
+   * evidence contain a changed file. A hint for verify-on-use, never a verdict.
+   */
+  affectedSurfaces: string[];
+  affectedCapabilities: string[];
+  affectedRelationships: string[];
 }
 
 type Unavailable = "absent" | "unparseable" | "invalid" | "schema-too-new" | "worktree" | "root-not-found";
@@ -161,9 +185,91 @@ export interface KnowledgeResult {
   knowledge: Record<string, any> | null;
   /** Always true — a reminder that platformHints is never authoritative (contract obligation 8). */
   platformHintsAreAdvisory: true;
+  /**
+   * Stage B. The additive surface and capability categories, reported apart from the seven
+   * base categories so an older manifest's output is unchanged. `trusted` | `verifyOnUse`
+   * | `deriveLive`, with the reason.
+   */
+  extendedCategories: { surfaces: ExtendedCategory; capabilities: ExtendedCategory };
+  /** Validated surfaces, or null when the category is derive-live. */
+  surfaces: Surface[] | null;
+  sharedCode: SharedCode[] | null;
+  capabilities: Capability[] | null;
+  /** Structurally valid first-degree relationships, or null when capabilities are derive-live. */
+  capabilityRelationships: Relationship[] | null;
+  /** Relationships rejected individually (unknown type, missing endpoint, no evidence) — derive live. */
+  invalidRelationships: Array<{ id: string; reason: string }>;
+  /** Always true — surfaces scope a confirmation, never replace it (contract obligation 9). */
+  surfacesAreAdvisory: true;
   /** One line for a command to show the developer. */
   summary: string;
 }
+
+export type ExtendedStatus = "trusted" | "verifyOnUse" | "deriveLive";
+export interface ExtendedCategory {
+  status: ExtendedStatus;
+  reason: string;
+}
+
+export interface Surface {
+  id: string;
+  platform: string | null;
+  formFactor: string | null;
+  buildSelector: string | null;
+  sourceRoots: string[];
+  sharedWith: string[];
+  packaging: string | null;
+  minimumRuntime: string | null;
+  evidence: string[];
+}
+export interface SharedCode {
+  root: string;
+  sharedBy: string[];
+  mechanism: string | null;
+  evidence: string[];
+}
+export interface NamedRef {
+  name: string;
+  anchor: string | null;
+}
+export interface Capability {
+  id: string;
+  name: string | null;
+  anchor: string;
+  surfaceScope: string;
+  surfaces: string[];
+  sourceRoots: Array<{ path: string; surface: string | null }>;
+  entryPoints: string[];
+  components: NamedRef[];
+  services: string[];
+  routes: string[];
+  dataDependencies: NamedRef[];
+  stateOwnership: string[];
+  tests: string[];
+  evidence: string[];
+  relationships: string[];
+}
+export interface Relationship {
+  id: string;
+  from: string;
+  type: string;
+  to: string;
+  evidenceKind: string;
+  evidence: string[];
+  anchor: string;
+}
+
+/** Contract v1's relationship vocabulary. Anything else is rejected, never guessed at. */
+export const RELATIONSHIP_TYPES = [
+  "depends_on", "used_by", "contains", "navigates_to", "shares_component_with",
+  "shares_state_with", "reads_from", "writes_to", "covered_by", "related_to",
+] as const;
+export const EVIDENCE_KINDS = [
+  "import", "navigation-route", "shared-component", "shared-state", "shared-service",
+  "shared-data-source", "test", "repository-doc",
+] as const;
+
+const DERIVE_LIVE_UNAVAILABLE: ExtendedCategory = { status: "deriveLive", reason: "Repository knowledge is unavailable." };
 
 function unavailable(reason: Unavailable, summary: string, schemaVersion: number | null = null): KnowledgeResult {
   return {
@@ -182,6 +288,13 @@ function unavailable(reason: Unavailable, summary: string, schemaVersion: number
     deriveLive: [...ALL_CATEGORIES],
     knowledge: null,
     platformHintsAreAdvisory: true,
+    extendedCategories: { surfaces: DERIVE_LIVE_UNAVAILABLE, capabilities: DERIVE_LIVE_UNAVAILABLE },
+    surfaces: null,
+    sharedCode: null,
+    capabilities: null,
+    capabilityRelationships: null,
+    invalidRelationships: [],
+    surfacesAreAdvisory: true,
     summary,
   };
 }
@@ -207,8 +320,11 @@ function currentHead(targetRoot: string): string | null {
  * producer's Stage 4A `detect` does: diff `knowledgeHead..HEAD`, ignore Inspector-owned
  * paths, and flag build/dependency manifests and top-level entries as analysis signals.
  */
-function computeSourceDrift(targetRoot: string, knowledgeHead: string | null, head: string | null): SourceDrift {
-  const base = { knowledgeHead, currentHead: head, changedSourceCount: 0, changedSourceFiles: [] as string[], analysisSignals: [] as string[] };
+function computeSourceDrift(targetRoot: string, knowledgeHead: string | null, head: string | null, model: KnowledgeModel = EMPTY_MODEL): SourceDrift {
+  const base = {
+    knowledgeHead, currentHead: head, changedSourceCount: 0, changedSourceFiles: [] as string[], analysisSignals: [] as string[],
+    affectedSurfaces: [] as string[], affectedCapabilities: [] as string[], affectedRelationships: [] as string[],
+  };
   const unknown = (reason: string): SourceDrift => ({ ...base, status: "BASELINE_UNKNOWN", reason });
 
   if (!knowledgeHead) {
@@ -242,6 +358,8 @@ function computeSourceDrift(targetRoot: string, knowledgeHead: string | null, he
     if (!topBefore.has(top)) signals.add(`top-level entry added: ${top}`);
     else if (!topNow.has(top)) signals.add(`top-level entry removed: ${top}`);
   }
+  const attribution = attribute(changed, model);
+  for (const sig of attribution.surfaceSignals) signals.add(sig);
 
   return {
     ...base,
@@ -250,7 +368,161 @@ function computeSourceDrift(targetRoot: string, knowledgeHead: string | null, he
     changedSourceCount: changed.length,
     changedSourceFiles: changed.slice(0, MAX_LISTED_FILES),
     analysisSignals: Array.from(signals).sort(),
+    affectedSurfaces: attribution.affectedSurfaces,
+    affectedCapabilities: attribution.affectedCapabilities,
+    affectedRelationships: attribution.affectedRelationships,
   };
+}
+
+/* ------------------------------------------------ Stage B: the surface & capability model */
+
+interface KnowledgeModel {
+  surfaces: Surface[];
+  sharedCode: SharedCode[];
+  capabilities: Capability[];
+  relationships: Relationship[];
+}
+const EMPTY_MODEL: KnowledgeModel = { surfaces: [], sharedCode: [], capabilities: [], relationships: [] };
+
+/** The producer's `isUnder`, verbatim in behaviour: a root ending in `/` is a prefix. */
+export function isUnder(rel: string, root: string): boolean {
+  if (root.endsWith("/")) return rel.startsWith(root);
+  return rel === root || rel.startsWith(`${root}/`);
+}
+
+/** An evidence ref is `path` or `path::token`. */
+export function parseEvidenceRef(ref: string): { path: string; token: string | null } {
+  const i = ref.indexOf("::");
+  return i < 0 ? { path: ref.trim(), token: null } : { path: ref.slice(0, i).trim(), token: ref.slice(i + 2) };
+}
+
+/**
+ * Stage B. Which recorded surfaces, capabilities and relationships a set of changed files
+ * falls under — the producer's attribution, over the manifest's own data.
+ */
+function attribute(changed: string[], m: KnowledgeModel) {
+  const touches = (refs: string[]) => refs.some((ref) => changed.some((rel) => isUnder(rel, parseEvidenceRef(ref).path)));
+  const surfaceEvidence = [...m.surfaces.flatMap((s) => s.evidence), ...m.sharedCode.flatMap((c) => c.evidence)].map((r) => parseEvidenceRef(r).path);
+  const surfaceSignals = changed.filter((rel) => surfaceEvidence.some((p) => isUnder(rel, p))).map((rel) => `surface evidence changed: ${rel}`);
+  const affectedSurfaces = new Set<string>();
+  for (const s of m.surfaces) if (touches([...s.sourceRoots, ...s.evidence])) affectedSurfaces.add(s.id);
+  for (const c of m.sharedCode) if (touches([c.root])) c.sharedBy.forEach((id) => affectedSurfaces.add(id));
+  const affectedCapabilities = m.capabilities
+    .filter((c) => touches(capabilityRefs(c)))
+    .map((c) => c.id);
+  const affectedRelationships = m.relationships.filter((r) => touches(r.evidence)).map((r) => r.id);
+  return {
+    surfaceSignals,
+    affectedSurfaces: [...affectedSurfaces].sort(),
+    affectedCapabilities: affectedCapabilities.sort(),
+    affectedRelationships: affectedRelationships.sort(),
+  };
+}
+
+function capabilityRefs(c: Capability): string[] {
+  return [...c.sourceRoots.map((r) => r.path), ...c.entryPoints, ...c.services, ...c.routes, ...c.stateOwnership, ...c.tests, ...c.evidence];
+}
+
+const isStr = (v: unknown): v is string => typeof v === "string";
+const isStrOrNull = (v: unknown): boolean => v === null || typeof v === "string";
+const strList = (v: unknown): v is string[] => Array.isArray(v) && v.every(isStr);
+const namedList = (v: unknown): boolean =>
+  Array.isArray(v) && v.every((x) => x && typeof x === "object" && isStr(x.name) && isStrOrNull(x.anchor));
+
+function surfaceErrors(m: any): string[] {
+  const errors: string[] = [];
+  if (!Array.isArray(m.surfaces)) errors.push("surfaces is not an array");
+  else m.surfaces.forEach((x: any, i: number) => {
+    if (!x || typeof x !== "object" || !isStr(x.id)) return void errors.push(`surfaces[${i}].id is not a string`);
+    for (const f of ["platform", "formFactor", "buildSelector", "packaging", "minimumRuntime"]) if (!isStrOrNull(x[f])) errors.push(`surfaces[${i}].${f}`);
+    for (const f of ["sourceRoots", "sharedWith", "evidence"]) if (!strList(x[f])) errors.push(`surfaces[${i}].${f} is not a string list`);
+  });
+  if (m.sharedCode !== undefined) {
+    if (!Array.isArray(m.sharedCode)) errors.push("sharedCode is not an array");
+    else m.sharedCode.forEach((x: any, i: number) => {
+      if (!x || typeof x !== "object" || !isStr(x.root) || !strList(x.sharedBy) || !strList(x.evidence) || !isStrOrNull(x.mechanism)) {
+        errors.push(`sharedCode[${i}] is malformed`);
+      }
+    });
+  }
+  return errors;
+}
+
+function capabilityErrors(m: any): string[] {
+  const errors: string[] = [];
+  if (!Array.isArray(m.capabilities)) return ["capabilities is not an array"];
+  m.capabilities.forEach((x: any, i: number) => {
+    if (!x || typeof x !== "object" || !isStr(x.id) || !isStr(x.anchor) || !isStrOrNull(x.name)) return void errors.push(`capabilities[${i}] identity is malformed`);
+    for (const f of ["surfaces", "entryPoints", "services", "routes", "stateOwnership", "tests", "evidence", "relationships"]) {
+      if (!strList(x[f])) errors.push(`capabilities[${i}].${f} is not a string list`);
+    }
+    if (!Array.isArray(x.sourceRoots) || !x.sourceRoots.every((r: any) => r && isStr(r.path) && isStrOrNull(r.surface))) errors.push(`capabilities[${i}].sourceRoots`);
+    for (const f of ["components", "dataDependencies"]) if (!namedList(x[f])) errors.push(`capabilities[${i}].${f}`);
+  });
+  if (m.capabilityRelationships !== undefined && !Array.isArray(m.capabilityRelationships)) errors.push("capabilityRelationships is not an array");
+  return errors;
+}
+
+/** Each relationship is judged on its own: an invalid edge is rejected, never the whole map. */
+function splitRelationships(raw: unknown[], capIds: Set<string>): { valid: Relationship[]; invalid: Array<{ id: string; reason: string }> } {
+  const valid: Relationship[] = [];
+  const invalid: Array<{ id: string; reason: string }> = [];
+  raw.forEach((x: any, i: number) => {
+    const id = x && isStr(x.id) ? x.id : `capabilityRelationships[${i}]`;
+    const reason =
+      !x || typeof x !== "object" || !isStr(x.from) || !isStr(x.to) || !isStr(x.type) || !isStr(x.anchor) ? "malformed" :
+      !(RELATIONSHIP_TYPES as readonly string[]).includes(x.type) ? `unknown relationship type "${x.type}"` :
+      !isStr(x.evidenceKind) || !(EVIDENCE_KINDS as readonly string[]).includes(x.evidenceKind) ? `unknown evidence kind "${x.evidenceKind}"` :
+      !strList(x.evidence) || x.evidence.length === 0 ? "no evidence — a relationship must be proven by a concrete source edge" :
+      !capIds.has(x.from) || !capIds.has(x.to) ? `endpoint not a recorded capability (${x.from} → ${x.to})` :
+      null;
+    if (reason === null) valid.push({ id, from: x.from, type: x.type, to: x.to, evidenceKind: x.evidenceKind, evidence: [...x.evidence], anchor: x.anchor });
+    else invalid.push({ id, reason });
+  });
+  return { valid, invalid: invalid.sort((a, b) => (a.id < b.id ? -1 : a.id > b.id ? 1 : 0)) };
+}
+
+/** The additive model as far as it validates. A malformed category contributes nothing. */
+function extractModel(m: any): { model: KnowledgeModel; surfaceProblems: string[]; capabilityProblems: string[]; invalid: Array<{ id: string; reason: string }> } {
+  const surfaceProblems = m.surfaces === undefined ? [] : surfaceErrors(m);
+  const capabilityProblems = m.capabilities === undefined ? [] : capabilityErrors(m);
+  const surfaces: Surface[] = m.surfaces !== undefined && surfaceProblems.length === 0 ? m.surfaces : [];
+  const sharedCode: SharedCode[] = surfaces.length > 0 && Array.isArray(m.sharedCode) ? m.sharedCode : [];
+  const capabilities: Capability[] = m.capabilities !== undefined && capabilityProblems.length === 0 ? m.capabilities : [];
+  const split = capabilities.length > 0 && Array.isArray(m.capabilityRelationships)
+    ? splitRelationships(m.capabilityRelationships, new Set(capabilities.map((c) => c.id)))
+    : { valid: [], invalid: [] };
+  return { model: { surfaces, sharedCode, capabilities, relationships: split.valid }, surfaceProblems, capabilityProblems, invalid: split.invalid };
+}
+
+function extendedCategory(
+  field: "surfaces" | "capabilities",
+  m: any,
+  problems: string[],
+  changedArtifacts: string[],
+  drift: SourceDrift,
+): ExtendedCategory {
+  const backing = field === "surfaces" ? "CLAUDE.md" : "docs/project/capabilities.md";
+  if (m[field] === undefined) {
+    return { status: "deriveLive", reason: `${field} absent — the manifest was produced by an older producer (before 0.11.0); treated as coverage unknown.` };
+  }
+  const coverage = m.coverage?.[field];
+  if (coverage !== "populated" && coverage !== "partial") return { status: "deriveLive", reason: `coverage.${field} is ${coverage ?? "absent"}.` };
+  if (problems.length > 0) return { status: "deriveLive", reason: `${field} failed structural validation (${problems.join("; ")}).` };
+  if (changedArtifacts.includes(backing)) {
+    return { status: "deriveLive", reason: `${backing} changed since the manifest was written. Run /inspect-sync (or /inspect) to re-index it.` };
+  }
+  const drifted =
+    field === "surfaces"
+      ? drift.status === "BASELINE_UNKNOWN" || (drift.status === "REFRESH_RECOMMENDED" && drift.analysisSignals.length > 0)
+      : drift.status !== "COMPLETE";
+  if (drifted) {
+    return {
+      status: "verifyOnUse",
+      reason: `Source changed since the knowledge was generated (${drift.reason}) — verify each ${field === "surfaces" ? "surface" : "capability and relationship"} used against the current source.`,
+    };
+  }
+  return { status: "trusted", reason: `coverage.${field} is ${coverage}, and nothing it depends on has moved.` };
 }
 
 /** Stage 4B. The source-backed categories a drift verdict can have moved. */
@@ -423,7 +695,8 @@ export function readRepoKnowledge(targetRootInput: string): KnowledgeResult {
   }
 
   // --- Source drift since the knowledge was generated (Stage 4B) ---
-  const sourceDrift = computeSourceDrift(targetRoot, parsed.fingerprint.knowledgeHead ?? null, head);
+  const extracted = extractModel(parsed);
+  const sourceDrift = computeSourceDrift(targetRoot, parsed.fingerprint.knowledgeHead ?? null, head, extracted.model);
   const affected = affectedCategories(sourceDrift);
   if (sourceDrift.status !== "COMPLETE") {
     const drift =
@@ -451,11 +724,19 @@ export function readRepoKnowledge(targetRootInput: string): KnowledgeResult {
   const verifyOnUse = usableCategories.filter((c) => affected.includes(c));
   const trustedCategories = usableCategories.filter((c) => !affected.includes(c));
 
+  const surfacesCategory = extendedCategory("surfaces", parsed, extracted.surfaceProblems, changedArtifacts, sourceDrift);
+  const capabilitiesCategory = extendedCategory("capabilities", parsed, extracted.capabilityProblems, changedArtifacts, sourceDrift);
+  const extendedNote = (["surfaces", "capabilities"] as const)
+    .map((k) => `${k} ${({ trusted: "reusable", verifyOnUse: "verify on use", deriveLive: "derive live" } as const)[(k === "surfaces" ? surfacesCategory : capabilitiesCategory).status]}`)
+    .join(", ");
+
   const summary =
     `Repository knowledge available (contract v${schemaVersion}, produced by ${parsed.producedBy.plugin} ${parsed.producedBy.version}, ${freshness}). ` +
     `Reusing: ${trustedCategories.length ? trustedCategories.join(", ") : "nothing"}. ` +
     (verifyOnUse.length ? `Verify on use (source changed since the knowledge was generated): ${verifyOnUse.join(", ")}. ` : "") +
-    `Deriving live: ${deriveLive.length ? deriveLive.join(", ") : "nothing"}.`;
+    `Deriving live: ${deriveLive.length ? deriveLive.join(", ") : "nothing"}.` +
+    // An older manifest carries neither — its summary stays exactly what it always was.
+    (parsed.surfaces !== undefined || parsed.capabilities !== undefined ? ` Surfaces and capabilities: ${extendedNote}.` : "");
 
   return {
     available: true,
@@ -473,14 +754,243 @@ export function readRepoKnowledge(targetRootInput: string): KnowledgeResult {
     deriveLive,
     knowledge: parsed,
     platformHintsAreAdvisory: true,
+    extendedCategories: { surfaces: surfacesCategory, capabilities: capabilitiesCategory },
+    surfaces: surfacesCategory.status === "deriveLive" ? null : extracted.model.surfaces,
+    sharedCode: surfacesCategory.status === "deriveLive" ? null : extracted.model.sharedCode,
+    capabilities: capabilitiesCategory.status === "deriveLive" ? null : extracted.model.capabilities,
+    capabilityRelationships: capabilitiesCategory.status === "deriveLive" ? null : extracted.model.relationships,
+    invalidRelationships: capabilitiesCategory.status === "deriveLive" ? [] : extracted.invalid,
+    surfacesAreAdvisory: true,
     summary,
   };
 }
 
+/* ------------------------------------------------ Stage B: queries over the model */
+
+export interface RefCheck {
+  ref: string;
+  ok: boolean;
+  reason: string;
+}
+
+export interface Verification {
+  /** `trusted` — not re-checked (fresh knowledge). `verified` — every ref still resolves. */
+  status: "trusted" | "verified" | "failed";
+  checked: number;
+  failed: RefCheck[];
+}
+
+/**
+ * Re-check one evidence ref against the CURRENT source: the path must exist inside the
+ * repository and outside Inspector-owned knowledge, and a `path::token` ref's literal token
+ * must occur in that file. A ref that no longer resolves means the fact moved — the current
+ * code wins.
+ */
+export function verifyEvidenceRef(targetRoot: string, ref: string): RefCheck {
+  const { path, token } = parseEvidenceRef(ref);
+  const rel = path.replace(/^\.\//, "");
+  if (rel === "" || rel.startsWith("/") || rel.split("/").includes("..")) return { ref, ok: false, reason: "not a repository-relative path" };
+  if (isInspectorOwned(rel)) return { ref, ok: false, reason: "points at Inspector-owned knowledge, not at repository source" };
+  const abs = join(targetRoot, rel);
+  if (!existsSync(abs)) return { ref, ok: false, reason: `${rel} no longer exists` };
+  if (token === null) return { ref, ok: true, reason: "path exists" };
+  let text: string;
+  try {
+    text = readFileSync(abs, "utf-8");
+  } catch {
+    return { ref, ok: false, reason: `${rel} is not a readable file` };
+  }
+  return text.includes(token) ? { ref, ok: true, reason: "token found" } : { ref, ok: false, reason: `"${token}" no longer occurs in ${rel}` };
+}
+
+function verifyRefs(targetRoot: string, refs: string[]): Verification {
+  const unique = [...new Set(refs)].sort();
+  const failed = unique.map((r) => verifyEvidenceRef(targetRoot, r)).filter((c) => !c.ok);
+  return { status: failed.length === 0 ? "verified" : "failed", checked: unique.length, failed };
+}
+
+const TRUSTED: Verification = { status: "trusted", checked: 0, failed: [] };
+
+const normPath = (p: string): string => p.trim().replace(/^\.\//, "");
+const normName = (s: string): string => s.trim().toLowerCase().replace(/\s+/g, " ");
+
+/** Where a base category stands in a result: reuse as-is, verify on use, or derive live. */
+function baseStatus(r: KnowledgeResult, category: string): ExtendedStatus {
+  return r.trustedCategories.includes(category) ? "trusted" : r.verifyOnUse.includes(category) ? "verifyOnUse" : "deriveLive";
+}
+
+/**
+ * One surface's context — to scope a feature AFTER the human confirmed its platform and
+ * device type. Never an input to routing: `formFactor` is not a `device_type`.
+ */
+export function querySurface(r: KnowledgeResult, targetRoot: string, surfaceId: string, opts: { verify?: boolean } = {}): Record<string, any> {
+  const cat = r.extendedCategories.surfaces;
+  if (!r.available || cat.status === "deriveLive" || r.surfaces === null) return { status: "derive-live", reason: cat.reason };
+  const surface = r.surfaces.find((x) => x.id === surfaceId);
+  if (surface === undefined) return { status: "not-found", surfaceId, declared: r.surfaces.map((x) => x.id) };
+  const sharedCode = (r.sharedCode ?? []).filter((c) => c.sharedBy.includes(surfaceId));
+  const conventionsDoc = r.knowledge?.documents?.conventions ?? null;
+  const rawOverrides = conventionsDoc?.surfaceAnchors?.[surfaceId];
+  const overrides: Array<{ section: string; anchor: string }> = Array.isArray(rawOverrides)
+    ? rawOverrides.filter((o: any) => o && isStr(o.section) && isStr(o.anchor)).map((o: any) => ({ section: o.section, anchor: o.anchor }))
+    : [];
+  const verify = cat.status === "verifyOnUse" || opts.verify === true;
+  return {
+    status: "found",
+    category: cat.status,
+    surface,
+    sharedCode,
+    conventions: {
+      path: conventionsDoc?.path ?? null,
+      category: baseStatus(r, "conventions"),
+      overrides,
+      note: overrides.length > 0
+        ? "Read each shared section, then this surface's override for it; a section with no override is inherited."
+        : "No overrides: this surface inherits every shared convention section.",
+    },
+    inventory: { path: r.knowledge?.documents?.inventory?.path ?? null, category: baseStatus(r, "inventory"), note: "Rows carry a Surface cell (`all` or surface ids)." },
+    integrations: { path: r.knowledge?.documents?.integrations?.path ?? null, category: baseStatus(r, "integrations"), note: "Rows carry a Surface cell (`all` or surface ids)." },
+    verification: verify
+      ? verifyRefs(targetRoot, [...surface.evidence, ...surface.sourceRoots, ...sharedCode.flatMap((c) => [c.root, ...c.evidence])])
+      : TRUSTED,
+  };
+}
+
+/**
+ * Locate a requested capability by deterministic identity only: its id, its exact name
+ * (case and whitespace aside), or a path under one of its recorded source roots / an entry
+ * point. Never by similarity: "video" does not find "Video Playback".
+ */
+export function lookupCapability(r: KnowledgeResult, q: { capability?: string; paths?: string[] }): Record<string, any> {
+  const cat = r.extendedCategories.capabilities;
+  if (!r.available || cat.status === "deriveLive" || r.capabilities === null) return { status: "derive-live", reason: cat.reason, matches: [] };
+  const found = new Map<string, string>();
+  const add = (id: string, by: string) => { if (!found.has(id)) found.set(id, by); };
+  if (q.capability !== undefined && q.capability.trim() !== "") {
+    const want = normName(q.capability);
+    for (const c of r.capabilities) if (normName(c.id) === want) add(c.id, "id");
+    for (const c of r.capabilities) if (c.name !== null && normName(c.name) === want) add(c.id, "name");
+  }
+  for (const raw of q.paths ?? []) {
+    const p = normPath(raw);
+    for (const c of r.capabilities) {
+      if (c.sourceRoots.some((sr) => isUnder(p, normPath(sr.path)))) add(c.id, "source-root");
+      else if (c.entryPoints.some((e) => normPath(parseEvidenceRef(e).path) === p)) add(c.id, "entry-point");
+    }
+  }
+  const matches = [...found.entries()].map(([id, matchedBy]) => ({ id, matchedBy })).sort((a, b) => (a.id < b.id ? -1 : 1));
+  return {
+    status: matches.length === 0 ? "not-found" : matches.length === 1 ? "found" : "ambiguous",
+    category: cat.status,
+    matches,
+    note: matches.length === 0
+      ? "Not in the Feature & Capability Map by id, name or source root — discover the change surface live."
+      : matches.length > 1 ? "More than one capability matches — the developer picks; nothing is chosen here." : null,
+  };
+}
+
+/**
+ * A capability and its DIRECT relationships — first degree only. A neighbour is summarised
+ * by id, name and anchor, never with its own relationships: expanding the graph further is
+ * the analysis's own decision, never this reader's. Stale evidence is re-checked; an edge
+ * that no longer holds, or that was rejected structurally, is handed back for live
+ * derivation instead of being presented as context.
+ */
+export function capabilityContext(r: KnowledgeResult, targetRoot: string, id: string, opts: { verify?: boolean } = {}): Record<string, any> {
+  const cat = r.extendedCategories.capabilities;
+  if (!r.available || cat.status === "deriveLive" || r.capabilities === null) return { status: "derive-live", reason: cat.reason };
+  const caps = r.capabilities;
+  const c = caps.find((x) => x.id === id);
+  if (c === undefined) return { status: "not-found", id };
+  const verify = cat.status === "verifyOnUse" || opts.verify === true;
+  const summary = (otherId: string) => {
+    const o = caps.find((x) => x.id === otherId);
+    return { id: otherId, name: o?.name ?? null, anchor: o?.anchor ?? null };
+  };
+  const edges = (r.capabilityRelationships ?? []).filter((e) => e.from === id || e.to === id);
+  const deriveLive = new Set<string>();
+  const relationships = edges.map((e) => {
+    const checked = verify ? verifyRefs(targetRoot, e.evidence) : TRUSTED;
+    const verification = { ...checked, status: checked.status === "failed" ? "invalid" : checked.status };
+    if (verification.status === "invalid") deriveLive.add(e.id);
+    return {
+      id: e.id,
+      type: e.type,
+      direction: e.from === id ? "outgoing" : "incoming",
+      other: summary(e.from === id ? e.to : e.from),
+      evidenceKind: e.evidenceKind,
+      evidence: e.evidence,
+      anchor: e.anchor,
+      verification,
+    };
+  });
+  const validIds = new Set(edges.map((e) => e.id));
+  for (const rid of c.relationships) if (!validIds.has(rid)) deriveLive.add(rid);
+  for (const bad of r.invalidRelationships) if (bad.id.split(":").includes(id) || c.relationships.includes(bad.id)) deriveLive.add(bad.id);
+  const related = new Map<string, { id: string; name: string | null; anchor: string | null; via: string[] }>();
+  for (const rel of relationships) {
+    if (rel.verification.status === "invalid") continue;
+    const entry = related.get(rel.other.id) ?? { ...rel.other, via: [] as string[] };
+    entry.via.push(rel.id);
+    related.set(rel.other.id, entry);
+  }
+  return {
+    status: "found",
+    category: cat.status,
+    capability: c,
+    verification: verify ? verifyRefs(targetRoot, capabilityRefs(c)) : TRUSTED,
+    relationships,
+    relatedCapabilities: [...related.values()].sort((a, b) => (a.id < b.id ? -1 : 1)),
+    deriveLive: [...deriveLive].sort(),
+    note: "First-degree context only — a relationship is not proof of impact, and never expands scope by itself.",
+  };
+}
+
+/** The surfaces, shared-code root and capabilities each path falls under — e.g. the files a review covers. */
+export function pathScope(r: KnowledgeResult, paths: string[]): Array<{ path: string; surfaces: string[]; sharedCode: string | null; capabilities: string[] }> {
+  const surfacesOk = r.available && r.extendedCategories.surfaces.status !== "deriveLive";
+  const capsOk = r.available && r.extendedCategories.capabilities.status !== "deriveLive";
+  return paths.map((raw) => {
+    const p = normPath(raw);
+    const surfaces = new Set<string>();
+    let sharedCode: string | null = null;
+    if (surfacesOk) {
+      for (const s of r.surfaces ?? []) if (s.sourceRoots.some((root) => isUnder(p, normPath(root)))) surfaces.add(s.id);
+      for (const sc of r.sharedCode ?? []) {
+        if (isUnder(p, normPath(sc.root))) {
+          sharedCode = sc.root;
+          sc.sharedBy.forEach((x) => surfaces.add(x));
+        }
+      }
+    }
+    const capabilities = capsOk ? (r.capabilities ?? []).filter((c) => c.sourceRoots.some((sr) => isUnder(p, normPath(sr.path)))).map((c) => c.id).sort() : [];
+    return { path: p, surfaces: [...surfaces].sort(), sharedCode, capabilities };
+  });
+}
+
 function main(): void {
-  const target = process.argv[2] ?? process.cwd();
+  const args = process.argv.slice(2);
+  const flagValues = (name: string): string[] => args.flatMap((a, i) => (a === `--${name}` && args[i + 1] !== undefined ? [args[i + 1]] : []));
+  const valueFlags = new Set(["--surface", "--capability", "--path"]);
+  const target = args.find((a, i) => !a.startsWith("--") && !valueFlags.has(args[i - 1] ?? "")) ?? process.cwd();
+  const result: Record<string, any> = readRepoKnowledge(target);
+  const surface = flagValues("surface")[0];
+  const capability = flagValues("capability")[0];
+  const paths = flagValues("path");
+  const verify = args.includes("--verify");
+  if (surface !== undefined || capability !== undefined || paths.length > 0) {
+    const root = existsSync(resolve(target)) ? realpathSync(resolve(target)) : resolve(target);
+    const query: Record<string, any> = {};
+    if (surface !== undefined) query.surface = querySurface(result as KnowledgeResult, root, surface, { verify });
+    if (capability !== undefined || paths.length > 0) {
+      const lookup = lookupCapability(result as KnowledgeResult, { capability, paths });
+      query.capability = { ...lookup, context: lookup.status === "found" ? capabilityContext(result as KnowledgeResult, root, lookup.matches[0].id, { verify }) : null };
+    }
+    if (paths.length > 0) query.paths = pathScope(result as KnowledgeResult, paths);
+    result.query = query;
+  }
   // Always exit 0 with valid JSON — see the header note.
-  console.log(JSON.stringify(readRepoKnowledge(target), null, 2));
+  console.log(JSON.stringify(result, null, 2));
   process.exit(0);
 }
 

@@ -338,6 +338,7 @@ export const TARGET_REPO_NAMESPACES = ["docs/project/", "docs/qa/", "docs/tasks/
 export const FOREIGN_PATHS: Array<{ path: string; reason: string }> = [
   { path: "scripts/repo-knowledge.ts", reason: "ono-project-inspector's producer script, cited by docs/repo-knowledge-contract.md as the authoritative type" },
   { path: "skills/repo-knowledge", reason: "ono-project-inspector's producing skill, cited by docs/repo-knowledge-contract.md" },
+  { path: "scripts/knowledge-evidence.ts", reason: "ono-project-inspector's evidence gate (Stage A), cited by docs/repo-knowledge-contract.md Guarantee 8" },
   { path: "scripts/inspection-state.ts", reason: "ono-project-inspector's migration-trail precedent, cited by docs/planning/SHARED-011-legacy-document-migration-design.md" },
 ];
 

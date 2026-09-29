@@ -51,13 +51,24 @@ re-derive what another component owns.** Descend only when the rung above cannot
 | Rung | Authority | What it settles |
 |---|---|---|
 | 1 | The repository's **resolved, enabled** tooling and CI | Formatting, and the lane's tool-owned lint rules |
-| 2 | Repository knowledge | The repository's established conventions |
+| 2 | Repository knowledge — the Project Knowledge `/review-code` resolved through `repo-knowledge-consumer` | The repository's established conventions, as scoped to the surfaces and capabilities the change touches |
 | 3 | Another reviewer's lane | Security, release and the other pass's roots |
 | 4 | An authored standard the lane cites | Whether the change violates a written rule — **this is the review** |
 | 5 | Judgment against repository convention or architecture | Layering, boundaries, dependency direction, internal inconsistency |
 
 **Do not run the tools.** Reviewing a diff and running a build are different acts assigned
 to different participants; Build-stage verification belongs to CI or the implementer.
+
+### 2.0 Rung 2 is advisory to the code
+
+Rung 2 is the context the command handed over: the conventions of the surface the change sits
+on (the shared section, then that surface's override), the project's architecture conventions,
+and the first-degree relationships of the capabilities it touches. **Read the diff and the
+current code first.** Project Knowledge never outranks the source: where the surrounding
+current code contradicts it, the code is the convention — say so, and do not file against the
+stale description. A capability relationship tells you what a change can reach; it is never by
+itself a finding. Rung 2 absent — knowledge unavailable, or a category derive-live — means the
+convention is established from the surrounding code, as it always was.
 
 ### 2.1 Rung 1 is conditional
 
