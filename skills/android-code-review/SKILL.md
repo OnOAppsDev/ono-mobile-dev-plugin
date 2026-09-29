@@ -41,6 +41,8 @@ Map each changed file to zero or more buckets. Files matching no bucket are mark
 | `AND-KT-*` | any Kotlin/Java source file | `standards/android/kotlin-standards.md` |
 | `AND-ARCH-*`, `AND-VM-*`, `AND-DI-*` | layering, module placement, state holders, DI wiring | `standards/android/android-architecture.md` |
 | `AND-UI-*` | UI surfaces, lists, resources | `standards/android/compose-xml-standards.md` |
+| `AND-UI-TV-*` | files on an established TV surface only — [§12](#12-device_type-handling-at-review) | `standards/android/compose-xml-standards.md` |
+| `TVB-*` | files on an established TV surface only — [§12](#12-device_type-handling-at-review) | `standards/shared/tv-baseline.md` |
 | `AND-NAV-*` | navigation destinations, arguments, back stack, deep links | `standards/android/android-navigation.md` |
 | `AND-NET-*` | networking clients, DTOs, mappers, auth, error handling | `standards/android/android-networking.md` |
 | `AND-DATA-*` | databases, key-value stores, files, caches, migrations | `standards/android/android-persistence.md` |
@@ -76,11 +78,13 @@ Review has **no confirmed `device_type`** — there is no upstream frontmatter t
 
 - **Infer, never demand.** If the reviewed files sit in a TV surface — `/review-code`'s surface attribution places them on a declared surface whose `formFactor` is `tv`, or, without Project Knowledge, leanback manifest entries, a TV module or TV base classes — note it in the review's Scope section. That corroborates TV scope; it is never treated as a `device_type`. **Never block a review to ask** which device type is in play.
 - **Suppress inapplicable mobile rules rather than invent TV rules.** `A11Y-TOUCH-1` already states that on TV form factors the requirement is a reliably focusable element with a clearly visible focus state instead of a touch-target size — honoring that is reading the authored shared standard, not adding TV knowledge.
-- **Never file a TV finding against a rule that does not exist.** No Android TV `AND-*` rules exist yet. Where TV-specific review depth is genuinely unavailable, say so once in Not Applicable / Skipped and move on.
+- **Never file a TV finding against a rule that does not exist.** The Android TV rules are `AND-UI-TV-1` to `AND-UI-TV-3`; cite nothing beyond them, the shared `TVB-*` rules and the existing `AND-*` rules. Where TV-specific review depth is genuinely unavailable, say so once in Not Applicable / Skipped and move on.
 - **File TV findings against the shared TV baseline.** On an established TV surface, `standards/shared/tv-baseline.md` (`TVB-*`) is authored: a concrete violation — focus dropped or invisible, directional order that ignores the layout, an overlay that leaks focus, a touch-only affordance, a Back that does nothing, a second playback owner or an undisposed player — is filed under its `TVB-*` ID. Judge it against the repository's own TV model, never against a preferred one.
+- **File Android-TV-specific findings under `AND-UI-TV-*`.** A violation only Android has — a TV surface whose declaration the change breaks or never adds, such as a newly required hardware feature a TV lacks (`AND-UI-TV-1`); an activity-level key override pre-empting the focused hierarchy, or a screen consuming the raw Back key outside the repository's back dispatch (`AND-UI-TV-2`); media keys handled by a screen instead of reaching the media-session owner, or a second session (`AND-UI-TV-3`) — is filed under its `AND-UI-TV-*` ID, and only on an established TV surface. One defect, one finding: where a `TVB-*` rule and an `AND-UI-TV-*` rule describe the same defect, file the more specific `AND-UI-TV-*` ID and cite the `TVB-*` rule inside it.
+- **The diff and the current code are judged first.** Surface attribution and Project Knowledge say where a TV surface is and what its conventions are; the code in front of you is authoritative wherever they disagree.
 - **Never apply touch or gesture assumptions to a TV surface** — touch targets, tap/swipe gestures, and soft-keyboard flows do not transfer to a D-pad/remote model.
 
-This skill does **not** author Android TV rules. Repository-specific TV facts come from Project Knowledge; stable Android TV rules are open work (`ANDROID-003`).
+This skill does **not** author Android TV rules. Repository-specific TV facts come from Project Knowledge; the stable Android TV rules are `AND-UI-TV-*` (`standards/android/compose-xml-standards.md` § *Android TV*).
 
 ## Standards citation
 
@@ -91,6 +95,8 @@ Cite only IDs that exist in these files and genuinely apply to the change under 
 | Kotlin language & safety | `standards/android/kotlin-standards.md` | `AND-KT-*` | code-reviewer |
 | Architecture, state holders, DI | `standards/android/android-architecture.md` | `AND-ARCH-*`, `AND-VM-*`, `AND-DI-*` | code-reviewer |
 | Compose / XML / lists / resources | `standards/android/compose-xml-standards.md` | `AND-UI-*` | code-reviewer |
+| Android TV — established TV surface only | `standards/android/compose-xml-standards.md` | `AND-UI-TV-*` | code-reviewer |
+| TV obligations common to every platform — established TV surface only | `standards/shared/tv-baseline.md` | `TVB-*` | code-reviewer |
 | Navigation | `standards/android/android-navigation.md` | `AND-NAV-*` | code-reviewer |
 | Networking & API | `standards/android/android-networking.md` | `AND-NET-*` | code-reviewer |
 | Persistence | `standards/android/android-persistence.md` | `AND-DATA-*` | code-reviewer |

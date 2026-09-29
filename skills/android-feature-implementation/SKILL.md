@@ -86,11 +86,12 @@ formats survive.
 
 `device_type` is inherited context from the approved planning artifacts — never re-detect it and never default it. TV is a context inside the Android platform, not a separate platform: the same lane, rules and validation apply. On `tv`:
 
-- **Implement within the repository's own TV model**, which the planning artifacts carry from Project Knowledge or the planning lane's TV discovery. Never introduce a second focus model, TV component set or player, and never migrate to a different TV framework as a side effect.
-- **Meet the shared TV baseline** (`standards/shared/tv-baseline.md`, `TVB-*`) through that model — focus visible and never lost, directional order that follows the layout, focus contained in overlays and restored on return, no touch-only interaction, deterministic Back, one playback owner with complete teardown, state captured before suspension, large resources released on navigation — and cite the `TVB-*` rules applied.
+- **Follow the repository's TV model from the approved planning artifacts** — its TV module, variant or flavor and build selector, its focus handling, back dispatch and player, as the Feature Analysis and DD recorded them from Project Knowledge or planning's TV discovery. Do not resolve Project Knowledge again; read current source for the feature-specific detail, and where it contradicts the artifacts, the code wins and the contradiction is reported. Never introduce a second focus model, TV component set or player, and never migrate to a different TV framework as a side effect.
+- **Apply the shared TV baseline** (`standards/shared/tv-baseline.md`, `TVB-*`) **and the Android TV rules**: keep the TV surface declared in the repository's own configuration (`AND-UI-TV-1`), route remote key input and Back through the focused hierarchy and the repository's back-dispatch model (`AND-UI-TV-2`), and deliver media keys to the repository's media-session owner (`AND-UI-TV-3`). Cite the `TVB-*` and `AND-UI-TV-*` rules applied.
+- **Build and test the TV variant, not the phone one.** Run the repository's own Gradle tasks for the TV module or variant the planning artifacts name through its build selector — compile, assemble, lint and unit tests for that variant. Run instrumentation or UI tests on a TV emulator or device when one is available; when none is, say so and record those checks as verification debt. A phone-variant build proves nothing about the TV surface.
+- **Developer testing is unchanged** — the §7a decision in `skills/platform-implementation/SKILL.md` applies to TV work exactly as to mobile: developer tests for the changed behaviour, run against the TV variant.
 - **Never silently apply touch or mobile assumptions** — touch targets, tap/swipe gestures and soft-keyboard flows do not transfer to a D-pad/remote model. The shared accessibility rules apply through their TV clauses.
-- **No Android TV `AND-*` rule is authored yet** (`ANDROID-003`) — cite none.
-- **Verification reach.** Focus traversal, D-pad input and screen-reader behaviour are largely not provable headlessly: state what was verified at which tier and record the rest as verification debt, per `standards/shared/verification.md`.
+- **Verification reach.** Focus traversal, D-pad input, media keys and screen-reader behaviour are largely not provable headlessly: state what was verified at which tier and record the rest as verification debt, per `standards/shared/verification.md`.
 
 ## Validation tooling
 
@@ -119,6 +120,8 @@ Record which standard IDs were **applied** (not merely reviewed) — this is the
 | Kotlin language & safety | `standards/android/kotlin-standards.md` | `AND-KT-*` |
 | Architecture, ViewModel, DI | `standards/android/android-architecture.md` | `AND-ARCH-*`, `AND-VM-*`, `AND-DI-*` |
 | Compose / XML / lists / resources | `standards/android/compose-xml-standards.md` | `AND-UI-*` |
+| Android TV — `device_type: tv` only | `standards/android/compose-xml-standards.md` | `AND-UI-TV-*` |
+| TV obligations common to every platform — `device_type: tv` only | `standards/shared/tv-baseline.md` | `TVB-*` |
 | Performance & memory | `standards/android/android-performance.md` | `AND-PERF-*` |
 | Gradle / build / signing | `standards/android/gradle-build-signing.md` | `AND-REL-*` |
 | Networking & API | `standards/android/android-networking.md` | `AND-NET-*` |

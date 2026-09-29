@@ -142,10 +142,9 @@ for (const [plat, label] of [["ios", "5"], ["android", "6"]] as const) {
   const review = read(`skills/${plat}-code-review/SKILL.md`);
   const r12 = review.slice(review.indexOf("## 12. `device_type` handling at review"));
   check(`${label} ${plat}-code-review §12 files TV findings against the baseline`, cites(r12.slice(0, 3000)) && /TVB-/.test(r12.slice(0, 3000)));
-  // tvOS rules are authored since ATV-001; Android TV's are still open work (ANDROID-003).
-  check(plat === "ios" ? `${label} ios planning cites its authored tvOS rules alongside the baseline`
-                       : `${label} ${plat} planning still marks platform-specific TV rules as not yet authored`,
-    plat === "ios" ? /`IOS-UI-TV-\d+`/.test(tvSection(plan)) : /not yet authored/i.test(flat(tvSection(plan))));
+  // Platform TV rules are authored for both since ATV-001 and ANDROID-003.
+  check(`${label} ${plat} planning cites its authored platform TV rules alongside the baseline`,
+    new RegExp(`\`${plat === "ios" ? "IOS" : "AND"}-UI-TV-\\d+\``).test(tvSection(plan)));
 }
 check("5 tvOS still never cites an unauthored tvOS TV ID",
   /Never cite `IOS-PERF-TV-\*`/.test(read("skills/ios-dev-planning/SKILL.md")) && /`IOS-UI-TV-\*`/.test(read("skills/ios-dev-planning/SKILL.md")));

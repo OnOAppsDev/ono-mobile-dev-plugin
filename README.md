@@ -140,9 +140,10 @@ baseline** (`standards/shared/tv-baseline.md`, `TVB-*`), cited by the iOS, Andro
 planning, implementation and review lanes; Smart TV realises it through its authored
 standard (`standards/react/react-smart-tv.md`), and Apple TV through five tvOS-specific
 rules (`IOS-UI-TV-*`, `standards/ios/swiftui-uikit-standards.md` § *Apple TV (tvOS)*), which
-the iOS planning, implementation and review lanes cite. **Stable Android-TV-specific rules
-are not yet authored** (`ANDROID-003`), so the Android lanes cite the baseline, the shared
-rules' TV clauses and the repository's own model, and no Android TV rule ID.
+the iOS planning, implementation and review lanes cite, and Android TV through three
+Android-TV-specific rules (`AND-UI-TV-*`, `standards/android/compose-xml-standards.md`
+§ *Android TV*), which the Android planning, implementation and review lanes cite. None
+of them prescribes a UI toolkit, player, DI framework or navigation library.
 
 ## How shared vs. platform-specific context loads
 

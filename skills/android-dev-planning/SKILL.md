@@ -184,11 +184,11 @@ Run this discovery pass **before** proposing anything, recording evidence for ea
 9. **Launcher and banner configuration** — the manifest entries that make the app a TV app.
 10. **Packaging and release configuration** — TV-specific variants, flavors, or distribution configuration.
 
-**A dependable, toolkit-independent anchor:** every Android TV app declares its TV entry point in the manifest regardless of UI toolkit — a launcher activity with the leanback launcher intent category, the leanback `uses-feature` declaration, a `touchscreen` `uses-feature` marked not required, and a banner on the application element. These manifest facts confirm a TV target **without implying anything about the UI framework**. Use them to orient; never read them as evidence that the UI is Leanback-based.
+**A dependable, toolkit-independent anchor:** every Android TV app declares its TV entry point in the manifest regardless of UI toolkit — a launcher activity with the leanback launcher intent category, the leanback `uses-feature` declaration, a `touchscreen` `uses-feature` marked not required, and a banner on the application element. These manifest facts confirm a TV target **without implying anything about the UI framework**. Use them to orient; never read them as evidence that the UI is Leanback-based. A feature that adds or changes the TV surface keeps them correct in the repository's own configuration (`AND-UI-TV-1`).
 
 Likewise, D-pad focus traversal, always-visible focus indication, and predictable back behavior are expectations of any TV implementation — framework, Compose for TV, or fully custom. Plan them regardless of which model is found.
 
-**Cite the shared TV baseline.** Every TV plan meets `standards/shared/tv-baseline.md` (`TVB-*`) — visible, never-lost focus; directional navigation that follows the layout; focus contained in overlays and restored on return; no touch- or pointer-only interaction; deterministic Back; one playback owner with complete, lifecycle-aware teardown; state preserved before suspension; the repository's TV budget; and focus-driven accessibility under the shared `A11Y-*` rules. Cite the `TVB-*` rule a design decision satisfies. The baseline states the obligation; the discovery above, from Project Knowledge first, supplies how this repository meets it.
+**Cite the shared TV baseline.** Every TV plan meets `standards/shared/tv-baseline.md` (`TVB-*`) — visible, never-lost focus; directional navigation that follows the layout; focus contained in overlays and restored on return; no touch- or pointer-only interaction; deterministic Back; one playback owner with complete, lifecycle-aware teardown; state preserved before suspension; the repository's TV budget; and focus-driven accessibility under the shared `A11Y-*` rules. Cite the `TVB-*` rule a design decision satisfies, and the Android TV rule where one applies: the TV surface declared in the repository's own configuration (`AND-UI-TV-1`), remote key input and Back through the focused hierarchy and the repository's back-dispatch model (`AND-UI-TV-2`), and media keys delivered to the repository's media-session owner (`AND-UI-TV-3`). The rules state the obligation; the discovery above, from Project Knowledge first, supplies how this repository meets it.
 
 **TV planning rules:**
 
@@ -198,7 +198,7 @@ Likewise, D-pad focus traversal, always-visible focus indication, and predictabl
 - **Identify gaps or risks in the existing model without redesigning it.** Naming a weakness is in scope; unilaterally re-architecting around it is not.
 - If the repository contains both mobile and TV surfaces, plan only for the confirmed `device_type`, and never assume the mobile surface's conventions apply to the TV one.
 
-This skill does **not** author TV standards or TV rules. Repository-specific TV facts come from Project Knowledge, with the discovery pass above as the fallback; stable Android TV rules are not yet authored (`ANDROID-003`), so no Android TV rule ID is cited — the shared `TVB-*` rules are. Its TV responsibility is to establish the existing model and respect it.
+This skill does **not** author TV standards or TV rules. Repository-specific TV facts come from Project Knowledge, with the discovery pass above as the fallback; the stable Android TV rules are `AND-UI-TV-*` (`standards/android/compose-xml-standards.md` § *Android TV*), cited with the shared `TVB-*` rules. Its TV responsibility is to establish the existing model and respect it.
 
 ## Standards citation
 
@@ -211,6 +211,8 @@ Cite only IDs that exist in these files and genuinely apply to the point being m
 | Kotlin language & safety | `standards/android/kotlin-standards.md` | `AND-KT-*` |
 | Architecture, state holders, DI | `standards/android/android-architecture.md` | `AND-ARCH-*`, `AND-VM-*`, `AND-DI-*` |
 | Compose / XML / lists / resources | `standards/android/compose-xml-standards.md` | `AND-UI-*` |
+| Android TV — `device_type: tv` only | `standards/android/compose-xml-standards.md` | `AND-UI-TV-*` |
+| TV obligations common to every platform — `device_type: tv` only | `standards/shared/tv-baseline.md` | `TVB-*` |
 | Navigation | `standards/android/android-navigation.md` | `AND-NAV-*` |
 | Networking & API | `standards/android/android-networking.md` | `AND-NET-*` |
 | Persistence | `standards/android/android-persistence.md` | `AND-DATA-*` |

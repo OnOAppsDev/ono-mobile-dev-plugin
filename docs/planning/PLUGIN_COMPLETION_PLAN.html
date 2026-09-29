@@ -148,7 +148,7 @@ demonstrated it right either.</p>
 <tr><th>Platform</th><th><code>device_type: mobile</code></th><th><code>device_type: tv</code></th><th>End-to-end proven?</th></tr>
 <tr><td><code>react-native</code></td><td>Ready</td><td><b>Unsupported</b> — defined hard stop; RN + TV is a product decision that does not exist</td><td><span class="chip open">Unproven</span></td></tr>
 <tr><td><code>ios</code></td><td>Ready</td><td>Ready — planning, implementation and review cite the shared TV baseline (<code>TVB-*</code>), the tvOS rules (<code>IOS-UI-TV-*</code>) and the shared accessibility rules' TV clauses, with Project-Knowledge-first discovery</td><td><span class="chip open">Unproven</span></td></tr>
-<tr><td><code>android</code></td><td>Ready</td><td><b>Partial</b> — planning, implementation and review cite the shared TV baseline (<code>TVB-*</code>) and the shared accessibility rules' TV clauses, with Project-Knowledge-first discovery; Android-TV-specific stable rules remain (ANDROID-003)</td><td><span class="chip open">Unproven</span></td></tr>
+<tr><td><code>android</code></td><td>Ready</td><td>Ready — planning, implementation and review cite the shared TV baseline (<code>TVB-*</code>), the Android TV rules (<code>AND-UI-TV-*</code>) and the shared accessibility rules' TV clauses, with Project-Knowledge-first discovery</td><td><span class="chip open">Unproven</span></td></tr>
 <tr><td><code>react</code></td><td>Ready</td><td>Ready — <code>react-smart-tv.md</code> is authored (54 <code>REACT-TV-*</code> rules) and realises the shared TV baseline</td><td><span class="chip open">Unproven</span></td></tr>
 </table>
 <p class="note"><code>/review-security</code> is Ready on all four platforms and for both
@@ -261,17 +261,20 @@ optional. Only <span class="chip deferred">Deferred</span> is outside the comple
   <td>Guy Gur Arie</td>
   <td>ANDROID-001 ✓, ANDROID-002 ✓, SHARED-001 ✓ — unblocked</td>
   <td>4 d</td>
-  <td><b>Discovery, implementation and review handling have landed at baseline level:</b>
-      <code>android-dev-planning</code> reads Project Knowledge first and cites
-      <code>TVB-*</code>; <code>android-feature-implementation</code> now has a
-      <code>device_type: tv</code> section; <code>android-code-review</code> §12 files TV
-      findings under <code>TVB-*</code>. <b>What remains:</b> a small set of <b>stable Android TV
-      rules</b> in the <code>AND-*</code> standards — the residue the shared baseline leaves to
-      the platform (the TV declaration contract, key and Back dispatch through the focus
-      hierarchy, media-control ownership) — and citing them in the three lanes. No framework
-      prescriptions and no SDK-level specifics; repository conventions remain the source of
-      truth.</td>
-  <td><span class="chip open">Open</span></td>
+  <td>The Android-TV-specific stable rules and their lane wiring — the residue the shared TV
+      baseline (SHARED-015) leaves to the platform. <b>Delivered:</b> three
+      <code>AND-UI-TV-*</code> rules in one section of <code>compose-xml-standards.md</code>
+      (§ <i>Android TV</i>): the TV surface declared in the repository's own Android configuration,
+      remote key input and Back through the focused hierarchy and the repository's back-dispatch
+      model, and media keys delivered to the repository's media-session owner. Each states what
+      Android adds and cites the <code>TVB-*</code> rule it extends, or has no shared counterpart.
+      <code>android-dev-planning</code> cites them with Project Knowledge first and the live
+      discovery fallback intact; <code>android-feature-implementation</code> follows the TV model
+      from the planning artifacts and builds and tests the TV variant; <code>android-code-review</code>
+      §12 files under <code>TVB-*</code> and <code>AND-UI-TV-*</code> on an established TV surface.
+      No UI toolkit, player, DI framework or navigation library is required. Pinned by
+      <code>android-tv-rules</code>.</td>
+  <td><span class="chip done">Done</span></td>
 </tr>
 <tr>
   <td>SHARED-012</td>
@@ -398,7 +401,7 @@ reclassifies it. The items, with those already closed marked:</p>
 <tr><td>QA-002 — QA handoff discovery bug in <code>/check-qa-coverage</code></td><td>Cross-plugin defect</td><td>Gate A</td></tr>
 <tr><td>SHARED-015 — shared TV baseline — <b>done</b></td><td>Platform</td><td>—</td></tr>
 <tr><td>ATV-001 — tvOS-specific stable rules — <b>done</b> (ATV-002's lane handling delivered with it)</td><td>Platform</td><td>—</td></tr>
-<tr><td>ANDROID-003 — Android-TV-specific stable rules, and citing them (baseline handling landed)</td><td>Platform</td><td>Gate A</td></tr>
+<tr><td>ANDROID-003 — Android-TV-specific stable rules and lane wiring — <b>done</b></td><td>Platform</td><td>—</td></tr>
 </table>
 <p class="note">ENG-004 (React lane delegation wording) is recorded in §6 and tracked in the
 deterministic suite. It is a convention divergence with no behavioural effect, and is the one
@@ -414,7 +417,7 @@ repository.</p>
 <ul>
 <li><b>All four platforms</b> — <code>react-native</code>, <code>ios</code>, <code>android</code>, <code>react</code>.</li>
 <li><b>Both device types where applicable</b> — <code>mobile</code> and <code>tv</code> on iOS, Android and React. React Native is mobile-only; its <code>tv</code> path is validated by confirming the hard stop fires and never falls through.</li>
-<li>Gate A first for the TV paths: an Android TV run before ANDROID-003 lands can demonstrate the shared TV baseline and discovery, not Android-TV-specific guidance. Apple TV has both rule layers.</li>
+<li>Every TV path now has both rule layers — the shared TV baseline and its platform's specific rules (React Smart TV, Apple TV, Android TV). What remains for TV is end-to-end evidence: live Gate B runs against real TV repositories.</li>
 </ul>
 <div class="rule">What <code>check.ts</code> cannot prove, and never will</div>
 <p>The deterministic suite validates the deterministic layer only. These are out of its reach
@@ -446,7 +449,7 @@ all ten hold. The plugin is <b>complete</b> when all four platforms are supporte
 A, B and C have passed.</p>
 <table>
 <tr><th>#</th><th>Condition</th></tr>
-<tr><td>1</td><td><b>Platform standards complete and enforceable.</b> No file left <code>Not yet authored</code>; no re-inheriting of React-Native-flavoured shared rules; every rule carries a citable stable ID. For a TV context, the TV subject areas are authored — focus, remote input, playback, lifecycle, TV signing and packaging.</td></tr>
+<tr><td>1</td><td><b>Platform standards complete and enforceable.</b> No file left <code>Not yet authored</code>; no re-inheriting of React-Native-flavoured shared rules; every rule carries a citable stable ID. For a TV context, the stable TV rules are authored — the shared TV baseline plus each TV platform's specific rules — while repository-specific TV facts come from Project Knowledge and volatile platform facts from live target-SDK verification.</td></tr>
 <tr><td>2</td><td><b>Platform lanes complete.</b> All three lanes — <code>*-dev-planning</code>, <code>*-feature-implementation</code>, <code>*-code-review</code> — are authored, carry only platform-specific content, and branch correctly on <code>device_type</code>.</td></tr>
 <tr><td>3</td><td><b>Shared role agents resolve correctly to the lanes.</b> <code>feature-architect</code>, <code>feature-implementer</code>, <code>code-reviewer</code> and <code>performance-reviewer</code> each resolve to a real, non-placeholder lane for that platform, loading <b>exactly one</b>; the agents and the three shared methodologies stay platform-neutral and carry no platform content.</td></tr>
 <tr><td>4</td><td><b>Context propagates end to end.</b> Confirmed <code>platform</code> and <code>device_type</code> are carried in frontmatter from <code>/analyze-feature</code>'s human confirmation through every later stage, are never re-detected downstream, and are never emitted as <code>mixed</code>. Templates and metadata carry both, and the per-platform review, QA and release sections render.</td></tr>

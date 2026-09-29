@@ -18,9 +18,9 @@ shared TV baseline  →  platform-specific additions  →  Project Knowledge  �
 ```
 
 - **Platform-specific additions** state how a platform meets an obligation, or add one only
-  that platform has. React Smart TV's are authored (`REACT-TV-*`,
-  `standards/react/react-smart-tv.md`); tvOS's and Android TV's are not yet authored, and until
-  they are, no platform TV rule ID is cited for them.
+  that platform has: React Smart TV's `REACT-TV-*` (`standards/react/react-smart-tv.md`),
+  tvOS's `IOS-UI-TV-*` (`standards/ios/swiftui-uikit-standards.md` § *Apple TV (tvOS)*) and
+  Android TV's `AND-UI-TV-*` (`standards/android/compose-xml-standards.md` § *Android TV*).
 - **Project Knowledge** supplies the repository-specific facts — which focus model, remote
   handling, navigation, TV components, playback integration, lifecycle conventions and budget a
   given repository actually uses — resolved through the planning lane, with live discovery as

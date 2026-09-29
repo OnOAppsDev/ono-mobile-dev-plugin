@@ -97,6 +97,7 @@ const PHASES: Phase[] = [
       "accessibility-contract",
       "shared-tv-baseline",
       "tvos-rules",
+      "android-tv-rules",
       "developer-testing-contract",
     ],
   },
