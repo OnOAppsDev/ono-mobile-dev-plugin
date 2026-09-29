@@ -135,12 +135,13 @@ skill.
 **Current TV coverage.** `device_type` flows end to end. Repository-specific TV facts —
 the focus model, remote/D-pad input, navigation, TV components, playback and packaging a
 repository actually uses — come from Project Knowledge, with each planning lane's TV
-discovery pass as the fallback. Smart TV has an authored standard
-(`standards/react/react-smart-tv.md`). **Stable tvOS and Android TV rules are not yet
-authored**, so those lanes plan and review against the repository's own model and the
-shared rules' TV clauses, and cite no TV rule ID. The open work is small stable rule sets
-plus implementation- and review-lane handling: `ATV-001`/`ATV-002` for Apple TV,
-`ANDROID-003` for Android TV.
+discovery pass as the fallback. The platform-neutral TV obligations are the **shared TV
+baseline** (`standards/shared/tv-baseline.md`, `TVB-*`), cited by the iOS, Android and React
+planning, implementation and review lanes; Smart TV realises it through its authored
+standard (`standards/react/react-smart-tv.md`). **Stable tvOS- and Android-TV-specific rules
+are not yet authored**, so those lanes cite the baseline, the shared rules' TV clauses and
+the repository's own model, and no platform TV rule ID. The open work is those two small
+platform rule sets: `ATV-001`/`ATV-002` for Apple TV, `ANDROID-003` for Android TV.
 
 ## How shared vs. platform-specific context loads
 

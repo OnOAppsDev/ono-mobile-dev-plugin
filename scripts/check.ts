@@ -95,6 +95,7 @@ const PHASES: Phase[] = [
       "device-type-contract",
       "source-fingerprint-contract",
       "accessibility-contract",
+      "shared-tv-baseline",
       "developer-testing-contract",
     ],
   },

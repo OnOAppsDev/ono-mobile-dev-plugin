@@ -190,7 +190,7 @@ Touch interaction, touch targets and phone/tablet navigation patterns apply. Thr
 
 **Repository-specific TV facts come from Project Knowledge, with the discovery pass below as the fallback; stable tvOS TV rules are not yet authored.** Apply the existing `IOS-*` rules unchanged — they are framework-neutral and none assumes touch — together with the TV clauses of the shared accessibility rules. Where TV work needs a rule that does not exist, **record it as an unresolved decision naming the `ATV-001` gap**. A TV plan that rests on the repository's own conventions plus a named standards gap is the correct output at this point, not a deficient one. **This skill does not author TV standards or TV rules — the stable tvOS rules are `ATV-001`'s.**
 
-**Never cite a TV ID.** `IOS-UI-TV-*` and `IOS-PERF-TV-*` are reserved roots with no rules behind them, and a bare `IOS-TV-*` root is not permitted at all. Cite the existing `IOS-*` rule that actually applies, or name the `ATV-001` gap — never a reserved root.
+**Never cite a tvOS TV ID.** `IOS-UI-TV-*` and `IOS-PERF-TV-*` are reserved roots with no rules behind them, and a bare `IOS-TV-*` root is not permitted at all. Cite the shared `TVB-*` rule and the existing `IOS-*` rule that actually apply, or name the `ATV-001` gap — never a reserved root.
 
 **An Apple TV application may use any implementation model** — SwiftUI, UIKit, `TVUIKit`, a TV markup framework such as `TVMLKit`, `AVKit` for playback, or an entirely in-house framework. Detect which; assume none.
 
@@ -213,6 +213,8 @@ Run this discovery pass **before** proposing anything, recording evidence for ea
 **A framework-independent anchor:** a tvOS target declares itself in its *build configuration* — it builds against the tvOS SDK, carries a tvOS deployment target, and declares the Apple TV device family. These confirm a TV target **without implying anything about the UI framework.** Use them to orient, never as evidence of which framework the app uses.
 
 **Two TV facts change a design rather than an implementation**, so record them as decisions even though no rule exists yet: whether the feature's data fits the platform's materially tighter device-local storage expectations, or needs the cloud and system-managed asset-download mechanisms instead — which of those the repository is on is itself the decision, since the platform has more than one and they supersede each other over time — and where the repository's current approach conflicts, that conflict is an unresolved decision, not a verdict against the repository; and whether playback adopts the framework's own player interface or a custom one, since a custom player inherits every surface the framework's player supplies. For what a TV surface owes the user irrespective of framework, consult *Designing for tvOS*, *Focus and selection* and `AVPlayerViewController` in the lane's cited standards.
+
+**Cite the shared TV baseline.** Every TV plan meets `standards/shared/tv-baseline.md` (`TVB-*`) — visible, never-lost focus; directional navigation that follows the layout; focus contained in overlays and restored on return; no touch- or pointer-only interaction; deterministic Back; one playback owner with complete, lifecycle-aware teardown; state preserved before suspension; the repository's TV budget; and focus-driven accessibility under the shared `A11Y-*` rules. Cite the `TVB-*` rule a design decision satisfies. The baseline states the obligation; the discovery above, from Project Knowledge first, supplies how this repository meets it.
 
 **TV planning rules:**
 

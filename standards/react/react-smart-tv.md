@@ -186,6 +186,32 @@ Focus is the primary cursor: on a D-pad-driven surface, losing it strands the us
 - `REACT-TV-PKG-7` **Environment configuration is resolved per target, and the shipped package's target is verified before submission.** A package built against staging and submitted to a store is release-blocking; env vars are set deliberately per target (shared `REL-ENV-1`) with no real secret among them (shared `REL-ENV-2`).
 - `REACT-TV-PKG-8` **Store and distribution metadata changes are recorded for the release** — listing assets, description, release notes, declared capabilities per vendor store — the TV reading of shared `REL-STORE-1`. Vendor certification requirements are release criteria, and an unverifiable item defaults to No-Go (shared `REL-VERDICT-1`). See the *Release-stage note*: no release-stage agent checks this today.
 
+## Relationship to the shared TV baseline
+
+`standards/shared/tv-baseline.md` states the platform-neutral obligations every TV surface
+carries (`TVB-*`). The `REACT-TV-*` rules above are React Smart TV's realisation of them, plus
+the web- and vendor-runtime concerns no other platform has (key maps, cursor mode, the IME,
+logical viewports, cookie and cross-origin transport, engine capability, vendor packaging).
+
+**On a React Smart TV surface, cite the `REACT-TV-*` rule** — it is the more specific, citable
+form. The baseline is cited only for an obligation no `REACT-TV-*` rule covers. The two never
+conflict: every React rule below is consistent with its baseline rule, and where a React rule is
+stricter — `REACT-TV-PERF-1` requires an explicit budget even where the repository states none,
+where `TVB-PERF-1` records that absence as a gap — the stricter React rule governs on React.
+
+| Shared baseline | Realised on React Smart TV by |
+|---|---|
+| `TVB-FOCUS-1` | `REACT-TV-FOCUS-1`, `REACT-TV-FOCUS-3` |
+| `TVB-FOCUS-2` | `REACT-TV-FOCUS-5`, `REACT-TV-FOCUS-7`, `REACT-TV-FOCUS-8` |
+| `TVB-FOCUS-3` | `REACT-TV-FOCUS-4`, `REACT-TV-FOCUS-6` |
+| `TVB-INPUT-1` | `REACT-TV-INPUT-6`, `REACT-TV-INPUT-3` |
+| `TVB-INPUT-2` | `REACT-TV-INPUT-4` |
+| `TVB-MEDIA-1` | `REACT-TV-MEDIA-1`, `REACT-TV-MEDIA-2`, `REACT-TV-MEDIA-6` |
+| `TVB-MEDIA-2` | `REACT-TV-MEDIA-3`, `REACT-TV-MEDIA-4`, `REACT-TV-MEDIA-7` |
+| `TVB-LIFECYCLE-1` | `REACT-TV-LIFECYCLE-2`, `REACT-TV-LIFECYCLE-4` |
+| `TVB-PERF-1` | `REACT-TV-PERF-1`, `REACT-TV-PERF-2`, `REACT-TV-PERF-3` |
+| `TVB-A11Y-1` | `REACT-TV-UI-7`, with the shared `A11Y-*` rules through their TV clauses |
+
 ## References
 
 - A living baseline; reviewers and planners flag TV gaps rather than working around them silently.

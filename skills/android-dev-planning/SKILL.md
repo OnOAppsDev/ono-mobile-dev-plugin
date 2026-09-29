@@ -188,6 +188,8 @@ Run this discovery pass **before** proposing anything, recording evidence for ea
 
 Likewise, D-pad focus traversal, always-visible focus indication, and predictable back behavior are expectations of any TV implementation — framework, Compose for TV, or fully custom. Plan them regardless of which model is found.
 
+**Cite the shared TV baseline.** Every TV plan meets `standards/shared/tv-baseline.md` (`TVB-*`) — visible, never-lost focus; directional navigation that follows the layout; focus contained in overlays and restored on return; no touch- or pointer-only interaction; deterministic Back; one playback owner with complete, lifecycle-aware teardown; state preserved before suspension; the repository's TV budget; and focus-driven accessibility under the shared `A11Y-*` rules. Cite the `TVB-*` rule a design decision satisfies. The baseline states the obligation; the discovery above, from Project Knowledge first, supplies how this repository meets it.
+
 **TV planning rules:**
 
 - **Never propose migrating** to Leanback, Compose for TV, or another framework unless the feature explicitly requests that migration and it is approved.
@@ -196,7 +198,7 @@ Likewise, D-pad focus traversal, always-visible focus indication, and predictabl
 - **Identify gaps or risks in the existing model without redesigning it.** Naming a weakness is in scope; unilaterally re-architecting around it is not.
 - If the repository contains both mobile and TV surfaces, plan only for the confirmed `device_type`, and never assume the mobile surface's conventions apply to the TV one.
 
-This skill does **not** author TV standards or TV rules. Repository-specific TV facts come from Project Knowledge, with the discovery pass above as the fallback; stable Android TV rules are not yet authored (`ANDROID-003`), so none is cited. Its TV responsibility is to establish the existing model and respect it.
+This skill does **not** author TV standards or TV rules. Repository-specific TV facts come from Project Knowledge, with the discovery pass above as the fallback; stable Android TV rules are not yet authored (`ANDROID-003`), so no Android TV rule ID is cited — the shared `TVB-*` rules are. Its TV responsibility is to establish the existing model and respect it.
 
 ## Standards citation
 

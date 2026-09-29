@@ -124,7 +124,7 @@ Apply these as you write, grounded in what [§4](#4-what-design-handed-over-and-
 
 The rows are a checklist, not a ladder — the file being changed decides which UI family applies (`IOS-UI-FRAMEWORK-1`).
 
-**`device_type: tv`** is a context signal, not a platform — `swift-standards.md` § *Apple TV* governs. Additionally: never silently carry a touch assumption into a TV surface, and never cite a TV standard ID — no stable tvOS rules are authored yet (`ATV-001`); the repository's own TV model reaches you through the approved planning artifacts.
+**`device_type: tv`** is a context signal, not a platform — `swift-standards.md` § *Apple TV* governs. Implement within the repository's own TV model, which reaches you through the approved planning artifacts, and meet the shared TV baseline (`standards/shared/tv-baseline.md`, `TVB-*`) through it: keep focus visible and never lost, contain it in overlays and restore it on return, add no touch-only interaction, keep Back deterministic, give playback one owner and tear it down completely, and capture state before suspension. Cite the `TVB-*` rules applied. Never silently carry a touch assumption into a TV surface, and never cite a tvOS TV ID — no stable tvOS rules are authored yet (`ATV-001`). Focus traversal, remote input and screen-reader behaviour are largely not provable headlessly: state what was verified at which tier and record the rest as verification debt ([§15](#15-verification-reach--what-you-may-claim)).
 
 ## 10. The implement loop
 
