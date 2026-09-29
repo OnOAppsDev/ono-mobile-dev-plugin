@@ -68,7 +68,7 @@ Each rule is checkable at one stage. Mark a rule Not Applicable — never "passe
 
 **Neutrality.** No rule mandates a pattern, UI framework, language version, or toolchain. A rule naming a feature the project's configuration or deployment target does not offer is **inapplicable, not violated**. The repository's detected implementation is the source of truth; Apple's guidance never overrides it. Migration and incidental modernisation are never proposed, started, or bundled into a feature unless the feature explicitly requests it (`IOS-UI-FRAMEWORK-3`).
 
-**Apple TV.** tvOS-specific guidance is out of scope for all five documents until task `ATV-001` adds clearly-marked TV-context sections inside each. When `device_type` is `tv`, apply the existing rules unchanged, assume no TV-specific framework, and flag the gap rather than inventing guidance.
+**Apple TV.** Repository-specific TV facts — which focus model, remote handling, TV components, playback integration and packaging a repository uses — come from Project Knowledge and the planning lane's TV discovery, never from these documents. Stable TV rules for tvOS are not yet authored (`ATV-001`). When `device_type` is `tv`, apply the existing rules unchanged — including the TV clauses of the shared accessibility rules — assume no TV-specific framework, and record a needed stable rule as a named gap rather than inventing guidance.
 
 These are living baselines — flag standards gaps rather than working around them. Which document owns which topic is the [Lane boundaries](#lane-boundaries) table.
 

@@ -72,11 +72,11 @@ Files matching no bucket are **Not Applicable / Skipped** with a one-line reason
 
 ## 12. `device_type` handling at review
 
-Review has **no confirmed `device_type`**, and repository knowledge cannot supply one.
+Review has **no confirmed `device_type`**, and Project Knowledge never supplies one. When `/review-code`'s surface attribution places the changed files on a declared surface whose `formFactor` is `tv`, that corroborates a TV surface for the Scope section — it is never treated as a `device_type`.
 
 - **Infer, never demand.** Note a TV surface in Scope; **never block a review to ask.**
 - **Suppress inapplicable mobile rules rather than invent TV rules.** `A11Y-TOUCH-1` already states the TV form-factor requirement; honouring it is reading the standard, not adding TV knowledge.
-- **Never file against a rule that does not exist.** No tvOS `IOS-*` rules exist yet — `ATV-001` owns them, `ATV-002` owns branching these skills, and a bare `IOS-TV-*` root has no owner.
+- **Never file against a rule that does not exist.** No stable tvOS `IOS-*` rules are authored yet (`ATV-001`), and a bare `IOS-TV-*` root has no owner. The shared accessibility rules' TV clauses do apply.
 - **Never apply touch or gesture assumptions to a TV surface.**
 
 ## 13. Measurement requests
@@ -92,7 +92,7 @@ A claim needing evidence a diff cannot supply is filed as a request, never a ver
 | Retention cycle, external-registry retention, unbounded growth | Memory-graph capture, or Allocations generational marking. **The Leaks instrument reports nothing for registry retention** — the object stays reachable from a live root |
 | Launch regression, pre-`main` cost | the **dyld Activity** instrument for static-initializer time; the App Launch *template* for the whole sequence — release configuration, representative device |
 | App-size contribution | The size report from an archive — never a source-side estimate |
-| Field-observed regression | `MetricKit` — iOS, iPadOS, macOS and visionOS only, **not tvOS or watchOS**; physical device only, and at most one payload per day, so it cannot settle anything inside a review cycle — or the repository's analytics equivalent (`IOS-PERF-MEASURE-4`) |
+| Field-observed regression | `MetricKit` — verify its availability for the target platform against the target SDK (when last checked it covered iOS, iPadOS, macOS and visionOS, **not tvOS or watchOS** — re-verify before relying on it); physical device only, and at most one payload per day, so it cannot settle anything inside a review cycle — or the repository's analytics equivalent (`IOS-PERF-MEASURE-4`) |
 
 Thread Sanitizer and Address Sanitizer serve `IOS-SWIFT-CONC-*` and `IOS-SWIFT-LIFETIME-*`, which are Pass A's lane; the remaining rows are Pass B's.
 

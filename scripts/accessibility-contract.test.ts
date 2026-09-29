@@ -6,10 +6,14 @@
  *
  * Four things this suite exists to protect, none of which prose alone can hold:
  *
- *   1. THE TV BOUNDARY. SHARED-014 is mobile-only. A `tv` task must skip the mobile
- *      accessibility flow *explicitly* — a silent skip and a recorded skip are
- *      indistinguishable in a document but not in a record. Mobile `A11Y-*` rules must
- *      never be applied to a TV surface, and `REACT-TV-*` is not part of this task.
+ *   1. TV IS NOT A SKIP. The shared accessibility standard applies to any screen, and its
+ *      rules carry their own TV clauses (`A11Y-TOUCH-1/2`). A `tv` task runs the same
+ *      applicability decision as a `mobile` one: it applies the shared rules through their
+ *      TV clauses, keeps focus-driven accessibility, records TV screen-reader verification
+ *      as Tier 3 QA debt, and — for React Smart TV — may cite the applicable `REACT-TV-*`
+ *      rules. Only work that is genuinely not accessibility-relevant is not-applicable,
+ *      and that decision is always recorded, never silent. (Superseded the SHARED-014
+ *      "mobile-only" boundary in the Project Knowledge ownership cleanup.)
  *
  *   2. TIER 3 IS UNREPRESENTABLE AS A PASS. Not "validated against" — unrepresentable.
  *      `checks` holds Tier 1 and 2 only; Tier 3 becomes `verificationDebt`, which has no
@@ -215,16 +219,18 @@ const QA_TPL = read("templates/qa-handoff-template.md");
 }
 
 // =========================================================================
-// 5. THE TV BOUNDARY — mobile-only, explicitly, in prose and in behaviour
+// 5. TV IS NOT A SKIP — the shared standard applies through its TV clauses
 // =========================================================================
 {
   const f = flat(IMPL);
   check("5 implement-task decides applicability from the confirmed context",
     /## 5b\. Accessibility applicability/.test(IMPL));
-  check("5 tv skips the mobile accessibility flow explicitly",
-    /`device_type: tv` → skip this flow, explicitly/.test(f));
-  check("5 tv cites no A11Y rules", /Cite \*\*no\*\* `A11Y-\*` rules/.test(f));
-  check("5 tv does not cite REACT-TV-* either", /Do \*\*not\*\* cite\s*`REACT-TV-\*` in the accessibility block/.test(f));
+  check("5 tv no longer skips the accessibility flow", !/`device_type: tv` → skip this flow/.test(f) && !/a mobile standard/.test(f));
+  check("5 tv applies the shared A11Y rules through their TV clauses",
+    /`device_type: tv` → the flow applies/.test(f) && /TV clause/.test(f));
+  check("5 tv may cite applicable REACT-TV-* rules on React Smart TV",
+    /`REACT-TV-\*`/.test(f) && !/Do \*\*not\*\* cite\s*`REACT-TV-\*` in the accessibility block/.test(f));
+  check("5 tv screen-reader verification becomes QA debt", /TV[^.]{0,120}screen reader[^.]{0,200}`verificationDebt`/i.test(f));
   check("5 a silent skip is named as the failure mode",
     /A silent skip is the failure mode this rule exists to prevent/.test(f));
   check("5 device_type is never re-detected here", /never re-detect it here, and never default it/.test(f));
@@ -362,31 +368,55 @@ const QA_TPL = read("templates/qa-handoff-template.md");
       accessibilityProblem({ verificationDebt: incomplete }) !== null);
   }
 
-  // -- 6f. TV: explicit skip, and citing mobile rules anyway is refused --
+  // -- 6f. TV: the shared rules apply, and TV debt stays separated by owner --
   {
-    const tvSkip = {
-      applicable: false,
-      reason: "device_type: tv — SHARED-014 is mobile-only; TV accessibility is owned by the TV workstreams",
+    const tvApplies = {
+      applicable: true,
+      reason: null,
       deviceType: "tv",
-      standardIds: [],
-      checks: [],
+      standardIds: ["A11Y-TOUCH-1", "A11Y-FOCUS-2", "AND-UI-A11Y-7"],
+      checks: [{ ruleId: "A11Y-TOUCH-1", tier: 1 as const, result: "pass" as const, evidence: "every control is focusable with a visible focus state (instrumented D-pad traversal)" }],
+    };
+    const TV_DEBT = {
+      domain: "accessibility",
+      ruleId: "A11Y-SR-1",
+      requiredVerification: "TalkBack walkthrough of the changed TV flow with the D-pad",
+      whyNotAutomatable: "a TV screen reader cannot be driven headlessly",
+      owner: "qa",
+      status: "pending" as const,
+    };
+    const DEV_DEBT = {
+      domain: "developer-testing",
+      ruleId: "VERIFY-4",
+      requiredVerification: "focus-restoration unit test for the rail",
+      whyNotAutomatable: "no TV test harness in this repository",
+      owner: "developer",
+      status: "pending" as const,
     };
     const r = writeTaskState(tmp, feature, "T5", "complete",
-      { ...basePayload(), accessibility: tvSkip }, breakdown);
-    check("6f a tv task completes with an explicit recorded skip", r.status === "written", r.summary);
+      { ...basePayload(), accessibility: tvApplies, verificationDebt: [TV_DEBT, DEV_DEBT] }, breakdown);
+    check("6f a tv task completes with the shared accessibility rules applied", r.status === "written", r.summary);
     const back = readTaskState(tmp, feature, breakdown);
-    check("6f the tv skip reads notApplicable, not notRecorded",
-      back.tasks["T5"]?.accessibilityStatus === "notApplicable");
-    check("6f the tv skip carries its reason",
-      (back.tasks["T5"]?.accessibility?.reason ?? "").includes("tv"));
+    check("6f the tv task reads applicable, not notApplicable", back.tasks["T5"]?.accessibilityStatus === "applicable");
+    check("6f it records its device type", back.tasks["T5"]?.accessibility?.deviceType === "tv");
+    check("6f TV screen-reader verification is QA debt",
+      back.tasks["T5"]?.qaVerificationDebt.length === 1 && back.tasks["T5"]?.qaVerificationDebt[0].ruleId === "A11Y-SR-1");
+    check("6f developer debt on a tv task stays the developer's, never QA's",
+      back.tasks["T5"]?.developerVerificationDebt.length === 1 &&
+        !back.tasks["T5"]?.qaVerificationDebt.some((d) => d.domain === "developer-testing"));
 
-    const tvCiting = { ...tvSkip, standardIds: ["A11Y-TOUCH-1"] };
-    check("6f a tv task citing mobile A11Y rules is refused",
-      accessibilityProblem({ accessibility: tvCiting }) !== null);
-    const r2 = writeTaskState(tmp, feature, "T6", "complete",
-      { ...basePayload(), accessibility: tvCiting }, breakdown);
-    check("6f the writer refuses mobile rules on a skipped tv task",
-      r2.status === "refused" && r2.reason === "invalid-accessibility", `${r2.status}/${r2.reason}`);
+    const tvSr = { ...tvApplies, checks: [{ ruleId: "A11Y-SR-1", tier: 1 as const, result: "pass" as const }] };
+    check("6f a Tier 1 check can never satisfy the TV screen-reader rule either (VERIFY-2)",
+      accessibilityProblem({ accessibility: tvSr }) !== null);
+
+    const tvFailing = { ...tvApplies, checks: [{ ruleId: "A11Y-TOUCH-1", tier: 1 as const, result: "fail" as const }] };
+    const r3 = writeTaskState(tmp, feature, "T7", "complete", { ...basePayload(), accessibility: tvFailing }, breakdown);
+    check("6f a failing TV focus check blocks completion like any other", r3.status === "refused" && r3.reason === "complete-without-verification");
+
+    // Not-applicable is still a recorded decision with a reason, and still cites nothing.
+    const notRelevant = { applicable: false, reason: "a build script — no surface assistive technology perceives", deviceType: "tv", standardIds: ["A11Y-TOUCH-1"], checks: [] };
+    check("6f a not-applicable block citing rules is still refused, on any device type",
+      accessibilityProblem({ accessibility: notRelevant }) !== null);
   }
 
   // -- 6g. applicable:false requires a reason --

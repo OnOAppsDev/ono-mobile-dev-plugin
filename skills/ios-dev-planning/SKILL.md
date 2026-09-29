@@ -27,9 +27,15 @@ never a default. What the repository already does is the source of truth.
 
 ## 3. Repository evidence collection
 
-Inspect the actual codebase before proposing anything. **Detect — do not assume.** `repo-analyst` supplies only lightweight iOS existence checks, so this sweep is this skill's own responsibility. Its Standards Conformance verdict is computed against React Native's `ARCH-LAYERS-*`/`ARCH-FOLDERS-*` and **does not apply to iOS** — run the structural comparison against `IOS-ARCH-LAYERS-*` and `IOS-ARCH-MODULE-*` here instead, and report it in the Implementation Model Found section rather than as a conformance verdict.
+**Project Knowledge first; this checklist is the fallback.** Resolve repository knowledge through `skills/platform-planning/SKILL.md` §3 before inspecting anything, then treat each dimension below by its knowledge state:
 
-**Depth scales with stage.** At Analyze, inspect the dimensions the feature plausibly touches and mark the rest `[unknown — not inspected at Analyze]`; a feature that may yet be rejected does not earn a full survey. The complete sweep is required at Design, where §19 and §20 depend on it. In both cases scope each dimension to what the feature touches — an untouched dimension is marked `N/A`, never surveyed for completeness.
+- **trusted** — cite it (`[reused: <path>#<anchor>]`) and use it; do not re-inspect it.
+- **verifyOnUse** — the source changed after the knowledge was generated: verify only the facts this feature relies on against current source, and cite the current source.
+- **deriveLive**, or knowledge absent or unavailable — inspect that dimension live, using this checklist.
+
+Feature-specific detail no repository-wide document holds — the signatures, state and call sites this feature actually touches — is always read live from source. Where current source contradicts Project Knowledge, the current source wins. **Detect — do not assume.** `repo-analyst` supplies only lightweight iOS existence checks and no structural conformance verdict; run the structural comparison against `IOS-ARCH-LAYERS-*` and `IOS-ARCH-MODULE-*` here, and report it in the Implementation Model Found section rather than as a conformance verdict.
+
+**Depth scales with stage.** At Analyze, inspect the dimensions the feature plausibly touches and mark the rest `[unknown — not inspected at Analyze]`; a feature that may yet be rejected does not earn a full survey. At Design, every dimension §19 and §20 depend on is established — from trusted Project Knowledge where it holds, by live inspection only where it does not. In both cases scope each dimension to what the feature touches — an untouched dimension is marked `N/A`, never surveyed for completeness.
 
 Collect evidence for each dimension, recording the path that proves it:
 
@@ -182,7 +188,7 @@ Touch interaction, touch targets and phone/tablet navigation patterns apply. Thr
 
 ### `device_type: tv`
 
-**The standards carry no tvOS rules yet, so this skill's TV responsibility is discovery and non-regression, not guidance.** Apply the existing `IOS-*` rules unchanged — they are framework-neutral and none assumes touch. Where TV work needs a rule that does not exist, **record it as an unresolved decision naming the `ATV-001` gap**. A TV plan that rests on the repository's own conventions plus a named standards gap is the correct output at this point, not a deficient one. **This skill does not author TV standards or TV rules — `ATV-001` owns that, and `ATV-002` owns branching this skill deeply on device type.**
+**Repository-specific TV facts come from Project Knowledge, with the discovery pass below as the fallback; stable tvOS TV rules are not yet authored.** Apply the existing `IOS-*` rules unchanged — they are framework-neutral and none assumes touch — together with the TV clauses of the shared accessibility rules. Where TV work needs a rule that does not exist, **record it as an unresolved decision naming the `ATV-001` gap**. A TV plan that rests on the repository's own conventions plus a named standards gap is the correct output at this point, not a deficient one. **This skill does not author TV standards or TV rules — the stable tvOS rules are `ATV-001`'s.**
 
 **Never cite a TV ID.** `IOS-UI-TV-*` and `IOS-PERF-TV-*` are reserved roots with no rules behind them, and a bare `IOS-TV-*` root is not permitted at all. Cite the existing `IOS-*` rule that actually applies, or name the `ATV-001` gap — never a reserved root.
 
@@ -212,7 +218,7 @@ Run this discovery pass **before** proposing anything, recording evidence for ea
 
 - **Never propose migrating** to a different TV UI framework unless the feature explicitly requests it and it is approved. A superseded but still-present TV framework is a legitimate finding to plan within, not a defect to fix.
 - **Never silently apply touch or mobile assumptions** — touch targets, on-screen gestures, scroll affordances and soft-keyboard flows do not transfer to a focus-and-remote model. Where a mobile-oriented rule's mechanism does not apply, state the intent it serves and how the TV surface satisfies it.
-- **A capability the platform does not offer is not a design decision but an impossibility** — most notably, there is no web view on tvOS, so a TV feature specified around hosted web content is a blocking unresolved decision, not a security checklist item.
+- **A capability the platform does not offer is not a design decision but an impossibility** — for example, whether the tvOS SDK offers an embeddable web view at all. Verify the capability against the target SDK before planning around it; where it is absent, a TV feature specified around hosted web content is a blocking unresolved decision, not a security checklist item.
 - **Reuse the existing custom components and conventions** wherever they cover the need.
 - **Identify gaps or risks in the existing model without redesigning it.** Naming a weakness is in scope; re-architecting around it is not.
 - If the repository contains both mobile and TV surfaces, plan only for the confirmed `device_type`, and never assume the mobile surface's conventions apply to the TV one.

@@ -143,8 +143,9 @@ function affirmativeStandardsDirs(text: string): Set<string> {
  * this list is a violation; the list itself is asserted to be exactly these entries, so
  * the count can only go down and a new one fails immediately.
  *
- * These are not equivalent. One is a real exception to the isolation rule; the other is
- * a defect that predates this suite, documented here rather than silently tolerated.
+ * Every entry is a real exception to the isolation rule. `kind: "defect"` remains
+ * available so a pre-existing violation is recorded as one rather than silently tolerated;
+ * the last one (ENG-001, mobile-repo-analysis) was fixed and removed.
  */
 const KNOWN_CROSS_LANE: Record<string, { dirs: string[]; kind: "exception" | "defect"; why: string }> = {
   "agents/mobile-release-engineer.md": {
@@ -163,18 +164,6 @@ const KNOWN_CROSS_LANE: Record<string, { dirs: string[]; kind: "exception" | "de
       "/prepare-mobile-release validates every shipping platform in one checklist, so the " +
       "shared skill must name each platform's release standard. Isolation is per-invocation " +
       "everywhere else because only one platform is in scope; here several genuinely are.",
-  },
-  "skills/mobile-repo-analysis/SKILL.md": {
-    dirs: ["react-native"],
-    kind: "defect",
-    why:
-      "PRE-EXISTING DEFECT, recorded not endorsed. This shared skill runs React Native's " +
-      "ARCH-LAYERS-*/ARCH-FOLDERS-* folder-conformance scan against EVERY repository, " +
-      "'regardless of what was reused'. agents/android-architect.md already documents the " +
-      "workaround: those expectations 'are RN-specific and do not apply to Android … Never " +
-      "present repo-analyst's React Native conformance verdict as an Android finding.' " +
-      "Fixing it changes what repo-analyst reports for iOS/Android/React repositories, so it " +
-      "is a behaviour change and out of scope for a refactor that preserves behaviour.",
   },
 };
 
@@ -223,10 +212,11 @@ const KNOWN_CROSS_LANE: Record<string, { dirs: string[]; kind: "exception" | "de
   check("1 the cross-lane allowlist is exactly the components that cross a lane",
     actual.join(",") === Object.keys(KNOWN_CROSS_LANE).sort().join(","), actual.join(", "));
 
-  // One is a genuine exception; one is a recorded defect. Keeping the distinction in the
-  // data stops the defect from ageing into an accepted design.
-  check("1 exactly one recorded cross-lane defect remains",
-    Object.values(KNOWN_CROSS_LANE).filter((e) => e.kind === "defect").length === 1);
+  // ENG-001 fixed the one recorded defect (mobile-repo-analysis ran React Native's
+  // ARCH-* conformance against every platform). The kind stays in the data so a new
+  // defect is recorded as one rather than ageing into an accepted design.
+  check("1 no recorded cross-lane defect remains (ENG-001 closed)",
+    Object.values(KNOWN_CROSS_LANE).filter((e) => e.kind === "defect").length === 0);
 }
 
 // ---------------------------------------------------------------------------

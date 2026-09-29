@@ -74,12 +74,12 @@ Rules:
 
 Review has **no confirmed `device_type`** — there is no upstream frontmatter to read, unlike the Analyze and Design stages. Handle it minimally:
 
-- **Infer, never demand.** If the reviewed files sit in a TV surface (leanback manifest entries, a TV module, TV base classes), note it in the review's Scope section. **Never block a review to ask** which device type is in play.
+- **Infer, never demand.** If the reviewed files sit in a TV surface — `/review-code`'s surface attribution places them on a declared surface whose `formFactor` is `tv`, or, without Project Knowledge, leanback manifest entries, a TV module or TV base classes — note it in the review's Scope section. That corroborates TV scope; it is never treated as a `device_type`. **Never block a review to ask** which device type is in play.
 - **Suppress inapplicable mobile rules rather than invent TV rules.** `A11Y-TOUCH-1` already states that on TV form factors the requirement is a reliably focusable element with a clearly visible focus state instead of a touch-target size — honoring that is reading the authored shared standard, not adding TV knowledge.
 - **Never file a TV finding against a rule that does not exist.** No Android TV `AND-*` rules exist yet. Where TV-specific review depth is genuinely unavailable, say so once in Not Applicable / Skipped and move on.
 - **Never apply touch or gesture assumptions to a TV surface** — touch targets, tap/swipe gestures, and soft-keyboard flows do not transfer to a D-pad/remote model.
 
-This skill does **not** author Android TV standards or rules — that is a separate, later scope.
+This skill does **not** author Android TV rules. Repository-specific TV facts come from Project Knowledge; stable Android TV rules are open work (`ANDROID-003`).
 
 ## Standards citation
 

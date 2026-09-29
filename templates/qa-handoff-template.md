@@ -45,7 +45,7 @@ There is deliberately no `doc_schema_version` here. That field belongs to the fo
 <!-- Which I18N-* standard IDs (standards/shared/i18n-rtl.md) were checked, and the result of manual LTR/RTL walkthroughs (I18N-TEST-1). Per QA-A11Y-1 in standards/shared/qa-handoff.md. -->
 ## i18n / RTL Check
 
-<!-- Read from task-state, not reconstructed. State the recorded accessibility status for the tasks in scope: applicable (list the cited A11Y-*/platform IDs and the mechanical checks with their results), notApplicable (give the recorded reason verbatim — e.g. device_type: tv), or notRecorded (say so plainly; it is not a pass and not "not applicable"). Per QA-A11Y-1. -->
+<!-- Read from task-state, not reconstructed. State the recorded accessibility status for the tasks in scope: applicable (list the cited A11Y-*/platform IDs and the mechanical checks with their results), notApplicable (give the recorded reason verbatim — e.g. "a build script, no surface assistive technology perceives"), or notRecorded (say so plainly; it is not a pass and not "not applicable"). Per QA-A11Y-1. -->
 ## Accessibility Check
 
 <!-- Every QA-owned debt entry (owner: qa) recorded against the tasks in scope, from task-state's qaVerificationDebt. Developer-testing debt (owner: developer, VERIFY-4) is the developer's obligation and never belongs here — note it under Known Limitations instead. One row per entry: domain · rule ID · required verification · why the plugin could not perform it · owner. These are obligations QA now owns; the plugin never marks them discharged (VERIFY-3). Write "None recorded" only when the store genuinely carries none. -->

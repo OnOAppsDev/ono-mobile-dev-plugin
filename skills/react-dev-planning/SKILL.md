@@ -27,7 +27,13 @@ never a default. What the repository already does is the source of truth.
 
 ## 3. Repository evidence collection
 
-Inspect the actual codebase before proposing anything. **Detect — do not assume.** `repo-analyst` supplies only lightweight React existence checks, so this sweep is this skill's own responsibility (see [What this skill must not expect from `repo-analyst`](#what-this-skill-must-not-expect-from-repo-analyst)). Read [§4](#4-react-detection-traps) *before* trusting any single-file signal below.
+**Project Knowledge first; this checklist is the fallback.** Resolve repository knowledge through `skills/platform-planning/SKILL.md` §3 before inspecting anything, then treat each dimension below by its knowledge state:
+
+- **trusted** — cite it (`[reused: <path>#<anchor>]`) and use it; do not re-inspect it.
+- **verifyOnUse** — the source changed after the knowledge was generated: verify only the facts this feature relies on against current source, and cite the current source.
+- **deriveLive**, or knowledge absent or unavailable — inspect that dimension live, using this checklist.
+
+Feature-specific detail no repository-wide document holds — the signatures, state and call sites this feature actually touches — is always read live from source. Where current source contradicts Project Knowledge, the current source wins. **Detect — do not assume.** `repo-analyst` supplies only lightweight React existence checks (see [What this skill must not expect from `repo-analyst`](#what-this-skill-must-not-expect-from-repo-analyst)). Read [§4](#4-react-detection-traps) *before* trusting any single-file signal below, whether it came from Project Knowledge or from source.
 
 Collect evidence for each dimension, recording the path that proves it:
 
@@ -52,7 +58,7 @@ Collect evidence for each dimension, recording the path that proves it:
 
 ### What this skill must not expect from `repo-analyst`
 
-`repo-analyst` performs **lightweight existence checks only** for React (a `react`/`react-dom` dependency without `react-native`, plus a web bundler/framework marker). Its Stack Detection section is a starting signal, **not** the evidence base for a design. Its Standards Conformance section compares folder structure against React Native's `ARCH-LAYERS-*`/`ARCH-FOLDERS-*` expectations, which are RN-specific and **do not apply to React (web)** — React has its own `REACT-ARCH-*`. Therefore this skill runs its own React inspection (this section) and its own structural comparison against `REACT-ARCH-LAYERS-*`/`REACT-ARCH-FOLDERS-*`. Never present `repo-analyst`'s React Native conformance verdict as a React finding.
+`repo-analyst` performs **lightweight existence checks only** for React (a `react`/`react-dom` dependency without `react-native`, plus a web bundler/framework marker). Its Stack Detection section is a starting signal, **not** the evidence base for a design. It produces **no** Standards Conformance verdict for React: React Native's `ARCH-LAYERS-*`/`ARCH-FOLDERS-*` expectations are RN-specific and never applied to a React (web) repository — React has its own `REACT-ARCH-*`. Therefore this skill runs its own React inspection (this section) and its own structural comparison against `REACT-ARCH-LAYERS-*`/`REACT-ARCH-FOLDERS-*`. Never present a React Native conformance verdict as a React finding.
 
 ## 4. React Detection traps
 

@@ -124,7 +124,7 @@ Apply these as you write, grounded in what [§4](#4-what-design-handed-over-and-
 
 The rows are a checklist, not a ladder — the file being changed decides which UI family applies (`IOS-UI-FRAMEWORK-1`).
 
-**`device_type: tv`** is a context signal, not a platform — `swift-standards.md` § *Apple TV* governs. Additionally: never silently carry a touch assumption into a TV surface, and never cite a TV standard ID, since those roots stay reserved until `ATV-001`.
+**`device_type: tv`** is a context signal, not a platform — `swift-standards.md` § *Apple TV* governs. Additionally: never silently carry a touch assumption into a TV surface, and never cite a TV standard ID — no stable tvOS rules are authored yet (`ATV-001`); the repository's own TV model reaches you through the approved planning artifacts.
 
 ## 10. The implement loop
 
@@ -176,7 +176,7 @@ Both frameworks may legally coexist in one target and even one file. A mixed rep
 
 ### Testing traps
 
-1. **Silent assertion loss.** An `XCTAssert*` reached from a Swift Testing `@Test` is **discarded** — the test passes while asserting nothing, and the result bundle records nothing. Verified still true on Xcode 26.0.1 / Swift 6.2; **no toolchain fixes this**, because XCTest assertions are only usable from `XCTestCase`-based tests. Never share an assertion helper across the two families.
+1. **Silent assertion loss.** An `XCTAssert*` reached from a Swift Testing `@Test` is **discarded** — the test passes while asserting nothing, and the result bundle records nothing. Last verified on Xcode 26.0.1 / Swift 6.2 — re-verify against the toolchain the probe recorded; the cause is structural, since XCTest assertions are only usable from `XCTestCase`-based tests. Never share an assertion helper across the two families.
 2. **`@Test` inside an `XCTestCase` subclass is a compile error**, even though both may share a file. In Swift Testing, new suites are a `struct`, or a `final class`/`actor` when `deinit` teardown is needed.
 3. **"This code has no tests" concluded from file inspection is unsound.** Both frameworks discover tests at *runtime*. A covering test may carry no `test` prefix, sit in an unrelated file, or be one parameterized case. Answer by running `-only-testing`, never by grepping.
 4. **The test plan can silently exclude the new test** via include/exclude lists or tag filters — it passes locally and never runs in CI. Check `-showTestPlans` and the plan's selected/skipped sets.
@@ -263,7 +263,7 @@ The tier vocabulary itself is owned by `standards/shared/verification.md` (`VERI
 |---|---|
 | Whether a label is *meaningful* | The audit checks a label exists. `accessibilityLabel("image1")` passes |
 | VoiceOver order, rotor, custom actions, announcements | VoiceOver cannot be run on the Simulator at all. Note `UIAccessibility.isVoiceOverRunning` returns **true spuriously** on a simulator once the automation accessibility bridge is up — never gate on it |
-| Reduce Motion, Bold Text, Invert Colours — whether the branch is visually *right* | `simctl ui` reaches only `appearance`, `increase_contrast` and `content_size` (Xcode 26.0.1), but the rest can be forced with `xcrun simctl spawn <UDID> defaults write com.apple.Accessibility …` plus the matching `notifyutil -p com.apple.accessibility.cache.*` post. That proves the code **branches** — Tier 1. Whether the branch looks correct is Tier 2, not verifiable here |
+| Reduce Motion, Bold Text, Invert Colours — whether the branch is visually *right* | `simctl ui` reaches only `appearance`, `increase_contrast` and `content_size` (as of Xcode 26.0.1 — re-verify against the recorded toolchain), but the rest can be forced with `xcrun simctl spawn <UDID> defaults write com.apple.Accessibility …` plus the matching `notifyutil -p com.apple.accessibility.cache.*` post. That proves the code **branches** — Tier 1. Whether the branch looks correct is Tier 2, not verifiable here |
 | Contrast of text over video, images, gradients or custom drawing | The contrast audit is scoped to overlapping *elements* — the media case sits outside it |
 | Anything on a screen the test never reached | The audit sees only the current screen |
 | Translation quality; plural correctness | Pseudolanguages simulate length and direction, not meaning |

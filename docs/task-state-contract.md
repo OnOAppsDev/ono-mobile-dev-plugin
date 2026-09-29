@@ -205,7 +205,7 @@ carries neither, and the reader reports that state distinctly rather than guessi
 | Field | Meaning |
 | --- | --- |
 | `applicable` | Whether the mobile accessibility flow applied to this task. |
-| `reason` | Required when `applicable` is `false`; why it did not apply (e.g. `device_type: tv`). |
+| `reason` | Required when `applicable` is `false`; why it did not apply (e.g. a build script that touches no surface assistive technology perceives). `device_type: tv` is never by itself a reason — TV applies the shared rules through their TV clauses. |
 | `deviceType` | The confirmed device type the decision was made under. |
 | `standardIds` | The accessibility rules cited — shared `A11Y-*` plus the lane's platform IDs. |
 | `checks` | Tier 1 and Tier 2 checks only, each `{ ruleId, tier, result, evidence? }`. |
