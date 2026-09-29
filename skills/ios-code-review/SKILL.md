@@ -77,6 +77,7 @@ Review has **no confirmed `device_type`**, and Project Knowledge never supplies 
 - **Infer, never demand.** Note a TV surface in Scope; **never block a review to ask.**
 - **Suppress inapplicable mobile rules rather than invent TV rules.** `A11Y-TOUCH-1` already states the TV form-factor requirement; honouring it is reading the standard, not adding TV knowledge.
 - **Never file against a rule that does not exist.** No stable tvOS `IOS-*` rules are authored yet (`ATV-001`), and a bare `IOS-TV-*` root has no owner. The shared accessibility rules' TV clauses do apply.
+- **File TV findings against the shared TV baseline.** On an established TV surface, `standards/shared/tv-baseline.md` (`TVB-*`) is authored: a concrete violation — focus dropped or invisible, directional order that ignores the layout, an overlay that leaks focus, a touch-only affordance, a Back that does nothing, a second playback owner or an undisposed player — is filed under its `TVB-*` ID. Judge it against the repository's own TV model, never against a preferred one.
 - **Never apply touch or gesture assumptions to a TV surface.**
 
 ## 13. Measurement requests

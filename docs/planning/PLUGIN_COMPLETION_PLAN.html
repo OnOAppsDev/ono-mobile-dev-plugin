@@ -147,9 +147,9 @@ demonstrated it right either.</p>
 <table>
 <tr><th>Platform</th><th><code>device_type: mobile</code></th><th><code>device_type: tv</code></th><th>End-to-end proven?</th></tr>
 <tr><td><code>react-native</code></td><td>Ready</td><td><b>Unsupported</b> — defined hard stop; RN + TV is a product decision that does not exist</td><td><span class="chip open">Unproven</span></td></tr>
-<tr><td><code>ios</code></td><td>Ready</td><td><b>Partial</b> — planning is complete (Project-Knowledge-first TV discovery) and the shared accessibility rules apply through their TV clauses; stable tvOS rules are not yet authored (ATV-001), so no TV ID may be cited, and the implementation and review lanes carry only minimal TV handling (ATV-002)</td><td><span class="chip open">Unproven</span></td></tr>
-<tr><td><code>android</code></td><td>Ready</td><td><b>Partial</b> — planning is complete (Project-Knowledge-first TV discovery) and the shared accessibility rules apply through their TV clauses; stable Android TV rules and the implementation- and review-lane TV handling remain (ANDROID-003)</td><td><span class="chip open">Unproven</span></td></tr>
-<tr><td><code>react</code></td><td>Ready</td><td>Ready — <code>react-smart-tv.md</code> is authored (54 <code>REACT-TV-*</code> rules)</td><td><span class="chip open">Unproven</span></td></tr>
+<tr><td><code>ios</code></td><td>Ready</td><td><b>Partial</b> — planning, implementation and review cite the shared TV baseline (<code>TVB-*</code>) and the shared accessibility rules' TV clauses, with Project-Knowledge-first discovery; tvOS-specific stable rules are not yet authored (ATV-001), so no tvOS TV ID may be cited</td><td><span class="chip open">Unproven</span></td></tr>
+<tr><td><code>android</code></td><td>Ready</td><td><b>Partial</b> — planning, implementation and review cite the shared TV baseline (<code>TVB-*</code>) and the shared accessibility rules' TV clauses, with Project-Knowledge-first discovery; Android-TV-specific stable rules remain (ANDROID-003)</td><td><span class="chip open">Unproven</span></td></tr>
+<tr><td><code>react</code></td><td>Ready</td><td>Ready — <code>react-smart-tv.md</code> is authored (54 <code>REACT-TV-*</code> rules) and realises the shared TV baseline</td><td><span class="chip open">Unproven</span></td></tr>
 </table>
 <p class="note"><code>/review-security</code> is Ready on all four platforms and for both
 device types, because that stage loads no platform lane — <code>mobile-security-reviewer</code>
@@ -207,21 +207,37 @@ optional. Only <span class="chip deferred">Deferred</span> is outside the comple
 <table>
 <tr><th>ID</th><th>Component</th><th>Owner</th><th>Depends on</th><th>Effort</th><th>Scope / required action</th><th></th></tr>
 <tr>
+  <td>SHARED-015</td>
+  <td>Standards — shared TV baseline</td>
+  <td>Plugin Owner</td>
+  <td>SHARED-014 ✓, ENG-001 ✓</td>
+  <td>1 d</td>
+  <td><code>standards/shared/tv-baseline.md</code>: ten platform-neutral <code>TVB-*</code> rules
+      every TV surface carries — focus visible and never lost, directional navigation following
+      the layout, focus contained in overlays and restored, remote-only input reaching the active
+      hierarchy, deterministic Back, one playback owner, lifecycle-aware teardown, state
+      preserved before suspension, the repository's TV budget, and focus-driven accessibility
+      under the shared <code>A11Y-*</code> rules. No mechanisms, no repository facts, no
+      versions. Cited by the iOS, Android and React planning, implementation and review lanes;
+      <code>react-smart-tv.md</code> maps each rule to the <code>REACT-TV-*</code> rules that
+      realise it. Pinned by <code>shared-tv-baseline</code>.</td>
+  <td><span class="chip done">Done</span></td>
+</tr>
+<tr>
   <td>ATV-001</td>
   <td>Standards — iOS, Apple TV context</td>
   <td>Noam Haba</td>
   <td>IOS-001 ✓, SHARED-001 ✓ — unblocked</td>
   <td>4 d</td>
-  <td>Author the <b>stable tvOS rules only</b> — obligations that hold for every tvOS app, as
-      a small set under the reserved <code>IOS-UI-TV-*</code> / <code>IOS-PERF-TV-*</code> roots
-      (a bare <code>IOS-TV-*</code> root is not permitted), citing the shared accessibility
-      rules' TV clauses rather than restating them. <b>Out of scope:</b> repository-specific TV
-      facts — which focus model, remote handling, TV components, playback integration and
-      packaging a repository uses — which are Project Knowledge, produced by
-      <code>ono-project-inspector</code> and consumed Project-Knowledge-first; and volatile
-      platform facts (hardware generations, store requirements, SDK-version specifics), which
-      are verified against the target SDK rather than written down. Until this ships, no TV ID
-      may be cited.</td>
+  <td>Author the <b>tvOS-specific stable rules only</b> — the residue the shared TV baseline
+      (SHARED-015) deliberately leaves to the platform: how the system focus model is worked with
+      rather than against, the platform's root Back convention, the obligations a custom player
+      takes on when it replaces the system one, the top-shelf surface as an extension target, and
+      capabilities the platform does not offer. A small set under the reserved
+      <code>IOS-UI-TV-*</code> / <code>IOS-PERF-TV-*</code> roots, citing <code>TVB-*</code>
+      rather than restating it. <b>Out of scope:</b> repository-specific TV facts (Project
+      Knowledge) and volatile platform facts (verified against the target SDK). Until this
+      ships, no tvOS TV ID may be cited.</td>
   <td><span class="chip open">Open</span></td>
 </tr>
 <tr>
@@ -230,13 +246,13 @@ optional. Only <span class="chip deferred">Deferred</span> is outside the comple
   <td>Noam Haba</td>
   <td><b>ATV-001</b> — only the citing of rules waits on it</td>
   <td>4 d</td>
-  <td><b>Planning is complete:</b> <code>ios-dev-planning</code> carries the
-      <code>device_type: tv</code> branch, reads the confirmed surface's Project Knowledge first
-      and keeps live discovery as the fallback. <b>What remains is small:</b> a short TV section
-      in <code>ios-feature-implementation</code>, and <code>ios-code-review</code> §12 citing the
-      ATV-001 rules once they exist (it already corroborates TV scope from surface
-      attribution). The work stays lane-side; the shared agents and methodologies gain no TV
-      content, and exactly one lane still loads per invocation.</td>
+  <td><b>Planning, implementation and review handling have landed at baseline level:</b>
+      <code>ios-dev-planning</code> reads Project Knowledge first and cites <code>TVB-*</code>;
+      <code>ios-feature-implementation</code> implements within the repository's TV model and
+      cites <code>TVB-*</code>; <code>ios-code-review</code> §12 files TV findings under
+      <code>TVB-*</code>. <b>What remains:</b> citing the ATV-001 tvOS rules in those three lanes
+      once they exist. The work stays lane-side; the shared agents and methodologies carry no TV
+      content.</td>
   <td><span class="chip open">Open</span></td>
 </tr>
 <tr>
@@ -245,14 +261,16 @@ optional. Only <span class="chip deferred">Deferred</span> is outside the comple
   <td>Guy Gur Arie</td>
   <td>ANDROID-001 ✓, ANDROID-002 ✓, SHARED-001 ✓ — unblocked</td>
   <td>4 d</td>
-  <td><b>Discovery is complete:</b> <code>android-dev-planning</code>'s TV pass reads the
-      confirmed surface's Project Knowledge first, verifies it when stale, and discovers live only
-      what it does not cover. Repository-specific TV facts belong to Project Knowledge, never to
-      <code>AND-*</code>. <b>What remains:</b> a small set of <b>stable Android TV rules</b> in
-      the <code>AND-*</code> standards, a TV section in <code>android-feature-implementation</code>
-      (which has none today), and <code>android-code-review</code> §12 citing those rules. No
-      framework prescriptions (Leanback, Compose for TV) and no SDK-level specifics; repository
-      conventions remain the source of truth.</td>
+  <td><b>Discovery, implementation and review handling have landed at baseline level:</b>
+      <code>android-dev-planning</code> reads Project Knowledge first and cites
+      <code>TVB-*</code>; <code>android-feature-implementation</code> now has a
+      <code>device_type: tv</code> section; <code>android-code-review</code> §12 files TV
+      findings under <code>TVB-*</code>. <b>What remains:</b> a small set of <b>stable Android TV
+      rules</b> in the <code>AND-*</code> standards — the residue the shared baseline leaves to
+      the platform (the TV declaration contract, key and Back dispatch through the focus
+      hierarchy, media-control ownership) — and citing them in the three lanes. No framework
+      prescriptions and no SDK-level specifics; repository conventions remain the source of
+      truth.</td>
   <td><span class="chip open">Open</span></td>
 </tr>
 <tr>
@@ -378,9 +396,10 @@ reclassifies it. All ten:</p>
 <tr><td>ENG-005 — live A/B validation for React Native, iOS and React</td><td>Evidence</td><td>Gate A</td></tr>
 <tr><td>ENG-006 — <code>dd-complexity-assessment</code>: integrate or remove</td><td>Decision</td><td>Gate A, and explicitly Gate C</td></tr>
 <tr><td>QA-002 — QA handoff discovery bug in <code>/check-qa-coverage</code></td><td>Cross-plugin defect</td><td>Gate A</td></tr>
-<tr><td>ATV-001 — stable tvOS rules (repository TV facts are Project Knowledge)</td><td>Platform</td><td>Gate A, and ATV-002's rule citations</td></tr>
-<tr><td>ATV-002 — iOS implementation and review TV handling (planning complete)</td><td>Platform</td><td>Gate A</td></tr>
-<tr><td>ANDROID-003 — stable Android TV rules, implementation and review TV handling (discovery complete)</td><td>Platform</td><td>Gate A</td></tr>
+<tr><td>SHARED-015 — shared TV baseline — <b>done</b></td><td>Platform</td><td>—</td></tr>
+<tr><td>ATV-001 — tvOS-specific stable rules (the residue the shared baseline leaves)</td><td>Platform</td><td>Gate A, and ATV-002's rule citations</td></tr>
+<tr><td>ATV-002 — cite the ATV-001 rules in the iOS lanes (baseline handling landed)</td><td>Platform</td><td>Gate A</td></tr>
+<tr><td>ANDROID-003 — Android-TV-specific stable rules, and citing them (baseline handling landed)</td><td>Platform</td><td>Gate A</td></tr>
 </table>
 <p class="note">ENG-004 (React lane delegation wording) is recorded in §6 and tracked in the
 deterministic suite. It is a convention divergence with no behavioural effect, and is the one

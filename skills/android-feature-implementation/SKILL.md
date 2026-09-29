@@ -82,6 +82,16 @@ formats survive.
 | Analytics & logging | `AND-LOG-ANALYTICS-*`, `AND-LOG-HYGIENE-*`, `AND-LOG-PII-*`, `SEC-LOG-*` |
 
 **Verification reach.** `standards/shared/verification.md` owns the tier vocabulary — do not restate it. Mechanical checks the repository already provides (lint, Compose UI tests, an accessibility scan if one is wired) are Tier 1 and gate the task. A TalkBack walkthrough, whether a label is meaningful, and whether an announcement is actually heard are Tier 3: record them as `verificationDebt`, never as passed checks. Do not assume any particular automation framework; if the repository has no mechanical accessibility check, record the requirement as debt rather than inventing a tool.
+## `device_type: tv`
+
+`device_type` is inherited context from the approved planning artifacts — never re-detect it and never default it. TV is a context inside the Android platform, not a separate platform: the same lane, rules and validation apply. On `tv`:
+
+- **Implement within the repository's own TV model**, which the planning artifacts carry from Project Knowledge or the planning lane's TV discovery. Never introduce a second focus model, TV component set or player, and never migrate to a different TV framework as a side effect.
+- **Meet the shared TV baseline** (`standards/shared/tv-baseline.md`, `TVB-*`) through that model — focus visible and never lost, directional order that follows the layout, focus contained in overlays and restored on return, no touch-only interaction, deterministic Back, one playback owner with complete teardown, state captured before suspension, large resources released on navigation — and cite the `TVB-*` rules applied.
+- **Never silently apply touch or mobile assumptions** — touch targets, tap/swipe gestures and soft-keyboard flows do not transfer to a D-pad/remote model. The shared accessibility rules apply through their TV clauses.
+- **No Android TV `AND-*` rule is authored yet** (`ANDROID-003`) — cite none.
+- **Verification reach.** Focus traversal, D-pad input and screen-reader behaviour are largely not provable headlessly: state what was verified at which tier and record the rest as verification debt, per `standards/shared/verification.md`.
+
 ## Validation tooling
 
 The shared skill owns the validation *rules* — never claim an unrun command passed,

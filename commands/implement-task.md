@@ -137,8 +137,10 @@ skip accessibility, or record it not applicable, merely because `device_type` is
 
 When the flow applies, the platform lane's accessibility rules apply alongside the shared
 ones: `AND-UI-A11Y-*` (Android), `RN-A11Y-*` (React Native), `IOS-UI-A11Y-*` (iOS). The
-shared standard states the requirement; the platform standard states how it is met. No
-stable TV-specific rules exist yet beyond the shared TV clauses and `REACT-TV-*`; cite none.
+shared standard states the requirement; the platform standard states how it is met. On
+TV this is exactly `TVB-A11Y-1` of the shared TV baseline (`standards/shared/tv-baseline.md`),
+which adds no separate accessibility model; beyond it, the shared TV clauses and `REACT-TV-*`,
+no stable TV accessibility rule exists — cite none.
 
 ## 6. Task state and dependency completeness (read the store, then decide)
 

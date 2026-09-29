@@ -183,6 +183,8 @@ Run this discovery pass **before** proposing anything, recording evidence for ea
 
 **Where the repository has no TV surface yet (greenfield), absence is a gap to fill, not an ambiguity to stop on.** `REACT-TV-FOCUS-2`, `REACT-TV-INPUT-1`/`-2`, `REACT-TV-UI-1`/`-2`/`-3`, and `REACT-TV-PERF-1` are all phrased against the repository's *existing* convention. When none exists, the focus model, key map, safe-area inset, and TV budget are **required feature-specific extensions proposed once at app level** as an explicit approval-gated decision — not per feature, and not a migration. Distinguish this from the failure case: a TV surface that exists but whose model **cannot be identified** is the stop-and-report condition in *Failure behavior*; a repository with **no** TV surface at all is this greenfield path.
 
+**The shared TV baseline applies through its React realisation.** `standards/shared/tv-baseline.md` (`TVB-*`) states the platform-neutral obligations; `standards/react/react-smart-tv.md` § *Relationship to the shared TV baseline* maps each one to the `REACT-TV-*` rules that realise it. Cite the `REACT-TV-*` rule; cite a `TVB-*` rule only for an obligation no `REACT-TV-*` rule covers.
+
 **TV planning rules:**
 
 - **Never propose migrating** to a different TV framework unless the feature explicitly requests it and it is approved.

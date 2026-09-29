@@ -186,7 +186,7 @@ for (const [lane, dims] of Object.entries(LANES)) {
     check(`TV ${rel}: stable TV rules are named as not yet authored, not as a blocker`, /stable[^.]{0,60}TV rules/i.test(s));
   }
   check("TV iOS lanes still never cite an unauthored TV rule ID",
-    /Never cite a TV ID/.test(read("skills/ios-dev-planning/SKILL.md")) && /never cite a TV/i.test(read("skills/ios-feature-implementation/SKILL.md")));
+    /Never cite a tvOS TV ID/.test(read("skills/ios-dev-planning/SKILL.md")) && /never cite a tvOS TV/i.test(read("skills/ios-feature-implementation/SKILL.md")));
   check("TV android-code-review still never files against a nonexistent TV rule",
     /Never file a TV finding against a rule that does not exist/.test(read("skills/android-code-review/SKILL.md")));
   for (const rel of ["skills/ios-code-review/SKILL.md", "skills/android-code-review/SKILL.md"]) {
