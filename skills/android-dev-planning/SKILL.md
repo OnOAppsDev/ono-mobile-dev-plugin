@@ -27,7 +27,13 @@ never a default. What the repository already does is the source of truth.
 
 ## 3. Repository evidence collection
 
-Inspect the actual codebase before proposing anything. **Detect — do not assume.** `repo-analyst` supplies only lightweight Android existence checks, so this sweep is this skill's own responsibility, not something to delegate.
+**Project Knowledge first; this checklist is the fallback.** Resolve repository knowledge through `skills/platform-planning/SKILL.md` §3 before inspecting anything, then treat each dimension below by its knowledge state:
+
+- **trusted** — cite it (`[reused: <path>#<anchor>]`) and use it; do not re-inspect it.
+- **verifyOnUse** — the source changed after the knowledge was generated: verify only the facts this feature relies on against current source, and cite the current source.
+- **deriveLive**, or knowledge absent or unavailable — inspect that dimension live, using this checklist.
+
+Feature-specific detail no repository-wide document holds — the signatures, state and call sites this feature actually touches — is always read live from source. Where current source contradicts Project Knowledge, the current source wins. **Detect — do not assume.** `repo-analyst` supplies only lightweight Android existence checks and no structural conformance verdict; structural conformance against `AND-*` is this lane's own analysis ([§4](#4-architecture-analysis-order)).
 
 Collect evidence for each dimension, recording the path that proves it:
 
@@ -190,7 +196,7 @@ Likewise, D-pad focus traversal, always-visible focus indication, and predictabl
 - **Identify gaps or risks in the existing model without redesigning it.** Naming a weakness is in scope; unilaterally re-architecting around it is not.
 - If the repository contains both mobile and TV surfaces, plan only for the confirmed `device_type`, and never assume the mobile surface's conventions apply to the TV one.
 
-This skill does **not** author TV standards or TV rules — that is a separate, later scope. Its TV responsibility is discovery and respect for the existing model.
+This skill does **not** author TV standards or TV rules. Repository-specific TV facts come from Project Knowledge, with the discovery pass above as the fallback; stable Android TV rules are not yet authored (`ANDROID-003`), so none is cited. Its TV responsibility is to establish the existing model and respect it.
 
 ## Standards citation
 

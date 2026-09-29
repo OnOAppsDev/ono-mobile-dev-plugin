@@ -88,7 +88,7 @@ When a repository has been inspected by [`ono-project-inspector`](https://github
 Two properties matter:
 
 - **It is optional.** A repository with no manifest is designed to behave exactly as it always has — full live detection, no prompt, no warning beyond one informational line. The reader and both commands' fallback path are covered by automated tests and a fixture check against a never-inspected repository; end-to-end confirmation via a live command run is tracked as a required manual verification step (see `CHANGELOG.md`). Most repositories start here.
-- **It never overrides a decision.** The manifest's `platformHints` is advisory corroboration only. Platform detection and the human confirmation gate run in full on every feature, and `device_type` is resolved live every time — the manifest carries no device information.
+- **It never overrides a decision.** The manifest's `platformHints` is advisory corroboration only. Platform detection and the human confirmation gate run in full on every feature, and `device_type` is resolved live every time. Project Knowledge may declare surfaces and their form factor; those can corroborate and, after the human confirms the context, scope the work, but they never supply the `device_type`.
 
 What is still derived live on every run, regardless of the manifest: platform detection, device type, folder-structure conformance against the platform's `ARCH-*` standards, per-diff file attribution, and any knowledge category the manifest reports as `unknown` — for example `structure`, whose coverage is `unknown` (not merely "populated because `CLAUDE.md` exists") unless `CLAUDE.md` carries all three of its `Repository Structure`, `Key Modules`, and `Entry Points` headings.
 
@@ -132,13 +132,15 @@ contract in [`docs/planning-doc-contract.md`](docs/planning-doc-contract.md), an
 per-lane TV handling in each platform's `*-dev-planning` skill (§14) and `*-code-review`
 skill.
 
-**Current TV coverage — routing and discovery exist; guidance does not.** `device_type`
-flows end to end, and the iOS and Android planning lanes each run a TV discovery pass
-that inspects the repository's actual focus handling, remote/D-pad input, navigation and
-TV component set. But **no tvOS or Android-TV rules exist in any standards document yet**,
-so those lanes can discover the existing implementation and avoid regressing it — they
-cannot cite TV guidance. Authoring that guidance is open work: `ATV-001`/`ATV-002` for
-Apple TV, `ANDROID-003` for Android TV, `REACT-003` for Smart TV.
+**Current TV coverage.** `device_type` flows end to end. Repository-specific TV facts —
+the focus model, remote/D-pad input, navigation, TV components, playback and packaging a
+repository actually uses — come from Project Knowledge, with each planning lane's TV
+discovery pass as the fallback. Smart TV has an authored standard
+(`standards/react/react-smart-tv.md`). **Stable tvOS and Android TV rules are not yet
+authored**, so those lanes plan and review against the repository's own model and the
+shared rules' TV clauses, and cite no TV rule ID. The open work is small stable rule sets
+plus implementation- and review-lane handling: `ATV-001`/`ATV-002` for Apple TV,
+`ANDROID-003` for Android TV.
 
 ## How shared vs. platform-specific context loads
 

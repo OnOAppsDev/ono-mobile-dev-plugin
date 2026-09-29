@@ -38,7 +38,13 @@ Supporting React Native TV would be a separate product and architecture decision
 
 ## 3. React Native repository evidence collection
 
-Inspect the actual codebase before proposing anything. `repo-analyst` supplies a neutral stack inventory and a folder-structure conformance check; it is a starting signal, **not** the evidence base for a design. This sweep is this lane's own responsibility.
+**Project Knowledge first; this checklist is the fallback.** Resolve repository knowledge through `skills/platform-planning/SKILL.md` §3 before inspecting anything, then treat each dimension below by its knowledge state:
+
+- **trusted** — cite it (`[reused: <path>#<anchor>]`) and use it; do not re-inspect it.
+- **verifyOnUse** — the source changed after the knowledge was generated: verify only the facts this feature relies on against current source, and cite the current source.
+- **deriveLive**, or knowledge absent or unavailable — inspect that dimension live, using this checklist.
+
+Feature-specific detail no repository-wide document holds — the signatures, state and call sites this feature actually touches — is always read live from source. Where current source contradicts Project Knowledge, the current source wins. **Detect — do not assume.** `repo-analyst` supplies a neutral stack inventory and the `ARCH-*` folder-structure conformance check; it is a starting signal, **not** the evidence base for a design.
 
 Collect evidence for each dimension, recording the path that proves it:
 

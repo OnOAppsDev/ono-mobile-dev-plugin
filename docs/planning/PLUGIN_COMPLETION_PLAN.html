@@ -147,8 +147,8 @@ demonstrated it right either.</p>
 <table>
 <tr><th>Platform</th><th><code>device_type: mobile</code></th><th><code>device_type: tv</code></th><th>End-to-end proven?</th></tr>
 <tr><td><code>react-native</code></td><td>Ready</td><td><b>Unsupported</b> — defined hard stop; RN + TV is a product decision that does not exist</td><td><span class="chip open">Unproven</span></td></tr>
-<tr><td><code>ios</code></td><td>Ready</td><td><b>Blocked</b> — no tvOS rules exist (ATV-001). Reserved roots <code>IOS-UI-TV-*</code> / <code>IOS-PERF-TV-*</code> carry no rules; no TV ID may be cited</td><td><span class="chip open">Unproven</span></td></tr>
-<tr><td><code>android</code></td><td>Ready</td><td><b>Blocked</b> — no Android TV rules exist (ANDROID-003)</td><td><span class="chip open">Unproven</span></td></tr>
+<tr><td><code>ios</code></td><td>Ready</td><td><b>Partial</b> — planning is complete (Project-Knowledge-first TV discovery) and the shared accessibility rules apply through their TV clauses; stable tvOS rules are not yet authored (ATV-001), so no TV ID may be cited, and the implementation and review lanes carry only minimal TV handling (ATV-002)</td><td><span class="chip open">Unproven</span></td></tr>
+<tr><td><code>android</code></td><td>Ready</td><td><b>Partial</b> — planning is complete (Project-Knowledge-first TV discovery) and the shared accessibility rules apply through their TV clauses; stable Android TV rules and the implementation- and review-lane TV handling remain (ANDROID-003)</td><td><span class="chip open">Unproven</span></td></tr>
 <tr><td><code>react</code></td><td>Ready</td><td>Ready — <code>react-smart-tv.md</code> is authored (54 <code>REACT-TV-*</code> rules)</td><td><span class="chip open">Unproven</span></td></tr>
 </table>
 <p class="note"><code>/review-security</code> is Ready on all four platforms and for both
@@ -212,40 +212,31 @@ optional. Only <span class="chip deferred">Deferred</span> is outside the comple
   <td>Noam Haba</td>
   <td>IOS-001 ✓, SHARED-001 ✓ — unblocked</td>
   <td>4 d</td>
-  <td>Add <b>stable tvOS platform rules</b> into the five <code>standards/ios/*</code> documents as
-      TV-context sections, covering all six subject areas:
-      <b>focus engine</b>; <b>Siri Remote / remote input</b>; <b>media playback</b>;
-      <b>Top Shelf and lifecycle</b>; <b>tvOS memory and performance</b>;
-      <b>tvOS signing and release</b>.
-      The reserved roots <code>IOS-UI-TV-*</code> and <code>IOS-PERF-TV-*</code> are where those
-      rules land; a bare <code>IOS-TV-*</code> root is not permitted. Until this ships the iOS
-      lane's TV responsibility is discovery and non-regression only, and <b>no TV ID may be
-      cited</b>.
-      <b>Rescoped by Stage B:</b> repository-specific TV knowledge — which focus model, remote
-      handling, TV components, playback integration and packaging <i>a given repository</i> uses
-      — is Project Knowledge, produced by <code>ono-project-inspector</code> and consumed by the
-      lanes Project-Knowledge-first. It must not be written into these static standards; ATV-001
-      carries only rules that hold for every tvOS app.</td>
+  <td>Author the <b>stable tvOS rules only</b> — obligations that hold for every tvOS app, as
+      a small set under the reserved <code>IOS-UI-TV-*</code> / <code>IOS-PERF-TV-*</code> roots
+      (a bare <code>IOS-TV-*</code> root is not permitted), citing the shared accessibility
+      rules' TV clauses rather than restating them. <b>Out of scope:</b> repository-specific TV
+      facts — which focus model, remote handling, TV components, playback integration and
+      packaging a repository uses — which are Project Knowledge, produced by
+      <code>ono-project-inspector</code> and consumed Project-Knowledge-first; and volatile
+      platform facts (hardware generations, store requirements, SDK-version specifics), which
+      are verified against the target SDK rather than written down. Until this ships, no TV ID
+      may be cited.</td>
   <td><span class="chip open">Open</span></td>
 </tr>
 <tr>
   <td>ATV-002</td>
   <td>Platform lanes — iOS</td>
   <td>Noam Haba</td>
-  <td><b>ATV-001</b> — cannot start before the rules exist</td>
+  <td><b>ATV-001</b> — only the citing of rules waits on it</td>
   <td>4 d</td>
-  <td>Branch the three iOS <b>lanes</b> — <code>ios-dev-planning</code>,
-      <code>ios-feature-implementation</code>, <code>ios-code-review</code> — deeply on
-      <code>device_type</code>, so Apple TV work is planned, implemented and reviewed with
-      focus, remote-input, playback and lifecycle concerns and cites the ATV-001 rules.
-      <b>The work is lane-side only.</b> <code>feature-architect</code>,
-      <code>feature-implementer</code>, <code>code-reviewer</code> and
-      <code>performance-reviewer</code> stay platform-neutral and must not gain TV content;
-      so must the three shared methodologies. Exactly one lane still loads per invocation.
-      <b>Stage B:</b> <code>ios-dev-planning</code>'s TV discovery now reads the confirmed
-      surface's Project Knowledge first and discovers live only what it does not cover. The
-      remaining work is unchanged and still explicit: branch the three lanes on
-      <code>device_type</code> to apply and cite the ATV-001 rules at plan, implement and review.</td>
+  <td><b>Planning is complete:</b> <code>ios-dev-planning</code> carries the
+      <code>device_type: tv</code> branch, reads the confirmed surface's Project Knowledge first
+      and keeps live discovery as the fallback. <b>What remains is small:</b> a short TV section
+      in <code>ios-feature-implementation</code>, and <code>ios-code-review</code> §12 citing the
+      ATV-001 rules once they exist (it already corroborates TV scope from surface
+      attribution). The work stays lane-side; the shared agents and methodologies gain no TV
+      content, and exactly one lane still loads per invocation.</td>
   <td><span class="chip open">Open</span></td>
 </tr>
 <tr>
@@ -254,25 +245,14 @@ optional. Only <span class="chip deferred">Deferred</span> is outside the comple
   <td>Guy Gur Arie</td>
   <td>ANDROID-001 ✓, ANDROID-002 ✓, SHARED-001 ✓ — unblocked</td>
   <td>4 d</td>
-  <td>Add Android TV knowledge via the <code>device_type</code> context, to the
-      <code>AND-*</code> standards and the three Android lanes.
-      <b>Discovery first.</b> An Android TV application may use any implementation model, so
-      the planning lane must <b>inspect the real repository and identify the actual
-      implementation before making any architectural or planning decision</b> — standard
-      Android TV frameworks, a custom framework, or a repository-specific solution are all
-      possible findings, never defaults. Discovery covers focus handling, D-pad/remote input,
-      navigation abstractions, TV UI components, playback integration, screen lifecycle, and
-      reusable base classes or framework modules.
-      <b>Repository conventions are the source of truth; Android platform documentation is
-      guidance only and never overrides an existing repository implementation.</b>
-      <b>Rescoped by Stage B:</b> the discovery half is delivered — <code>android-dev-planning</code>'s
-      TV pass reads the confirmed surface's Project Knowledge first (its <i>Input and
-      Interaction</i>, <i>Media and Playback</i>, <i>App Lifecycle and State</i> overrides,
-      surface-scoped inventory and packaging), verifies it when stale, and discovers live only
+  <td><b>Discovery is complete:</b> <code>android-dev-planning</code>'s TV pass reads the
+      confirmed surface's Project Knowledge first, verifies it when stale, and discovers live only
       what it does not cover. Repository-specific TV facts belong to Project Knowledge, never to
-      <code>AND-*</code>. What remains: <b>stable Android TV platform rules</b> in the
-      <code>AND-*</code> standards, and TV branches in the implementation and review lanes that
-      cite them.</td>
+      <code>AND-*</code>. <b>What remains:</b> a small set of <b>stable Android TV rules</b> in
+      the <code>AND-*</code> standards, a TV section in <code>android-feature-implementation</code>
+      (which has none today), and <code>android-code-review</code> §12 citing those rules. No
+      framework prescriptions (Leanback, Compose for TV) and no SDK-level specifics; repository
+      conventions remain the source of truth.</td>
   <td><span class="chip open">Open</span></td>
 </tr>
 <tr>
@@ -297,8 +277,14 @@ optional. Only <span class="chip deferred">Deferred</span> is outside the comple
   <td>Cross-platform standards defect: the skill reaches standards outside the resolved lane.
       It is the one entry in <code>context-isolation-contract</code>'s allowlist marked
       <code>kind: "defect"</code> — recorded so it is never mistaken for an endorsed exception.
-      Fix the reach, then remove the allowlist entry and tighten the assertion to two.</td>
-  <td><span class="chip known">Known</span></td>
+      Fix the reach, then remove the allowlist entry and tighten the assertion to two.
+      <b>Fixed by the Project Knowledge ownership cleanup:</b> React Native's
+      <code>ARCH-*</code> conformance now runs only when the confirmed platform is
+      <code>react-native</code>; iOS, Android and React report it <code>N/A</code> and are
+      judged structurally by their own planning lane. The allowlist entry is removed and the
+      defect count is pinned at zero (<code>project-knowledge-ownership</code>,
+      <code>context-isolation-contract</code>).</td>
+  <td><span class="chip done">Done</span></td>
 </tr>
 <tr>
   <td>ENG-002</td><td>Orchestration — Project Knowledge reuse</td><td>Plugin Owner</td><td>—</td>
@@ -386,15 +372,15 @@ reclassifies it. All ten:</p>
 <table>
 <tr><th>Item</th><th>Kind</th><th>Blocks</th></tr>
 <tr><td>QA-001 — QA plugin global git-block hook</td><td>Cross-plugin defect</td><td>Gate A</td></tr>
-<tr><td>ENG-001 — <code>mobile-repo-analysis</code> cross-platform defect</td><td>Defect</td><td>Gate A</td></tr>
+<tr><td>ENG-001 — <code>mobile-repo-analysis</code> cross-platform defect — <b>fixed</b></td><td>Defect</td><td>—</td></tr>
 <tr><td>ENG-002 — Project Knowledge reuse gap — <b>closed by Stage B</b></td><td>Gap</td><td>—</td></tr>
 <tr><td>ENG-003 — partially-applied task behaviour</td><td>Methodology gap</td><td>Gate A</td></tr>
 <tr><td>ENG-005 — live A/B validation for React Native, iOS and React</td><td>Evidence</td><td>Gate A</td></tr>
 <tr><td>ENG-006 — <code>dd-complexity-assessment</code>: integrate or remove</td><td>Decision</td><td>Gate A, and explicitly Gate C</td></tr>
 <tr><td>QA-002 — QA handoff discovery bug in <code>/check-qa-coverage</code></td><td>Cross-plugin defect</td><td>Gate A</td></tr>
-<tr><td>ATV-001 — stable tvOS platform rules, all six subject areas</td><td>Platform</td><td>Gate A, and ATV-002</td></tr>
-<tr><td>ATV-002 — iOS lanes branch on <code>device_type</code></td><td>Platform</td><td>Gate A</td></tr>
-<tr><td>ANDROID-003 — Android TV platform rules and lane branches (discovery delivered by Stage B)</td><td>Platform</td><td>Gate A</td></tr>
+<tr><td>ATV-001 — stable tvOS rules (repository TV facts are Project Knowledge)</td><td>Platform</td><td>Gate A, and ATV-002's rule citations</td></tr>
+<tr><td>ATV-002 — iOS implementation and review TV handling (planning complete)</td><td>Platform</td><td>Gate A</td></tr>
+<tr><td>ANDROID-003 — stable Android TV rules, implementation and review TV handling (discovery complete)</td><td>Platform</td><td>Gate A</td></tr>
 </table>
 <p class="note">ENG-004 (React lane delegation wording) is recorded in §6 and tracked in the
 deterministic suite. It is a convention divergence with no behavioural effect, and is the one

@@ -106,31 +106,39 @@ Hard stop only when the reconciliation cannot proceed deterministically — the 
 
 ## 5b. Accessibility applicability (decide once, from the confirmed context)
 
-Decide here whether the mobile accessibility flow applies to this task, and carry the
+Decide here whether the accessibility flow applies to this task, and carry the
 decision into steps 8 and 10. On a **resumed** run, the decision is already recorded in the
 run's `context` — re-read it from the resume verdict; never decide it a second time. `device_type` was resolved in step 5 — **never re-detect it
-here, and never default it.**
+here, and never default it.** The same decision applies to both device types: the shared
+accessibility standard covers any screen, and its rules state their own TV clauses. **Never
+skip accessibility, or record it not applicable, merely because `device_type` is `tv`.**
 
-- **`device_type: tv` → skip this flow, explicitly.** Record `applicable: false` with a
-  reason naming `device_type: tv`. Cite **no** `A11Y-*` rules: the shared accessibility
-  standard is a mobile standard, and applying it to a TV surface asserts requirements
-  (touch targets, mobile screen-reader gestures) that do not hold there. Do **not** cite
-  `REACT-TV-*` in the accessibility block either — TV accessibility belongs to the TV
-  workstreams and is out of scope here. A silent skip is the failure mode this rule exists
-  to prevent: the skip must appear in the record.
-- **`device_type: mobile` → the flow applies whenever the task touches an
-  accessibility-relevant surface.** That is broader than "renders a screen". It includes
-  shared UI primitives, design tokens, theming, navigation and focus infrastructure, list
-  and collection containers, and any component other screens compose. A task that changes
-  a primitive every screen uses is accessibility-relevant even though it renders nothing
-  by itself. **Do not equate "non-UI" with "not applicable" by reflex** — ask whether the
-  change can alter what assistive technology perceives anywhere downstream.
+- **The flow applies whenever the task touches an accessibility-relevant surface.** That is
+  broader than "renders a screen". It includes shared UI primitives, design tokens,
+  theming, navigation and focus infrastructure, list and collection containers, and any
+  component other screens compose. A task that changes a primitive every screen uses is
+  accessibility-relevant even though it renders nothing by itself. **Do not equate
+  "non-UI" with "not applicable" by reflex** — ask whether the change can alter what
+  assistive technology perceives anywhere downstream.
+- **`device_type: tv` → the flow applies, through each rule's TV clause.** Apply the
+  shared `A11Y-*` rules as their TV clauses state them — `A11Y-TOUCH-1` and
+  `A11Y-TOUCH-2` require a reliably focusable element with a clearly visible focus state and
+  enough separation for D-pad movement, not a touch-target size — and keep the focus-driven
+  rules (`A11Y-FOCUS-*`) fully applicable: they matter more on a focus-driven surface, not
+  less. A rule whose mechanism is touch-only and which states no TV clause is not cited as
+  met on a TV surface. For React Smart TV, cite the applicable `REACT-TV-*` rules alongside
+  the shared ones. Verification with the TV platform's own screen reader has no headless
+  mechanism: record it as Tier 3 `verificationDebt` with `owner: "qa"`, exactly as for a
+  mobile screen reader.
 - **Genuinely not accessibility-relevant** (a build script, a networking helper, a pure
-  data transform) → `applicable: false` with a reason saying so. Never omit the block.
+  data transform) → `applicable: false` with a reason saying so, on either device type.
+  Never omit the block. A silent skip is the failure mode this rule exists to prevent: the
+  decision must appear in the record.
 
 When the flow applies, the platform lane's accessibility rules apply alongside the shared
 ones: `AND-UI-A11Y-*` (Android), `RN-A11Y-*` (React Native), `IOS-UI-A11Y-*` (iOS). The
-shared standard states the requirement; the platform standard states how it is met.
+shared standard states the requirement; the platform standard states how it is met. No
+stable TV-specific rules exist yet beyond the shared TV clauses and `REACT-TV-*`; cite none.
 
 ## 6. Task state and dependency completeness (read the store, then decide)
 

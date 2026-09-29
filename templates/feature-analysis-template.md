@@ -44,7 +44,7 @@ Required sections, always present even when the answer is "not detected":
 - Platform Detection — raw signals, candidate platform(s), confidence. ALWAYS derived live, so always embedded.
 - Device Type — resolved mobile|tv and confidence. ALWAYS derived live, so always embedded.
 - Stack Detection — Navigation, State Management, Data Fetching, Testing, Monorepo/Workspace, Lint/Format (react-native), or the lightweight existence-check findings (ios/android/react). Tag EVERY entry either `[reused: docs/project/patterns.md#anchor]` or `[derived live]`.
-- Standards Conformance — folder structure vs the platform's ARCH-* expectations. ALWAYS derived live, so always embedded.
+- Standards Conformance — react-native only: folder structure vs React Native's ARCH-* expectations, ALWAYS derived live, so always embedded. For ios/android/react write "N/A — assessed by the <platform> planning lane".
 -->
 ## Repo Context
 
