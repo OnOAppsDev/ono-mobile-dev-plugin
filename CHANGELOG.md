@@ -26,6 +26,7 @@ independent adversarial review and the fixes it produced.
 
 ### Added
 
+- **QA readiness release gate** (Stage 7 of the QA lifecycle). `/prepare-mobile-release` now takes its QA evidence from QA-owned readiness artifacts — ono-plugin-qa's `readiness/<kind>/<id>.md`, whose contract is vendored verbatim as `docs/qa-readiness-contract.md` (sha-pinned to ono-plugin-qa `aab471e`) — instead of treating the Dev QA handoff as QA sign-off. `scripts/qa-release-gate.ts` is the one reader: it refuses a malformed artifact, requires a valid sign-off matching the artifact's fingerprint and a `READY` / `READY_WITH_EXCEPTIONS` verdict, and requires every release item — features by canonical Dev feature id, bug fixes by exact QA bug id — to be covered by exactly one artifact; bug-fix-only and mixed releases are first-class. `READY_WITH_EXCEPTIONS` passes with every exception and known issue surfaced for a human decision; a known release build is compared with QA's candidate build; QA's Release Notes Input is filtered to the release's contents and stays input only. `REL-QA-1` is rewritten and `REL-QA-2` … `REL-QA-5` added; the checklist's "QA Sign-off" section is now "QA Readiness (QA-owned)". Tests: `scripts/qa-release-gate.test.ts`, including in-file mutation tests of every gate rule.
 - `standards/react/react-smart-tv.md` (REACT-003) — the standalone React Smart TV
   standard, a seventh React standards document. **54 rules** across
   `REACT-TV-FOCUS-1..8`, `REACT-TV-INPUT-1..8`, `REACT-TV-UI-1..7`,

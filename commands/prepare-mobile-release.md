@@ -1,6 +1,6 @@
 ---
 description: Validate that a release is ready to ship, across whichever platform(s) are shipping.
-argument-hint: [version]
+argument-hint: [version] [--feature=<dev-feature-id>]… [--bug=<qa-bug-id>]… [--qa-readiness=<path>]… [--release-build=<surface>=<qa-build-id>]…
 ---
 
 Validate that the app is ready to ship version `$ARGUMENTS`.
@@ -11,7 +11,13 @@ Validate that the app is ready to ship version `$ARGUMENTS`.
 4. For perf sign-off, invoke the `performance-reviewer` agent once per shipping platform — applying the shared `platform-review` methodology against that platform's review lane (`rn-code-review` / `ios-code-review` / `android-code-review` / `react-code-review`), exactly one lane per invocation — and populate one platform-tagged sign-off block per shipping platform.
 
    - **Readiness gate (any platform).** Before invoking, check the **resolved platform review lane** for the placeholder marker — a frontmatter `description` ending "not yet authored, currently a structure-only placeholder" **and** a `## Status: Not yet authored` heading. Match on those markers only, never on the phrase appearing in ordinary prose (an authored skill may legitimately mention "structure-only placeholder" when telling an agent to stop if a *standards* file is one). If present, **do not abort the release check and do not route to the placeholder.** Sign off every authored shipping platform in full, and write that platform's block as an explicit **unverifiable** item naming the platform and the reason — which the final rule below then treats as a no-go for a human to decide, exactly as any other unverifiable item. An excluded lane is a **declared gap, never a silent pass**, and this exclusion is intended behavior rather than a routing failure. (When a lane is later authored and the marker is gone, the route opens automatically.) **No lane is gated today** — `react-native`, `ios`, `android` and `react` are all authored. The gate is retained because it is the invariant, not a note about any one platform: a lane added or reverted to placeholder state is caught here automatically, with no edit to this command.
-5. Walk and populate `templates/release-checklist-template.md` in full, including the platform-specific release-validation section.
-6. Produce a final go/no-go verdict.
+5. **QA readiness gate** (`REL-QA-1` … `REL-QA-5`). QA evidence is QA-owned readiness (`docs/qa-readiness-contract.md`), not the Dev QA handoff — the handoff is Dev → QA input and is never QA sign-off.
+   - Resolve the **release contents** explicitly: every feature by its canonical Dev feature id (the Task Breakdown's `feature`) and every bug fix by its QA bug id (`--feature` / `--bug`). If they aren't given, ask the human — never infer them from branch names or commit messages. A bug-fix-only release lists only `--bug`; it needs no feature, handoff or test plan.
+   - Resolve the **QA readiness artifact(s)** (`--qa-readiness=<path>`, repeatable — one `readiness/<kind>/<id>.md` per feature or bug scope). If paths are missing, ask the human for them; never search sibling folders or guess a location.
+   - Optionally the release build per surface as QA names it (`--release-build=<surface>=<qa-build-id>`), so QA's candidate builds can be compared.
+   - Run `node --no-warnings "${CLAUDE_PLUGIN_ROOT}/scripts/qa-release-gate.ts" --readiness <path>… --feature <id>… --bug <id>… [--release-build <surface>=<build>]…` and read its JSON. `no_go` → a blocking gap listing every `blockers[]` entry; `pass_with_exceptions` → passes, but every exception and known issue goes into the checklist and the final Go stays a human decision; `pass` → the QA gate is met. `build_consistency: unverified` is surfaced as an unverifiable item. Put `qa_section_markdown` into the checklist's QA Readiness (QA-owned) section verbatim.
+   - QA's `release_notes_input` feeds the changelog (`REL-VERSION-2`) as input only — the release's own contents, version and notes stay authoritative, and anything QA lists outside the contents is left out.
+6. Walk and populate `templates/release-checklist-template.md` in full, including the platform-specific release-validation section.
+7. Produce a final go/no-go verdict.
 
 An incomplete or unverifiable checklist item is a no-go by default — surface it to the human for a decision rather than waiving it yourself.

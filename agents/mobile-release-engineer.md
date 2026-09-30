@@ -14,7 +14,8 @@ description: Validates release readiness (versioning, native/platform config, en
 - `templates/release-checklist-template.md`.
 - The `mobile-release-readiness` skill and `standards/shared/release-readiness.md`.
 - Perf sign-off from `performance-reviewer`, run once per shipping platform against that platform's review lane.
-- Completed `qa-handoff-template.md` documents for the features going into this release.
+- The release contents — features (canonical Dev feature ids) and bug fixes (QA bug ids) — and the QA-owned readiness artifact(s) covering them (`readiness/<kind>/<id>.md`, `docs/qa-readiness-contract.md`), both supplied explicitly by the command.
+- The output of `scripts/qa-release-gate.ts` over those artifacts. (The Dev QA handoff is Dev → QA input; it is not a release input and never QA sign-off.)
 
 ## Process
 
@@ -22,7 +23,7 @@ description: Validates release readiness (versioning, native/platform config, en
 2. Run the `mobile-release-readiness` skill methodology, section by section against `release-checklist-template.md`, citing `standards/shared/release-readiness.md`'s `REL-*` IDs.
 3. Add platform-specific release validation for each shipping platform (RN: JS bundle/native build/Expo-EAS/store readiness; iOS: Xcode scheme/signing/provisioning/TestFlight via `standards/ios/xcode-build-signing.md`; Android: Gradle variant/signing/Play Console via `standards/android/gradle-build-signing.md`; React web: production build artifact + deploy target, no store-readiness section).
 4. Pull perf sign-off from each shipping platform's performance-reviewer agent into a platform-tagged Perf Sign-off subsection.
-5. Pull QA sign-off from the relevant `qa-handoff-template.md` documents into the QA Sign-off section.
+5. Put the QA gate result (`qa-release-gate.ts`, per `REL-QA-1` … `REL-QA-5`) into the QA Readiness (QA-owned) section — its `qa_section_markdown` verbatim. `no_go` is a blocking gap; `pass_with_exceptions` lists every exception and known issue for a human decision; an unverified build is surfaced, never assumed.
 6. Populate every section of the checklist, including a concrete Rollback Plan.
 7. Produce a final Go / No-Go verdict.
 

@@ -27,9 +27,13 @@ These standards apply to any mobile-division release validated via `/prepare-mob
 
 - `REL-PERF-1` A performance sign-off (bundle size delta, re-renders, virtualization, main-thread/JS-thread blocking, images — per whichever platform's performance standards apply) is pulled from the relevant platform performance-reviewer agent(s) for changes going into this release.
 
-## QA Sign-off
+## QA Readiness (QA-owned)
 
-- `REL-QA-1` A completed `qa-handoff-template.md` exists for every feature going into this release; a feature without QA handoff notes is a blocker.
+- `REL-QA-1` QA readiness — not the Dev QA handoff — is the release's QA evidence. Every release item, each feature by its canonical Dev feature id and each bug fix by its QA bug id, is covered by exactly one QA-owned readiness artifact (`readiness/<kind>/<id>.md` from ono-plugin-qa, per `docs/qa-readiness-contract.md`), supplied explicitly and evaluated by `scripts/qa-release-gate.ts`. Missing, malformed, uncovered or doubly-claimed coverage is a blocker; identities are matched exactly, never by similar names.
+- `REL-QA-2` The covering readiness is signed and current — `signoff_status: valid` with a sign-off fingerprint equal to the artifact's fingerprint — and its verdict is `READY` or `READY_WITH_EXCEPTIONS`. `NOT_READY`, unsigned or stale readiness is a blocker.
+- `REL-QA-3` `READY_WITH_EXCEPTIONS` passes the QA gate but is never treated as `READY`: every exception and known issue is listed in the checklist, and shipping with them remains a human decision.
+- `REL-QA-4` QA evidence proves only the build it was run on. When the release build per surface is known, it must equal QA's candidate build — a mismatch is a blocker; an unknown release build is surfaced as unverified (`REL-VERDICT-1`).
+- `REL-QA-5` The Dev QA handoff (`qa-handoff-template.md`) is Dev → QA input and never QA sign-off. A bug-fix-only release needs no feature, handoff or test plan — only the bug scopes' QA readiness. QA's Release Notes Input is input only: the release's own contents, version and notes stay authoritative.
 
 ## Rollback Plan
 
