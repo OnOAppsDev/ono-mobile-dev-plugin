@@ -27,9 +27,15 @@ These standards apply to any mobile-division release validated via `/prepare-mob
 
 - `REL-PERF-1` A performance sign-off (bundle size delta, re-renders, virtualization, main-thread/JS-thread blocking, images — per whichever platform's performance standards apply) is pulled from the relevant platform performance-reviewer agent(s) for changes going into this release.
 
-## QA Sign-off
+## QA Readiness (QA-owned)
 
-- `REL-QA-1` A completed `qa-handoff-template.md` exists for every feature going into this release; a feature without QA handoff notes is a blocker.
+- `REL-QA-1` QA readiness — not the Dev QA handoff — is the release's QA evidence. Every release item, each feature by its canonical Dev feature id and each bug fix by its QA bug id and/or external ref (`REL-QA-7`), is covered by exactly one QA-owned readiness artifact (`readiness/<kind>/<id>.md` from ono-plugin-qa, per `docs/qa-readiness-contract.md`) — a feature or bug scope's own, or a `release:` scope's artifact through its Members — supplied explicitly and evaluated by `scripts/qa-release-gate.ts`. Missing, malformed, uncovered or doubly-claimed coverage is a blocker; identities are matched exactly, never by similar names.
+- `REL-QA-2` The covering readiness is signed and current — `signoff_status: valid` with a sign-off fingerprint equal to the artifact's fingerprint — and its verdict is `READY` or `READY_WITH_EXCEPTIONS`. `NOT_READY`, unsigned or stale readiness is a blocker.
+- `REL-QA-3` `READY_WITH_EXCEPTIONS` passes the QA gate but is never treated as `READY`: every exception and known issue is listed in the checklist, and shipping with them remains a human decision.
+- `REL-QA-4` QA evidence proves only the build it was run on. When the release build per surface is known, it must equal QA's candidate build — a mismatch is a blocker; an unknown release build is surfaced as unverified (`REL-VERDICT-1`).
+- `REL-QA-5` The Dev QA handoff (`qa-handoff-template.md`) is Dev → QA input and never QA sign-off. A bug-fix-only release needs no feature, handoff or test plan — only the bug scopes' QA readiness. QA's Release Notes Input is input only: the release's own contents, version and notes stay authoritative.
+- `REL-QA-6` The covering readiness is untampered and fresh — two separate checks that both must pass. First, integrity: its `artifact_integrity` equals the sha256 recomputed over the artifact's own content (every line but that field, line endings normalized); any mismatch means the Markdown was edited after QA rendered it — a blocker, and none of its content is trusted. Then freshness: its `freshness_token` equals the token recomputed from the QA ledger of the repository the artifact lives in (`<qa-repo>/readiness/<kind>/<id>.md` → `<qa-repo>/qa-ledger/`), with every ledger record's hash re-verified. A different token (the ledger changed after rendering) is a blocker until QA re-renders and re-signs; a missing or corrupt ledger, or an artifact outside that layout, cannot prove freshness and is a blocker too. Freshness is never judged from timestamps.
+- `REL-QA-7` A bug-fix item names a QA bug id, an external ref, or both — neither is invalid, and neither Jira nor a QA id is required. With both, they must identify the same bug; a match on only one of them is a mismatch. An identity that matches more than one QA bug is ambiguous and a blocker, never resolved by choosing one. A `release:` readiness artifact covers the release only when its members are exactly the release's items.
 
 ## Rollback Plan
 
