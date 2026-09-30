@@ -17,6 +17,7 @@ signed_off_by: null
 signed_off_date: null
 signoff_fingerprint: null
 signoff_status: none
+artifact_integrity: sha256:c08ba4da3d04f41ac64d276e7546618c4c2827709ed61854c3c6fa8e57532d4f
 ---
 
 # QA Readiness — bug:BUG-28

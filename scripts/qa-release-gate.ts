@@ -13,6 +13,10 @@
  * sibling folders — and it never infers or repairs a missing field: an artifact that
  * does not match the contract is refused as malformed.
  *
+ * Integrity: every artifact carries artifact_integrity, sha256 over its own rendered bytes
+ * without that line. The gate recomputes it FIRST, before trusting any content; a mismatch
+ * means the Markdown was edited after QA rendered it (QA_ARTIFACT_TAMPERED → No-Go).
+ *
  * Freshness: every artifact carries the QA ledger freshness token it was rendered from.
  * The gate recomputes that token from the ledger of the QA repository the artifact lives
  * in (`<qa-repo>/readiness/<kind>/<id>.md` → `<qa-repo>/qa-ledger/`, nothing else), with
@@ -50,7 +54,7 @@ const SCOPE_RE = /^(feature|bug|release):([A-Za-z0-9][A-Za-z0-9._-]*)$/;
 const PLAN_PATH_RE = /^[A-Za-z0-9._-]+(\/[A-Za-z0-9._-]+)*$/;
 const LIMITATIONS = [
   "Identity is exact and case-sensitive: a bug matches by its QA bug id, its external_ref, or both (both must then name the same bug); nothing is matched fuzzily.",
-  "Freshness proves the QA ledger inputs are unchanged since the artifact was rendered; the verdict itself is QA's derivation and is not recomputed here.",
+  "Integrity proves the artifact is byte-for-byte what the QA helper rendered and freshness proves the QA ledger is unchanged since; the verdict itself is QA's derivation and is not recomputed here, and who rendered it is proven by the QA repository's history, not by a key.",
 ];
 
 export interface Member {
@@ -214,6 +218,24 @@ export function verifyFreshness(qaRoot: string | null, scope: string, recorded: 
   }
 }
 
+/**
+ * Contract "Artifact integrity": LF-normalize, require exactly one frontmatter line
+ * `artifact_integrity: sha256:<64 hex>`, remove it, sha256 the remaining bytes.
+ */
+export function artifactIntegrity(text: string): { stored: string | null; computed: string | null; problem: string | null } {
+  const t = text.replace(/\r\n/g, "\n");
+  const end = t.indexOf("\n---\n", 4);
+  if (!t.startsWith("---\n") || end < 0) return { stored: null, computed: null, problem: "no delimited frontmatter (the artifact must open with --- and close it with ---)" };
+  const lines = t.slice(4, end).split("\n");
+  const at = lines.flatMap((l, i) => (l.startsWith("artifact_integrity:") ? [i] : []));
+  if (at.length !== 1) return { stored: null, computed: null, problem: at.length ? "artifact_integrity appears more than once" : "artifact_integrity is missing — the artifact cannot prove it is unedited (ask QA to re-render with /qa-readiness)" };
+  const stored = /^artifact_integrity: (sha256:[0-9a-f]{64})$/.exec(lines[at[0]])?.[1] ?? null;
+  if (!stored) return { stored: null, computed: null, problem: "artifact_integrity is not sha256:<64 hex>" };
+  const rest = [...lines.slice(0, at[0]), ...lines.slice(at[0] + 1)];
+  const computed = sha(`---\n${rest.join("\n")}${t.slice(end)}`); // invariant:integrity-excludes-own-line
+  return { stored, computed, problem: null };
+}
+
 /** `<qa-repo>/readiness/<kind>/<id>.md` → `<qa-repo>`, else null. Never looks anywhere else. */
 export function qaRootOf(artifactPath: string, scope: string): string | null {
   const m = SCOPE_RE.exec(scope);
@@ -239,6 +261,14 @@ function tableRows(section: string): string[][] {
 export function parseQaReadiness(text: string, source: string, opts: { qaRoot?: string | null } = {}): Artifact | Failed {
   const problems: string[] = [];
   const bad = (): Failed => ({ ok: false, source, code: "QA_READINESS_MALFORMED", problems });
+  // Integrity first: nothing in an artifact is read until its bytes are proven unedited.
+  const integrity = artifactIntegrity(text);
+  if (integrity.problem) {
+    problems.push(integrity.problem);
+    return bad();
+  }
+  if (integrity.computed !== integrity.stored) return { ok: false, source, code: "QA_ARTIFACT_TAMPERED", problems: [`artifact_integrity ${integrity.stored} does not match its content (${integrity.computed}) — the artifact was edited after QA rendered it`] }; // invariant:integrity-compare
+  text = text.replace(/\r\n/g, "\n");
   if (!text.startsWith("---\n")) {
     problems.push("no delimited frontmatter (the artifact must open with ---)");
     return bad();
@@ -443,7 +473,8 @@ export function evaluateQaGate(input: GateInput): Record<string, any> {
   if (!artifacts.length) block("QA_READINESS_MISSING", "no QA readiness artifact was supplied — ask QA for readiness/<kind>/<id>.md of every release item");
   if (!input.features.length && !input.bugs.length) block("RELEASE_CONTENTS_REQUIRED", "the release contents (features and bug fixes) were not given — they decide what QA readiness must cover");
   for (const f of failed.filter((x) => x.code === "QA_READINESS_MISSING")) block("QA_READINESS_MISSING", f.problems.join("; "), { source: f.source });
-  for (const f of failed.filter((x) => x.code !== "QA_READINESS_MISSING")) block("QA_READINESS_MALFORMED", `${f.source}: ${f.problems.join("; ")}`, { source: f.source }); // invariant:malformed-blocks
+  for (const f of failed.filter((x) => x.code === "QA_ARTIFACT_TAMPERED")) block("QA_ARTIFACT_TAMPERED", `${f.source}: ${f.problems.join("; ")} — never trusted; QA must re-render it`, { source: f.source }); // invariant:tampered-blocks
+  for (const f of failed.filter((x) => x.code !== "QA_READINESS_MISSING" && x.code !== "QA_ARTIFACT_TAMPERED")) block("QA_READINESS_MALFORMED", `${f.source}: ${f.problems.join("; ")}`, { source: f.source }); // invariant:malformed-blocks
 
   // Coverage: exact identity only. A feature matches its canonical Dev identity; only a
   // unit with no Dev identity may match by its exact QA scope id. A bug matches by its QA
@@ -581,7 +612,7 @@ export function renderQaSection(r: Record<string, any>): string {
   return [
     `**QA gate: ${label[r.status]}** (REL-QA-1 … REL-QA-7)`,
     "**QA readiness artifacts**",
-    table(["Artifact", "Scope", "Verdict", "Sign-off", "Freshness", "Signed off by", "Signed off", "Candidate builds", "Tested builds"], r.artifacts.map((a: any) => (a.error ? [a.source, "—", `malformed/missing: ${a.problems.join("; ")}`, "—", "—", "—", "—", "—", "—"] : [a.source, a.members.length ? `${a.scope} (${a.members.join(", ")})` : a.scope, a.verdict, a.signoff_status, a.freshness, a.signed_off_by, a.signed_off_date, a.candidate_builds.map((c: any) => `${c.surface}: ${c.build_id ?? "none"}${c.pinned ? " (pinned)" : ""}`).join(", "), a.tested_builds.join(", ")]))),
+    table(["Artifact", "Scope", "Verdict", "Sign-off", "Freshness", "Signed off by", "Signed off", "Candidate builds", "Tested builds"], r.artifacts.map((a: any) => (a.error ? [a.source, "—", `${a.error}: ${a.problems.join("; ")}`, "—", "—", "—", "—", "—", "—"] : [a.source, a.members.length ? `${a.scope} (${a.members.join(", ")})` : a.scope, a.verdict, a.signoff_status, a.freshness, a.signed_off_by, a.signed_off_date, a.candidate_builds.map((c: any) => `${c.surface}: ${c.build_id ?? "none"}${c.pinned ? " (pinned)" : ""}`).join(", "), a.tested_builds.join(", ")]))),
     "**Release contents covered**",
     table(["Item", "Covered by", "QA scope", "Matched by"], [...r.coverage.features, ...r.coverage.bugs].map((c: any) => [c.item, c.covered_by ?? "NOT COVERED", c.scope, c.matched_by])),
     `**Build consistency: ${r.build_consistency.status}**`,

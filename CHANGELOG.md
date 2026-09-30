@@ -32,6 +32,7 @@ independent adversarial review and the fixes it produced.
   - **Bug identity:** a bug item may name a QA bug id, an external ref or both (`--bug BUG-27` / `qa=` / `external=` / both). An item with neither is invalid, both must identify the same bug, and an ambiguous match fails.
   - **Freshness:** the gate recomputes each artifact's ledger freshness token from its own QA repository, re-verifying every record hash. An artifact rendered from an outdated ledger is No-Go (`QA_READINESS_OUTDATED`), and one whose ledger is missing or corrupt is No-Go too (`QA_FRESHNESS_UNVERIFIABLE`).
   - **Schema:** schema-1 artifacts carry no token and are refused.
+- **QA readiness artifact integrity.** The gate recomputes each artifact's `artifact_integrity` before trusting any content: sha256 over the rendered Markdown without that line, with CRLF normalized to LF. An edited artifact is No-Go (`QA_ARTIFACT_TAMPERED`), and an artifact without the field is refused as malformed. The check is separate from ledger freshness, and both must pass (`REL-QA-6`). The contract copy is re-vendored and re-pinned, and the fixture artifacts are re-rendered.
 - `standards/react/react-smart-tv.md` (REACT-003) — the standalone React Smart TV
   standard, a seventh React standards document. **54 rules** across
   `REACT-TV-FOCUS-1..8`, `REACT-TV-INPUT-1..8`, `REACT-TV-UI-1..7`,

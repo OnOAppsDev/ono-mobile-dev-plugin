@@ -1,6 +1,6 @@
 # QA Readiness Contract
 
-**Schema: `qa_readiness_schema: 2`** (schema 1 was Stage 6; schema 2 adds the release artifact, bug identity and the freshness token) · **Implemented in Stage 6** by `scripts/lib/qa-ledger/readiness.mjs`, through `scripts/qa-ledger.mjs readiness …` / `view readiness` / `view signoffs`, and the `/qa-readiness` and `/qa-signoff` commands.
+**Schema: `qa_readiness_schema: 2`** (schema 1 was Stage 6; schema 2 adds the release artifact, bug identity, the freshness token and artifact integrity) · **Implemented in Stage 6** by `scripts/lib/qa-ledger/readiness.mjs`, through `scripts/qa-ledger.mjs readiness …` / `view readiness` / `view signoffs`, and the `/qa-readiness` and `/qa-signoff` commands.
 
 QA readiness is a deterministic verdict for one scope: `feature:<id>`, `bug:<id>` or `release:<id>`. It's computed **only** from records already in the QA ledger (Stages 1–5), plus this stage's explicit pins, exceptions and debt discharges.
 - It never reads Project Knowledge, the Dev plugin, a release tool or an external tracker.
@@ -169,6 +169,29 @@ A consumer (for example, the Dev plugin release gate) that is given an artifact 
 
 A schema-1 artifact has no token and is unverifiable.
 
+A consumer therefore makes two separate checks, and both must pass:
+1. **Artifact integrity** first, before trusting any content. A mismatch means the artifact was **tampered**. A missing or duplicated field is malformed.
+2. **Ledger freshness**, only on an artifact whose integrity holds. The token may differ (outdated) or be unverifiable.
+
+A valid artifact from an older ledger fails freshness, not integrity. An edited artifact fails integrity, whatever the state of the ledger.
+
+## Artifact integrity
+
+The readiness artifact is a derived view and must be tamper-evident. `artifact_integrity` is **required** in every schema-2 artifact. It's the last frontmatter line, and the renderer computes it as follows:
+1. Render the complete artifact **without** the `artifact_integrity` line: every frontmatter field, every body section, and the final newline.
+2. `artifact_integrity = sha256:<hex>` of those UTF-8 bytes.
+3. Insert `artifact_integrity: <value>` as the last line before the closing `---`.
+
+A consumer verifies it this way:
+1. Replace every CRLF with LF. This is the only normalization, so line-ending conversion by git is harmless.
+2. Require exactly one frontmatter line starting `artifact_integrity:`, whose value is `sha256:<64 hex>`.
+3. Remove that line, including its line break.
+4. sha256 the remaining UTF-8 bytes.
+
+The hash must equal the stored value. Nothing else is excluded or normalized: any other edit to any byte changes it. That covers any frontmatter field, the verdict, candidate builds, members, blockers, exceptions, known issues, tested builds, QA notes, Release Notes Input, any section, and whitespace.
+
+It's deterministic, the same ledger renders the same bytes and the same hash, and it involves no timestamps and no keys. It proves the file is exactly what the QA helper rendered. It doesn't authenticate who rendered it: the QA repository's history does that.
+
 ## Readiness report
 
 `readiness render` (also run by `readiness signoff`) writes `<qa-repo>/readiness/<kind>/<id>.md`. It's derived, deterministic (the same ledger gives the same bytes), and never read back.
@@ -180,7 +203,8 @@ A schema-1 artifact has no token and is unverifiable.
 - `candidate_builds` (a conflicting release surface is `null`);
 - `verdict`, `blocker_count` (unexcepted), `exception_count` (applied), `fingerprint`, `freshness_token`;
 - `generated_at`: the latest consumed record's time, not the wall clock;
-- `signed_off_by`, `signed_off_date`, `signoff_fingerprint`, `signoff_status`.
+- `signed_off_by`, `signed_off_date`, `signoff_fingerprint`, `signoff_status`;
+- `artifact_integrity`: always last (see *Artifact integrity*).
 
 **Body sections:** Blockers, Per-Surface Matrix, Smoke, Functional, Regression, Bugs, Retests, QA Debt, Exceptions, Known Issues, Tested Builds, QA Notes, Release Notes Input.
 

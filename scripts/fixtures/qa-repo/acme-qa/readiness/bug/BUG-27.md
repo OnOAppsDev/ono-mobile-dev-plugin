@@ -17,6 +17,7 @@ signed_off_by: lead
 signed_off_date: 2026-10-01T09:00:37.000Z
 signoff_fingerprint: sha256:9842a81de57028c034dddc317a4027cd2354a8c8901c77ac4323d5f0df8847c6
 signoff_status: valid
+artifact_integrity: sha256:73568697b8876a0f864a82499ef3957c83dac041fe566d5c847565507b2eb531
 ---
 
 # QA Readiness — bug:BUG-27

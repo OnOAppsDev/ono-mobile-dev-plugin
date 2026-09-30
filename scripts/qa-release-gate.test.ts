@@ -12,7 +12,9 @@
  *   readiness/bug/BUG-28.md        NOT_READY, unsigned (a duplicate report, also JIRA-4411)
  *   readiness/release/2.4.0.md     READY_WITH_EXCEPTIONS, signed (members checkout + BUG-27)
  * Variants are derived by exact text edits, so every "malformed" case is one precise defect;
- * text variants are checked for freshness against the fixture's own ledger. Ledger changes
+ * text variants are checked for freshness against the fixture's own ledger. `run` re-seals a
+ * variant's artifact_integrity (the state QA would render), so gate rules are tested on
+ * their own; `runRaw` does not, so the edit is a tampering. Ledger changes
  * are made on a temporary copy, never in the repository.
  *
  * No external test framework. Run with:
@@ -52,8 +54,19 @@ function check(name: string, cond: boolean, detail = ""): void {
 const gate: any = await import(pathToFileURL(GATE).href);
 
 // An artifact is always supplied as text + a source label; the CLI reads files.
-const run = (g: any, texts: Array<[string, string]>, features: string[] = [], bugs: any[] = [], releaseBuilds: Record<string, string> = {}) =>
+// The contract's artifact_integrity, implemented independently of the gate.
+const sealOf = (text: string): string => {
+  const end = text.indexOf("\n---\n", 4);
+  if (!text.startsWith("---\n") || end < 0) return text;
+  const lines = text.slice(4, end).split("\n").filter((l) => !l.startsWith("artifact_integrity:"));
+  const unsealed = `---\n${lines.join("\n")}${text.slice(end)}`;
+  const at = unsealed.indexOf("\n---\n", 4);
+  return `${unsealed.slice(0, at)}\nartifact_integrity: sha256:${createHash("sha256").update(unsealed).digest("hex")}${unsealed.slice(at)}`;
+};
+const runRaw = (g: any, texts: Array<[string, string]>, features: string[] = [], bugs: any[] = [], releaseBuilds: Record<string, string> = {}) =>
   g.evaluateQaGate({ artifacts: texts.map(([src, t]) => g.parseQaReadiness(t, src, { qaRoot: QA_ROOT })), features, bugs, releaseBuilds });
+const run = (g: any, texts: Array<[string, string]>, features: string[] = [], bugs: any[] = [], releaseBuilds: Record<string, string> = {}) =>
+  runRaw(g, texts.map(([src, t]) => [src, sealOf(t)]), features, bugs, releaseBuilds);
 const runFiles = (g: any, paths: string[], features: string[] = [], bugs: any[] = [], releaseBuilds: Record<string, string> = {}) => g.evaluateQaGate({ artifacts: paths.map(g.readQaReadiness), features, bugs, releaseBuilds });
 const codes = (r: any): string[] => r.blockers.map((b: any) => b.code);
 const BUILDS = { android: "104", "android-tv": "atv-104" };
@@ -315,7 +328,53 @@ function gateSuite(g: any, tag = ""): void {
     check(t("F4 an artifact outside <qa-repo>/readiness/<kind>/ is unverifiable — the gate never searches for a ledger"), g.readQaReadiness(moved).freshness.status === "unverifiable");
     check(t("F4 an in-memory artifact with no QA repository is unverifiable"), g.parseQaReadiness(BUG, "b.md").freshness.status === "unverifiable");
     const forged = BUG.replace(/freshness_token: sha256:[0-9a-f]{64}/, `freshness_token: sha256:${"1".repeat(64)}`);
-    check(t("F5 an artifact whose token was edited is outdated"), codes(run(g, [["b.md", forged]], [], ["BUG-27"])).includes("QA_READINESS_OUTDATED"));
+    check(t("F5 an artifact whose token was edited (and re-sealed) is outdated"), codes(run(g, [["b.md", forged]], [], ["BUG-27"])).includes("QA_READINESS_OUTDATED"));
+    check(t("F5 …and, left unsealed, is tampered"), codes(runRaw(g, [["b.md", forged]], [], ["BUG-27"])).includes("QA_ARTIFACT_TAMPERED"));
+  }
+
+  /* ── A: artifact integrity (tamper evidence of the rendered Markdown) ── */
+  {
+    const tampered = (r: any) => r.status === "no_go" && codes(r).includes("QA_ARTIFACT_TAMPERED");
+    const all = ["feature/checkout.md", "bug/BUG-27.md", "bug/BUG-28.md", "release/2.4.0.md"];
+    const texts = all.map((rel) => readFileSync(join(FIX, rel), "utf-8"));
+    check(t("A14 feature, bug and release artifacts each carry exactly one artifact_integrity"), texts.every((x) => (x.slice(0, x.indexOf("\n---\n", 4)).match(/^artifact_integrity: sha256:[0-9a-f]{64}$/gm) ?? []).length === 1));
+    check(t("A1/A14 every untouched QA-rendered artifact verifies"), all.every((rel) => g.readQaReadiness(join(FIX, rel)).ok));
+    const ok = runFiles(g, [join(FIX, "release", "2.4.0.md")], ["checkout"], ["BUG-27"], BUILDS);
+    check(t("A1 a fresh, untouched artifact passes both integrity and freshness"), ok.status === "pass_with_exceptions" && ok.artifacts[0].freshness === "fresh", JSON.stringify(ok.blockers));
+    check(t("A2 READY → NOT_READY without re-hashing is tampered"), tampered(runRaw(g, [["b.md", BUG.replace("verdict: READY", "verdict: NOT_READY").replace("blocker_count: 0", "blocker_count: 1")]], [], ["BUG-27"])));
+    const promoted = BUG28.replace("verdict: NOT_READY", "verdict: READY").replace(/blocker_count: \d+/, "blocker_count: 0").replace("- QA verdict: NOT_READY", "- QA verdict: READY");
+    check(t("A3 NOT_READY → READY is tampered"), tampered(runRaw(g, [["b.md", promoted]], [], ["BUG-28"])));
+    check(t("A4 editing an exception is tampered"), tampered(runRaw(g, [["f.md", FEATURE.replace("| waived_debt | Scheduled after launch: HV-", "| known_issue | Scheduled after launch: HV-")]], ["checkout"])));
+    check(t("A5 editing known issues is tampered"), tampered(runRaw(g, [["f.md", FEATURE.replace("## Known Issues\n\nNone.", "## Known Issues\n\n| Item | Reason | Approved by |\n|---|---|---|\n| R4:bug:BUG-3 | Cosmetic | lead |")]], ["checkout"])));
+    check(t("A6 editing Release Notes Input is tampered"), tampered(runRaw(g, [["b.md", BUG.replace(/- Bug fixes verified: .*/, "- Bug fixes verified: bug:BUG-27 (fixed in atv-105)")]], [], ["BUG-27"])));
+    check(t("A7 editing tested builds is tampered"), tampered(runRaw(g, [["b.md", BUG.replace("## Tested Builds\n\n", "## Tested Builds\n\n- atv-105\n")]], [], ["BUG-27"])));
+    check(t("A8 editing QA notes is tampered"), tampered(runRaw(g, [["f.md", FEATURE.replace("Checked on Pixel 8", "Checked on every device")]], ["checkout"])));
+    check(t("A8 editing release members is tampered"), tampered(runRaw(g, [["r.md", RELEASE.replace("| bug:BUG-27 | bug | — | BUG-27 | JIRA-4411 |", "| bug:BUG-27 | bug | — | BUG-27 | JIRA-9999 |")]], ["checkout"], ["external=JIRA-9999"])));
+    check(t("A8 editing a candidate build is tampered"), tampered(runRaw(g, [["b.md", BUG.replace("  - android-tv: atv-104", "  - android-tv: atv-105")]], [], ["BUG-27"], { "android-tv": "atv-105" })));
+    check(t("A8 replacing the stored hash is tampered"), tampered(runRaw(g, [["b.md", BUG.replace(/artifact_integrity: sha256:[0-9a-f]{64}/, `artifact_integrity: sha256:${"0".repeat(64)}`)]], [], ["BUG-27"])));
+    const resealed = sealOf(BUG.replace(/- Bug fixes verified: .*/, "- Bug fixes verified: bug:BUG-27 (fixed in atv-104)"));
+    check(t("A9 an artifact carrying the contract hash of its exact content verifies — the gate's hash is the contract's"), g.parseQaReadiness(resealed, "b.md", { qaRoot: QA_ROOT }).ok && sealOf(BUG) === BUG);
+    check(t("A10 integrity is a pure function of the bytes"), JSON.stringify(g.artifactIntegrity(BUG)) === JSON.stringify(g.artifactIntegrity(BUG)) && g.artifactIntegrity(BUG).computed === g.artifactIntegrity(BUG).stored);
+    check(t("A10 …and line-ending conversion is not tampering"), g.parseQaReadiness(BUG.replace(/\n/g, "\r\n"), "b.md", { qaRoot: QA_ROOT }).ok);
+    const noField = BUG.replace(/\nartifact_integrity: .*/, "");
+    const twice = BUG.replace(/\n(artifact_integrity: .*)/, "\n$1\n$1");
+    check(t("A10 an artifact without artifact_integrity, or with two, is refused"), codes(runRaw(g, [["b.md", noField]], [], ["BUG-27"])).includes("QA_READINESS_MALFORMED") && codes(runRaw(g, [["b.md", twice]], [], ["BUG-27"])).includes("QA_READINESS_MALFORMED"));
+    check(t("A13 integrity is checked before any content is trusted"), tampered(runRaw(g, [["b.md", BUG.replace("verdict: READY", "verdict: MOSTLY_READY")]], [], ["BUG-27"])) && !codes(runRaw(g, [["b.md", BUG.replace("verdict: READY", "verdict: MOSTLY_READY")]], [], ["BUG-27"])).includes("QA_READINESS_MALFORMED"));
+
+    const stale = qaCopy();
+    appendEvent(stale, "scopes/bug/BUG-27.jsonl", { kind: "context.set", field: "assignee", value: "omer" });
+    const s12 = runFiles(g, [artifactIn(stale, "bug/BUG-27.md")], [], ["BUG-27"]);
+    check(t("A11/A12 a valid artifact over a changed ledger fails freshness, not integrity"), codes(s12).includes("QA_READINESS_OUTDATED") && !codes(s12).includes("QA_ARTIFACT_TAMPERED"));
+    const edited = qaCopy();
+    const f = artifactIn(edited, "bug/BUG-27.md");
+    writeFileSync(f, readFileSync(f, "utf-8").replace("- atv-103\n", "- atv-102\n"));
+    const s13 = runFiles(g, [f], [], ["BUG-27"]);
+    check(t("A13 a tampered artifact over a fresh ledger fails integrity, not freshness"), tampered(s13) && !codes(s13).includes("QA_READINESS_OUTDATED") && s13.coverage.bugs[0].covered_by === null, JSON.stringify(s13.blockers));
+    const both = qaCopy();
+    appendEvent(both, "scopes/bug/BUG-27.jsonl", { kind: "context.set", field: "assignee", value: "omer" });
+    const g2 = artifactIn(both, "bug/BUG-27.md");
+    writeFileSync(g2, readFileSync(g2, "utf-8").replace("verdict: READY", "verdict: NOT_READY"));
+    check(t("A11 both checks are independent: a tampered artifact is never trusted enough to judge its freshness"), codes(runFiles(g, [g2], [], ["BUG-27"])).includes("QA_ARTIFACT_TAMPERED"));
   }
 }
 gateSuite(gate);
@@ -369,9 +428,9 @@ gateSuite(gate);
 /* ── 21 the contract copy ─────────────────────────────────────────────── */
 {
   // sha256 of ono-plugin-qa docs/qa-readiness-contract.md, qa_readiness_schema 2 (release
-  // artifact, bug identity, freshness token). When QA changes the contract, update the copy,
+  // artifact, bug identity, freshness token, artifact integrity). When QA changes the contract, update the copy,
   // this pin and the reader in the same release.
-  const QA_SCHEMA2_CONTRACT_SHA256 = "26b7c894c6eaddf13691f5838fe074fc3b4b32e57a9ebbded7337490dfa01ef7";
+  const QA_SCHEMA2_CONTRACT_SHA256 = "4efe2c775d0c29bbb6d3148b0432dd55c17cf3251f8c38d86556558aab694d6c";
   const contract = read("docs/qa-readiness-contract.md");
   check("21 the QA readiness contract copy is byte-identical to the QA plugin's", createHash("sha256").update(contract).digest("hex") === QA_SCHEMA2_CONTRACT_SHA256);
   const tmpl = read("templates/release-checklist-template.md");
@@ -385,7 +444,7 @@ gateSuite(gate);
     ["NOT_READY blocks", 'if (a.verdict === "NOT_READY") block(', "if (false) block("],
     ["unsigned blocks", 'if (a.signoff_status === "none") block(', "if (false) block("],
     ["a stale or foreign sign-off blocks", 'else if (a.signoff_status !== "valid" || a.signoff_fingerprint !== a.fingerprint) block(', "else if (false) block("],
-    ["a malformed artifact blocks", 'for (const f of failed.filter((x) => x.code !== "QA_READINESS_MISSING")) block("QA_READINESS_MALFORMED"', 'for (const f of []) block("QA_READINESS_MALFORMED"'],
+    ["a malformed artifact blocks", 'for (const f of failed.filter((x) => x.code !== "QA_READINESS_MISSING" && x.code !== "QA_ARTIFACT_TAMPERED")) block("QA_READINESS_MALFORMED"', 'for (const f of []) block("QA_READINESS_MALFORMED"'],
     ["an uncovered item blocks", 'if (!hits.length) block("QA_NOT_COVERED", `${item} is in the release but no supplied QA readiness covers it`, { item }); // invariant:coverage', "// invariant:coverage"],
     ["identity is matched exactly", "const same = (x: string | null, y: string) => x === y;", "const same = (x: string | null, y: string) => (x ?? \"\").toLowerCase() === y.toLowerCase();"],
     ["a build mismatch blocks", 'block("QA_BUILD_MISMATCH"', 'void ("QA_BUILD_MISMATCH"'],
@@ -407,6 +466,11 @@ gateSuite(gate);
     ["freshness watches builds delivered for the scope", "if ((b.related_scopes ?? []).includes(ref) || (b.fixes_claimed ?? []).some((x: string) => bugs.has(x))) builds.add(id);", "if (false) builds.add(id);"],
     ["freshness covers plan content", "plans: [...plans].sort().map((p) => [p, db.plan(p)]),", 'plans: [...plans].sort().map((p) => [p, "missing"]),'],
     ["a release token covers its members' tokens", "members: members.map((m) => [m, scopeToken(db, m)])", "members"],
+    // Artifact integrity.
+    ["a content edit is detected", "if (integrity.computed !== integrity.stored) return", "if (false) return"],
+    ["a tampered artifact is reported as tampered", 'for (const f of failed.filter((x) => x.code === "QA_ARTIFACT_TAMPERED")) block(', "for (const f of []) block("],
+    ["only CRLF is normalized", "const t = text.replace(", "const t = text; void ("],
+    ["only the integrity line is excluded", "${rest.join(", "${lines.join("],
   ];
   const dir = mkdtempSync(join(tmpdir(), "qa-release-gate-mutant-"));
   for (const [name, target, replacement] of MUTANTS) {
