@@ -13,6 +13,13 @@
  * sibling folders — and it never infers or repairs a missing field: an artifact that
  * does not match the contract is refused as malformed.
  *
+ * Freshness: every artifact carries the QA ledger freshness token it was rendered from.
+ * The gate recomputes that token from the ledger of the QA repository the artifact lives
+ * in (`<qa-repo>/readiness/<kind>/<id>.md` → `<qa-repo>/qa-ledger/`, nothing else), with
+ * the contract's algorithm, re-verifying every record hash it reads. A different token
+ * means the ledger changed after rendering (outdated → No-Go); a missing or corrupt
+ * ledger cannot prove freshness (unverifiable → No-Go).
+ *
  * It ALWAYS exits 0 and ALWAYS prints one JSON object; callers branch on `status`:
  *   pass                  every release item is covered by READY, validly signed readiness
  *   pass_with_exceptions  the same, but at least one covering artifact is
@@ -23,24 +30,44 @@
  *
  * Usage:
  *   node --no-warnings scripts/qa-release-gate.ts --readiness <path>… [--feature <dev-feature-id>]…
- *        [--bug <qa-bug-id>]… [--release-build <surface>=<qa-build-id>]…
+ *        [--bug <qa-bug-id> | --bug qa=<qa-bug-id> | --bug external=<tracker-key> |
+ *         --bug qa=<qa-bug-id>,external=<tracker-key>]… [--release-build <surface>=<qa-build-id>]…
  */
 
-import { readFileSync, existsSync, realpathSync } from "fs";
+import { readFileSync, readdirSync, existsSync, realpathSync } from "fs";
+import { createHash } from "crypto";
+import { basename, dirname, join } from "path";
 
-export const SUPPORTED_SCHEMA = "1";
+export const SUPPORTED_SCHEMA = "2";
 const VERDICTS = ["READY", "READY_WITH_EXCEPTIONS", "NOT_READY"];
 const SIGNOFF_STATUSES = ["valid", "stale", "superseded", "none"];
-const KINDS = ["feature", "bug"];
-const FRONTMATTER_KEYS = ["qa_readiness_schema", "scope", "scope_kind", "candidate_builds", "verdict", "blocker_count", "exception_count", "fingerprint", "generated_at", "signed_off_by", "signed_off_date", "signoff_fingerprint", "signoff_status"];
+const KINDS = ["feature", "bug", "release"];
+const MEMBER_KINDS = ["feature", "bug"];
+const FRONTMATTER_KEYS = ["qa_readiness_schema", "scope", "scope_kind", "dev_feature", "qa_bug_id", "external_ref", "candidate_builds", "verdict", "blocker_count", "exception_count", "fingerprint", "freshness_token", "generated_at", "signed_off_by", "signed_off_date", "signoff_fingerprint", "signoff_status"];
 const REQUIRED_SECTIONS = ["Exceptions", "Known Issues", "Tested Builds", "QA Notes", "Release Notes Input"];
 const FINGERPRINT_RE = /^sha256:[0-9a-f]{64}$/;
 const SCOPE_RE = /^(feature|bug|release):([A-Za-z0-9][A-Za-z0-9._-]*)$/;
+const PLAN_PATH_RE = /^[A-Za-z0-9._-]+(\/[A-Za-z0-9._-]+)*$/;
 const LIMITATIONS = [
-  "Bugs match by their exact QA bug id only: the QA readiness contract carries no external_ref, so a tracker key is never matched.",
-  "An artifact reflects the QA ledger when it was rendered; ask QA to re-render (/qa-readiness) right before release — this gate cannot see ledger changes made after that.",
+  "Identity is exact and case-sensitive: a bug matches by its QA bug id, its external_ref, or both (both must then name the same bug); nothing is matched fuzzily.",
+  "Freshness proves the QA ledger inputs are unchanged since the artifact was rendered; the verdict itself is QA's derivation and is not recomputed here.",
 ];
 
+export interface Member {
+  scope: string;
+  kind: string;
+  dev_feature: string | null;
+  qa_bug_id: string | null;
+  external_ref: string | null;
+  verdict: string;
+  fingerprint: string;
+}
+export interface Freshness {
+  status: "fresh" | "outdated" | "unverifiable";
+  recorded: string;
+  computed: string | null;
+  problem: string | null;
+}
 export interface Artifact {
   ok: true;
   source: string;
@@ -48,6 +75,11 @@ export interface Artifact {
   kind: string;
   id: string;
   dev_feature: string | null;
+  qa_bug_id: string | null;
+  external_ref: string | null;
+  members: Member[];
+  freshness_token: string;
+  freshness: Freshness;
   candidate_builds: Array<{ surface: string; build_id: string | null; pinned: boolean }>;
   verdict: string;
   blocker_count: number;
@@ -71,6 +103,125 @@ export interface Failed {
   problems: string[];
 }
 
+/* ── ledger freshness token (docs/qa-readiness-contract.md, "Freshness token") ── */
+const sha = (s: string | Buffer): string => `sha256:${createHash("sha256").update(s).digest("hex")}`;
+
+/** The ledger's canonical JSON: object keys sorted recursively, no whitespace. */
+export function canonical(v: unknown): string {
+  if (Array.isArray(v)) return `[${v.map(canonical).join(",")}]`;
+  if (v && typeof v === "object") {
+    return `{${Object.keys(v as object)
+      .sort()
+      .map((k) => `${JSON.stringify(k)}:${canonical((v as any)[k])}`)
+      .join(",")}}`;
+  }
+  return JSON.stringify(v);
+}
+
+class LedgerUnverifiable extends Error {}
+
+// Reads ONLY <qaRoot>/qa-ledger/ and the plan files the ledger names inside <qaRoot>.
+// Every record's hash is re-verified; anything that does not verify is unverifiable.
+function openLedger(qaRoot: string) {
+  const ledger = join(qaRoot, "qa-ledger");
+  if (!existsSync(join(ledger, "ledger.json"))) throw new LedgerUnverifiable(`no QA ledger at ${ledger}`);
+  const verified = (rec: any, where: string): any => {
+    const { hash, ...rest } = rec ?? {};
+    if (typeof hash !== "string" || hash !== sha(canonical(rest))) throw new LedgerUnverifiable(`${where}: record hash does not verify — the ledger was edited outside the QA helper`); // invariant:freshness-integrity
+    return rec;
+  };
+  const parse = (text: string, where: string): any => {
+    try {
+      return JSON.parse(text);
+    } catch {
+      throw new LedgerUnverifiable(`${where} is not valid JSON`);
+    }
+  };
+  const lines = (f: string): any[] => readFileSync(f, "utf-8").split("\n").filter(Boolean).map((l, i) => verified(parse(l, `${f}:${i + 1}`), `${f}:${i + 1}`));
+  const list = (...d: string[]): string[] => {
+    const dir = join(ledger, ...d);
+    return existsSync(dir) ? readdirSync(dir).sort() : [];
+  };
+  const streams = new Map<string, any[] | null>();
+  const stream = (ref: string): any[] | null => {
+    const m = SCOPE_RE.exec(ref);
+    if (!m) throw new LedgerUnverifiable(`the ledger names an invalid scope ${JSON.stringify(ref)}`);
+    if (!streams.has(ref)) {
+      const f = join(ledger, "scopes", m[1], `${m[2]}.jsonl`);
+      streams.set(ref, existsSync(f) ? lines(f) : null);
+    }
+    return streams.get(ref)!;
+  };
+  const runs = list("runs").filter((n) => n.endsWith(".jsonl")).map((n) => ({ id: n.slice(0, -6), records: lines(join(ledger, "runs", n)) }));
+  const builds = new Map<string, any>(list("builds").filter((n) => n.endsWith(".json")).map((n) => [n.slice(0, -5), verified(parse(readFileSync(join(ledger, "builds", n), "utf-8"), n), `builds/${n}`)]));
+  const bugRefs = list("scopes", "bug").filter((n) => n.endsWith(".jsonl")).map((n) => `bug:${n.slice(0, -6)}`);
+  const plan = (p: string): string => {
+    if (typeof p !== "string" || !PLAN_PATH_RE.test(p) || p.split("/").includes("..")) throw new LedgerUnverifiable(`the ledger names a plan outside the QA repository: ${JSON.stringify(p)}`);
+    const f = join(qaRoot, p);
+    return existsSync(f) ? sha(readFileSync(f)) : "missing";
+  };
+  return { stream, runs, builds, bugRefs, plan };
+}
+
+const addsOf = (records: any[], field: string): any[] => records.filter((r) => r.kind === "context.add" && r.field === field).map((r) => r.value);
+const ownHashes = (records: any[]): string[] => records.filter((r) => r.field !== "signoffs").map((r) => r.hash); // invariant:freshness-excludes-signoffs
+
+function scopeToken(db: ReturnType<typeof openLedger>, ref: string): string {
+  const own = db.stream(ref);
+  if (!own) return sha(canonical({ scope: ref, missing: true }));
+  if (ref.startsWith("release:")) {
+    const members = [...new Set(addsOf(own, "members"))].sort();
+    return sha(canonical({ scope: ref, stream: ownHashes(own), members: members.map((m) => [m, scopeToken(db, m)]) })); // invariant:freshness-release-members
+  }
+  const bugs = new Set<string>(ref.startsWith("bug:") ? [ref] : []);
+  for (const b of db.bugRefs) {
+    const recs = db.stream(b) ?? [];
+    if (recs.some((r) => (r.kind === "bug.reported" && (r.related_scopes ?? []).includes(ref)) || (r.field === "related_scopes" && r.value === ref))) bugs.add(b); // invariant:freshness-bugs
+  }
+  const watched = new Set([ref, ...bugs]);
+  const header = (run: { records: any[] }): any => run.records[0] ?? {};
+  const direct = db.runs.filter((run) => watched.has(header(run).scope) || bugs.has(header(run).bug_ref)); // invariant:freshness-runs
+  const builds = new Set<string>(direct.map((run) => header(run).build_id));
+  for (const [id, b] of db.builds) if ((b.related_scopes ?? []).includes(ref) || (b.fixes_claimed ?? []).some((x: string) => bugs.has(x))) builds.add(id); // invariant:freshness-builds
+  const smoke = db.runs.filter((run) => header(run).execution_type === "smoke" && builds.has(header(run).build_id));
+  const runs = [...new Map([...direct, ...smoke].map((run) => [run.id, run])).values()].sort((a, b) => (a.id < b.id ? -1 : 1));
+  const plans = new Set<string>(addsOf(own, "plans"));
+  for (const d of addsOf(own, "regression_decisions")) for (const k of d.cases ?? []) if (!k.includes("#")) plans.add(`${k.slice(0, k.lastIndexOf("/"))}/test-plan.md`);
+  return sha(
+    canonical({
+      scope: ref,
+      streams: [...watched].sort().map((s) => [s, ownHashes(db.stream(s) ?? [])]),
+      runs: runs.map((run) => [run.id, run.records.map((r) => r.hash)]),
+      builds: [...builds].sort().map((id) => [id, db.builds.get(id)?.hash ?? "missing"]),
+      plans: [...plans].sort().map((p) => [p, db.plan(p)]), // invariant:freshness-plans
+    }),
+  );
+}
+
+/** Recomputes the freshness token of `scope` from `<qaRoot>/qa-ledger/`. */
+export function freshnessToken(qaRoot: string, scope: string): string {
+  return scopeToken(openLedger(qaRoot), scope);
+}
+
+export function verifyFreshness(qaRoot: string | null, scope: string, recorded: string): Freshness {
+  if (!qaRoot) return { status: "unverifiable", recorded, computed: null, problem: "the artifact is not inside a QA repository (<qa-repo>/readiness/<kind>/<id>.md), so its ledger cannot be read" };
+  try {
+    const computed = freshnessToken(qaRoot, scope);
+    return { status: computed === recorded ? "fresh" : "outdated", recorded, computed, problem: null }; // invariant:freshness-compare
+  } catch (e) {
+    if (e instanceof LedgerUnverifiable) return { status: "unverifiable", recorded, computed: null, problem: e.message };
+    throw e;
+  }
+}
+
+/** `<qa-repo>/readiness/<kind>/<id>.md` → `<qa-repo>`, else null. Never looks anywhere else. */
+export function qaRootOf(artifactPath: string, scope: string): string | null {
+  const m = SCOPE_RE.exec(scope);
+  const kindDir = dirname(artifactPath);
+  if (!m || basename(artifactPath) !== `${m[2]}.md` || basename(kindDir) !== m[1] || basename(dirname(kindDir)) !== "readiness") return null;
+  return dirname(dirname(kindDir));
+}
+
 const nul = (v: string | undefined): string | null => (v === undefined || v === "null" || v === "—" || v === "" ? null : v);
 
 function tableRows(section: string): string[][] {
@@ -80,8 +231,12 @@ function tableRows(section: string): string[][] {
     .map((l) => l.trim().replace(/^\||\|$/g, "").split(/(?<!\\)\|/).map((c) => c.trim().replace(/\\\|/g, "|")));
 }
 
-/** Parses one readiness artifact strictly against the contract. Never repairs anything. */
-export function parseQaReadiness(text: string, source: string): Artifact | Failed {
+/**
+ * Parses one readiness artifact strictly against the contract. Never repairs anything.
+ * `qaRoot` is the QA repository whose ledger proves the artifact fresh (readQaReadiness
+ * derives it from the artifact's own path); without it the artifact is unverifiable.
+ */
+export function parseQaReadiness(text: string, source: string, opts: { qaRoot?: string | null } = {}): Artifact | Failed {
   const problems: string[] = [];
   const bad = (): Failed => ({ ok: false, source, code: "QA_READINESS_MALFORMED", problems });
   if (!text.startsWith("---\n")) {
@@ -113,14 +268,24 @@ export function parseQaReadiness(text: string, source: string): Artifact | Faile
     inCandidates = kv[1] === "candidate_builds";
     fm[kv[1]] = kv[2];
   }
+  if (fm.qa_readiness_schema !== undefined && fm.qa_readiness_schema !== SUPPORTED_SCHEMA) {
+    problems.push(`qa_readiness_schema ${fm.qa_readiness_schema} is not supported (this plugin reads ${SUPPORTED_SCHEMA}${fm.qa_readiness_schema === "1" ? "; schema 1 carries no freshness token — ask QA to re-render with /qa-readiness" : ""})`);
+    return bad();
+  }
   for (const k of FRONTMATTER_KEYS) if (!(k in fm)) problems.push(`frontmatter is missing ${k}`);
+  if (fm.scope_kind === "release" && !("member_count" in fm)) problems.push("frontmatter is missing member_count");
   if (problems.length) return bad();
 
-  if (fm.qa_readiness_schema !== SUPPORTED_SCHEMA) problems.push(`qa_readiness_schema ${fm.qa_readiness_schema} is not supported (this plugin reads ${SUPPORTED_SCHEMA})`);
   const scope = SCOPE_RE.exec(fm.scope);
-  if (!scope) problems.push(`scope "${fm.scope}" is not <feature|bug>:<id>`);
+  if (!scope) problems.push(`scope "${fm.scope}" is not <feature|bug|release>:<id>`);
   else if (scope[1] !== fm.scope_kind) problems.push(`scope ${fm.scope} does not match scope_kind ${fm.scope_kind}`);
-  if (!KINDS.includes(fm.scope_kind)) problems.push(`scope_kind "${fm.scope_kind}" has no readiness artifact in the contract (feature and bug only — a release scope is aggregated, never rendered)`);
+  if (!KINDS.includes(fm.scope_kind)) problems.push(`scope_kind "${fm.scope_kind}" is not one of ${KINDS.join(", ")}`);
+  const qaBugId = nul(fm.qa_bug_id);
+  const externalRef = nul(fm.external_ref);
+  if (fm.scope_kind === "bug" && scope && qaBugId !== scope[2]) problems.push(`qa_bug_id ${fm.qa_bug_id} does not match ${fm.scope}`);
+  if (fm.scope_kind !== "bug" && (qaBugId !== null || externalRef !== null)) problems.push("qa_bug_id and external_ref are null outside a bug scope");
+  if (fm.scope_kind === "release" && nul(fm.dev_feature) !== null) problems.push("a release scope has no dev_feature");
+  if (!FINGERPRINT_RE.test(fm.freshness_token)) problems.push("freshness_token is not sha256:<64 hex>");
   if (!VERDICTS.includes(fm.verdict)) problems.push(`verdict "${fm.verdict}" is not one of ${VERDICTS.join(", ")}`);
   const blockers = Number(fm.blocker_count);
   const exceptionsCount = Number(fm.exception_count);
@@ -143,17 +308,41 @@ export function parseQaReadiness(text: string, source: string): Artifact | Faile
     } else if (current) sections.set(current, `${sections.get(current)}${line}\n`);
   }
   for (const s of REQUIRED_SECTIONS) if (!sections.has(s)) problems.push(`section "## ${s}" is missing`);
+  if (fm.scope_kind === "release" && !sections.has("Members")) problems.push('section "## Members" is missing');
   if (problems.length) return bad();
+
+  // A release artifact's members: its identities for coverage, parsed as strictly.
+  const members: Member[] = [];
+  if (fm.scope_kind === "release") {
+    const rows = sections.get("Members")!.trim() === "None." ? [] : tableRows(sections.get("Members")!);
+    for (const r of rows) {
+      const [mScope, mKind, devFeature, mQa, mExt, mVerdict, mFp] = r;
+      const ms = SCOPE_RE.exec(mScope ?? "");
+      if (r.length !== 7 || !ms || ms[1] !== mKind || !MEMBER_KINDS.includes(mKind)) {
+        problems.push(`Members row "${r.join(" | ")}" is not <feature|bug scope> | kind | Dev feature | QA bug id | External ref | Verdict | Fingerprint`);
+        continue;
+      }
+      const m: Member = { scope: mScope, kind: mKind, dev_feature: nul(devFeature), qa_bug_id: nul(mQa), external_ref: nul(mExt), verdict: mVerdict, fingerprint: mFp };
+      if (mKind === "bug" && m.qa_bug_id !== ms[2]) problems.push(`member ${mScope} has QA bug id ${mQa}`);
+      if (mKind !== "bug" && (m.qa_bug_id !== null || m.external_ref !== null)) problems.push(`member ${mScope} is not a bug but carries a bug identity`);
+      if (!VERDICTS.includes(mVerdict) || !FINGERPRINT_RE.test(mFp)) problems.push(`member ${mScope} has an invalid verdict or fingerprint`);
+      if (members.some((x) => x.scope === mScope)) problems.push(`member ${mScope} is listed twice`);
+      members.push(m);
+    }
+    if (String(members.length) !== fm.member_count) problems.push(`member_count ${fm.member_count} does not match ${rows.length} Members rows`);
+    if (problems.length) return bad();
+  }
 
   const rni: Record<string, string> = {};
   for (const line of sections.get("Release Notes Input")!.split("\n")) {
     const m = /^- ([^:]+): (.*)$/.exec(line);
     if (m) rni[m[1]] = m[2];
   }
-  for (const k of ["Scope", "Bug fixes verified", "Builds tested", "Surfaces tested", "Known issues", "Exceptions", "QA verdict"]) if (!(k in rni)) problems.push(`Release Notes Input is missing "${k}"`);
+  for (const k of ["Scope", "Bug fixes verified", "Builds tested", "Surfaces tested", "Known issues", "Exceptions", "QA verdict", ...(fm.scope_kind === "release" ? ["Features tested"] : [])]) if (!(k in rni)) problems.push(`Release Notes Input is missing "${k}"`);
   if (rni["QA verdict"] !== undefined && rni["QA verdict"] !== fm.verdict) problems.push(`Release Notes Input says ${rni["QA verdict"]}, frontmatter says ${fm.verdict}`);
   const scopeLine = /^(\S+)(?: \(Dev feature ([^)]+)\))?$/.exec(rni.Scope ?? "");
   if (!scopeLine || scopeLine[1] !== fm.scope) problems.push(`Release Notes Input scope "${rni.Scope}" does not match ${fm.scope}`);
+  else if ((scopeLine[2] ?? null) !== nul(fm.dev_feature)) problems.push(`Release Notes Input Dev feature "${scopeLine[2] ?? "none"}" does not match dev_feature ${fm.dev_feature}`);
 
   const exRows = sections.get("Exceptions")!.trim() === "None." ? [] : tableRows(sections.get("Exceptions")!);
   if (exRows.some((r) => r.length !== 8)) problems.push("Exceptions table rows must have 8 columns");
@@ -171,7 +360,12 @@ export function parseQaReadiness(text: string, source: string): Artifact | Faile
     scope: fm.scope,
     kind: fm.scope_kind,
     id: scope![2],
-    dev_feature: scopeLine![2] ?? null,
+    dev_feature: nul(fm.dev_feature),
+    qa_bug_id: qaBugId,
+    external_ref: externalRef,
+    members,
+    freshness_token: fm.freshness_token,
+    freshness: verifyFreshness(opts.qaRoot ?? null, fm.scope, fm.freshness_token),
     candidate_builds: candidates,
     verdict: fm.verdict,
     blocker_count: blockers,
@@ -192,15 +386,50 @@ export function parseQaReadiness(text: string, source: string): Artifact | Faile
 
 export function readQaReadiness(path: string): Artifact | Failed {
   if (!existsSync(path)) return { ok: false, source: path, code: "QA_READINESS_MISSING", problems: [`${path} does not exist`] };
-  return parseQaReadiness(readFileSync(realpathSync(path), "utf-8"), path);
+  const real = realpathSync(path);
+  const text = readFileSync(real, "utf-8");
+  const scope = /^scope: (\S+)$/m.exec(text)?.[1] ?? "";
+  return parseQaReadiness(text, path, { qaRoot: qaRootOf(real, scope) });
+}
+
+/** A release's bug item: a QA bug id, an external tracker ref, or both — never neither. */
+export interface BugItem {
+  qa_bug_id: string | null;
+  external_ref: string | null;
+}
+/** `BUG-27` (QA id) · `qa=BUG-27` · `external=JIRA-4411` · `qa=BUG-27,external=JIRA-4411`. Null when invalid. */
+export function parseBugItem(raw: string): BugItem | null {
+  if (!raw.includes("=")) return raw.trim() && !raw.includes(",") ? { qa_bug_id: raw.trim(), external_ref: null } : null;
+  const out: BugItem = { qa_bug_id: null, external_ref: null };
+  for (const part of raw.split(",")) {
+    const i = part.indexOf("=");
+    const [k, v] = [part.slice(0, i).trim(), part.slice(i + 1).trim()];
+    const key = k === "qa" ? "qa_bug_id" : k === "external" ? "external_ref" : null;
+    if (i < 0 || !key || !v || out[key] !== null) return null;
+    out[key] = v;
+  }
+  return out;
 }
 
 export interface GateInput {
   artifacts: Array<Artifact | Failed>;
   features: string[];
-  bugs: string[];
+  bugs: Array<string | BugItem>;
   releaseBuilds: Record<string, string>;
 }
+
+// One coverable identity: a feature/bug artifact itself, or one member row of a release artifact.
+interface Unit {
+  a: Artifact;
+  kind: string;
+  scope: string;
+  id: string;
+  dev_feature: string | null;
+  qa_bug_id: string | null;
+  external_ref: string | null;
+}
+const unitsOf = (a: Artifact): Unit[] =>
+  a.kind === "release" ? a.members.map((m) => ({ a, kind: m.kind, scope: m.scope, id: m.scope.slice(m.kind.length + 1), dev_feature: m.dev_feature, qa_bug_id: m.qa_bug_id, external_ref: m.external_ref })) : [{ a, kind: a.kind, scope: a.scope, id: a.id, dev_feature: a.dev_feature, qa_bug_id: a.qa_bug_id, external_ref: a.external_ref }]; // invariant:release-units
 
 /** The QA gate. Pure: the same inputs always give the same result. */
 export function evaluateQaGate(input: GateInput): Record<string, any> {
@@ -216,31 +445,64 @@ export function evaluateQaGate(input: GateInput): Record<string, any> {
   for (const f of failed.filter((x) => x.code === "QA_READINESS_MISSING")) block("QA_READINESS_MISSING", f.problems.join("; "), { source: f.source });
   for (const f of failed.filter((x) => x.code !== "QA_READINESS_MISSING")) block("QA_READINESS_MALFORMED", `${f.source}: ${f.problems.join("; ")}`, { source: f.source }); // invariant:malformed-blocks
 
-  // Coverage: exact identity only. A feature matches its canonical Dev identity; only an
-  // artifact with no Dev identity may match by its exact QA scope id. Bugs match by exact id.
+  // Coverage: exact identity only. A feature matches its canonical Dev identity; only a
+  // unit with no Dev identity may match by its exact QA scope id. A bug matches by its QA
+  // id, its external_ref, or both — and when both are given they must name the same bug.
   const same = (x: string | null, y: string) => x === y;
+  const units = valid.flatMap(unitsOf);
   const coverage = { features: [] as any[], bugs: [] as any[] };
   const used = new Set<Artifact>();
-  const cover = (kind: "feature" | "bug", id: string) => {
-    const hits = valid
-      .filter((a) => a.kind === kind)
-      .map((a) => ({ a, by: kind === "feature" ? (a.dev_feature !== null ? (same(a.dev_feature, id) ? "dev_feature" : null) : same(a.id, id) ? "qa_scope_id" : null) : same(a.id, id) ? "qa_bug_id" : null }))
-      .filter((h) => h.by !== null);
-    const item = `${kind}:${id}`;
-    if (!hits.length) block("QA_NOT_COVERED", `${item} is in the release but no supplied QA readiness covers it`, { item }); // invariant:coverage
-    if (hits.length > 1) block("QA_DUPLICATE_COVERAGE", `${item} is claimed by ${hits.map((h) => h.a.source).join(", ")} — supply exactly one`, { item });
+  const hitUnits = new Set<Unit>();
+  const resolve = (kind: "feature" | "bug", item: string, id: string, hits: Unit[], by: string | null) => {
+    const scopes = new Set(hits.map((h) => h.scope));
+    if (scopes.size > 1) block("QA_AMBIGUOUS_MATCH", `${item} matches ${[...scopes].sort().join(", ")} — QA must disambiguate (give both ids, or correct the external_ref)`, { item }); // invariant:ambiguous
+    else if (hits.length > 1) block("QA_DUPLICATE_COVERAGE", `${item} is claimed by ${hits.map((h) => h.a.source).join(", ")} — supply exactly one`, { item });
     const hit = hits.length === 1 ? hits[0] : null;
-    if (hit) used.add(hit.a);
-    (kind === "feature" ? coverage.features : coverage.bugs).push({ id, item, covered_by: hit?.a.source ?? null, matched_by: hit?.by ?? null, scope: hit?.a.scope ?? null });
+    if (hit) {
+      used.add(hit.a);
+      hitUnits.add(hit);
+    }
+    (kind === "feature" ? coverage.features : coverage.bugs).push({ id, item, covered_by: hit?.a.source ?? null, matched_by: hit ? by : null, scope: hit?.scope ?? null, via_release: hit?.a.kind === "release" });
   };
-  for (const f of input.features) cover("feature", f);
-  for (const b of input.bugs) cover("bug", b);
+  for (const f of input.features) {
+    const hits = units.filter((u) => u.kind === "feature" && (u.dev_feature !== null ? same(u.dev_feature, f) : same(u.id, f)));
+    const item = `feature:${f}`;
+    if (!hits.length) block("QA_NOT_COVERED", `${item} is in the release but no supplied QA readiness covers it`, { item }); // invariant:coverage
+    resolve("feature", item, f, hits, hits.length && hits[0].dev_feature !== null ? "dev_feature" : "qa_scope_id");
+  }
+  for (const raw of input.bugs) {
+    const b = typeof raw === "string" ? parseBugItem(raw) : raw;
+    if (!b || (b.qa_bug_id === null && b.external_ref === null)) {
+      block("RELEASE_ITEM_INVALID", `bug item ${JSON.stringify(raw)} names neither a QA bug id nor an external ref — use BUG-27, qa=BUG-27, external=JIRA-4411 or qa=BUG-27,external=JIRA-4411`); // invariant:bug-needs-an-id
+      continue;
+    }
+    const bugUnits = units.filter((u) => u.kind === "bug");
+    const byQa = b.qa_bug_id !== null ? bugUnits.filter((u) => same(u.qa_bug_id, b.qa_bug_id!)) : null;
+    const byExt = b.external_ref !== null ? bugUnits.filter((u) => same(u.external_ref, b.external_ref!)) : null;
+    const hits = byQa && byExt ? byQa.filter((u) => byExt.includes(u)) : (byQa ?? byExt)!; // invariant:bug-both-ids
+    const item = byQa && byExt ? `bug:${b.qa_bug_id} (${b.external_ref})` : byQa ? `bug:${b.qa_bug_id}` : `bug:external=${b.external_ref}`;
+    if (!hits.length && byQa && byExt && (byQa.length || byExt.length)) {
+      const found = [...byQa.map((u) => `${u.scope} has external_ref ${u.external_ref ?? "none"}`), ...byExt.filter((u) => !byQa.includes(u)).map((u) => `${b.external_ref} is ${u.scope}`)];
+      block("QA_BUG_IDENTITY_MISMATCH", `${item}: the QA id and the external ref do not identify the same bug (${found.join("; ")})`, { item }); // invariant:identity-mismatch
+    } else if (!hits.length) block("QA_NOT_COVERED", `${item} is in the release but no supplied QA readiness covers it`, { item });
+    resolve("bug", item, b.qa_bug_id ?? b.external_ref!, hits, byQa && byExt ? "qa_bug_id+external_ref" : byQa ? "qa_bug_id" : "external_ref");
+  }
+
+  // A release artifact states the release's contents: its members must be exactly the items.
+  const releases = [...used].filter((a) => a.kind === "release");
+  if (releases.length > 1) block("QA_RELEASE_MEMBERS_MISMATCH", `more than one release readiness artifact is used (${releases.map((a) => a.source).join(", ")}) — supply the one for this release`);
+  for (const r of releases) {
+    for (const u of unitsOf(r)) if (![...hitUnits].some((h) => h.a === r && h.scope === u.scope)) block("QA_RELEASE_MEMBERS_MISMATCH", `${r.scope} includes ${u.scope}, which is not in this release's contents`, { source: r.source }); // invariant:release-members-exact
+    for (const h of hitUnits) if (h.a.kind !== "release") block("QA_RELEASE_MEMBERS_MISMATCH", `${h.scope} is covered by ${h.a.source}, but ${r.scope} does not list it as a member`, { source: h.a.source });
+  }
 
   // Every covering artifact: a verdict that allows release, and a valid, current sign-off.
   for (const a of used) {
     if (a.verdict === "NOT_READY") block("QA_NOT_READY", `${a.scope} is NOT_READY (${a.blocker_count} blocker(s)) — ${a.source}`, { source: a.source }); // invariant:not-ready
     if (a.signoff_status === "none") block("QA_UNSIGNED", `${a.scope} has no QA sign-off — ${a.source}`, { source: a.source });
     else if (a.signoff_status !== "valid" || a.signoff_fingerprint !== a.fingerprint) block("QA_SIGNOFF_STALE", `${a.scope}'s sign-off is ${a.signoff_status === "valid" ? "for another fingerprint" : a.signoff_status} — QA must re-sign the current readiness`, { source: a.source });
+    if (a.freshness.status === "outdated") block("QA_READINESS_OUTDATED", `${a.source} was rendered from an older QA ledger (${a.scope}: recorded ${a.freshness.recorded}, ledger now ${a.freshness.computed}) — QA must re-render and re-sign (/qa-readiness, /qa-signoff)`, { source: a.source }); // invariant:outdated-blocks
+    else if (a.freshness.status === "unverifiable") block("QA_FRESHNESS_UNVERIFIABLE", `${a.source}: freshness cannot be proven — ${a.freshness.problem}`, { source: a.source });
   }
   for (const a of valid) if (!used.has(a)) warnings.push({ code: "QA_ARTIFACT_UNUSED", message: `${a.source} (${a.scope}) covers no item of this release` });
 
@@ -269,7 +531,7 @@ export function evaluateQaGate(input: GateInput): Record<string, any> {
   if (usedList.some((a) => a.verdict === "READY_WITH_EXCEPTIONS")) warnings.push({ code: "QA_EXCEPTIONS_PRESENT", message: `QA signed off with ${exceptions.length} exception(s) — each is listed in the checklist; shipping with them is a human decision` });
 
   // Release Notes Input: QA's evidence, filtered to what this release actually contains.
-  const releaseBugs = new Set(input.bugs.map((b) => `bug:${b}`));
+  const releaseBugs = new Set([...hitUnits].filter((u) => u.kind === "bug").map((u) => u.scope));
   const ignored: Array<{ text: string; reason: string }> = [];
   const fixes: Array<{ bug: string; fixed_in: string | null; source: string }> = [];
   for (const a of usedList) {
@@ -284,6 +546,7 @@ export function evaluateQaGate(input: GateInput): Record<string, any> {
   if (ignored.length) warnings.push({ code: "QA_RELEASE_NOTES_IGNORED", message: `${ignored.length} QA release-notes line(s) name items outside this release and were left out` });
   const release_notes_input = {
     features_tested: coverage.features.filter((f) => f.covered_by).map((f) => ({ feature: f.id, qa_scope: f.scope })),
+    bugs_covered: coverage.bugs.filter((b) => b.covered_by).map((b) => ({ item: b.item, qa_scope: b.scope, matched_by: b.matched_by })),
     bug_fixes_verified: fixes,
     builds_tested: [...new Set(usedList.flatMap((a) => a.tested_builds))],
     surfaces_tested: [...new Set(usedList.flatMap((a) => a.candidate_builds.map((c) => c.surface)))],
@@ -299,7 +562,7 @@ export function evaluateQaGate(input: GateInput): Record<string, any> {
     blockers,
     warnings,
     coverage,
-    artifacts: artifacts.map((a) => (a.ok ? { source: a.source, scope: a.scope, kind: a.kind, dev_feature: a.dev_feature, verdict: a.verdict, signoff_status: a.signoff_status, signed_off_by: a.signed_off_by, signed_off_date: a.signed_off_date, candidate_builds: a.candidate_builds, tested_builds: a.tested_builds, used: used.has(a) } : { source: a.source, error: a.code, problems: a.problems })),
+    artifacts: artifacts.map((a) => (a.ok ? { source: a.source, scope: a.scope, kind: a.kind, dev_feature: a.dev_feature, qa_bug_id: a.qa_bug_id, external_ref: a.external_ref, members: a.members.map((m) => m.scope), freshness: a.freshness.status, verdict: a.verdict, signoff_status: a.signoff_status, signed_off_by: a.signed_off_by, signed_off_date: a.signed_off_date, candidate_builds: a.candidate_builds, tested_builds: a.tested_builds, used: used.has(a) } : { source: a.source, error: a.code, problems: a.problems })),
     known_issues: knownIssues,
     exceptions,
     build_consistency: { status: buildStatus, details },
@@ -316,11 +579,11 @@ const table = (head: string[], rows: unknown[][]): string => (rows.length ? [`| 
 export function renderQaSection(r: Record<string, any>): string {
   const label: Record<string, string> = { pass: "PASS", pass_with_exceptions: "PASS WITH EXCEPTIONS — human decision required", no_go: "NO-GO" };
   return [
-    `**QA gate: ${label[r.status]}** (REL-QA-1 … REL-QA-5)`,
+    `**QA gate: ${label[r.status]}** (REL-QA-1 … REL-QA-7)`,
     "**QA readiness artifacts**",
-    table(["Artifact", "Scope", "Verdict", "Sign-off", "Signed off by", "Signed off", "Candidate builds", "Tested builds"], r.artifacts.map((a: any) => (a.error ? [a.source, "—", `malformed/missing: ${a.problems.join("; ")}`, "—", "—", "—", "—", "—"] : [a.source, a.scope, a.verdict, a.signoff_status, a.signed_off_by, a.signed_off_date, a.candidate_builds.map((c: any) => `${c.surface}: ${c.build_id ?? "none"}${c.pinned ? " (pinned)" : ""}`).join(", "), a.tested_builds.join(", ")]))),
+    table(["Artifact", "Scope", "Verdict", "Sign-off", "Freshness", "Signed off by", "Signed off", "Candidate builds", "Tested builds"], r.artifacts.map((a: any) => (a.error ? [a.source, "—", `malformed/missing: ${a.problems.join("; ")}`, "—", "—", "—", "—", "—", "—"] : [a.source, a.members.length ? `${a.scope} (${a.members.join(", ")})` : a.scope, a.verdict, a.signoff_status, a.freshness, a.signed_off_by, a.signed_off_date, a.candidate_builds.map((c: any) => `${c.surface}: ${c.build_id ?? "none"}${c.pinned ? " (pinned)" : ""}`).join(", "), a.tested_builds.join(", ")]))),
     "**Release contents covered**",
-    table(["Item", "Covered by", "Matched by"], [...r.coverage.features, ...r.coverage.bugs].map((c: any) => [c.item, c.covered_by ?? "NOT COVERED", c.matched_by])),
+    table(["Item", "Covered by", "QA scope", "Matched by"], [...r.coverage.features, ...r.coverage.bugs].map((c: any) => [c.item, c.covered_by ?? "NOT COVERED", c.scope, c.matched_by])),
     `**Build consistency: ${r.build_consistency.status}**`,
     table(["Scope", "Surface", "QA candidate", "Release build", "Match"], r.build_consistency.details.map((d: any) => [d.scope, d.surface, d.qa_candidate, d.release_build, d.match ? "yes" : "NO"])),
     "**Known issues**",

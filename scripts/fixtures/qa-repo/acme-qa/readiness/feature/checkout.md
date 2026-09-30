@@ -1,13 +1,17 @@
 ---
-qa_readiness_schema: 1
+qa_readiness_schema: 2
 scope: feature:checkout
 scope_kind: feature
+dev_feature: checkout
+qa_bug_id: null
+external_ref: null
 candidate_builds:
   - android: 104
 verdict: READY_WITH_EXCEPTIONS
 blocker_count: 0
 exception_count: 3
 fingerprint: sha256:8dab0a23176676b6dd430ee5fa2e29107b108197f6a80497e333c68e6561d21e
+freshness_token: sha256:deb3704d30720a4dc2866ac72cf853b2d7c22d26d364d67d9f0d279ce34770b8
 generated_at: 2026-10-01T09:00:24.000Z
 signed_off_by: lead
 signed_off_date: 2026-10-01T09:00:25.000Z

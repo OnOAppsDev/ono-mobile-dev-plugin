@@ -25,7 +25,7 @@
 <!-- One perf sign-off block per shipping platform, tagged [platform], populated by `performance-reviewer` run against that platform's resolved review lane: bundle size delta and the platform's own performance concerns, plus verdict. Per REL-PERF-1. -->
 ## Perf Sign-off
 
-<!-- QA-owned readiness evidence, per REL-QA-1 … REL-QA-5 in standards/shared/release-readiness.md: the output of scripts/qa-release-gate.ts over the QA readiness artifact(s) (docs/qa-readiness-contract.md) — paste its qa_section_markdown here. It lists the readiness artifact(s), each verdict and sign-off status with who/when, candidate and tested builds, the release items each one covers, build consistency, every known issue and exception, and any missing / stale / uncovered status. The Dev QA handoff is Dev → QA input, not QA sign-off, and is not listed here. -->
+<!-- QA-owned readiness evidence, per REL-QA-1 … REL-QA-7 in standards/shared/release-readiness.md: the output of scripts/qa-release-gate.ts over the QA readiness artifact(s) (docs/qa-readiness-contract.md) — paste its qa_section_markdown here. It lists the readiness artifact(s), each verdict and sign-off status with who/when, candidate and tested builds, the release items each one covers, build consistency, every known issue and exception, and any missing / stale / uncovered status. The Dev QA handoff is Dev → QA input, not QA sign-off, and is not listed here. -->
 ## QA Readiness (QA-owned)
 
 <!-- Concrete rollback steps if this release needs to be pulled: revert commit/tag, store rollback/staged-rollout halt, any required backend/migration reversal. Per REL-ROLLBACK-1. -->
