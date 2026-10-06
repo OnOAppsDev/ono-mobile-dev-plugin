@@ -177,7 +177,8 @@ interface Entry {
  * it is at the start of the value region or preceded by whitespace, so
  * `docs/x.md#anchor` and a Figma URL carrying a `#fragment` survive intact.
  */
-function splitValueAndComment(rest: string): { value: string; comment: string } {
+/** A frontmatter line's value and trailing comment — exported so the approval writer edits a value exactly as this framework reads it. */
+export function splitValueAndComment(rest: string): { value: string; comment: string } {
   for (let i = 0; i < rest.length; i++) {
     if (rest[i] === "#" && (i === 0 || /\s/.test(rest[i - 1]))) {
       return { value: rest.slice(0, i).trim(), comment: rest.slice(i).trim() };

@@ -15,8 +15,9 @@ docs/bugs/<bug_key>/bug-work-plan.md
 path-safe never becomes a path.
 
 This document is the bug counterpart of the feature chain's analysis, design and task
-breakdown, folded into one artifact. It is a **contract only** at this step. Nothing
-generates, approves or implements a plan yet, and task-state does not read one.
+breakdown, folded into one artifact. A plan is approved through
+[`scripts/work-approval.ts`](../scripts/work-approval.ts) ([Approval](#approval)). Nothing
+generates or implements a plan yet, and task-state does not read one.
 
 ## Frontmatter
 
@@ -41,7 +42,7 @@ Identity lives here and is never duplicated as a body section.
 | `repo_knowledge_*` | as defined by the repo-knowledge-consumer skill | Not validated here. |
 | `author`, `date` | | Not validated here. |
 | `status` | `draft` \| `approved` | Default `draft`. |
-| `approved_by`, `approved_fingerprint`, `approved_cycle` | `null` until the approval step | **Reserved.** They are parsed for syntax only (`approved_fingerprint` is `null` or `sha256:<64 hex>`; `approved_cycle` is `null` or a positive integer) and carry no semantics yet. |
+| `approved_by`, `approved_fingerprint`, `approved_cycle` | `null` until approved | Written only by `work-approval.ts approve`. Their meaning is defined under [Approval](#approval); the structural validator checks syntax only (`approved_fingerprint` is `null` or `sha256:<64 hex>`; `approved_cycle` is `null` or a positive integer). |
 
 Nullable identity is **explicit**. Every key above except `fix_cycle`, `repo_knowledge_*`,
 `author` and `date` must be present, and a field that does not apply is written as the
@@ -156,9 +157,134 @@ Both reuse the planning-document machinery as is. No parser change was needed.
 - **Frontmatter is excluded**, exactly as for every planning document. `status`,
   `approved_*` and `doc_schema_version` changes never move the body fingerprint.
   - That includes `bug_evidence_fingerprint` and the other identity fields.
-  - **Consequence for the approval step:** it must compare `bug_evidence_fingerprint`
-    (and identity) directly, the way design-reference fields are compared beside
-    `source_fingerprint`. It must not rely on the body fingerprint for them.
+  - That is why approval does not bind to the body fingerprint alone (see below).
+
+## Approval
+
+A plan is approved for exactly the work package a human approved. The package is:
+- the body;
+- the text above the frontmatter block;
+- the bug identity and evidence fields implementation trusts;
+- the current fix cycle.
+
+The helper is [`scripts/work-approval.ts`](../scripts/work-approval.ts). It always exits 0
+and prints JSON.
+
+```
+node --no-warnings scripts/work-approval.ts verify  <path>
+node --no-warnings scripts/work-approval.ts approve <path> --by <identity>
+```
+
+### The approval fingerprint
+
+```
+approval_fingerprint = "sha256:" + hex(sha256(canonical({
+  algorithm: "work-approval/bug-work-plan/v1",
+  body:      fingerprintBody(plan),               // sha256 of the body bytes, as is
+  leading:   "sha256:" + hex(sha256(leading)),    // the bytes above the frontmatter block
+  fields: {
+    bug_key, qa_bug_id, external_ref, origin, found_in_build,
+    platform, device_type, surfaces, capability, related_feature,
+    bug_evidence_fingerprint, fix_cycle
+  }
+})))
+```
+
+- `canonical` is the JSON form the release gate and bug intake already use
+  (`scripts/qa-release-gate.ts`): keys sorted recursively, and no whitespace.
+- Field values are the validator's typed values:
+  - `null` stays `null`;
+  - `fix_cycle` is an integer (1 when absent);
+  - `surfaces` is a de-duplicated, sorted list. It is a set here, exactly as in the bug
+    evidence fingerprint, so reordering it changes nothing.
+- A structurally invalid plan has no approval fingerprint, and is never approved.
+- `algorithm` names this exact rule. A future change takes a new id, so it can never
+  collide with an approval recorded under this one.
+
+**What is outside the approval, and why.** Frontmatter values that are not listed above are
+not bound:
+- **YAML comments.** They are not values.
+- **`doc_schema_version`.** The migration framework owns it. A shape migration must not
+  look like a content change, which is the same reason it is excluded from `fingerprintBody`.
+- **`repo_knowledge_*`.** These re-resolve on every run and have their own freshness
+  fingerprint.
+- **`author` and `date`.** These are generation metadata that implementation never acts
+  on. Binding wall-clock data would make an approval's validity depend on time.
+- **`status` and the `approved_*` fields.** They record the approval itself.
+
+These are the exclusions the existing `fingerprintBody` / `source_fingerprint` convention
+already makes. Everything else is bound, so implementation cannot read anything an
+approval does not cover:
+- every body byte, including HTML comments inside the body, because body bytes are hashed
+  as they are with no normalization;
+- the title line above the frontmatter.
+
+### Verification
+
+`verify` is read-only and reports exactly one status:
+
+| Status | When | Codes |
+|---|---|---|
+| `invalid` | The plan is not structurally valid. | `PLAN_INVALID`, plus the validator's `errors` |
+| `draft` | `status` is not `approved`. | `NOT_APPROVED` |
+| `invalid` | `status: approved`, but the approval is incomplete. This covers a hand-written or partial approval. | `APPROVER_MISSING`, `APPROVAL_FINGERPRINT_MISSING`, `APPROVAL_CYCLE_MISSING` |
+| `approval_stale` | The approval is complete but no longer matches: the content, identity or cycle changed. | `APPROVAL_FINGERPRINT_MISMATCH`, `APPROVAL_CYCLE_MISMATCH` |
+| `approved` | All four rules hold. | none |
+
+The four rules for a valid approval:
+1. `status: approved`;
+2. `approved_by` is not empty;
+3. `approved_fingerprint` equals the recomputed approval fingerprint;
+4. `approved_cycle` equals `fix_cycle`.
+
+Every verdict also returns the current `approval_fingerprint` and the `recorded` approval,
+so a caller can show what moved.
+
+**Behavior after an edit:**
+- A malformed `approved_fingerprint` makes the plan structurally `invalid`.
+- An edit after approval leaves `status: approved` on disk. Verification never rewrites a
+  stale plan back to `draft`, and never repairs it. The caller decides how to present it,
+  and a human re-approves.
+
+### Cycle binding
+
+`approved_cycle` must equal `fix_cycle`, and `fix_cycle` is also inside the fingerprint.
+When a new cycle is appended (`fix_cycle` 1 → 2):
+- the cycle-1 approval becomes `approval_stale`, because both the fingerprint and the cycle
+  differ;
+- `approved_cycle: 1` cannot approve cycle 2, even with a fingerprint recomputed for the
+  new content;
+- cycle 2 needs one new approval, recorded as `approved_cycle: 2`.
+
+### Approving
+
+`approve --by <identity>`:
+- Needs an explicit human identity. The approver is never inferred.
+  - An identity must be plain: a letter or digit first, then letters, digits, spaces and
+    `. _ @ + -`, at most 100 characters.
+  - These are refused: `#`, `:`, a line break, and placeholders such as `null`.
+- Refuses a structurally invalid plan.
+- Writes exactly four frontmatter values, keeping each line's comment:
+  - `status: approved`
+  - `approved_by: <identity>`
+  - `approved_fingerprint: <approval fingerprint>`
+  - `approved_cycle: <fix_cycle>`
+- Before the atomic write (temp file, fsync, rename), it asserts:
+  - the body and the text above the frontmatter are byte-identical;
+  - the frontmatter block reassembles byte-faithfully;
+  - each approval field appears exactly once;
+  - the result verifies as `approved`.
+  If any check fails, nothing is written.
+
+**Idempotent.** If the plan is already validly approved, by the same approver, for the
+same fingerprint and cycle, `approve` writes nothing (`changed: false`).
+
+**Re-approval.** If content changed after approval, `approve` records the new valid state
+and reports the replaced approval as `previous`. A different approver on unchanged
+content is a new approval act and is recorded the same way.
+
+No `doc_schema_version` change was needed: v1 already reserved these fields, and their
+syntax is unchanged.
 
 ## Validation results
 

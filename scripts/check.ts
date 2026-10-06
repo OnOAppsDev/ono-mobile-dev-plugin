@@ -70,6 +70,7 @@ const PHASES: Phase[] = [
       "qa-release-gate",
       "bug-intake",
       "bug-work-plan",
+      "work-approval",
     ],
   },
   {
