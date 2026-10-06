@@ -196,3 +196,16 @@ Platform-independent stop conditions; the lane adds its own.
 - **`agents/code-reviewer.md`** and **`agents/performance-reviewer.md`** — the two executors that run this methodology against one resolved lane.
 - **The resolved platform lane** — standards families, buckets, tools, stage rows, measurement instruments, the out-of-lane policy, and platform stop conditions.
 - **This skill** — the platform-independent review methodology, and nothing a lane or a command already owns.
+
+## Bug review
+
+`/review-code --bug <bug_key>` runs this methodology unchanged, against the same lanes, and adds four shared checks over the bug fix (`commands/review-code.md` § *Bug review*). They use the approved Bug Work Plan's own sections, which the command passes. These checks are review questions, not a platform standard. A concern is filed as an ordinary finding with the usual severity, `file:line` and remediation. It cites the check's `BUG-CHECK-*` rule in the standard-ID slot, because there is no platform standard for it.
+
+| Check | Rule a concern cites | The question |
+|---|---|---|
+| `root-cause` | `BUG-CHECK-ROOT-CAUSE` | Does the change address the root-cause area the plan names, rather than mask the symptom (a guard, a swallowed error, a retry)? When the plan labels its root cause `[inference]` (`root_cause_inference`), the review cannot certify it: record `not-verifiable`, or a concern, never `pass`. |
+| `reproduction-path` | `BUG-CHECK-REPRODUCTION` | Does the developer-testing evidence in task state cover the reported reproduction path? That means a regression test that failed before and passes after, or an explicit VERIFY-4 reason. Without that evidence the result is `not-verifiable` or a concern, never `pass`. |
+| `plan-conformance` | `BUG-CHECK-SCOPE` | Does the change stay within the plan's minimal change surface, its non-goals and the tasks' acceptance criteria? Each change outside them is a scope-deviation finding. |
+| `regression-risk` | `BUG-CHECK-REGRESSION-RISK` | What can the change break, judged only from the plan's Blast Radius and its first-degree capability context? Never expand the Project Knowledge graph. |
+
+Each check's status is `pass`, `concern` or `not-verifiable`, with a one-line note. A status is `concern` exactly when a finding citing its rule was filed.

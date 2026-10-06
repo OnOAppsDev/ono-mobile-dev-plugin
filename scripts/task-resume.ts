@@ -456,6 +456,38 @@ function isAncestor(root: string, a: string, b: string): boolean {
   }
 }
 
+/**
+ * The repository's content as it is now: every file's git blob id — HEAD's tree overlaid with
+ * the working tree's changes (added, modified, untracked; deleted removed) — minus `excluded`.
+ * Unlike HEAD, it moves on an uncommitted edit and does NOT move when exactly this content is
+ * committed, so it binds "what was reviewed" across the commit that follows a review. Blob
+ * ids are git's own (`hash-object` applies the repository's clean filters), so a committed
+ * file and the same file uncommitted carry the same id. File modes are not part of it.
+ */
+export function contentFingerprint(root: string, excluded: (rel: string) => boolean): { available: boolean; head: string | null; fingerprint: string | null } {
+  const g = gitState(root);
+  if (!g.available) return { available: false, head: null, fingerprint: null };
+  const blobs = new Map<string, string>();
+  if (g.head !== null) {
+    const out = git(root, ["-c", "core.quotepath=false", "ls-tree", "-r", "-z", "--full-tree", g.head]);
+    if (out === null) return { available: true, head: g.head, fingerprint: null };
+    for (const e of out.split("\0")) {
+      const m = /^\d+ \w+ ([0-9a-f]+)\t([\s\S]+)$/.exec(e);
+      if (m !== null) blobs.set(m[2], m[1]);
+    }
+  }
+  for (const p of g.changed) blobs.delete(p);
+  const present = g.changed.filter((p) => readBytes(join(root, p))?.kind === "file");
+  if (present.length > 0) {
+    const out = git(root, ["hash-object", "--", ...present]);
+    const ids = out?.trim().split("\n") ?? [];
+    if (ids.length !== present.length) return { available: true, head: g.head, fingerprint: null };
+    present.forEach((p, i) => blobs.set(p, ids[i]));
+  }
+  const entries = [...blobs.entries()].filter(([p]) => !excluded(p)).sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0));
+  return { available: true, head: g.head, fingerprint: sha(entries.map(([p, id]) => `${p}\0${id}`).join("\n")) };
+}
+
 /** The plugin's own store and its atomic-write temp file — never task work, never external. */
 export function isStoreArtifact(rel: string): boolean {
   return /^docs\/tasks\/[^/]+-task-state\.json$/.test(rel) || /^docs\/tasks\/\.[^/]*\.task-state\.tmp$/.test(rel) ||

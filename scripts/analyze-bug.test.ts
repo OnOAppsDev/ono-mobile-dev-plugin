@@ -431,13 +431,13 @@ try {
 
   /* ── 32–36. scope ─────────────────────────────────────────────────────── */
   {
+    // Step 6 extended /review-code with --bug; bug-review.test.ts pins its original body verbatim.
     // Step 5 changed /implement-task, task-state.ts and task-resume.ts on purpose; bug-implementation.test.ts
     // pins every feature section of /implement-task, and the task-state suites pin the store's behaviour.
     const PINNED: Record<string, string> = {
       "commands/analyze-feature.md": "42f3b7f1fbd91e9110e15877b3f746312926958ccf53f28dfc3ee76879e70051",
       "commands/dev-design-start.md": "f62963b1d156f4d9b22cd1d92678d4de25f0d66d7120801d62075d14ec8b9ca8",
       "commands/dev-feature-start.md": "0713797d25d66df5064424ffd0dcf4269fead926512c2c40dd2eb9350abce175",
-      "commands/review-code.md": "bfe6f3e128fd7934972c48d5c66c2d019314d7d15a8baa6fe89bcc01104bc9cd",
       "commands/create-dev-qa-notes.md": "2e7ed53a753d5c3e2896cafa11fd07d3b74c6b2316c1a877ca42b2a6936eae8e",
       "commands/prepare-mobile-release.md": "7f7d431309a77e4af4f7485b236cf2205616f2afed3b06de94cf2a0acbf327e4",
       "commands/fix-review-comments.md": "5b6d7698b9c940ea8bb783669ee37fe8b71f5a39ca4428bce9e6882c459c7a3d",

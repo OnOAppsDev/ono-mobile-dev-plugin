@@ -65,6 +65,45 @@ function analyzeRoute(fm: Record<string, any>, source: { qaRepo?: string; report
   return `/analyze-bug --origin=${fm.origin} --report=${source.report ?? "<path>"}`;
 }
 
+/**
+ * What implementation and review read from an approved Bug Work Plan: the bug identity and
+ * the plan's sections, comments stripped. `root_cause_inference` is true when the Root Cause
+ * is labelled `[inference]` and cites no `[evidence: …]` or `[reused: …]` — a hypothesis, not
+ * an established cause.
+ */
+export function planContext(buf: Buffer, fm: Record<string, any>): Record<string, any> {
+  const body = (splitDocument(buf) as any).body.toString("utf-8");
+  const fixDesign = section(body, "Fix Design");
+  const verification = section(body, "Verification Strategy");
+  const rootCause = section(body, "Root Cause");
+  return {
+    bug: {
+      bug_key: fm.bug_key,
+      qa_bug_id: fm.qa_bug_id,
+      external_ref: fm.external_ref,
+      origin: fm.origin,
+      found_in_build: fm.found_in_build,
+      surfaces: fm.surfaces,
+      capability: fm.capability,
+      related_feature: fm.related_feature,
+    },
+    reproduction: section(body, "Reproduction Evidence"),
+    observed_vs_expected: section(body, "Observed vs Expected"),
+    affected: section(body, "Affected Capability & Surfaces"),
+    root_cause: rootCause,
+    root_cause_inference: /\[inference\]/.test(rootCause) && !/\[(evidence|reused): [^\]]+\]/.test(rootCause),
+    blast_radius: section(body, "Blast Radius"),
+    fix_design: fixDesign,
+    non_goals: labelled(fixDesign, "Non-goals"),
+    minimal_change_surface: labelled(fixDesign, "Minimal change surface"),
+    affected_files: labelled(fixDesign, "Affected files / areas"),
+    verification_strategy: verification,
+    reproduction_path: labelled(verification, "Reproduction path"),
+    regression_test: labelled(verification, "Regression test"),
+    repo_knowledge_reference: section(body, "Repo Knowledge Reference"),
+  };
+}
+
 export interface GateRequest {
   root: string;
   work: string;
@@ -147,9 +186,6 @@ export function bugGate(req: GateRequest): Record<string, any> {
     };
   }
 
-  const body = (splitDocument(buf) as any).body.toString("utf-8");
-  const fixDesign = section(body, "Fix Design");
-  const verification = section(body, "Verification Strategy");
   const warnings = [
     ...(it.warnings ?? []),
     ...(transition ? [{ code: "FOUND_IN_BUILD_UNVERIFIED", message: "the QA context changed but the evidence is the same; found_in_build is known on one side only and was not contradicted" }] : []),
@@ -166,29 +202,7 @@ export function bugGate(req: GateRequest): Record<string, any> {
     device_type: fm.device_type,
     task,
     warnings,
-    context: {
-      bug: {
-        bug_key: fm.bug_key,
-        qa_bug_id: fm.qa_bug_id,
-        external_ref: fm.external_ref,
-        origin: fm.origin,
-        found_in_build: fm.found_in_build,
-        surfaces: fm.surfaces,
-        capability: fm.capability,
-        related_feature: fm.related_feature,
-      },
-      reproduction: section(body, "Reproduction Evidence"),
-      observed_vs_expected: section(body, "Observed vs Expected"),
-      affected: section(body, "Affected Capability & Surfaces"),
-      root_cause: section(body, "Root Cause"),
-      blast_radius: section(body, "Blast Radius"),
-      fix_design: fixDesign,
-      non_goals: labelled(fixDesign, "Non-goals"),
-      verification_strategy: verification,
-      reproduction_path: labelled(verification, "Reproduction path"),
-      regression_test: labelled(verification, "Regression test"),
-      repo_knowledge_reference: section(body, "Repo Knowledge Reference"),
-    },
+    context: planContext(buf, fm),
     expectations: [...BUG_EXPECTATIONS],
   };
 }

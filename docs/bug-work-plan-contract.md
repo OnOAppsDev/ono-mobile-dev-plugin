@@ -350,6 +350,47 @@ Task state for the bug is `docs/tasks/bugs/<bug_key>.task-state.json`, with work
 
 `status` reports the cycle's progress. Once every cycle-1 task is proven complete, it reports `/review-code --bug <bug_key>`.
 
+## Review record (`/review-code --bug <bug_key>`)
+
+The existing review runs over the bug fix and is persisted as one record per fix cycle: `docs/bugs/<bug_key>/review-c<fix_cycle>.md`, written by [`scripts/bug-review.ts`](../scripts/bug-review.ts) `record`.
+- It is evidence of the latest review of the cycle, replaced by a newer one. It is not the source of truth for the review, and it approves nothing.
+- It is written atomically, never touches task state, and is never committed by the plugin.
+
+**Frontmatter (`---` delimited).**
+
+| Field | Value |
+|---|---|
+| `review_schema` | `1` |
+| `work_type` | `bug` |
+| `bug_key`, `fix_cycle` | the bug and the cycle reviewed |
+| `reviewed_head` | HEAD when reviewed (informational) |
+| `reviewed_tree_fingerprint` | the reviewed code: sha256 over every file's git blob id, HEAD overlaid with the working tree, excluding `docs/bugs/` and the task-state store |
+| `bug_work_plan_fingerprint` | the plan's approval fingerprint |
+| `task_state_fingerprint` | sha256 of the canonical bug task-state file |
+| `findings_fingerprint` | see below |
+| `blocking_count`, `major_count`, `minor_count`, `nit_count` | the review template's four severities |
+| `reviewed_by`, `generated_at` | supplied by the caller; part of no fingerprint |
+
+**Body sections.** Review Summary, Blocking Findings, Major Findings, Other Findings (Minor, Nit), Bug-specific Checks, Verification Evidence (from task state), Scope Deviations (the `BUG-CHECK-SCOPE` findings). Every finding uses the review template's form: `` `[platform] file:line` — [standard ID] description — remediation ``.
+
+**`findings_fingerprint`.** sha256 over the canonical JSON of two things:
+- the findings, normalized (whitespace collapsed) and put in canonical order: severity, then path, line, rule, platform, text. Ordering is therefore not significant, and duplicates count, since the findings are a multiset.
+- the four checks, by id.
+
+Nothing about who reviewed or when enters it.
+
+**Freshness.** `bug-review.ts verify` reports `fresh` only when all of these hold:
+- the record's cycle is the plan's;
+- the plan is still approved, with the same approval fingerprint;
+- the task state is unchanged;
+- the reviewed code is unchanged.
+
+Otherwise it reports `stale`, with reason codes `REVIEW_CYCLE_MISMATCH`, `REVIEW_PLAN_NOT_APPROVED`, `REVIEW_PLAN_CHANGED`, `REVIEW_TASK_STATE_CHANGED` and `REVIEW_CODE_CHANGED`. A record whose findings, checks or counts no longer match its `findings_fingerprint` is `invalid`. With no record for the plan's current cycle it is `missing`, so a cycle-1 review never stands for cycle 2.
+
+The code is bound by its content, not by HEAD alone:
+- an uncommitted edit makes the record stale;
+- committing exactly the reviewed content keeps it fresh, reported as `head_moved`.
+
 ## Validation results
 
 `validateBugWorkPlan(buf)` returns:

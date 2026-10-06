@@ -378,7 +378,7 @@ try {
       "hooks/require-approval-before-code.json": "37f5f2e5dbe97ccac0f432a7b3eacc6f8595b0d2a60ade3674df0f6ec69db043",
       "hooks/require-approval-before-code.sh": "f4333da9c0a95003cf5dd08323e3f702b16d4468edc2bff65230e6468385dcfe",
       "hooks/scan-for-secrets.sh": "be60a1fc569de494c2aa215220cf162eccfe8f6b7fc04ffc5a14d7e6827c67d9",
-      "commands/review-code.md": "bfe6f3e128fd7934972c48d5c66c2d019314d7d15a8baa6fe89bcc01104bc9cd",
+      // Step 6 extended /review-code with --bug; bug-review.test.ts pins its original body verbatim.
       "commands/create-dev-qa-notes.md": "2e7ed53a753d5c3e2896cafa11fd07d3b74c6b2316c1a877ca42b2a6936eae8e",
       "templates/qa-handoff-template.md": "3203b0e0ffd0a3e0c67044cc18dcdaf752047a2c61f1e5cd7538cf1b16cfb564",
       "agents/feature-implementer.md": "d53845b5e31d2487754747f89227b0a54fa9d1ed457ae02934b593cce7576023",
