@@ -286,6 +286,54 @@ content is a new approval act and is recorded the same way.
 No `doc_schema_version` change was needed: v1 already reserved these fields, and their
 syntax is unchanged.
 
+## Generation (`/analyze-bug`)
+
+`commands/analyze-bug.md` creates the plan. Its deterministic half is
+[`scripts/analyze-bug.ts`](../scripts/analyze-bug.ts):
+
+| Subcommand | What it does |
+|---|---|
+| `start` | Read-only. Runs bug intake and reads any existing plan, then names exactly one outcome. |
+| `scaffold` | Writes the draft's deterministic half. |
+| `check` | Applies the generation rules below on top of `validateBugWorkPlan`. |
+
+**Outcomes of `start`:**
+
+| Outcome | Meaning |
+|---|---|
+| `BUG_PLAN_NEW` | No plan exists. Create the cycle-1 plan. |
+| `BUG_PLAN_AWAITING_APPROVAL` | A current draft exists, or the plan was edited after approval with no task state. Present it for approval; do not regenerate. |
+| `BUG_PLAN_APPROVED` | The plan is approved and current. The next action is `/implement-task bug:<bug_key> T1`. |
+| `BUG_PLAN_REGENERATE` | The evidence or identity drifted under an unapproved draft with no task state. Regenerate the draft in place. |
+| `BUG_PLAN_STALE` | The evidence drifted under an approved plan, or under one with task state. Stop; reconciliation is a later step. |
+| `BUG_PLAN_INVALID` | Never overwritten. |
+| `BUG_REOPENED` | Reported, together with intake's reopened evidence. No Cycle 2 is created. |
+| `BUG_QA_DENIED` | QA's verified denial. |
+| `BUG_INSUFFICIENT_EVIDENCE` | Intake has no reliable evidence. |
+
+Drift is measured on `bug_evidence_fingerprint`, `qa_bug_id`, `external_ref` and `origin`.
+
+When intake later moves from partial to full context, QA's derived `found_in_build` becomes
+known. That changes the evidence fingerprint, and the plan is then reported as drifted.
+
+**Routing** is never chosen by the helper.
+- It is inherited only from the existing plan, or from the related feature's **one**
+  approved Task Breakdown with a valid platform and device type.
+- Otherwise a human confirms it once (`ROUTING_REQUIRED`).
+- QA surfaces are corroboration only.
+- **The capability QA bound** wins over a Project Knowledge lookup (`CAPABILITY_CONFLICT`).
+
+**Generation rules (`check`).** Each rule, with the code reported when it fails:
+
+| Code | Rule |
+|---|---|
+| `SECTION_EMPTY` | Every fixed section has content outside HTML comments. |
+| `EVIDENCE_LABELS` | Root Cause labels its claims `[evidence: …]`, `[reused: …]`, `[inference]` or `[unknown]`. A labelled `[inference]` is how an unreproducible-locally root cause is recorded. |
+| `REPRO_CRITERION` | Some cycle-1 task's **first** acceptance criterion begins "The reported reproduction path no longer fails". |
+| `REGRESSION_PLAN` | The Regression test label names an existing cycle-1 task (`T<n>`), or begins `Not feasible:` with the reason. |
+| `PARTIAL_WARNINGS` | In partial context, Reproduction Evidence keeps every intake warning code. |
+| `PLAN_STALE` | The plan still matches intake. |
+
 ## Validation results
 
 `validateBugWorkPlan(buf)` returns:

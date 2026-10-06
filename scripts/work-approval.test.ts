@@ -322,9 +322,9 @@ try {
     check("29 existing migration fixtures are byte-identical", digest === "sha256:d4a2bd658aaf5989355318bd29500bd00cfa0e46ef032ed37bc5a4eae0f139ca", digest);
     const bwpDir = join(HERE, "fixtures/bug-work-plans");
     check("29 the bug-work-plan fixtures are still drafts (approval tests work on copies)", ["bwp-cycle1.md", "bwp-cycle2.md"].every((f) => readFileSync(join(bwpDir, f), "utf-8").includes("status: draft\n")));
-    check("30 no /analyze-bug command exists yet", !existsSync(join(REPO_ROOT, "commands/analyze-bug.md")) && !existsSync(join(REPO_ROOT, "skills/analyze-bug")));
-    const commands = readdirSync(join(REPO_ROOT, "commands")).map((f) => read(`commands/${f}`)).join("\n");
-    check("30 no command calls the approval helper yet", !/work-approval/.test(commands));
+    // Step 4 added /analyze-bug, which approves through this helper; no other command calls it.
+    const others = readdirSync(join(REPO_ROOT, "commands")).filter((f) => f !== "analyze-bug.md").map((f) => read(`commands/${f}`)).join("\n");
+    check("30 only /analyze-bug calls the approval helper", !/work-approval/.test(others) && /scripts\/work-approval\.ts" approve/.test(read("commands/analyze-bug.md")));
     for (const f of ["commands/implement-task.md", "scripts/task-state.ts", "scripts/task-resume.ts"]) check(`31 ${f} does not reference work-approval`, !/work-approval/.test(read(f)));
     check("the suite is registered with the check harness", read("scripts/check.ts").includes('"work-approval"'));
     const contract = read("docs/bug-work-plan-contract.md");

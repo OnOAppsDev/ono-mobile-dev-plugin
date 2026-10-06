@@ -309,9 +309,9 @@ const SECTIONS = [
 
 /* ── 24–26. scope: no command, no task-state, no QA/Inspector writes ────── */
 {
-  check("24 no /analyze-bug command exists yet", !existsSync(join(REPO_ROOT, "commands/analyze-bug.md")) && !existsSync(join(REPO_ROOT, "skills/analyze-bug")));
-  const commands = readdirSync(join(REPO_ROOT, "commands")).map((f) => read(`commands/${f}`)).join("\n");
-  check("24 no command references the bug work plan yet", !/bug-work-plan/.test(commands));
+  // Step 4 added /analyze-bug, the plan's only producer; every other command stays unaware of it.
+  const others = readdirSync(join(REPO_ROOT, "commands")).filter((f) => f !== "analyze-bug.md").map((f) => read(`commands/${f}`)).join("\n");
+  check("24 only /analyze-bug references the bug work plan", !/bug-work-plan/.test(others) && /bug-work-plan/.test(read("commands/analyze-bug.md")));
   for (const f of ["commands/implement-task.md", "scripts/task-state.ts", "scripts/task-resume.ts", "scripts/bug-intake.ts"]) {
     check(`25 ${f} does not reference bug-work-plan`, !/bug-work-plan/.test(read(f)));
   }

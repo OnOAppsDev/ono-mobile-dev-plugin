@@ -16,6 +16,7 @@ a hand edit breaks the record hashes the reader re-verifies.
 | `BUG-46` | `fix_delivered` | reproduced → `build add and-202 --fixes bug:BUG-46` |
 | `BUG-47` | `assigned` | `bug report --found-in-build and-201` → reproduced (found-in build recorded in the report) |
 | `BUG-48` | `closed_wont_fix` | `bug report` → `bug resolve --resolution wont_fix` (a ledger-recorded resolution) |
+| `BUG-50` | `assigned` | `bug report --found-in-build and-201` → reproduced → `scope event --field capability --value '"checkout-payments"'` (a QA-bound capability) |
 
 `feature:checkout` carries a recorded Dev handoff (`scope event --op set --field dev_handoff`,
 Dev feature `checkout-coupons`), so `BUG-43`'s `related_feature` resolves from QA's record.
