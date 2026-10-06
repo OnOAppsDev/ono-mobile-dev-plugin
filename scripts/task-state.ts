@@ -31,6 +31,11 @@
  * file; this script remains its only reader and writer. Git is read only through that
  * module, and only to capture and verify tree state.
  *
+ * Bug work (Bug Development Flow, Step 5) runs on this same store: the work id
+ * `bug:<bug_key>` takes the place of the feature slug, the approved Bug Work Plan takes the
+ * place of the Task Breakdown, and the state file is docs/tasks/bugs/<bug_key>.task-state.json
+ * — a name no feature slug can produce. See docs/task-state-contract.md, "Bug work".
+ *
  * Always exits 0 and always prints one JSON object. Callers branch on `status`.
  *
  *   node --no-warnings scripts/task-state.ts read  --root <dir> --feature <slug> [--breakdown <path>]
@@ -70,6 +75,7 @@ import { createHash } from "crypto";
 import { fingerprintBody } from "./migrate-planning-doc.ts";
 import {
   UPSTREAM_KEYS,
+  BUG_UPSTREAM_KEYS,
   captureBaseline,
   chainStatus,
   changedSinceBaseline,
@@ -88,6 +94,7 @@ import {
   rowCells,
   sourceFingerprint,
   stepFingerprint,
+  taskRowsText,
   taskOwnedFiles,
   unverifiableRefs,
   upstreamArtifacts,
@@ -427,7 +434,8 @@ export interface WriteResult {
     | "schema-too-new"
     | "invalid-state"
     | "unparseable"
-    | "write-failed";
+    | "write-failed"
+    | "invalid-bug-completion";
   summary: string;
   detail?: string;
   /** abandon only: task-owned files whose content differs from the run's baseline. Never touched. */
@@ -441,8 +449,24 @@ export interface WriteResult {
  * Task Breakdown is human-approved and is never mutated for discovery.
  */
 export function stateFilePath(targetRoot: string, feature: string): string {
+  const bug = bugKeyOf(feature);
+  if (bug !== null) return join(targetRoot, "docs", "tasks", "bugs", `${bug}.task-state.json`);
   return join(targetRoot, "docs", "tasks", `${feature}-task-state.json`);
 }
+
+/**
+ * Bug work's id: the explicit `bug:` prefix and a path-safe bug key — never inferred from a
+ * name. Its state file ends `.task-state.json`, while every feature's ends `-task-state.json`,
+ * so no feature slug can ever name a bug's file.
+ */
+export const BUG_WORK_ID = /^bug:[A-Za-z0-9][A-Za-z0-9._-]{0,63}$/;
+export function bugKeyOf(workId: string): string | null {
+  return BUG_WORK_ID.test(workId) && !workId.includes("..") ? workId.slice("bug:".length) : null;
+}
+export const isBugWork = (workId: string): boolean => workId.startsWith("bug:");
+
+/** The bug fix task's first acceptance criterion begins with exactly this (`/analyze-bug`). */
+export const BUG_REPRO_CRITERION = "The reported reproduction path no longer fails";
 
 /* ----------------------------------------------------- row fingerprinting */
 
@@ -688,7 +712,7 @@ export function readTaskState(
   let breakdownRows: Record<string, ParsedRow> | null = null;
   if (breakdownPath !== undefined && breakdownPath !== "" && existsSync(breakdownPath)) {
     try {
-      breakdownRows = parseBreakdown(readFileSync(breakdownPath, "utf-8"));
+      breakdownRows = parseBreakdown(taskRowsText(readFileSync(breakdownPath, "utf-8")));
     } catch {
       breakdownRows = null;
     }
@@ -1008,6 +1032,47 @@ export function verificationSatisfied(payload: WritePayload): boolean {
 }
 
 /**
+ * Bug work's completion rule, on top of every rule above (Bug Development Flow, Step 5):
+ *
+ *   - the plan row's acceptance criteria are recorded verbatim and met — never weakened or
+ *     rewritten;
+ *   - the fix task (its first criterion is the reported reproduction path) requires developer
+ *     testing, and a regression test that failed before the fix and passes after it — one of
+ *     the developer tests that actually ran — or, when one cannot be authored, the reason and
+ *     a VERIFY-4 developer-testing debt owned by the developer.
+ */
+export function bugCompletionProblem(payload: WritePayload, row: Record<string, string> | null): string | null {
+  if (row === null) return "Refused: the bug task's row could not be read from the Bug Work Plan (--breakdown).";
+  const criteria = (row["acceptance criteria"] ?? "").split(/;|<br\s*\/?>/i).map((c) => c.trim()).filter(Boolean);
+  const recorded = new Map((payload.acceptanceCriteria ?? []).map((c) => [String(c.criterion ?? "").trim(), c.met]));
+  const missing = criteria.filter((c) => recorded.get(c) !== true);
+  if (missing.length > 0) {
+    return `Refused: bug work records the Bug Work Plan row's acceptance criteria verbatim, each met — missing, unmet or rewritten: ${missing.map((c) => `"${c}"`).join(", ")}.`;
+  }
+  if (!(criteria[0] ?? "").toLowerCase().startsWith(BUG_REPRO_CRITERION.toLowerCase())) return null;
+  const dt = payload.developerTesting as unknown;
+  if (!isRecord(dt) || dt.required !== true) {
+    return "Refused: the bug's fix task requires developer testing (developerTesting.required: true) — the reported reproduction path is verified by a test, or the reason it cannot be is recorded as VERIFY-4 debt.";
+  }
+  const reg = dt.regression;
+  if (!isRecord(reg)) {
+    return 'Refused: the bug\'s fix task records developerTesting.regression — { "command", "failedBefore": true, "passesAfter": true }, or { "notFeasibleReason" } with a VERIFY-4 developer-testing debt.';
+  }
+  if (nonEmpty(reg.notFeasibleReason)) {
+    const debt = (payload.verificationDebt ?? []).some((d) => d.domain === DEVELOPER_TESTING_DOMAIN && d.ruleId === "VERIFY-4" && d.owner === DEVELOPER_OWNER);
+    return debt ? null : `Refused: a regression test recorded as not feasible needs a "${DEVELOPER_TESTING_DOMAIN}" verificationDebt entry with ruleId VERIFY-4, owned by "${DEVELOPER_OWNER}".`;
+  }
+  if (!nonEmpty(reg.command) || reg.failedBefore !== true || reg.passesAfter !== true) {
+    return "Refused: the regression test must have failed before the fix and pass after it (developerTesting.regression: command, failedBefore: true, passesAfter: true).";
+  }
+  const runs = Array.isArray(dt.runs) ? (dt.runs as Array<Record<string, unknown>>) : [];
+  if (!runs.some((r) => r.command === reg.command && r.result === "pass")) {
+    return `Refused: the regression test "${String(reg.command)}" must be one of the developer tests that actually ran and passed (developerTesting.runs).`;
+  }
+  return null;
+}
+
+/**
  * ENG-003. How an `in-progress` write relates to a run already on record:
  *
  *   start    (default) a new run: attempt + 1 and a fresh execution block. Refused over an
@@ -1087,6 +1152,12 @@ export function writeTaskState(
       summary:
         "Refused: a terminal `complete` requires the developer-testing decision — whether developer tests were required, which were added or updated or why none were, what actually ran, and developer-owned debt for anything that could not be written or run.",
     };
+  }
+
+  if (nextState === "complete" && isBugWork(feature)) {
+    const text = breakdownPath !== undefined && existsSync(breakdownPath) ? readFileSync(breakdownPath, "utf-8") : "";
+    const problem = bugCompletionProblem(payload, rowCells(text, taskId));
+    if (problem !== null) return refuse(path, taskId, "invalid-bug-completion", problem);
   }
 
   const loaded = loadForWrite(path, feature, taskId);
@@ -1262,7 +1333,7 @@ function saveFile(path: string, file: TaskStateFile): null | ((taskId: string) =
 function rowFingerprintFor(breakdownPath: string | undefined, taskId: string): string | null {
   if (breakdownPath === undefined || breakdownPath === "" || !existsSync(breakdownPath)) return null;
   try {
-    return parseBreakdown(readFileSync(breakdownPath, "utf-8"))[taskId]?.fingerprint ?? null;
+    return parseBreakdown(taskRowsText(readFileSync(breakdownPath, "utf-8")))[taskId]?.fingerprint ?? null;
   } catch {
     return null;
   }
@@ -1297,6 +1368,7 @@ function newExecution(
   const now = currentBasis(docs, taskId, rowFingerprint);
   const upstream: Record<string, string | null> = {};
   for (const k of UPSTREAM_KEYS) upstream[k] = now[k] ?? null;
+  for (const k of BUG_UPSTREAM_KEYS) if (now[k] !== undefined) upstream[k] = now[k];
   const row = rowCells(docs.breakdown.buf?.toString("utf-8") ?? "", taskId);
   return {
     runId,
@@ -1593,6 +1665,10 @@ function main(): void {
   const root = flag("root") ?? process.cwd();
   const feature = flag("feature") ?? "";
   const breakdown = flag("breakdown");
+  if (isBugWork(feature) && bugKeyOf(feature) === null) {
+    process.stdout.write(`${JSON.stringify({ status: "invalid", detail: `"${feature}" is not a bug work id (bug:<bug_key>, a path-safe key)` }, null, 2)}\n`);
+    process.exit(0);
+  }
 
   // SHARED-013: the upstream body fingerprint a command compares against a downstream
   // document's recorded `source_fingerprint`. Always exits 0 and always prints one JSON

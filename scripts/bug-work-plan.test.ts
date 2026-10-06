@@ -310,9 +310,10 @@ const SECTIONS = [
 /* ── 24–26. scope: no command, no task-state, no QA/Inspector writes ────── */
 {
   // Step 4 added /analyze-bug, the plan's only producer; every other command stays unaware of it.
-  const others = readdirSync(join(REPO_ROOT, "commands")).filter((f) => f !== "analyze-bug.md").map((f) => read(`commands/${f}`)).join("\n");
-  check("24 only /analyze-bug references the bug work plan", !/bug-work-plan/.test(others) && /bug-work-plan/.test(read("commands/analyze-bug.md")));
-  for (const f of ["commands/implement-task.md", "scripts/task-state.ts", "scripts/task-resume.ts", "scripts/bug-intake.ts"]) {
+  // Step 5 made /implement-task the plan's consumer; every other command stays unaware of it.
+  const others = readdirSync(join(REPO_ROOT, "commands")).filter((f) => f !== "analyze-bug.md" && f !== "implement-task.md").map((f) => read(`commands/${f}`)).join("\n");
+  check("24 only /analyze-bug and /implement-task reference the bug work plan", !/bug-work-plan/.test(others) && /bug-work-plan/.test(read("commands/analyze-bug.md")) && /bug-work-plan/.test(read("commands/implement-task.md")));
+  for (const f of ["scripts/task-state.ts", "scripts/task-resume.ts", "scripts/bug-intake.ts"]) {
     check(`25 ${f} does not reference bug-work-plan`, !/bug-work-plan/.test(read(f)));
   }
   const src = read("scripts/bug-work-plan.ts").replace(/\/\*\*[\s\S]*?\*\//g, "").replace(/^\s*\/\/.*$/gm, "");

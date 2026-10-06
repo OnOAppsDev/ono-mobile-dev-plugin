@@ -1,6 +1,6 @@
 ---
-description: Implement a single approved task from a feature's task breakdown.
-argument-hint: [feature] [task-id] [--restart | --abandon]
+description: Implement a single approved task from a feature's task breakdown, or from a bug's approved Bug Work Plan (bug:<bug_key>).
+argument-hint: [feature | bug:<bug_key>] [task-id] [--restart | --abandon] [--qa-repo=<path> | --report=<path>]
 ---
 
 Orchestrate the implementation of **exactly one** approved task. This command is an orchestrator only: it resolves and verifies the full implementation context, enforces the approval/readiness gates, routes to the correct platform, and hands the resolved context to that platform's feature-implementation skill. It contains **no platform coding methodology** — the platform skill owns how the code is written; the `require-approval-before-code`, `block-main-branch-changes`, and `protect-secrets` hooks gate the writes.
@@ -15,6 +15,51 @@ Parse `$ARGUMENTS` as `[feature] [task-id]` (e.g. `biometric-login T3`).
 - A **feature identifier is required** to disambiguate — task ids are not globally unique (every feature's breakdown starts at `T1`).
 - If the task id is missing, or the feature is missing/ambiguous, or the pair cannot identify exactly one task, **stop and ask the user for `[feature] [task-id]`.** Do not guess.
 - An optional **lifecycle flag** may follow: `--restart` (discard the active run and start a new attempt) or `--abandon` (end the active run as `failed`). Without one, an interrupted run is **resumed automatically** when §6 verifies it — the developer is never asked to choose. Both flags act only on an `in-progress` task; see §6.
+- **Work type.** No `bug:` prefix means feature work, exactly as before: every section below applies unchanged. `bug:<bug_key>` (e.g. `bug:BUG-43 T1`) means bug work: follow §1a, which says what replaces §3–§5a for it. Bug work is only ever the explicit `bug:` prefix — it is never inferred from a feature or task name.
+
+## 1a. Bug work (`bug:<bug_key>`)
+
+Bug work runs on this command's engine — the same task-row parser, task-state store, checkpoints, resume, developer-testing lifecycle, platform lanes and hooks. Only what differs is stated here.
+
+**The plan.** The approved Bug Work Plan at `docs/bugs/<bug_key>/bug-work-plan.md` (`docs/bug-work-plan-contract.md`) is the **sole planning document**: no Feature Analysis, DD, Dev Plan or Task Breakdown is resolved or required. Its `## Tasks` rows are the tasks; its cycle-1 ids are `T1`, `T2`, ….
+
+**The evidence source.** The bug evidence is re-read on every invocation, so this command needs where it lives: `--qa-repo=<path>` for a QA bug, `--report=<path>` for an external or Dev-discovered bug. When it is missing, ask once; never search for or guess it.
+
+**The gate — replaces §3, §4, the document gates of §5, and §5a.** After §2 resolves `TARGET_ROOT`, run:
+
+```
+node --no-warnings "${CLAUDE_PLUGIN_ROOT}/scripts/bug-implementation.ts" gate bug:<bug_key> <task-id> \
+  --root "<TARGET_ROOT>" [--qa-repo "<path>" | --report "<path>"]
+```
+
+It validates the plan, verifies its content-bound approval for the current fix cycle through `scripts/work-approval.ts`, re-reads the bug through `scripts/bug-intake.ts`, and compares the evidence with what the plan was approved for. It always exits 0 and prints one JSON object; act on `outcome`:
+
+| `outcome` | Do |
+|---|---|
+| `BUG_READY` | Continue. Show `warnings` (a partial QA context, a context transition) in one line each. |
+| `BUG_PLAN_MISSING` · `BUG_PLAN_INVALID` | **Stop.** The bug is prepared through `/analyze-bug <bug-ref>`. |
+| `BUG_PLAN_NOT_APPROVED` · `BUG_APPROVAL_STALE` · `BUG_APPROVAL_INVALID` | **Stop** and give the `route` — `/analyze-bug` resumes at approval. This command never re-approves a plan and never edits `status` or any `approved_*` field. |
+| `BUG_EVIDENCE_STALE` | **Stop.** The bug evidence changed since approval (`drift`); re-plan through the `route`. A change of QA context alone with the same evidence is not drift and passes. |
+| `BUG_QA_DENIED` | **Stop.** QA's verified state no longer hands the bug to Dev; report intake's `reason`. |
+| `BUG_REOPENED` | **Stop.** QA re-tested a fix and it failed: the next fix cycle is planned through `/analyze-bug` — never created here. |
+| `BUG_CYCLE_UNSUPPORTED` · `BUG_TASK_UNSUPPORTED` | **Stop.** Implementing a reopened fix cycle (`C<n>-T<m>`) is not available yet. |
+| `BUG_TASK_UNKNOWN` · `BUG_EVIDENCE_SOURCE_REQUIRED` · `BUG_INSUFFICIENT_EVIDENCE` · `BUG_WORK_ID_INVALID` | **Stop** and report `reason`. |
+
+From §5, the gates that are not about feature documents still apply unchanged: the task row exists and is not complete or blocked, its dependencies are proven (§6), `platform` is valid on the row, `device_type` comes from the plan, and the branch is not `main`/`master`. A bug plan carries no design reference: the reproduction and the expected behaviour it records are the reference.
+
+**The rest of this command, with two substitutions.** §5b, §6, §6a, §7, §7a, §9 and §10 apply as written, where every `<feature>` is `bug:<bug_key>` and every `<absolute Task Breakdown path>` is the absolute Bug Work Plan path — for example `--feature "bug:<bug_key>" --breakdown "<absolute plan path>"`. The store keeps the bug at `docs/tasks/bugs/<bug_key>.task-state.json`, apart from every feature (`docs/task-state-contract.md` § *Bug work*). Where §6 names `/dev-feature-start` to repair the task graph, a bug's plan is repaired through `/analyze-bug`. Checkpoints may cite the plan's sections as basis — `plan#root-cause`, `plan#fix-design`, `plan#verification-strategy`, `plan#tasks` — plus `evidence`, so a later plan change invalidates only the work built on what moved.
+
+**§8 for bug work.** Invoke the same `feature-implementer` agent with the shared `platform-implementation` methodology and the row's platform lane — there is no bug agent and no bug lane. Pass `TARGET_ROOT`, the absolute plan path, the task id and row, `platform`, `device_type`, the dependency and approval status, the `runId`, any resume verdict, and from the gate: the bug identity, the reproduction evidence, Observed vs Expected, Root Cause, Fix Design, its **non-goals**, the Verification Strategy, the affected surfaces and capability, the Repo Knowledge Reference, the partial-context `warnings`, and `expectations`. The non-goals are **hard scope limits**, and there is no unrelated refactoring: if the fix cannot be made without crossing one, stop and recommend re-planning through `/analyze-bug` (§9).
+
+**§10 for bug work.** Acceptance criteria are the plan row's, recorded verbatim and each met — never weakened or rewritten. The fix task (its first criterion is that the reported reproduction path no longer fails) also records `developerTesting.regression`: the regression test that failed before the fix and passes after it, or — when one cannot be authored — `notFeasibleReason` with a `VERIFY-4` developer-testing debt owned by the developer. The helper refuses anything else as `invalid-bug-completion`. After recording the outcome, read the cycle's progress:
+
+```
+node --no-warnings "${CLAUDE_PLUGIN_ROOT}/scripts/bug-implementation.ts" status bug:<bug_key> --root "<TARGET_ROOT>"
+```
+
+When `all_complete` is true, report the next action, `/review-code --bug <bug_key>`. Otherwise name the remaining tasks.
+
+**Commits.** This command never creates a git commit — for bug work exactly as for feature work. It changes code, task state and checkpoints, runs validation and developer tests, and prepares the work for a commit; then it stops. Any product-code commit waits for explicit developer approval, and the `require-approval-before-code`, `block-main-branch-changes` and `protect-secrets` hooks apply unchanged.
 
 ## 2. Resolve one authoritative repository root (via the helper)
 

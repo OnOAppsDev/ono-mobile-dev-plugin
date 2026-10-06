@@ -423,7 +423,8 @@ const codes = (r: any): string[] => (r?.warnings ?? []).map((w: any) => w.code);
   check("24 the helper writes no planning artifact path", !/docs\/bugs|bug-work-plan|task-state\.ts|docs\/tasks/.test(src));
   check("the helper reads no clock and no randomness", !/\bnew Date\b|Date\.now|Math\.random|randomUUID/.test(src));
   check("25 the suite is registered with the check harness", /"bug-intake"/.test(read("scripts/check.ts")));
-  for (const rel of ["commands/analyze-feature.md", "commands/implement-task.md", "commands/create-dev-qa-notes.md", "commands/review-code.md", "commands/prepare-mobile-release.md", "scripts/task-state.ts", "scripts/read-repo-knowledge.ts"]) {
+  // /implement-task reads intake through its bug gate since Step 5 (scripts/bug-implementation.ts).
+  for (const rel of ["commands/analyze-feature.md", "commands/create-dev-qa-notes.md", "commands/review-code.md", "commands/prepare-mobile-release.md", "scripts/task-state.ts", "scripts/read-repo-knowledge.ts"]) {
     check(`25 ${rel} does not reference bug intake (Step 1 changes nothing downstream)`, !/bug-intake/.test(read(rel)));
   }
 }

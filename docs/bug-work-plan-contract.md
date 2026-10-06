@@ -334,6 +334,22 @@ known. That changes the evidence fingerprint, and the plan is then reported as d
 | `PARTIAL_WARNINGS` | In partial context, Reproduction Evidence keeps every intake warning code. |
 | `PLAN_STALE` | The plan still matches intake. |
 
+## Implementation (`/implement-task bug:<bug_key> <task-id>`)
+
+An approved plan's tasks run on the existing implementation engine (`commands/implement-task.md` §1a). The plan is the sole planning document.
+
+Before every task, [`scripts/bug-implementation.ts`](../scripts/bug-implementation.ts) `gate` requires:
+- a valid plan at fix cycle 1;
+- a valid approval for that cycle;
+- no drift between the plan and the bug evidence intake reads now (`evidenceDrift`, shared with `/analyze-bug`);
+- no QA denial and no reopen since approval.
+
+A change of QA context with the same evidence is not drift, for example when `found_in_build` is known on one side only.
+
+Task state for the bug is `docs/tasks/bugs/<bug_key>.task-state.json`, with work id `bug:<bug_key>` (`docs/task-state-contract.md` § *Bug work*). Checkpoints can cite `plan#<anchor>` sections.
+
+`status` reports the cycle's progress. Once every cycle-1 task is proven complete, it reports `/review-code --bug <bug_key>`.
+
 ## Validation results
 
 `validateBugWorkPlan(buf)` returns:

@@ -200,7 +200,7 @@ try {
     const after = S({ root: root43, ref: "BUG-43", qaRepo: QA });
     check("11 an existing approved, current plan is reused — no regeneration", after?.outcome === "BUG_PLAN_APPROVED" && after.proceed === null && after.ok === true, show(after));
     check("11 the next action is /implement-task bug:<bug_key> T1, with execution support still to come",
-      after?.next_action === "/implement-task bug:BUG-43 T1" && /not yet|Step 5/i.test(after.next_action_note ?? ""), JSON.stringify([after?.next_action, after?.next_action_note]));
+      after?.next_action === "/implement-task bug:BUG-43 T1" && /--qa-repo/.test(after.next_action_note ?? ""), JSON.stringify([after?.next_action, after?.next_action_note]));
     const approvedBytes = readFileSync(planFile(root43, "BUG-43"));
     const again = SC({ root: root43, ref: "BUG-43", qaRepo: QA });
     check("11 an approved plan is never overwritten", again?.ok === false && readFileSync(planFile(root43, "BUG-43")).equals(approvedBytes), show(again));
@@ -245,8 +245,8 @@ try {
     const rootT = repo();
     mkdirSync(dirname(planFile(rootT, "BUG-43")), { recursive: true });
     writeFileSync(planFile(rootT, "BUG-43"), draftDrift);
-    mkdirSync(join(rootT, "docs/tasks"), { recursive: true });
-    writeFileSync(join(rootT, "docs/tasks/bug-BUG-43-task-state.json"), "{}");
+    mkdirSync(join(rootT, "docs/tasks/bugs"), { recursive: true });
+    writeFileSync(join(rootT, "docs/tasks/bugs/BUG-43.task-state.json"), "{}");
     const withState = S({ root: rootT, ref: "BUG-43", qaRepo: QA });
     check("14 a draft with task state is stale, never regenerated (reconciliation is a later step)", withState?.outcome === "BUG_PLAN_STALE" && withState.task_state_exists === true, show(withState));
     // A plan edited after approval, evidence unchanged → re-approval, no regeneration.
@@ -431,17 +431,16 @@ try {
 
   /* ── 32–36. scope ─────────────────────────────────────────────────────── */
   {
+    // Step 5 changed /implement-task, task-state.ts and task-resume.ts on purpose; bug-implementation.test.ts
+    // pins every feature section of /implement-task, and the task-state suites pin the store's behaviour.
     const PINNED: Record<string, string> = {
       "commands/analyze-feature.md": "42f3b7f1fbd91e9110e15877b3f746312926958ccf53f28dfc3ee76879e70051",
       "commands/dev-design-start.md": "f62963b1d156f4d9b22cd1d92678d4de25f0d66d7120801d62075d14ec8b9ca8",
       "commands/dev-feature-start.md": "0713797d25d66df5064424ffd0dcf4269fead926512c2c40dd2eb9350abce175",
-      "commands/implement-task.md": "29b18fc5b2374cf90ea1cd2f991ad41b791ea067442e43ac0d55c6422a48b697",
       "commands/review-code.md": "bfe6f3e128fd7934972c48d5c66c2d019314d7d15a8baa6fe89bcc01104bc9cd",
       "commands/create-dev-qa-notes.md": "2e7ed53a753d5c3e2896cafa11fd07d3b74c6b2316c1a877ca42b2a6936eae8e",
       "commands/prepare-mobile-release.md": "7f7d431309a77e4af4f7485b236cf2205616f2afed3b06de94cf2a0acbf327e4",
       "commands/fix-review-comments.md": "5b6d7698b9c940ea8bb783669ee37fe8b71f5a39ca4428bce9e6882c459c7a3d",
-      "scripts/task-state.ts": "4568c1f90e929377c8a12cdbb8caf0f761bbc3bdae0a5261bbb774d242bcc988",
-      "scripts/task-resume.ts": "e7403a27b5f56d845dab5c34e2e23c73e0523f19f8003dc8e8e1f461a1dfdc4a",
       "agents/feature-architect.md": "c715811b78c1804368766551cf42f46beec568d78a91397a4ea5f57d96bca582",
       "skills/platform-planning/SKILL.md": "4375411ab8091ac6cd4f8433ba75e8df53d7b4ab79be95a3eeb78aa01cf3f86c",
       "skills/mobile-debugging/SKILL.md": "0b6bc7a1384ca2dc1f762dcd2946ccd8320dfe35fc0471f79e027d4f580c081e",

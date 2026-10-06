@@ -36,11 +36,11 @@
 
 import { existsSync, mkdirSync, readFileSync, readdirSync, realpathSync, renameSync, statSync, unlinkSync, writeFileSync } from "fs";
 import { dirname, join, relative, resolve, sep } from "path";
-import { lookupQaBug, normalizeBug, isSafeKey } from "./bug-intake.ts";
+import { lookupQaBug, normalizeBug, isSafeKey, evidenceFingerprint } from "./bug-intake.ts";
 import { validateBugWorkPlan, bugWorkPlanPath, BUG_WORK_PLAN_FIELDS, BUG_WORK_PLAN_SECTIONS } from "./bug-work-plan.ts";
 import { verifyApproval } from "./work-approval.ts";
 import { readFrontmatter, splitDocument } from "./migrate-planning-doc.ts";
-import { stateFilePath } from "./task-state.ts";
+import { stateFilePath, BUG_REPRO_CRITERION } from "./task-state.ts";
 
 const PLUGIN_ROOT = dirname(import.meta.dirname ?? __dirname);
 const TEMPLATE = join(PLUGIN_ROOT, "templates/bug-work-plan-template.md");
@@ -48,7 +48,7 @@ const PLATFORMS = ["react-native", "react", "ios", "android"];
 const DEVICE_TYPES = ["mobile", "tv"];
 const DEV_ORIGIN_FLAGS = ["dev-review", "dev-testing", "production"];
 /** The fix task's first acceptance criterion begins with exactly this. */
-export const REPRO_CRITERION = "The reported reproduction path no longer fails";
+export const REPRO_CRITERION = BUG_REPRO_CRITERION;
 const PLAIN = /^[A-Za-z0-9][A-Za-z0-9 ._@+-]{0,99}$/;
 
 export interface BugRequest {
@@ -67,8 +67,8 @@ export interface BugRequest {
 
 /* ------------------------------------------------------------------ intake */
 
-/** The request → one intake call, exactly as bug-intake.ts defines it. */
-function intake(req: BugRequest): { result?: Record<string, any>; refusal?: { outcome: string; reason: string }; evidenceRef?: string } {
+/** The request → one intake call, exactly as bug-intake.ts defines it. Shared with /implement-task's bug gate. */
+export function runIntake(req: BugRequest): { result?: Record<string, any>; refusal?: { outcome: string; reason: string }; evidenceRef?: string } {
   const isDev = req.origin !== undefined;
   const modes = [req.ref !== undefined, req.external !== undefined, isDev].filter(Boolean).length;
   if (modes === 0) return { refusal: { outcome: "BUG_REF_REQUIRED", reason: "name the bug: a QA ref (BUG-27 / qa=BUG-27 with --qa-repo), --external <key> --report <file>, or --origin dev-review|dev-testing|production --report <file>" } };
@@ -135,14 +135,37 @@ function routing(root: string, identity: Record<string, any>, plan: Record<strin
 
 /* ------------------------------------------------------------------ assess */
 
-const DRIFT_FIELDS = ["bug_evidence_fingerprint", "qa_bug_id", "external_ref", "origin"] as const;
+const IDENTITY_DRIFT_FIELDS = ["qa_bug_id", "external_ref", "origin"] as const;
+
+/**
+ * What changed between the evidence a plan recorded and the current intake — one rule, used by
+ * `/analyze-bug` and by `/implement-task`'s bug gate. A change of QA context alone is not a
+ * change of evidence: when `found_in_build` is unknown on one side (partial context does not
+ * re-derive QA's value), the fingerprint is compared with the plan's value in its place, and
+ * a match is reported in `transition`. A `found_in_build` both sides know and disagree on,
+ * any other evidence field, or the identity, is drift.
+ */
+export function evidenceDrift(fm: Record<string, any>, it: Record<string, any>): { drift: string[]; transition: boolean } {
+  const drift: string[] = IDENTITY_DRIFT_FIELDS.filter((f) => (fm[f] ?? null) !== (it.identity[f] ?? null));
+  const planFound = fm.found_in_build ?? null;
+  const nowFound = it.identity.found_in_build ?? null;
+  if (planFound !== null && nowFound !== null && planFound !== nowFound) drift.push("found_in_build");
+  let transition = false;
+  if (fm.bug_evidence_fingerprint !== it.bug_evidence_fingerprint) {
+    const comparable = (planFound === null || nowFound === null) &&
+      evidenceFingerprint({ ...it.evidence, surfaces: it.identity.surfaces, found_in_build: planFound }) === fm.bug_evidence_fingerprint;
+    if (comparable) transition = true;
+    else drift.push("bug_evidence_fingerprint");
+  }
+  return { drift, transition };
+}
 
 function assess(req: BugRequest): Record<string, any> {
   if (!req.root || !existsSync(req.root) || !statSync(req.root).isDirectory()) {
     return { ok: false, outcome: "BUG_ROOT_INVALID", proceed: null, reason: `repository root ${req.root ?? ""} does not exist — resolve TARGET_ROOT first` };
   }
   const root = realpathSync(req.root);
-  const got = intake(req);
+  const got = runIntake(req);
   if (got.refusal) return { ok: false, outcome: got.refusal.outcome, proceed: null, reason: got.refusal.reason };
   const it = got.result as Record<string, any>;
   const base = { root, intake: it, context_level: it.context_level, warnings: it.warnings ?? [], evidence_ref: got.evidenceRef ?? null };
@@ -160,7 +183,7 @@ function assess(req: BugRequest): Record<string, any> {
   const key = it.identity.bug_key as string;
   const rel = bugWorkPlanPath(key) as string;
   const abs = join(root, rel);
-  const taskState = stateFilePath(root, `bug-${key}`);
+  const taskState = stateFilePath(root, `bug:${key}`);
   const common = {
     ...base,
     bug_key: key,
@@ -184,8 +207,7 @@ function assess(req: BugRequest): Record<string, any> {
     return { ...common, ok: false, outcome: "BUG_PLAN_INVALID", proceed: null, reason: `${rel} records bug_key ${fm.bug_key}, not ${key}`, plan: { valid: false, errors: [{ code: "IDENTITY_MISMATCH", message: `bug_key ${fm.bug_key} ≠ ${key}` }] } };
   }
   const approval = verifyApproval(buf);
-  const current: Record<string, unknown> = { bug_evidence_fingerprint: it.bug_evidence_fingerprint, qa_bug_id: it.identity.qa_bug_id, external_ref: it.identity.external_ref, origin: it.identity.origin };
-  const drift = DRIFT_FIELDS.filter((f) => fm[f] !== current[f]);
+  const { drift } = evidenceDrift(fm, it);
   const plan = { valid: true, approval: { status: approval.status, reasons: approval.reasons }, drift, frontmatter: fm };
   const withPlan = { ...common, plan };
 
@@ -203,7 +225,7 @@ function assess(req: BugRequest): Record<string, any> {
       proceed: null,
       reason: "the plan is approved and still matches the bug evidence",
       next_action: `/implement-task bug:${key} T1`,
-      next_action_note: "`/implement-task` does not accept bug work yet — bug execution support arrives in Step 5 of the Bug Development Flow.",
+      next_action_note: "Pass the bug's evidence source to /implement-task too (--qa-repo=<path> for a QA bug, --report=<path> otherwise): it re-reads the evidence before every task.",
     };
   }
   if (approval.status === "draft" || (approval.status === "approval_stale" && !common.task_state_exists)) {

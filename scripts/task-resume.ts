@@ -344,10 +344,28 @@ function cells(line: string): string[] {
   return l.split("|").map((c) => c.trim().replace(/\s+/g, " "));
 }
 
+/** A Bug Work Plan (`work_type: bug`) is bug work's task breakdown. */
+export function isBugPlan(fm: Frontmatter | null | undefined): boolean {
+  return fm?.work_type === "bug";
+}
+
+/**
+ * The text whose table rows are tasks. A feature's Task Breakdown is read whole, exactly as
+ * before; a Bug Work Plan's tasks are the rows of its `## Tasks` section only, so a table
+ * elsewhere in the plan is never mistaken for one. The rows are still read by the one parser.
+ */
+export function taskRowsText(markdown: string): string {
+  if (!isBugPlan(readFrontmatter(Buffer.from(markdown, "utf-8")))) return markdown;
+  const start = markdown.indexOf("\n## Tasks\n");
+  if (start === -1) return "";
+  const next = markdown.indexOf("\n## ", start + 1);
+  return markdown.slice(start, next === -1 ? markdown.length : next);
+}
+
 /** The selected row's cells keyed by the breakdown's own header names, lowercased. */
 export function rowCells(markdown: string, taskId: string): Record<string, string> | null {
   let columns = DEFAULT_COLUMNS;
-  for (const line of markdown.split("\n")) {
+  for (const line of taskRowsText(markdown).split("\n")) {
     if (!line.trim().startsWith("|")) continue;
     const c = cells(line);
     if ((c[0] ?? "").toLowerCase() === "id") {
@@ -440,7 +458,9 @@ function isAncestor(root: string, a: string, b: string): boolean {
 
 /** The plugin's own store and its atomic-write temp file — never task work, never external. */
 export function isStoreArtifact(rel: string): boolean {
-  return /^docs\/tasks\/[^/]+-task-state\.json$/.test(rel) || /^docs\/tasks\/\.[^/]*\.task-state\.tmp$/.test(rel);
+  return /^docs\/tasks\/[^/]+-task-state\.json$/.test(rel) || /^docs\/tasks\/\.[^/]*\.task-state\.tmp$/.test(rel) ||
+    // Bug work (Bug Development Flow, Step 5): docs/tasks/bugs/<bug_key>.task-state.json and its temp file.
+    /^docs\/tasks\/bugs\/[^/]+\.task-state\.json$/.test(rel) || /^docs\/tasks\/bugs\/\.[^/]*\.task-state\.tmp$/.test(rel);
 }
 
 export interface Baseline {
@@ -606,6 +626,17 @@ function ownStatus(checks: ChainCheck[]): CheckStatus {
  * stage's body. Rerunning it with a byte-identical result leaves everything below current.
  */
 export function chainFromDocs(docs: ChainDocs): ChainResult {
+  // Bug work has no feature chain. Its upstream is the bug evidence and the approved Bug Work
+  // Plan, which scripts/bug-implementation.ts gates before every task (intake is read there,
+  // never here); within a run, the plan's sections are basis references like any other.
+  if (isBugPlan(docs.breakdown.fm)) {
+    return {
+      stages: [],
+      earliestStale: null,
+      unverifiable: [],
+      summary: "Upstream chain: Bug Work Plan — its approval and bug-evidence freshness are verified by `scripts/bug-implementation.ts gate` before every bug task; there is no feature chain to check.",
+    };
+  }
   const { root, analysis: fa, dd, breakdown: tb } = docs;
 
   const faChecks: ChainCheck[] = [];
@@ -699,6 +730,14 @@ export function currentBasis(
     for (const [slug, fp] of Object.entries(sectionFingerprints(body))) out[`${key}#${slug}`] = fp;
   }
   out.breakdown = bodyFp(docs.breakdown);
+  // Bug work: the Bug Work Plan's body and each of its sections (`plan#root-cause`,
+  // `plan#fix-design`, …), and the bug evidence the plan was approved for.
+  if (isBugPlan(docs.breakdown.fm) && docs.breakdown.buf) {
+    out.plan = bodyFp(docs.breakdown);
+    const split = splitDocument(docs.breakdown.buf);
+    if (!("error" in split)) for (const [slug, fp] of Object.entries(sectionFingerprints(split.body.toString("utf-8")))) out[`plan#${slug}`] = fp;
+    out.evidence = docs.breakdown.fm?.bug_evidence_fingerprint ?? null;
+  }
   out.requirements = docs.requirements?.fingerprint ?? null;
   out.design = docs.breakdown.fm ? docs.design.fingerprint : null;
   for (const p of latestProbes(probes)) out[`probe:${p.name}`] = p.outputFingerprint;
@@ -718,6 +757,8 @@ export function unverifiableRefs(docs: ChainDocs): Set<string> {
 
 /** The inputs a run records at its start, so a later resume can name exactly what moved. */
 export const UPSTREAM_KEYS = ["requirements", "design", "analysis", "dd", "breakdown", "row"] as const;
+/** Bug work's additional upstream inputs, recorded only for a run on a Bug Work Plan. */
+export const BUG_UPSTREAM_KEYS = ["plan", "evidence"] as const;
 
 /* -------------------------------------------------------- execution records */
 
@@ -1017,7 +1058,7 @@ export function evaluateExecution(input: EvaluateInput): ResumeVerdict {
   const rowFiles = filesFromCell(row?.["files touched"]).map((f) => normalizeRel(root, f)).filter((f): f is string => f !== null);
   const now = currentBasis(docs, taskId, input.rowFingerprint, ex.probes);
   // Only a verified value on both sides can show movement; an unread source is `unverified`, not moved.
-  verdict.upstreamChanged = UPSTREAM_KEYS.filter((k) => k in ex.upstream && ex.upstream[k] !== null && now[k] !== null && ex.upstream[k] !== now[k]);
+  verdict.upstreamChanged = [...UPSTREAM_KEYS, ...BUG_UPSTREAM_KEYS].filter((k) => k in ex.upstream && ex.upstream[k] !== null && now[k] !== null && ex.upstream[k] !== now[k]);
 
   /* 1. git: HEAD and branch */
   const g = gitState(root);

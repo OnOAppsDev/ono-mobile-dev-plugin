@@ -236,4 +236,4 @@ Report:
 - the context level and any warnings;
 - the next action, `/implement-task bug:<bug_key> T1`.
 
-`/implement-task` does not accept bug work yet: bug execution support arrives in Step 5 of the Bug Development Flow. This command does not invoke implementation, and it never creates task state.
+Run it with the bug's evidence source (`--qa-repo=<path>` for a QA bug, `--report=<path>` otherwise): `/implement-task` re-reads the bug evidence and re-verifies the approval before every task (`commands/implement-task.md` §1a). This command does not invoke implementation, and it never creates task state.

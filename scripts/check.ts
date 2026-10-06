@@ -72,6 +72,7 @@ const PHASES: Phase[] = [
       "bug-work-plan",
       "work-approval",
       "analyze-bug",
+      "bug-implementation",
     ],
   },
   {
