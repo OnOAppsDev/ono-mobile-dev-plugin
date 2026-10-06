@@ -69,6 +69,7 @@ const PHASES: Phase[] = [
       "figma-theme-tokens",
       "qa-release-gate",
       "bug-intake",
+      "bug-work-plan",
     ],
   },
   {

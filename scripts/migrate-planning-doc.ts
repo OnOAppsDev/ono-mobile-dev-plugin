@@ -58,7 +58,7 @@ import { dirname, join } from "path";
  */
 export const PLUGIN_VERSION = "0.6.0";
 
-export type DocKind = "feature-analysis" | "dd" | "dev-plan" | "task-breakdown";
+export type DocKind = "feature-analysis" | "dd" | "dev-plan" | "task-breakdown" | "bug-work-plan";
 
 /**
  * The current frontmatter contract version per document kind. Must match the
@@ -68,13 +68,31 @@ export type DocKind = "feature-analysis" | "dd" | "dev-plan" | "task-breakdown";
  * since the DD Package contract added `dd_generation` and `dd_complexity_band`
  * (see the contract doc). dev-plan and task-breakdown are declared 1 = "the
  * shape as of plugin 0.5.0"; no migration chain is authored for them yet, so an
- * unstamped document of those kinds is ASSUMED current.
+ * unstamped document of those kinds is ASSUMED current. bug-work-plan is born at 1 and
+ * born stamped (see BORN_STAMPED): there is no earlier shape to detect or migrate.
  */
 export const CURRENT_SCHEMA_VERSION: Record<DocKind, number> = {
   "feature-analysis": 3,
   dd: 2,
   "dev-plan": 1,
   "task-breakdown": 1,
+  "bug-work-plan": 1,
+};
+
+/**
+ * Kinds introduced with `doc_schema_version` stamped from their first generated copy. No
+ * legacy, unstamped document of such a kind can exist, so an unstamped one — or one
+ * stamped below the current version — is refused as `unsupported`, never detected, never
+ * assumed current and never migrated: a migration could only invent a history.
+ */
+const BORN_STAMPED: ReadonlySet<DocKind> = new Set<DocKind>(["bug-work-plan"]);
+
+/**
+ * A field whose value names the kind itself. A document requested as such a kind must
+ * carry it, or it is a `kind-mismatch` — a positive check, unlike EXCLUSIVE_MARKERS.
+ */
+const KIND_IDENTITY: Partial<Record<DocKind, { field: string; value: string }>> = {
+  "bug-work-plan": { field: "work_type", value: "bug" },
 };
 
 /** Never writable by any migration step. Approval and identity live here. */
@@ -360,6 +378,8 @@ const MARKERS: Record<DocKind, Marker[]> = {
   ],
   "dev-plan": [{ version: 1, all: [] }],
   "task-breakdown": [{ version: 1, all: [] }],
+  // Born stamped: never detected. BORN_STAMPED refuses an unstamped document first.
+  "bug-work-plan": [],
 };
 
 /**
@@ -374,6 +394,7 @@ const MARKERS: Record<DocKind, Marker[]> = {
 const EXCLUSIVE_MARKERS: Array<{ kind: DocKind; fields: string[] }> = [
   { kind: "dd", fields: ["detail_level"] },
   { kind: "task-breakdown", fields: ["dev_plan_link"] },
+  { kind: "bug-work-plan", fields: ["bug_key", "bug_evidence_fingerprint"] },
 ];
 
 /**
@@ -398,6 +419,18 @@ export function fingerprintBody(buf: Buffer): string | null {
   const split = splitDocument(buf);
   if ("error" in split) return null;
   return `sha256:${createHash("sha256").update(split.body).digest("hex")}`;
+}
+
+/**
+ * A planning document's frontmatter keys, in order, with their values (comments stripped) —
+ * through the same `splitDocument` and entry parser the migrator uses, so a kind-specific
+ * reader never grows a second frontmatter parser. Read-only. Null without a frontmatter block.
+ */
+export function readFrontmatter(buf: Buffer): { keys: string[]; values: Record<string, string> } | null {
+  const split = splitDocument(buf);
+  if ("error" in split) return null;
+  const entries = parseEntries(split.inner).filter((e) => e.key !== null);
+  return { keys: entries.map((e) => e.key as string), values: Object.fromEntries(entries.map((e) => [e.key as string, e.value])) };
 }
 
 export function detectVersion(kind: DocKind, entries: Entry[]): number | null {
@@ -726,6 +759,7 @@ const MIGRATIONS: Record<DocKind, Migration[]> = {
   dd: DD_MIGRATIONS,
   "dev-plan": [],
   "task-breakdown": [],
+  "bug-work-plan": [],
 };
 
 /**
@@ -785,6 +819,7 @@ const CANONICAL_ORDER: Record<DocKind, string[]> = {
   ],
   "dev-plan": ["doc_schema_version", "migrated_from_version", "migrated_by", "migration_inputs"],
   "task-breakdown": ["doc_schema_version", "migrated_from_version", "migrated_by", "migration_inputs"],
+  "bug-work-plan": ["doc_schema_version", "migrated_from_version", "migrated_by", "migration_inputs"],
 };
 
 // ---------------------------------------------------------------------------
@@ -1007,6 +1042,16 @@ export function migratePlanningDoc(path: string, options: MigrateOptions): Migra
     }
   }
 
+  const identity = KIND_IDENTITY[kind];
+  if (identity && view.value(identity.field).trim() !== identity.value) {
+    return fail(
+      path,
+      "kind-mismatch",
+      `${path} does not carry \`${identity.field}: ${identity.value}\`, so it is not a ${kind} document, but --kind ${kind} was requested.`,
+      { encoding: split.encoding }
+    );
+  }
+
   const current = CURRENT_SCHEMA_VERSION[kind];
   const stampRaw = view.value("doc_schema_version").trim();
   const stamped = stampRaw !== "" && /^\d+$/.test(stampRaw);
@@ -1039,6 +1084,15 @@ export function migratePlanningDoc(path: string, options: MigrateOptions): Migra
       error: null,
       summary: `${path} is already at ${kind} schema v${current}. No action taken.`,
     };
+  }
+
+  if (BORN_STAMPED.has(kind)) {
+    return fail(
+      path,
+      "unsupported",
+      `${path}: a ${kind} document is generated stamped at doc_schema_version ${current}; it is ${stampedVersion === null ? "unstamped" : `stamped ${stampedVersion}`}, and no earlier ${kind} version exists to migrate from.`,
+      { kind, encoding: split.encoding, currentVersion: current, stamped: stampedVersion !== null }
+    );
   }
 
   const detected = stampedVersion ?? detectVersion(kind, entries);
@@ -1238,7 +1292,7 @@ export const __testing = {
 // CLI
 // ---------------------------------------------------------------------------
 
-const VALID_KINDS: DocKind[] = ["feature-analysis", "dd", "dev-plan", "task-breakdown"];
+const VALID_KINDS: DocKind[] = ["feature-analysis", "dd", "dev-plan", "task-breakdown", "bug-work-plan"];
 
 function main(): void {
   const argv = process.argv.slice(2);
