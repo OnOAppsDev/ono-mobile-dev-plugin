@@ -16,6 +16,12 @@
  * whether Dev may start a fix cycle at all. QA ownership is never overridden: a bug QA has
  * not handed to Dev is reported, never started.
  *
+ * Every result declares its `context_level`. `full` means QA's state is verified and decides,
+ * a denial included. `partial` means the evidence verifies but QA's state does not: Dev may
+ * proceed, with warnings, and no state is assumed. `insufficient` means there is no
+ * reliable evidence, so the bug is blocked and what is missing is named. Only the absence of
+ * a verified QA state degrades (docs/qa-bug-view-contract.md).
+ *
  * Read-only by construction: it writes nothing anywhere — not the QA repository, not the
  * code repository, not Project Knowledge — runs no process and reads no clock. It produces
  * no planning artifact; later steps consume its output.
@@ -113,10 +119,24 @@ export type Status =
   | "closed"
   | "ambiguous"
   | "invalid"
-  | "valid";
+  | "valid"
+  | "degraded";
 
+export type ContextLevel = "full" | "partial" | "insufficient";
+
+/** A refusal: Dev cannot work from this — there is no reliable evidence, or no usable source for it. */
 function invalid(code: string, reason: string, extra: Record<string, unknown> = {}): Record<string, any> {
-  return { ok: false, status: "invalid", code, reason, dev_may_start: false, ...extra };
+  return { ok: false, status: "invalid", context_level: "insufficient", code, reason, dev_may_start: false, ...extra };
+}
+
+/** The evidence Dev needs to analyze a bug at all. Surfaces and found-in build may be unknown. */
+function missingEvidence(e: { title: string; steps: string[]; expected: string; actual: string }): string[] {
+  return [
+    ...(text(e.title) ? [] : ["title"]),
+    ...(e.steps.map(text).filter(Boolean).length ? [] : ["steps"]),
+    ...(text(e.expected) ? [] : ["expected"]),
+    ...(text(e.actual) ? [] : ["actual"]),
+  ];
 }
 
 /* --------------------------------------------------- non-QA bugs (normalize) */
@@ -125,7 +145,7 @@ function invalid(code: string, reason: string, extra: Record<string, unknown> = 
  * Normalize an external, production or developer-discovered bug. No QA id, no QA scope and
  * no feature is required — and none is invented.
  */
-export function normalizeBug(input: Record<string, unknown>): Record<string, any> {
+export function normalizeBug(input: Record<string, unknown>, source: Record<string, unknown> = { source: "input" }): Record<string, any> {
   const origin = input.origin;
   if (typeof origin !== "string" || !(DEV_ORIGINS as readonly string[]).includes(origin)) {
     return invalid("INVALID_ORIGIN", `origin must be one of ${DEV_ORIGINS.join(", ")} (a QA bug is read with \`lookup\`)`);
@@ -150,12 +170,7 @@ export function normalizeBug(input: Record<string, unknown>): Record<string, any
     linked_cases: [] as string[],
     related_scopes: [] as string[],
   };
-  const missing = [
-    ...(evidence.title ? [] : ["title"]),
-    ...(steps.length ? [] : ["steps"]),
-    ...(evidence.expected ? [] : ["expected"]),
-    ...(evidence.actual ? [] : ["actual"]),
-  ];
+  const missing = missingEvidence(evidence);
   if (missing.length) return invalid("MISSING_EVIDENCE", `required evidence missing: ${missing.join(", ")}`, { missing });
 
   const surfaces = Array.isArray(input.surfaces) ? [...new Set((input.surfaces as unknown[]).map(text).filter(Boolean))] : [];
@@ -177,11 +192,17 @@ export function normalizeBug(input: Record<string, unknown>): Record<string, any
     capability: null,
     related_feature: related,
   };
+  // Full context for this origin: QA ownership does not apply to it, so none is claimed.
   return {
     ok: true,
     status: "ready_for_dev",
     reason: `${origin} bug normalized — no QA scope or feature is required.`,
     dev_may_start: true,
+    context_level: "full",
+    qa_state: null,
+    qa_state_verified: false,
+    warnings: [],
+    provenance: { evidence: source, state: null },
     identity,
     evidence,
     bug_evidence_fingerprint: evidenceFingerprint({ ...evidence, surfaces, found_in_build: found }),
@@ -385,8 +406,13 @@ export function parseBugView(md: string, id: string): BugView {
 
   const repro = body(VIEW_SECTIONS.indexOf("Reproduction Steps")).trim().split("\n");
   const steps = repro.filter((l) => /^\d+\. /.test(l)).map((l) => l.replace(/^\d+\. /, ""));
-  const expected = /^\*\*Expected:\*\* (.*)$/m.exec(repro.join("\n"))?.[1];
-  const actual = /^\*\*Actual:\*\* (.*)$/m.exec(repro.join("\n"))?.[1];
+  // QA renders an empty value as "**Actual:** " — the trailing space may be trimmed away.
+  const labelled = (label: string) => {
+    const m = new RegExp(`^\\*\\*${label}:\\*\\*(?: (.*))?$`, "m").exec(repro.join("\n"));
+    return m ? (m[1] ?? "") : undefined;
+  };
+  const expected = labelled("Expected");
+  const actual = labelled("Actual");
   if (!steps.length || expected === undefined || actual === undefined) throw new Refusal("QA_VIEW_CONTRACT", "Reproduction Steps is not steps + **Expected:** + **Actual:**");
 
   const ev = body(VIEW_SECTIONS.indexOf("Evidence")).trim();
@@ -435,11 +461,13 @@ function resolveRef(db: Ledger, ref: string): string {
   return matches[0];
 }
 
+const regenerate = (id: string) => `regenerate it in the QA repository (QA helper: \`bug render --bug bug:${id}\`)`;
+
 /**
- * Read one QA bug: its recorded facts from the verified ledger, its derived state and
- * history from QA's own view, and a cross-check that the view is not stale.
+ * The bug's evidence source: the QA repository, the bug resolved to exactly one id, and its
+ * hash-verified record. Any failure here leaves Dev with no reliable evidence.
  */
-function readQaBug(qaRoot: string, ref: string) {
+function readSource(qaRoot: string, ref: string) {
   const raw = ref.trim().replace(/^bug:/, "");
   const pre = parseBugItem(raw);
   for (const v of [pre?.qa_bug_id ?? null, pre?.external_ref ?? null]) {
@@ -447,11 +475,21 @@ function readQaBug(qaRoot: string, ref: string) {
   }
   const db = openLedger(qaRoot);
   const id = resolveRef(db, ref);
-  const scopeRef = `bug:${id}`;
-  const rec = recordedBug(id, db.bugStream(id) as any[]);
+  const stream = db.bugStream(id) as any[];
+  const rec = recordedBug(id, stream);
+  // A resolution is a recorded, terminal QA fact: QA records one only on an open bug, and a
+  // closed bug never reopens. It is verified by the hash chain alone — no replay.
+  const resolution = [...stream].reverse().find((e) => e.kind === "bug.resolved") ?? null;
+  return { db, id, scopeRef: `bug:${id}`, rec, resolution, related: relatedFeature(db, rec.related_scopes) };
+}
 
+/**
+ * QA's derived state and history: its own view, in the contracted shape, cross-checked
+ * against the ledger. Any failure here leaves the state unverified — never the evidence.
+ */
+function readState(db: Ledger, id: string, scopeRef: string, rec: ReturnType<typeof recordedBug>, resolution: any) {
   const viewFile = join(db.root, "bugs", id, "bug.md");
-  if (!existsSync(viewFile)) throw new Refusal("QA_VIEW_MISSING", `bugs/${id}/bug.md is missing — regenerate it in the QA repository (QA helper: \`bug render --bug ${scopeRef}\`)`);
+  if (!existsSync(viewFile)) throw new Refusal("QA_VIEW_MISSING", `bugs/${id}/bug.md is missing — ${regenerate(id)}`);
   const view = parseBugView(readFileSync(viewFile, "utf-8"), id);
 
   // The view is QA's derivation; the ledger is the record. They must agree on every
@@ -471,14 +509,15 @@ function readQaBug(qaRoot: string, ref: string) {
     ...(f["External reference"] === (rec.external_ref ?? null) ? [] : ["external reference"]),
     ...(f.Capability === rec.capability ? [] : ["capability"]),
     ...(rec.report.found_in_build === null || f["Found in build"] === rec.report.found_in_build ? [] : ["found in build"]),
+    ...(resolution === null || f.State === `closed_${resolution.resolution}` ? [] : ["state (the ledger records a resolution)"]),
     ...(sameList(view.reproductions.map((r) => r.Run as string).sort(), runIds("reproduction")) ? [] : ["reproduction history"]),
     ...(sameList(view.retests.map((r) => r.Run as string).sort(), runIds("retest")) ? [] : ["re-test history"]),
     ...(sameList(view.fixClaims.map((r) => r.Build as string).sort(), claimBuilds) ? [] : ["fix claims"]),
   ];
   if (mismatches.length) {
-    throw new Refusal("QA_VIEW_STALE", `bugs/${id}/bug.md disagrees with the ledger on: ${mismatches.join(", ")} — regenerate it in the QA repository (QA helper: \`bug render --bug ${scopeRef}\`)`, { mismatches });
+    throw new Refusal("QA_VIEW_STALE", `bugs/${id}/bug.md disagrees with the ledger on: ${mismatches.join(", ")} — ${regenerate(id)}`, { mismatches });
   }
-  return { db, id, scopeRef, rec, view, runs };
+  return { view, runs };
 }
 
 /** The Dev feature a QA feature scope is bound to (its recorded `dev_handoff.feature`), when exactly one. */
@@ -536,76 +575,171 @@ export function reopenedEvidence(view: BugView, runRecords: any[][], scopeRef: s
   };
 }
 
+const qaBlock = (view: BugView, state: string) => ({
+  state,
+  next_action: view.fields["Next action"],
+  fix_under_test: view.fields["Fix under test"],
+  fixed_in_build: view.fields["Fixed in build"],
+  pending_retest_surfaces: (view.fields["Pending re-test surfaces"] ?? "").split(", ").filter(Boolean),
+  fix_claims: view.fixClaims,
+  reproductions: view.reproductions.map((r) => ({ run: r.Run, build: r.Build, surface: r.Surface, device: r.Device, outcome: r.Outcome, at: r.At, notes: r.Notes })),
+  retests: view.retests.map((r) => ({ run: r.Run, build: r.Build, fix_build: r["Fix build"], surface: r.Surface, device: r.Device, outcome: r.Outcome, at: r.At, notes: r.Notes })),
+  evidence: view.evidence,
+});
+
+/**
+ * Read one QA bug at the richest context level available:
+ *
+ *   full          QA's state is verified (its view, cross-checked; or a resolution the
+ *                 ledger records) — QA's ownership decides, a denial included
+ *   partial       the evidence is verified but QA's state is not — Dev may proceed, with a
+ *                 warning; no state is assumed
+ *   insufficient  no reliable evidence — blocked, with what is missing
+ *
+ * A verified QA state always wins: only the absence of one degrades to partial.
+ */
 export function lookupQaBug(qaRoot: string, ref: string): Record<string, any> {
-  let read;
+  let src;
   try {
-    read = readQaBug(qaRoot, ref);
+    src = readSource(qaRoot, ref);
   } catch (e) {
-    if (e instanceof Refusal) {
-      return e.code === "AMBIGUOUS"
-        ? { ok: false, status: "ambiguous", code: e.code, reason: e.message, dev_may_start: false, ...e.extra }
-        : invalid(e.code, e.message, e.extra);
-    }
-    throw e;
+    if (!(e instanceof Refusal)) throw e;
+    if (e.code === "AMBIGUOUS") return { ok: false, status: "ambiguous", context_level: "insufficient", code: e.code, reason: e.message, dev_may_start: false, ...e.extra };
+    return invalid(e.code, e.message, { missing: ["report_source"], ...e.extra });
   }
-  const { db, id, scopeRef, rec, view, runs } = read;
-  const state = view.fields.State as string;
+  const { db, id, scopeRef, rec, resolution, related } = src;
+
+  const warnings: Array<{ code: string; message: string }> = [];
+  let read: { view: BugView; runs: Array<{ id: string; records: any[] }> } | null = null;
+  try {
+    read = readState(db, id, scopeRef, rec, resolution);
+  } catch (e) {
+    if (!(e instanceof Refusal)) throw e;
+    warnings.push({ code: e.code, message: e.message });
+  }
+
+  // The verified QA state, and what verified it. Never assumed, never inferred.
+  let state: string | null = null;
+  let stateSource: Record<string, string> | null = null;
+  if (read) {
+    state = read.view.fields.State as string;
+    stateSource = { source: "qa-bug-view", path: `bugs/${id}/bug.md`, verification: "contract + ledger cross-check" };
+  } else if (resolution) {
+    state = `closed_${resolution.resolution}`;
+    stateSource = { source: "qa-ledger", path: `qa-ledger/scopes/bug/${id}.jsonl`, record: "bug.resolved", verification: "hash-chain" };
+  }
+
   const origin: Origin = rec.report.origin?.kind === "execution" ? "qa-execution" : "qa-standalone";
+  // Without QA's view, found-in build is only what the report recorded; QA's derived value
+  // (the first reproduced build) is not re-derived here.
+  const found = read ? read.view.fields["Found in build"] : (rec.report.found_in_build ?? null);
+  if (state === null) {
+    warnings.unshift({
+      code: "QA_STATE_UNAVAILABLE",
+      message: "QA ownership state is unavailable or unverified — proceeding on the hash-verified ledger evidence only. QA's state was not used and is not assumed.",
+    });
+  }
+  if (!read && found === null) {
+    warnings.push({ code: "FOUND_IN_BUILD_UNKNOWN", message: "found-in build is unknown: the report did not record one and QA's derived value is unavailable." });
+  }
+
   const identity: Identity = {
     work_type: "bug",
     bug_key: deriveBugKey({ qa_bug_id: id, external_ref: rec.external_ref, origin, title: rec.title, steps: rec.report.steps }),
     qa_bug_id: id,
     external_ref: rec.external_ref ?? null,
     origin,
-    found_in_build: view.fields["Found in build"],
+    found_in_build: found,
     surfaces: rec.surfaces,
     capability: rec.capability,
-    related_feature: relatedFeature(db, rec.related_scopes),
+    related_feature: related,
   };
   const evidence = {
     title: rec.title,
     description: rec.report.description ?? null,
-    steps: rec.report.steps,
-    expected: rec.report.expected,
-    actual: rec.report.actual,
+    steps: rec.report.steps ?? [],
+    expected: rec.report.expected ?? "",
+    actual: rec.report.actual ?? "",
     severity: rec.severity,
     environment: null,
     linked_cases: rec.linked_cases,
     related_scopes: rec.related_scopes,
   };
-
-  // Reopened: the failed cycle's evidence, for a later fix-cycle step. No cycle is created here.
-  const reopened = state === "reopened" ? reopenedEvidence(view, runs.map((r) => r.records), scopeRef) : null;
-
-  const gate = GATE[state] ?? { status: "closed" as Status, dev: false, reason: () => CLOSED_REASON(state) };
-  return {
-    ok: true,
-    status: gate.status,
-    reason: gate.reason(view),
-    dev_may_start: gate.dev,
+  const context = {
     identity,
     evidence,
     bug_evidence_fingerprint: evidenceFingerprint({ ...evidence, surfaces: identity.surfaces, found_in_build: identity.found_in_build }),
-    qa: {
-      state,
-      next_action: view.fields["Next action"],
-      fix_under_test: view.fields["Fix under test"],
-      fixed_in_build: view.fields["Fixed in build"],
-      pending_retest_surfaces: (view.fields["Pending re-test surfaces"] ?? "").split(", ").filter(Boolean),
-      fix_claims: view.fixClaims,
-      reproductions: view.reproductions.map((r) => ({ run: r.Run, build: r.Build, surface: r.Surface, device: r.Device, outcome: r.Outcome, at: r.At, notes: r.Notes })),
-      retests: view.retests.map((r) => ({ run: r.Run, build: r.Build, fix_build: r["Fix build"], surface: r.Surface, device: r.Device, outcome: r.Outcome, at: r.At, notes: r.Notes })),
-      evidence: view.evidence,
-    },
-    reopened,
+    provenance: { evidence: { source: "qa-ledger", path: `qa-ledger/scopes/bug/${id}.jsonl`, verification: "hash-chain" }, state: stateSource },
+    warnings,
+  };
+
+  // 1. A verified QA state decides first — a denial is never degraded into partial.
+  const gate = state === null ? null : (GATE[state] ?? { status: "closed" as Status, dev: false, reason: () => CLOSED_REASON(state as string) });
+  if (gate && !gate.dev) {
+    return {
+      ok: true,
+      status: gate.status,
+      reason: read ? gate.reason(read.view) : CLOSED_REASON(state as string),
+      dev_may_start: false,
+      context_level: "full",
+      qa_state: state,
+      qa_state_verified: true,
+      ...context,
+      qa: read ? qaBlock(read.view, state as string) : null,
+      reopened: null,
+    };
+  }
+
+  // 2. Dev works only from sufficient evidence.
+  const missing = missingEvidence(evidence);
+  if (missing.length) return invalid("MISSING_EVIDENCE", `required evidence missing: ${missing.join(", ")}`, { missing, ...context });
+
+  // 3. Full context: QA handed the bug to Dev.
+  if (gate && read) {
+    return {
+      ok: true,
+      status: gate.status,
+      reason: gate.reason(read.view),
+      dev_may_start: true,
+      context_level: "full",
+      qa_state: state,
+      qa_state_verified: true,
+      ...context,
+      qa: qaBlock(read.view, state as string),
+      // Reopened: the failed cycle's evidence, for a later fix-cycle step. No cycle is created here.
+      reopened: state === "reopened" ? reopenedEvidence(read.view, read.runs.map((r) => r.records), scopeRef) : null,
+    };
+  }
+
+  // 4. Partial context: verified evidence, unverified QA state — a degraded, declared proceed.
+  return {
+    ok: true,
+    status: "ready_for_dev",
+    reason: `Partial context: QA ownership state is unavailable (${warnings.filter((w) => w.code !== "QA_STATE_UNAVAILABLE" && w.code !== "FOUND_IN_BUILD_UNKNOWN").map((w) => w.code).join(", ")}) — Dev may proceed on the verified bug evidence; see warnings.`,
+    dev_may_start: true,
+    context_level: "partial",
+    qa_state: null,
+    qa_state_verified: false,
+    ...context,
+    qa: null,
+    reopened: null,
   };
 }
 
 /** Contract and integrity only — whatever QA's state, can this bug be read faithfully? */
 export function validateQaBug(qaRoot: string, ref: string): Record<string, any> {
   const r = lookupQaBug(qaRoot, ref);
-  if (r.status === "invalid" || r.status === "ambiguous") return r;
-  return { ok: true, status: "valid", reason: "the ledger verifies and the view matches it", qa_bug_id: r.identity.qa_bug_id, qa_state: r.qa.state };
+  if (r.context_level === "insufficient") return r;
+  const clean = r.context_level === "full" && r.warnings.length === 0;
+  return {
+    ok: true,
+    status: clean ? "valid" : "degraded",
+    reason: clean ? "the ledger verifies and the view matches it" : "the evidence verifies; QA's view does not — see warnings",
+    context_level: r.context_level,
+    qa_bug_id: r.identity.qa_bug_id,
+    qa_state: r.qa_state,
+    warnings: r.warnings,
+  };
 }
 
 /* --------------------------------------------------------------------- CLI */
@@ -648,8 +782,10 @@ function main(): void {
       environment: value("environment"),
       related_feature: value("related-feature"),
     };
-    const merged = { ...report, ...Object.fromEntries(Object.entries(flagged).filter(([, v]) => v !== undefined)) };
-    print(normalizeBug(merged));
+    const given = Object.fromEntries(Object.entries(flagged).filter(([, v]) => v !== undefined));
+    const merged = { ...report, ...given };
+    const overrides = Object.keys(given).filter((k) => k !== "origin" && k in report);
+    print(normalizeBug(merged, file !== undefined ? { source: "report-file", path: resolve(file), overridden_by_flags: overrides } : { source: "cli-flags" }));
   }
   print(invalid("UNKNOWN_COMMAND", "first argument must be lookup, validate or normalize"));
 }

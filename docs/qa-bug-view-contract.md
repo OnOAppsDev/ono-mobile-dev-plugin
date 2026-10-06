@@ -54,7 +54,19 @@ ledger on:
 A disagreement is `QA_VIEW_STALE`, together with the fields that disagree and QA's
 regeneration command (`qa-ledger.mjs bug render --bug bug:<id>`).
 
-## What Dev does with the state
+## Context levels
+
+Every lookup reports `context_level`. QA state is used whenever it is available and
+verified. When it is not, Dev degrades to a declared partial context and is never blocked
+just because the state is unavailable.
+
+| Level | When | Dev may start |
+|---|---|---|
+| `full` | QA's state is verified, either through the view (contract plus cross-check) or through a `bug.resolved` record in the ledger | as QA's state says (table below) |
+| `partial` | the bug's ledger evidence verifies, but QA's state does not: the view is missing, not in the contracted shape, shows a state this contract does not know, or is stale, or a run or build record it depends on no longer verifies | yes, as a degraded mode |
+| `insufficient` | there is no reliable evidence: no QA repository, an unknown or ambiguous bug, an unsafe ref, a bug record that does not verify, or a missing title, steps, expected or actual | no |
+
+### Full context: QA's state decides
 
 | QA state | intake status | Dev may start |
 |---|---|---|
@@ -64,8 +76,31 @@ regeneration command (`qa-ledger.mjs bug render --bug bug:<id>`).
 | `new`, `verification_blocked` | `needs_qa_verification` | no; QA verifies first |
 | `closed_*` | `closed` | no |
 
-Dev never moves a QA state. It reports the state and refuses to start where QA still owns
-the next step.
+**A verified QA state always wins.**
+- A verified denial is reported as QA's decision, even before any evidence verdict. It is
+  never degraded into partial.
+- A resolution (`closed_duplicate`, `closed_wont_fix`) is a recorded, terminal ledger fact.
+  QA records one only on an open bug, and a closed bug never reopens. It therefore blocks
+  even without the view, and a view showing any other state counts as stale.
+
+Dev never moves a QA state.
+
+### Partial context: declared, never silent
+
+- `status: ready_for_dev`, `dev_may_start: true`, `qa_state: null`,
+  `qa_state_verified: false`, `qa: null` and `reopened: null`. No state is assumed, so a
+  partial result is never labelled assigned or reopened.
+- `warnings[]` (`{code, message}`, deterministic) always begins with
+  `QA_STATE_UNAVAILABLE`. It then names the cause (`QA_VIEW_MISSING`, `QA_VIEW_CONTRACT`,
+  `QA_VIEW_STALE` or `QA_LEDGER_UNVERIFIABLE`) and QA's regeneration command.
+- `provenance.evidence` names the verified ledger stream. `provenance.state` is `null`.
+- `found_in_build` is the value the report recorded. When QA only derived it (the first
+  reproduced build), it is `null` with a `FOUND_IN_BUILD_UNKNOWN` warning, and the
+  fingerprint reflects that missing value. For the same evidence, the fingerprint is the
+  same in full and partial context.
+
+`validate` reports `valid` (full, no warnings), `degraded` (readable with warnings) or
+`invalid`.
 
 ## Limitations
 
