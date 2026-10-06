@@ -379,7 +379,7 @@ try {
       "hooks/require-approval-before-code.sh": "f4333da9c0a95003cf5dd08323e3f702b16d4468edc2bff65230e6468385dcfe",
       "hooks/scan-for-secrets.sh": "be60a1fc569de494c2aa215220cf162eccfe8f6b7fc04ffc5a14d7e6827c67d9",
       // Step 6 extended /review-code with --bug; bug-review.test.ts pins its original body verbatim.
-      "commands/create-dev-qa-notes.md": "2e7ed53a753d5c3e2896cafa11fd07d3b74c6b2316c1a877ca42b2a6936eae8e",
+      // Step 7 extended /create-dev-qa-notes with bug:<key>; qa-handoff-gate.test.ts pins its feature body verbatim.
       "templates/qa-handoff-template.md": "3203b0e0ffd0a3e0c67044cc18dcdaf752047a2c61f1e5cd7538cf1b16cfb564",
       "agents/feature-implementer.md": "d53845b5e31d2487754747f89227b0a54fa9d1ed457ae02934b593cce7576023",
       "commands/analyze-feature.md": "42f3b7f1fbd91e9110e15877b3f746312926958ccf53f28dfc3ee76879e70051",

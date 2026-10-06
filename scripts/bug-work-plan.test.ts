@@ -311,8 +311,9 @@ const SECTIONS = [
 {
   // Step 4 added /analyze-bug, the plan's only producer; every other command stays unaware of it.
   // Step 5 made /implement-task the plan's consumer; every other command stays unaware of it.
-  const others = readdirSync(join(REPO_ROOT, "commands")).filter((f) => f !== "analyze-bug.md" && f !== "implement-task.md").map((f) => read(`commands/${f}`)).join("\n");
-  check("24 only /analyze-bug and /implement-task reference the bug work plan", !/bug-work-plan/.test(others) && /bug-work-plan/.test(read("commands/analyze-bug.md")) && /bug-work-plan/.test(read("commands/implement-task.md")));
+  // Step 7 added the bug QA handoff to /create-dev-qa-notes.
+  const others = readdirSync(join(REPO_ROOT, "commands")).filter((f) => !["analyze-bug.md", "implement-task.md", "create-dev-qa-notes.md"].includes(f)).map((f) => read(`commands/${f}`)).join("\n");
+  check("24 only /analyze-bug, /implement-task and /create-dev-qa-notes reference the bug work plan", !/bug-work-plan/.test(others) && ["analyze-bug", "implement-task", "create-dev-qa-notes"].every((c) => /bug-work-plan/.test(read(`commands/${c}.md`))));
   for (const f of ["scripts/task-state.ts", "scripts/task-resume.ts", "scripts/bug-intake.ts"]) {
     check(`25 ${f} does not reference bug-work-plan`, !/bug-work-plan/.test(read(f)));
   }

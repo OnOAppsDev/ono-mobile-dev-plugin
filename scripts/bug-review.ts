@@ -60,8 +60,12 @@ const RECORD_FIELDS = [
 ] as const;
 const BINDING_FIELDS = ["fix_cycle", "reviewed_head", "reviewed_tree_fingerprint", "bug_work_plan_fingerprint", "task_state_fingerprint"] as const;
 
-/** The reviewed code: everything but the bug's planning/review documents and the task-state store, which are bound on their own. */
-const notCode = (rel: string) => rel.startsWith("docs/bugs/") || isStoreArtifact(rel);
+/**
+ * The reviewed code: everything but the bug's planning/review documents, the task-state store
+ * (each bound on its own), and Bug QA handoffs (docs/qa/bug-<key>-qa-handoff.md, generated
+ * downstream of the review — writing one must never make the review it was built from stale).
+ */
+const notCode = (rel: string) => rel.startsWith("docs/bugs/") || isStoreArtifact(rel) || /^docs\/qa\/bug-[^/]+-qa-handoff\.md(\.qa-handoff\.tmp)?$/.test(rel);
 
 export interface Finding {
   severity: (typeof SEVERITIES)[number];
@@ -238,7 +242,7 @@ export function reviewContext(req: { root: string; work: string }): Record<strin
 /* ----------------------------------------------------------------- record */
 
 /** The task-state evidence that lets a reproduction-path check pass: the fix task's reproduction criterion met, and a regression test or VERIFY-4 debt. */
-function reproductionEvidence(tasks: Array<Record<string, any>>): boolean {
+export function reproductionEvidence(tasks: Array<Record<string, any>>): boolean {
   return tasks.some((t) => {
     const metRepro = (t.acceptanceCriteria ?? []).some((c: any) => String(c.criterion ?? "").toLowerCase().startsWith(BUG_REPRO_CRITERION.toLowerCase()) && c.met === true);
     const reg = t.developerTesting?.regression;
@@ -408,6 +412,21 @@ export function writeReviewRecord(req: { root: string; work: string; review: str
 }
 
 /* ----------------------------------------------------------------- verify */
+
+/** A review record's frontmatter, findings and checks, read back from the file — null when it is not readable as one. */
+export function readReviewRecord(root: string, key: string, cycle: number): { frontmatter: Record<string, string>; findings: Finding[]; checks: Check[] } | null {
+  const abs = join(root, `docs/bugs/${key}/review-c${cycle}.md`);
+  if (!existsSync(abs)) return null;
+  const split = splitDocument(readFileSync(abs));
+  if ("error" in split) return null;
+  const frontmatter: Record<string, string> = {};
+  for (const l of split.inner) {
+    const m = /^([a-z_]+): (.*)$/.exec(l);
+    if (m) frontmatter[m[1]] = m[2];
+  }
+  const parsed = parseRecordBody(split.body.toString("utf-8"));
+  return parsed === null ? null : { frontmatter, ...parsed };
+}
 
 /** Read the record's findings and checks back from its body, exactly as rendered. */
 function parseRecordBody(body: string): { findings: Finding[]; checks: Check[] } | null {

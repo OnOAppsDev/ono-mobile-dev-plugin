@@ -168,6 +168,15 @@ export function verifyApproval(buf: Buffer, kind = "bug-work-plan"): Record<stri
 const APPROVER = /^[A-Za-z0-9][A-Za-z0-9 ._@+-]{0,99}$/;
 const PLACEHOLDERS = new Set(["null", "none", "n/a", "na", "tbd", "todo", "true", "false", "yes", "no"]);
 
+/** Why `by` is not an explicit, plain human identity — or null when it is. Shared by every approval. */
+export function plainIdentityProblem(by: string | undefined): { code: string; message: string } | null {
+  if (by === undefined || by.trim() === "") return { code: "APPROVER_REQUIRED", message: "approval needs an explicit human identity (--by <identity>); the approver is never inferred" };
+  if (by !== by.trim() || !APPROVER.test(by) || PLACEHOLDERS.has(by.toLowerCase())) {
+    return { code: "APPROVER_INVALID", message: `approver ${JSON.stringify(by)} is not a plain identity (letters, digits, spaces, . _ @ + -; at most 100 characters)` };
+  }
+  return null;
+}
+
 function refuse(code: string, message: string, extra: Record<string, unknown> = {}): Record<string, any> {
   return { ok: false, status: "invalid", code, error: message, changed: false, ...extra };
 }
@@ -177,13 +186,40 @@ function assemble(split: { leading: Buffer; open: string; inner: string[]; close
   return Buffer.concat([split.leading, Buffer.from([split.open, ...inner, split.close].join(split.eol) + split.eol, "utf-8"), split.body]);
 }
 
+/**
+ * Set frontmatter values in place, byte-faithfully: each key must appear exactly once, each
+ * line keeps its comment, and the body and the text above the frontmatter are asserted
+ * byte-identical. Pure — the caller writes the result. Shared by every approval writer.
+ */
+export function rewriteFrontmatterValues(buf: Buffer, values: Record<string, string>): { ok: true; buf: Buffer } | { ok: false; code: string; message: string } {
+  const split = splitDocument(buf);
+  if ("error" in split) return { ok: false, code: "FRONTMATTER_UNREWRITABLE", message: split.error };
+  if (!assemble(split, split.inner).equals(buf)) {
+    return { ok: false, code: "FRONTMATTER_UNREWRITABLE", message: "the frontmatter block cannot be rewritten byte-faithfully (mixed line endings?)" };
+  }
+  const seen: Record<string, number> = {};
+  const inner = split.inner.map((raw) => {
+    const m = /^([A-Za-z_][A-Za-z0-9_]*):(.*)$/.exec(raw);
+    if (!m || !(m[1] in values)) return raw;
+    seen[m[1]] = (seen[m[1]] ?? 0) + 1;
+    const { comment } = splitValueAndComment(m[2]);
+    return `${m[1]}: ${values[m[1]]}${comment ? ` ${comment}` : ""}`;
+  });
+  const wrong = Object.keys(values).filter((f) => seen[f] !== 1);
+  if (wrong.length) return { ok: false, code: "FRONTMATTER_UNREWRITABLE", message: `each field must appear exactly once in the frontmatter: ${wrong.join(", ")}` };
+  const out = assemble(split, inner);
+  const outSplit = splitDocument(out);
+  if ("error" in outSplit || !outSplit.body.equals(split.body) || !outSplit.leading.equals(split.leading)) {
+    return { ok: false, code: "BODY_CHANGED", message: "body-preservation assertion failed" };
+  }
+  return { ok: true, buf: out };
+}
+
 export function approveWorkPackage(path: string, options: { by?: string; kind?: string }): Record<string, any> {
   const kind = options.kind ?? "bug-work-plan";
   const by = options.by;
-  if (by === undefined || by.trim() === "") return refuse("APPROVER_REQUIRED", "approval needs an explicit human identity (--by <identity>); the approver is never inferred");
-  if (by !== by.trim() || !APPROVER.test(by) || PLACEHOLDERS.has(by.toLowerCase())) {
-    return refuse("APPROVER_INVALID", `approver ${JSON.stringify(by)} is not a plain identity (letters, digits, spaces, . _ @ + -; at most 100 characters)`);
-  }
+  const who = plainIdentityProblem(by);
+  if (who !== null) return refuse(who.code, who.message);
   if (!PACKAGES[kind]) return refuse("UNKNOWN_KIND", `no approval contract for kind "${kind}"`);
   if (!existsSync(path) || !statSync(path).isFile()) return refuse("UNREADABLE", `file not found: ${path}`);
   const buf = readFileSync(path);
@@ -211,29 +247,10 @@ export function approveWorkPackage(path: string, options: { by?: string; kind?: 
   // Idempotent: the same approver already approved exactly this content and cycle.
   if (now.status === "approved" && now.recorded.approved_by === by) return result(false, null);
 
-  const split = splitDocument(buf);
-  if ("error" in split) return refuse("PLAN_INVALID", split.error);
-  if (!assemble(split, split.inner).equals(buf)) {
-    return refuse("FRONTMATTER_UNREWRITABLE", "the frontmatter block cannot be rewritten byte-faithfully (mixed line endings?) — nothing was written");
-  }
-  const values: Record<string, string> = { status: "approved", approved_by: by, approved_fingerprint: fingerprint, approved_cycle: String(cycle) };
-  const seen: Record<string, number> = {};
-  const inner = split.inner.map((raw) => {
-    const m = /^([A-Za-z_][A-Za-z0-9_]*):(.*)$/.exec(raw);
-    if (!m || !(m[1] in values)) return raw;
-    seen[m[1]] = (seen[m[1]] ?? 0) + 1;
-    const { comment } = splitValueAndComment(m[2]);
-    return `${m[1]}: ${values[m[1]]}${comment ? ` ${comment}` : ""}`;
-  });
-  const wrong = APPROVAL_FIELDS.filter((f) => seen[f] !== 1);
-  if (wrong.length) return refuse("FRONTMATTER_UNREWRITABLE", `each approval field must appear exactly once in the frontmatter: ${wrong.join(", ")} — nothing was written`);
-  const out = assemble(split, inner);
-
-  // Nothing is written until every check passes.
-  const outSplit = splitDocument(out);
-  if ("error" in outSplit || !outSplit.body.equals(split.body) || !outSplit.leading.equals(split.leading)) {
-    return refuse("BODY_CHANGED", "body-preservation assertion failed — nothing was written");
-  }
+  const values: Record<string, string> = { status: "approved", approved_by: by as string, approved_fingerprint: fingerprint, approved_cycle: String(cycle) };
+  const rewritten = rewriteFrontmatterValues(buf, values);
+  if (!rewritten.ok) return refuse(rewritten.code, `${rewritten.message} — nothing was written`);
+  const out = rewritten.buf;
   if (verifyApproval(out, kind).status !== "approved") return refuse("APPROVAL_SELF_CHECK", "the rewritten document does not verify as approved — nothing was written");
 
   // Atomic and durable, as in the migration framework: temp sibling, fsync, rename.

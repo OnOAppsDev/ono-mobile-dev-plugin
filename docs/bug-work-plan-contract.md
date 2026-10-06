@@ -391,6 +391,61 @@ The code is bound by its content, not by HEAD alone:
 - an uncommitted edit makes the record stale;
 - committing exactly the reviewed content keeps it fresh, reported as `head_moved`.
 
+## QA handoff (`/create-dev-qa-notes bug:<bug_key>`)
+
+A bug fix is handed to QA as `docs/qa/bug-<bug_key>-qa-handoff.md`, from `templates/qa-bug-handoff-template.md`. It is generated, checked and approved only by [`scripts/qa-handoff-gate.ts`](../scripts/qa-handoff-gate.ts). Feature handoffs are unchanged. A file at that path that is not this bug's handoff (`work_type: bug`, this `bug_key`) is never overwritten.
+
+**Frontmatter (`---` delimited).** `work_type: bug`, `bug_key`, `qa_bug_id`, `external_ref`, `fix_cycle`, `platform`, `device_type`, `surfaces`, `bug_work_plan_link`, `review_link`, `handoff_input_fingerprint`, `status` (`draft` | `ready-for-qa`), `generated_by`, `date`, `acknowledged_majors`, `approved_by`, `approved_fingerprint`. There are no feature fields.
+
+**Sections, in order.**
+1. Bug Summary
+2. Fix Claim: QA id, external ref, fix cycle, surfaces, the reviewed code identity, and the exact `/register-build <build-id> --fixes bug:<qa_bug_id> --surfaces …` for QA. Without a QA id, an explicit "QA must create or bind a QA bug first". Dev never registers a build.
+3. Reproduction Scenario: the plan's Reproduction Evidence and Observed vs Expected, verbatim.
+4. Build / Install / Testing Instructions: from the platform lane.
+5. Developer Verification: from task state only. Includes the review result and each Major finding by id.
+6. Regression Scope: the plan's Blast Radius, advisory. No Project Knowledge is queried.
+7. Known Limitations: non-goals, and developer-owned VERIFY-4 debt.
+8. Pending Verification (owed to QA): QA-owned debt only, in the five-column contract.
+
+**Readiness.**
+
+| Check | Rule | Fails as |
+|---|---|---|
+| R1 | The plan is valid, approved for its current fix cycle (cycle 1). | block |
+| R2 | The bug evidence is current under `/implement-task`'s bug gate. A reopened bug, a QA denial or drift routes to `/analyze-bug`. A partial QA context with current evidence passes, with a warning. | block |
+| R3 | Every current-cycle task is complete with deterministic proof. | block |
+| R4 | Every task has a developer-testing decision and no failing run. The fix task shows the reproduction path met, with a regression test (failed before, passes after) or VERIFY-4 developer debt. | block |
+| R5 | `review-c<fix_cycle>.md` verifies `fresh`. | block |
+| R6 | The review has no blocking findings. | block |
+| R7 | Each Major finding is acknowledged explicitly at approval, by its id (`M-<12 hex>` of the normalized finding). | approval refused without every acknowledgement |
+| R8 | The handoff was generated from the current inputs (`handoff_input_fingerprint`). | regenerate as draft |
+| R9 | QA bug identity. A missing QA id is not a blocker, but the QA next step says it must be created or bound first. | info |
+
+**Handoff-input fingerprint.** sha256 over the canonical JSON of:
+- the bug key and fix cycle;
+- the plan's approval fingerprint;
+- the canonical task state;
+- the review record's `findings_fingerprint`, `reviewed_tree_fingerprint` and its own plan and task-state bindings (never its reviewer or time).
+
+**Approval.** It needs an explicit, plain human identity and one acknowledgement per Major finding. It writes only:
+- `status: ready-for-qa`;
+- `approved_by`;
+- `acknowledged_majors`;
+- `approved_fingerprint` = sha256(canonical({algorithm `qa-handoff/bug/v1`, sha256 of the body, `handoff_input_fingerprint`, the sorted acknowledgements})).
+
+**`verify`.** The handoff is `ready-for-qa` only while all of these hold; otherwise it is `stale`. A hand-written `ready-for-qa` is never valid.
+- the fingerprint matches;
+- the inputs are current;
+- the acknowledgements cover the current Major findings;
+- the frontmatter identity still matches the plan and review.
+
+**Re-entry.**
+- A current draft returns to approval.
+- A current, valid `ready-for-qa` is reused untouched.
+- Changed inputs regenerate a draft.
+
+A bug handoff is written outside the reviewed code, so generating one never makes its review stale.
+
 ## Validation results
 
 `validateBugWorkPlan(buf)` returns:

@@ -214,6 +214,12 @@ try {
     const r1 = repo();
     record(r1.root, review(C(r1.root)));
     check("29 fresh before any change", V(r1.root)?.status === "fresh");
+    mkdirSync(join(r1.root, "docs/qa"), { recursive: true });
+    writeFileSync(join(r1.root, "docs/qa/bug-BUG-43-qa-handoff.md"), "---\nwork_type: bug\n---\n");
+    check("29 writing the bug's QA handoff never makes its review stale (downstream, not reviewed code)", V(r1.root)?.status === "fresh");
+    writeFileSync(join(r1.root, "docs/qa/checkout-qa-handoff.md"), "feature handoff\n");
+    check("29 …while any other repository change still does", V(r1.root)?.status === "stale");
+    rmSync(join(r1.root, "docs/qa/checkout-qa-handoff.md"));
     writeFileSync(join(r1.root, MAIN), "fun total() = discountedSubtotal() + 0\n");
     const s1 = V(r1.root);
     check("29 an uncommitted code change makes the record stale", s1?.status === "stale" && s1.reasons.some((x: any) => x.code === "REVIEW_CODE_CHANGED"), show(s1));
@@ -338,7 +344,7 @@ try {
       "commands/review-security.md": "a41cbc8446140875677105c09cf58a26e001cb2a557d1fc4a984ba083c75f8c7",
       "commands/implement-task.md": "6fa59fb5c05b0fd1ff7f2d15ae70302c2c010b5852d00e3e3c57f1deb6c8eaf1",
       "scripts/task-state.ts": "246d16e33f87534fc908538ab6c4deb49bc7d0df058a060f1c953a9bfda87cd3",
-      "commands/create-dev-qa-notes.md": "2e7ed53a753d5c3e2896cafa11fd07d3b74c6b2316c1a877ca42b2a6936eae8e",
+      // Step 7 extended /create-dev-qa-notes with bug:<key>; qa-handoff-gate.test.ts pins its feature body verbatim.
       "templates/qa-handoff-template.md": "3203b0e0ffd0a3e0c67044cc18dcdaf752047a2c61f1e5cd7538cf1b16cfb564",
       "commands/prepare-mobile-release.md": "7f7d431309a77e4af4f7485b236cf2205616f2afed3b06de94cf2a0acbf327e4",
     };
