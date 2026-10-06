@@ -47,11 +47,16 @@ Act on `outcome` exactly:
 | `BUG_QA_REPO_REQUIRED` | A QA ref without its repository | Ask for `--qa-repo` once, then rerun `start`. |
 | `BUG_INSUFFICIENT_EVIDENCE` | Intake has no reliable evidence | **Stop.** Report `missing` (and `candidates` for an ambiguous external ref) exactly. No plan is created. |
 | `BUG_QA_DENIED` | QA's **verified** state says Dev must not start: QA has not verified the bug, a fix awaits QA re-test, or the bug is closed | **Stop.** Report intake's `reason`, which names QA's next step. A verified QA denial is never overridden. |
-| `BUG_REOPENED` | QA re-tested a fix and it failed | **Stop.** Report the failed build, failed surfaces, latest re-test and its evidence from `reopened`. **Cycle 2 is never created here**: appending a fix cycle belongs to the reopened-cycle step, which is not available yet. |
+| `BUG_REOPENED` | QA re-tested a fix and it failed, and there is no Bug Work Plan to continue | **Stop.** Report the failed build, failed surfaces, latest re-test and its evidence from `reopened`. A reopened bug continues the plan of the fix that failed, so nothing is created. |
+| `BUG_CYCLE_NEW` | A **verified reopen**: QA re-tested the fix of the current cycle — which was handed to QA — and it failed | Continue at step 3a and append the next fix cycle (`next_cycle`) to the same plan. |
+| `BUG_CYCLE_INCOMPLETE` | A cycle was appended and its analysis is unfinished | Continue at step 3a, item 3. Do **not** append again. |
+| `BUG_REOPEN_UNMATCHED` | QA reopened the bug, but this plan's current cycle was never handed to QA | **Stop.** The reopen does not follow this plan's fix, so no cycle is appended. |
+| `BUG_REOPEN_UNVERIFIED` | The current cycle was handed to QA, and QA's state is unavailable (partial context) | **Stop.** Whether QA reopened the bug cannot be verified, so no new cycle starts. Run again once QA's state is available. |
+| `BUG_CYCLE_HANDED_OFF` | The current cycle is implemented and handed to QA | Do **not** regenerate. Report it; QA re-tests next, and a new cycle starts only after a verified reopen. |
 | `BUG_PLAN_NEW` | No plan exists | Continue at step 4 and create the cycle-1 plan. |
 | `BUG_PLAN_REGENERATE` | The evidence changed under an unapproved draft with no task state | Say which fields drifted (`plan.drift`), then continue at step 4 and regenerate the draft in place. |
 | `BUG_PLAN_AWAITING_APPROVAL` | A current draft exists, or the plan was edited after approval | Do **not** regenerate. Go straight to step 9 with the existing plan. |
-| `BUG_PLAN_APPROVED` | The plan is approved and still matches the evidence | Do **not** regenerate. Report the plan, its approval and the next action (`next_action`, `next_action_note`), then stop. |
+| `BUG_PLAN_APPROVED` | The plan is approved for its current fix cycle and still matches the evidence | Do **not** regenerate. Report the plan, its approval and the next action (`next_action`: the cycle's next task, or review and handoff once its tasks are done; `next_action_note`), then stop. |
 | `BUG_PLAN_STALE` | The evidence changed under an approved plan, or under one already in implementation | **Stop.** Report `reason` and `plan.drift`. Reconciling a plan with work already approved or begun belongs to a later step. Nothing is regenerated. |
 | `BUG_PLAN_INVALID` | The file at the plan path is not a valid plan for this bug | **Stop.** Report `plan.errors`. The file is never overwritten. If it is an unfinished scaffold from an interrupted run, the developer may fix it or remove it and rerun. |
 
@@ -59,6 +64,41 @@ Act on `outcome` exactly:
 - Continue. Analysis is never blocked only because QA state is unavailable.
 - Keep every entry in `warnings`. The scaffold records them, and step 9 surfaces them.
 - Never state, assume or write a QA state the intake did not verify.
+
+## 3a. Reopened bug — the next fix cycle
+
+A failed QA re-test continues the **same** bug in its next fix cycle:
+- the same identity, Bug Work Plan and task-state store;
+- the same routing, carried from the plan and never asked again.
+
+Only a **verified reopen** (full QA context) after a fix this plan handed to QA starts a cycle. Partial context never does.
+
+1. **Append the cycle.** Run (skipped for `BUG_CYCLE_INCOMPLETE`):
+
+   ```
+   node --no-warnings "${CLAUDE_PLUGIN_ROOT}/scripts/analyze-bug.ts" append-cycle <ref-args> --root "<TARGET_ROOT>"
+   ```
+
+   It appends `### Cycle <N+1>` under `## Fix Cycles` and sets `fix_cycle: N+1`. From QA's re-test it writes:
+   - the failed build and failed surfaces;
+   - the failed re-test run and result, with provenance;
+   - QA's notes and evidence;
+   - the previous fix claims.
+
+   It leaves every judgement label empty and asserts every earlier cycle byte-identical. The previous approval no longer matches, so the plan is `approval_stale` until step 9 approves the new cycle. Report a refusal verbatim.
+2. **The evidence class (`evidence_class`).**
+   - `unchanged`: the failed re-test does not change the bug's evidence. Root Cause, Fix Design and the rest of the shared analysis stay exactly as approved. Never rewrite them because QA reopened the bug.
+   - `changed`: QA's evidence moved (`drift`). `append-cycle` has already refreshed Reproduction Evidence, Observed vs Expected and the evidence frontmatter, marked them refreshed, and kept their previous text in the new cycle. Refresh the earliest analysis the change makes stale (Root Cause first, then Fix Design) and mark each refreshed passage `[Refreshed in Cycle <N+1>]`, keeping the evidence labels.
+3. **Analyse the failed fix.** Invoke `feature-architect` with the `platform-planning` methodology and the plan's lane (the step 7 table and readiness gate), applying `mobile-debugging` to the **failed re-test**. Fill the new cycle only, labelling every claim:
+   - **Why the previous fix was insufficient**: an incomplete hypothesis, a missed path, or another contributing cause. This is the cycle's root-cause note; the shared Root Cause is not rewritten for unchanged evidence.
+   - **Fix-design delta**: what changes now compared with the previous fix, not a copy of the Fix Design. Also fill **New risks**, **Changed non-goals** and **Changed affected files / areas** (write `none` when nothing changed).
+   - **Verification delta**: the failed re-test path is mandatory acceptance evidence. It names the cycle task that writes or updates the regression test (or begins `Not feasible:`), and covers every failed surface.
+   - **The cycle's task table**: rows `C<N+1>-T1`, `C<N+1>-T2`, … in the Task Breakdown's schema.
+     - The fix task's first acceptance criterion begins `The reported reproduction path no longer fails` and names the failed path.
+     - A dependency may name an earlier cycle's completed task when the work builds on it, never a later cycle.
+
+   **Never edit an earlier cycle.** The Tasks section and every earlier `### Cycle k` are history.
+4. **Continue at step 8**, then step 9. Validate and check the whole plan. In the approval summary, put the new cycle first: what failed, why, the delta, the tasks and the verification. One approval binds the plan to the new fix cycle.
 
 ## 4. Routing — platform and device type
 
@@ -234,6 +274,6 @@ Approve this Bug Work Plan for <bug_key>?
 Report:
 - the plan path and its approval status;
 - the context level and any warnings;
-- the next action, `/implement-task bug:<bug_key> T1`.
+- the next action, `/implement-task bug:<bug_key> T1` — or `C<n>-T1` for fix cycle n.
 
 Run it with the bug's evidence source (`--qa-repo=<path>` for a QA bug, `--report=<path>` otherwise): `/implement-task` re-reads the bug evidence and re-verifies the approval before every task (`commands/implement-task.md` §1a). This command does not invoke implementation, and it never creates task state.

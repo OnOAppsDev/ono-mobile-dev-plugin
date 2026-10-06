@@ -31,7 +31,7 @@ This command is complementary to `/review-security`, not a replacement for it 鈥
 
 ## Bug review (`--bug <bug_key>`)
 
-Without `--bug`, nothing in this section applies: the review above is the whole command, unchanged. With it, the same review runs over the current bug fix, and its result is persisted as the bug's review record for the current fix cycle. There is no separate bug review engine.
+Without `--bug`, nothing in this section applies: the review above is the whole command, unchanged. With it, the same review runs over the current bug fix, and its result is persisted as the bug's review record for the current fix cycle (`review-c<fix_cycle>.md`: a cycle-1 review never stands for cycle 2). There is no separate bug review engine.
 
 1. **Resolve `TARGET_ROOT`** exactly as `/implement-task` 搂2 does (`scripts/resolve-target-repo-root.ts`). Remove `--bug <bug_key>` from `$ARGUMENTS` before step 1 resolves the scope.
 2. **Read the bug's review context:**
@@ -47,7 +47,6 @@ Without `--bug`, nothing in this section applies: the review above is the whole 
    | `BUG_REVIEW_READY` | Continue. Show `incomplete_tasks` in one line if any task of the cycle is not complete. |
    | `BUG_PLAN_MISSING` 路 `BUG_PLAN_INVALID` 路 `BUG_PLAN_NOT_APPROVED` 路 `BUG_APPROVAL_STALE` 路 `BUG_APPROVAL_INVALID` | **Stop** and give the `route`: the bug is (re)planned and approved through `/analyze-bug`. |
    | `BUG_TASK_STATE_MISSING` | **Stop.** Nothing has been implemented for this cycle yet; give the `route` (`/implement-task bug:<bug_key> T1`). |
-   | `BUG_CYCLE_UNSUPPORTED` | **Stop.** Reviewing a reopened fix cycle is not available yet. |
    | `BUG_WORK_ID_INVALID` 路 `BUG_ROOT_INVALID` 路 `BUG_REPOSITORY_UNAVAILABLE` | **Stop** and report `reason`. |
 
    The QA state is not re-read here. The review is about the implementation now in the repository, against the plan that was approved for it.

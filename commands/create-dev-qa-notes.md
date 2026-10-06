@@ -128,7 +128,7 @@ Without a `bug:` prefix, nothing in this section applies: the feature handoff ab
 
    It writes every other section deterministically: bug summary, fix claim, reproduction scenario (verbatim from the plan), developer verification (from task state), regression scope, known limitations, and QA-owned pending verification. Inputs that changed regenerate the handoff as a draft, and any earlier approval no longer holds. It never overwrites a file at that path that is not this bug's handoff.
 4. **Present, then ask once.** Show:
-   - the bug and its fix cycle;
+   - the bug and its fix cycle — for cycle n ≥ 2, the failed prior fix, why it was insufficient and the cycle's verification delta first (the handoff is always the current cycle's; an earlier cycle's approval never carries over);
    - the review result;
    - the developer-testing summary, including developer-owned VERIFY-4 debt (the developer's, never QA's);
    - the QA verification debt;

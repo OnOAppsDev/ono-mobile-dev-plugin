@@ -86,7 +86,14 @@ Cycle 1 is the Tasks section above.
 - **Failed build:** atv-202
 - **Failed surfaces:** android-tv
 - **Failed re-test evidence:** [evidence: qa-ledger/runs/retest-20261005T101700Z-c555166e.jsonl] Still frozen after resume from Home; videos/BUG-44-atv-202.mp4
+- **QA notes:** Still frozen after resume from Home; evidence: `videos/BUG-44-atv-202.mp4`
+- **Previous fix claim:** atv-202 — failed (the cycle 1 fix)
+- **Why the previous fix was insufficient:** [inference] the cycle 1 fix released the surface on pause but never re-attached it.
 - **Fix-design delta:** the cycle 1 fix released the surface on pause but did not re-attach it on resume from Home; re-attach in `onResume`.
+- **New risks:** a double attach on a fast resume [inference].
+- **Changed non-goals:** none.
+- **Changed affected files / areas:** `app/src/main/java/com/acme/player/PlayerSurface.kt`
+- **Verification delta:** C2-T1 makes resume from Home on android-tv mandatory acceptance evidence.
 
 | id | description | platform | files touched | depends-on | size | acceptance criteria |
 |---|---|---|---|---|---|---|

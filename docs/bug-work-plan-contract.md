@@ -115,31 +115,42 @@ Rules:
 
 ## Fix Cycles: append-only
 
-Cycle 1 is the Tasks section. Fix Cycles starts with no further cycles ("No additional fix
-cycles yet."). Each later cycle is **appended** as a level-3 subsection, numbered
-consecutively from 2, and earlier cycles are never edited:
+Cycle 1 is the Tasks section. Fix Cycles starts with no further cycles. When QA re-tests a
+fix and it fails, and the reopen is **verified**, `/analyze-bug` appends the next cycle as
+`### Cycle <n>` (Bug Development Flow, Step 8). Cycles are numbered consecutively from 2, and
+earlier cycles are never edited:
 
 ```md
 ### Cycle 2
 
 - **Failed build:** atv-202
 - **Failed surfaces:** android-tv
-- **Failed re-test evidence:** [evidence: …] the failed re-test run, notes and evidence
-- **Fix-design delta:** what changes from the previous cycle's design, and why
+- **Failed re-test evidence:** [evidence: qa-ledger/runs/<run>.jsonl] `<run>` — fail on atv-202 / android-tv / Shield (<at>)
+- **QA notes:** Still frozen after resume from Home; evidence: `videos/BUG-44-atv-202.mp4`
+- **Previous fix claim:** atv-202 — failed (the cycle 1 fix)
+- **Why the previous fix was insufficient:** [inference] …
+- **Fix-design delta:** what changes compared with the previous fix
+- **New risks:** …
+- **Changed non-goals:** none
+- **Changed affected files / areas:** …
+- **Verification delta:** C2-T1 makes the failed re-test path on android-tv mandatory acceptance evidence
 
 | id | description | platform | files touched | depends-on | size | acceptance criteria |
 |---|---|---|---|---|---|---|
 | C2-T1 | … | android | … | — | S | … |
+| C2-T2 | … | android | … | C2-T1, T2 | S | The reported reproduction path no longer fails: … |
 ```
 
-- A cycle's tasks are `C<n>-T<m>` and use the same row schema.
-- `fix_cycle` must name the latest cycle.
-- The hyphenated id keeps every cycle's tasks distinct within one plan and shows which
-  cycle a task belongs to.
-
-**Known limitation.** task-state's id rule does not yet accept `C<n>-T<m>`, so
-`parseBreakdown` skips those rows today. Widening it belongs to the step that implements
-fix cycles, together with appending them. Neither is part of this contract step.
+- **Every label is required** with content (`CYCLE_LABEL`).
+  - The first five are written from QA's re-test by `analyze-bug.ts append-cycle`.
+  - The analysis writes the rest. `Why the previous fix was insufficient` is the cycle's root-cause note.
+  - No tool could produce a cycle before Step 8, so this list was tightened within bug-work-plan@1.
+- **Cycle tasks** are `C<n>-T<m>` and use the same row schema. task-state's one task-id rule accepts them. Dependencies may name the same or an earlier cycle's tasks, never a later one (`TASK_DEPENDENCY`), and ids never collide (`TASK_DUPLICATE`).
+- **`fix_cycle`** names the latest cycle. A gap or a duplicate cycle is `CYCLE_SEQUENCE`.
+- **Changed evidence.** When the reopen comes with changed evidence, `append-cycle` first refreshes Reproduction Evidence, Observed vs Expected and the evidence frontmatter, marked `*Refreshed for Cycle <n>*`. The previous text is kept, quoted, under the new cycle's `**Evidence change:**`.
+- **History is protected.**
+  - `append-cycle` refuses (`HISTORY_CHANGED`) if any earlier cycle, or (unchanged evidence) the shared analysis, would move.
+  - The approval is not rewritten: it reads `approval_stale` (`APPROVAL_CYCLE_MISMATCH`) until one new approval binds the plan to the new `fix_cycle`.
 
 ## Fingerprints and anchors
 
@@ -307,7 +318,12 @@ syntax is unchanged.
 | `BUG_PLAN_REGENERATE` | The evidence or identity drifted under an unapproved draft with no task state. Regenerate the draft in place. |
 | `BUG_PLAN_STALE` | The evidence drifted under an approved plan, or under one with task state. Stop; reconciliation is a later step. |
 | `BUG_PLAN_INVALID` | Never overwritten. |
-| `BUG_REOPENED` | Reported, together with intake's reopened evidence. No Cycle 2 is created. |
+| `BUG_REOPENED` | QA reopened the bug, and there is no plan to continue. Reported, with intake's reopened evidence. Nothing is created. |
+| `BUG_CYCLE_NEW` | A verified (full-context) reopen of the current cycle's handed-off fix. Proceed to `append-cycle`, with `next_cycle`, `evidence_class` (`unchanged` or `changed`) and `drift`. |
+| `BUG_CYCLE_INCOMPLETE` | An appended cycle whose judgement labels or task table are not written yet. Resume its analysis; never append again. |
+| `BUG_REOPEN_UNMATCHED` | The current cycle was never handed to QA (no `ready-for-qa` handoff names it), so this reopen does not follow this plan's fix. |
+| `BUG_REOPEN_UNVERIFIED` | The current cycle was handed off and QA's state is unavailable (partial context). A new cycle needs a verified reopen. |
+| `BUG_CYCLE_HANDED_OFF` | The current cycle is complete and handed to QA. Nothing to do until QA re-tests. |
 | `BUG_QA_DENIED` | QA's verified denial. |
 | `BUG_INSUFFICIENT_EVIDENCE` | Intake has no reliable evidence. |
 
@@ -411,7 +427,7 @@ A bug fix is handed to QA as `docs/qa/bug-<bug_key>-qa-handoff.md`, from `templa
 
 | Check | Rule | Fails as |
 |---|---|---|
-| R1 | The plan is valid, approved for its current fix cycle (cycle 1). | block |
+| R1 | The plan is valid, approved for its current fix cycle. | block |
 | R2 | The bug evidence is current under `/implement-task`'s bug gate. A reopened bug, a QA denial or drift routes to `/analyze-bug`. A partial QA context with current evidence passes, with a warning. | block |
 | R3 | Every current-cycle task is complete with deterministic proof. | block |
 | R4 | Every task has a developer-testing decision and no failing run. The fix task shows the reproduction path met, with a regression test (failed before, passes after) or VERIFY-4 developer debt. | block |
@@ -445,6 +461,18 @@ A bug fix is handed to QA as `docs/qa/bug-<bug_key>-qa-handoff.md`, from `templa
 - Changed inputs regenerate a draft.
 
 A bug handoff is written outside the reviewed code, so generating one never makes its review stale.
+
+## Fix cycles across the flow
+
+The same bug, plan and task-state store carry every cycle.
+
+| Stage | How it handles fix cycles |
+|---|---|
+| `/implement-task bug:<key> C<n>-T<m>` | The gate accepts only the current cycle's tasks. An earlier cycle's task is `BUG_TASK_NOT_CURRENT`; a cycle that does not exist yet is `BUG_TASK_FUTURE_CYCLE`. A QA reopen passes only when the plan's latest cycle answers that very failed build (`QA_REOPEN_RECONCILED`). |
+| `status` | Counts the current cycle's tasks; earlier cycles are `history`. |
+| Resume | Basis references include `plan#cycle-<n>`. A Cycle 2 edit invalidates only work citing it; Cycle 1's completed rows are untouched. |
+| `/review-code --bug` | Always reviews the current cycle and writes `review-c<n>.md`. A cycle-1 record is `missing` for cycle 2. |
+| `/create-dev-qa-notes bug:<key>` | Always hands off the current cycle. `fix_cycle`, `review_link` and the input fingerprint move with it, so a previous cycle's `ready-for-qa` is `stale`. A later cycle's handoff carries the failed prior fix, QA's failed re-test and the verification delta. It tells QA to register the **new** build with `--fixes bug:<qa_bug_id>`; QA's lifecycle supersedes the failed claim, and Dev records none of it. |
 
 ## Validation results
 

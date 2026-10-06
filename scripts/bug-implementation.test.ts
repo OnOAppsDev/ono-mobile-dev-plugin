@@ -320,11 +320,12 @@ try {
   /* ── 34. cycle 2 is out of scope ─────────────────────────────────────── */
   {
     const { root } = repo();
-    check("34 a C2-T1 task is not supported yet", G({ root, work: W, task: "C2-T1", qaRepo: QA })?.outcome === "BUG_TASK_UNSUPPORTED");
+    // Step 8: cycle tasks exist; on a cycle-1 plan a C2 task belongs to a cycle that does not exist yet.
+    check("34 a C2-T1 task on a cycle-1 plan is a future cycle", G({ root, work: W, task: "C2-T1", qaRepo: QA })?.outcome === "BUG_TASK_FUTURE_CYCLE");
     check("34 a task with no row is blocked", G({ root, work: W, task: "T9", qaRepo: QA })?.outcome === "BUG_TASK_UNKNOWN");
     const c2 = readFileSync(join(HERE, "fixtures/bug-work-plans/bwp-cycle2.md"), "utf-8");
     const r = repo(c2.replace(/BUG-44/g, "BUG-43"), false);
-    check("34 a plan already at fix cycle 2 is not implemented here", G({ root: r.root, work: W, task: "T1", qaRepo: QA })?.outcome === "BUG_CYCLE_UNSUPPORTED");
+    check("34 a cycle-2 plan passes the same approval gate (unapproved here)", G({ root: r.root, work: W, task: "C2-T1", qaRepo: QA })?.outcome === "BUG_PLAN_NOT_APPROVED");
   }
 
   /* ── the command, the lane, and everything that must not move ──────────── */
@@ -354,7 +355,7 @@ try {
     const bug = sections.get("1a. Bug work (`bug:<bug_key>`)") ?? "";
     check("2 the bug section resolves the Bug Work Plan as the sole planning document", bug.includes("docs/bugs/<bug_key>/bug-work-plan.md") && /sole planning document/.test(bug));
     check("3 the bug section runs the gate before anything else", bug.includes('scripts/bug-implementation.ts" gate bug:<bug_key> <task-id>') && /BUG_READY/.test(bug));
-    for (const o of ["BUG_PLAN_MISSING", "BUG_PLAN_INVALID", "BUG_PLAN_NOT_APPROVED", "BUG_APPROVAL_STALE", "BUG_EVIDENCE_STALE", "BUG_QA_DENIED", "BUG_REOPENED", "BUG_CYCLE_UNSUPPORTED", "BUG_TASK_UNSUPPORTED"]) {
+    for (const o of ["BUG_PLAN_MISSING", "BUG_PLAN_INVALID", "BUG_PLAN_NOT_APPROVED", "BUG_APPROVAL_STALE", "BUG_EVIDENCE_STALE", "BUG_QA_DENIED", "BUG_REOPENED", "BUG_TASK_NOT_CURRENT", "BUG_TASK_FUTURE_CYCLE", "BUG_TASK_UNSUPPORTED"]) {
       check(`bug section handles ${o}`, bug.includes(`\`${o}\``));
     }
     check("6 the bug section never re-approves", /never re-?approve/i.test(bug) && /\/analyze-bug/.test(bug));

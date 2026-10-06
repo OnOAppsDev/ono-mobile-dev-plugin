@@ -155,7 +155,8 @@ try {
     check("6 task state that records no task of this cycle is not enough", C(other.root)?.outcome === "BUG_TASK_STATE_MISSING");
     const c2 = readFileSync(join(HERE, "fixtures/bug-work-plans/bwp-cycle2.md"), "utf-8").replace(/BUG-44/g, "BUG-43");
     const cyc = repo({ plan: c2, tasks: false });
-    check("38 a plan at a later fix cycle is not reviewed here (no reopened-cycle behavior)", C(cyc.root)?.outcome === "BUG_CYCLE_UNSUPPORTED");
+    // Step 8: a later fix cycle is reviewed as the current cycle — here it has no task state yet.
+    check("38 a cycle-2 plan is reviewed as its current cycle (no task state yet here)", C(cyc.root)?.outcome === "BUG_TASK_STATE_MISSING");
   }
 
   /* ── 14–27. the record ────────────────────────────────────────────────── */
@@ -323,7 +324,7 @@ try {
     check("1 the bug section applies only with --bug", /^\n## Bug review \(`--bug <bug_key>`\)\n/.test(bug) && /Without `--bug`, nothing in this section applies/.test(bug));
     check("argument-hint documents --bug", /^argument-hint: .*--bug <bug_key>/m.test(cmd));
     check("2 the bug section gathers context through the helper", bug.includes('scripts/bug-review.ts" context bug:<bug_key>') && bug.includes('scripts/bug-review.ts" record bug:<bug_key>'));
-    for (const o of ["BUG_REVIEW_READY", "BUG_PLAN_MISSING", "BUG_PLAN_INVALID", "BUG_PLAN_NOT_APPROVED", "BUG_APPROVAL_STALE", "BUG_TASK_STATE_MISSING", "BUG_CYCLE_UNSUPPORTED"]) check(`the bug section handles ${o}`, bug.includes(`\`${o}\``));
+    for (const o of ["BUG_REVIEW_READY", "BUG_PLAN_MISSING", "BUG_PLAN_INVALID", "BUG_PLAN_NOT_APPROVED", "BUG_APPROVAL_STALE", "BUG_TASK_STATE_MISSING"]) check(`the bug section handles ${o}`, bug.includes(`\`${o}\``));
     check("the bug section reuses the same agents, methodology and lanes — no bug review engine", bug.includes("`code-reviewer`") && bug.includes("`performance-reviewer`") && bug.includes("`platform-review`") && /steps 1–6 run as written/i.test(bug));
     check("13 the bug section keeps Project Knowledge to the plan's first-degree context", /first-degree/.test(bug) && /never expand/i.test(bug));
     check("37 the record does not approve a QA handoff — that decision belongs to a later step", /does not approve a QA handoff/i.test(bug) && !/create-dev-qa-notes/.test(bug));
@@ -342,8 +343,8 @@ try {
       "skills/android-code-review/SKILL.md": "d438f1156092e8d9a81344b4be099ead575b3077a33395c10b9a44ef8f241e5f",
       "skills/react-code-review/SKILL.md": "361f52aa0f8c83d723cefea33841859133564c1c7567b3c8835971d12a677d4b",
       "commands/review-security.md": "a41cbc8446140875677105c09cf58a26e001cb2a557d1fc4a984ba083c75f8c7",
-      "commands/implement-task.md": "6fa59fb5c05b0fd1ff7f2d15ae70302c2c010b5852d00e3e3c57f1deb6c8eaf1",
-      "scripts/task-state.ts": "246d16e33f87534fc908538ab6c4deb49bc7d0df058a060f1c953a9bfda87cd3",
+      // commands/implement-task.md: // Step 8 changed this file on purpose (fix cycles); its behaviour is pinned by its own suites and bug-fix-cycles.test.ts.
+      // scripts/task-state.ts: // Step 8 changed this file on purpose (fix cycles); its behaviour is pinned by its own suites and bug-fix-cycles.test.ts.
       // Step 7 extended /create-dev-qa-notes with bug:<key>; qa-handoff-gate.test.ts pins its feature body verbatim.
       "templates/qa-handoff-template.md": "3203b0e0ffd0a3e0c67044cc18dcdaf752047a2c61f1e5cd7538cf1b16cfb564",
       "commands/prepare-mobile-release.md": "7f7d431309a77e4af4f7485b236cf2205616f2afed3b06de94cf2a0acbf327e4",

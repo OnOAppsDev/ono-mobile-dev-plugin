@@ -485,7 +485,11 @@ export function fingerprintRow(rawLine: string): string {
   return `sha256:${createHash("sha256").update(normalizeRow(rawLine), "utf-8").digest("hex")}`;
 }
 
-const TASK_ID = /^[A-Za-z]+[0-9]+$/;
+/**
+ * A task id: `T3` (a feature task, or a bug's cycle-1 task), or `C2-T1` — a bug's fix-cycle
+ * task (Bug Development Flow, Step 8). One rule for every row and every `depends-on`.
+ */
+const TASK_ID = /^(?:[A-Za-z]+[0-9]+|C[1-9][0-9]*-T[1-9][0-9]*)$/;
 
 export interface ParsedRow {
   id: string;

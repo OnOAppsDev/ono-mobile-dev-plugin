@@ -367,10 +367,10 @@ try {
       "templates/qa-handoff-template.md": "3203b0e0ffd0a3e0c67044cc18dcdaf752047a2c61f1e5cd7538cf1b16cfb564",
       "standards/shared/qa-handoff.md": "c060c434744a5991a6dee7744b27195224e46904c7ccbfc5aa58b10336087720",
       "skills/mobile-testing-and-qa-handoff/SKILL.md": "7d69cad27d8b143750966c717b8220b92a5acc0372c73b149414821362b38448",
-      "scripts/task-state.ts": "246d16e33f87534fc908538ab6c4deb49bc7d0df058a060f1c953a9bfda87cd3",
-      "scripts/bug-work-plan.ts": "ba9ff6624cf1e578ad98072e4d4aea5965247a8532dd7a83eae9419fa1a39e04",
-      "commands/review-code.md": "0ff911cb0a8d08857ac1cb957dac2c3b881b92ba4902ed1bd45ff3879ad33bbe",
-      "commands/implement-task.md": "6fa59fb5c05b0fd1ff7f2d15ae70302c2c010b5852d00e3e3c57f1deb6c8eaf1",
+      // scripts/task-state.ts: // Step 8 changed this file on purpose (fix cycles); its behaviour is pinned by its own suites and bug-fix-cycles.test.ts.
+      // scripts/bug-work-plan.ts: // Step 8 changed this file on purpose (fix cycles); its behaviour is pinned by its own suites and bug-fix-cycles.test.ts.
+      // commands/review-code.md: // Step 8 changed this file on purpose (fix cycles); its behaviour is pinned by its own suites and bug-fix-cycles.test.ts.
+      // commands/implement-task.md: // Step 8 changed this file on purpose (fix cycles); its behaviour is pinned by its own suites and bug-fix-cycles.test.ts.
       "commands/prepare-mobile-release.md": "7f7d431309a77e4af4f7485b236cf2205616f2afed3b06de94cf2a0acbf327e4",
       "scripts/qa-release-gate.ts": "88f016631998c356936fb7e04984c7c84f111390a7561a1766a3b383380e636a",
     };

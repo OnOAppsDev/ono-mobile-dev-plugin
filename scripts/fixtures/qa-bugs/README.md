@@ -23,3 +23,11 @@ Dev feature `checkout-coupons`), so `BUG-43`'s `related_feature` resolves from Q
 
 The repository was a git root when generated (the helper requires one); `.git` is not
 committed. QA's own `validate` passed on the result.
+
+Three variants extend `BUG-44` for fix cycles (`scripts/bug-fix-cycles.test.ts`), each generated the same way from a copy of `acme-qa`:
+
+| Directory | What follows the original reopen (`atv-202` failed) |
+|---|---|
+| `acme-qa-c2-delivered/` | `build add atv-206 --fixes bug:BUG-44` — `fix_delivered` |
+| `acme-qa-c2-reopened/` | …then a passing smoke run on `atv-206` and `bug retest --outcome fail` — `reopened` again, failed fix `atv-206` |
+| `acme-qa-reopened-changed/` | `scope event --field title` — still `reopened`, with changed evidence (a new evidence fingerprint) |

@@ -67,6 +67,8 @@ interface Inputs {
   planBuf: Buffer;
   fm: Record<string, any>;
   cycle: number;
+  /** The current fix cycle's tasks — T<n> in cycle 1, C<n>-T<m> later. Earlier cycles are history. */
+  currentIds: string[];
   review: ReturnType<typeof readReviewRecord>;
   taskStateFp: string | null;
 }
@@ -82,7 +84,6 @@ function loadInputs(req: Request): { ok: true; inputs: Inputs } | { ok: false; c
   const planBuf = readFileSync(planAbs);
   const v = validateBugWorkPlan(planBuf);
   if (!v.ok || v.frontmatter.bug_key !== key) return block("BUG_PLAN_INVALID", `the Bug Work Plan for ${key} is not valid`, "/analyze-bug <bug-ref>");
-  if (v.frontmatter.fix_cycle !== 1) return block("BUG_CYCLE_UNSUPPORTED", `the plan is at fix cycle ${v.frontmatter.fix_cycle}; handing off a reopened cycle is not available yet`, "/analyze-bug <bug-ref>");
   const approval = verifyApproval(planBuf);
   if (approval.status !== "approved") {
     return block(approval.status === "draft" ? "BUG_PLAN_NOT_APPROVED" : "BUG_APPROVAL_STALE", `the Bug Work Plan's approval is ${approval.status} — it must be approved for fix cycle ${v.frontmatter.fix_cycle}`, "/analyze-bug <bug-ref>");
@@ -96,7 +97,8 @@ function loadInputs(req: Request): { ok: true; inputs: Inputs } | { ok: false; c
       taskStateFp = null;
     }
   }
-  return { ok: true, inputs: { key, root, planAbs, planBuf, fm: v.frontmatter, cycle: v.frontmatter.fix_cycle, review: readReviewRecord(root, key, v.frontmatter.fix_cycle), taskStateFp } };
+  const currentIds = (v.tasks as Array<{ id: string; cycle: number }>).filter((t) => t.cycle === v.frontmatter.fix_cycle).map((t) => t.id);
+  return { ok: true, inputs: { key, root, planAbs, planBuf, fm: v.frontmatter, cycle: v.frontmatter.fix_cycle, currentIds, review: readReviewRecord(root, key, v.frontmatter.fix_cycle), taskStateFp } };
 }
 
 /**
@@ -211,7 +213,7 @@ export function handoffCheck(req: Request): Record<string, any> {
 
   // R3 — every current-cycle task complete with deterministic proof.
   const text = i.planBuf.toString("utf-8");
-  const ids = Object.keys(parseBreakdown(taskRowsText(text)));
+  const ids = i.currentIds;
   const state = readTaskState(i.root, work, i.planAbs);
   const unproven = ids.filter((id) => state.tasks[id]?.deterministicProof !== true);
   checks.push(unproven.length === 0
@@ -300,6 +302,7 @@ const oneLine = (v: unknown) => String(v ?? "").replace(/\s+/g, " ").trim();
 
 function render(i: Inputs, k: Record<string, any>, buildInstructions: string, date: string): string {
   const ctx = planContext(i.planBuf, i.fm);
+  const cc = ctx.current_cycle as Record<string, any> | null; // fix cycle n ≥ 2: the failed prior fix and the cycle's deltas
   const work = `bug:${i.key}`;
   const r = i.review!;
   const id = expectedIdentity(i);
@@ -311,7 +314,7 @@ function render(i: Inputs, k: Record<string, any>, buildInstructions: string, da
   } catch {
     raw = {};
   }
-  const ids = Object.keys(parseBreakdown(taskRowsText(i.planBuf.toString("utf-8"))));
+  const ids = i.currentIds;
   const verification = ids.map((tid) => {
     const v = state.tasks[tid];
     const dt = v?.developerTesting;
@@ -356,9 +359,11 @@ function render(i: Inputs, k: Record<string, any>, buildInstructions: string, da
     `- **QA bug:** ${i.fm.qa_bug_id ? `\`${i.fm.qa_bug_id}\`` : "none — QA must create or bind a QA bug before `/register-build <build-id> --fixes bug:<qa-bug-id>` can be used"}`,
     `- **External reference:** ${i.fm.external_ref ?? "none"}`,
     `- **Fix cycle:** ${i.cycle}`,
+    ...(cc ? [`- **Previous fix (cycle ${i.cycle - 1}):** build ${cc.failed_build} failed on ${cc.failed_surfaces.join(", ")} — ${oneLine(cc.why_insufficient)}`] : []),
     `- **Affected surfaces:** ${(i.fm.surfaces ?? []).join(", ") || "unknown"}`,
     `- **Reviewed code:** HEAD \`${f.reviewed_head}\` when reviewed; content \`${f.reviewed_tree_fingerprint}\` — the build QA tests must contain exactly this code`,
     `- **QA action once a build exists:** ${i.fm.qa_bug_id ? `\`${k.qa_next_action}\`` : k.qa_next_action}`,
+    ...(cc ? [`- A new build's fix claim supersedes the failed claim of build ${cc.failed_build}; QA's lifecycle records that — Dev does not.`] : []),
     "- Dev never registers the build: builds come from CI or the release process, and QA registers them.",
     "",
     "## Reproduction Scenario",
@@ -371,6 +376,10 @@ function render(i: Inputs, k: Record<string, any>, buildInstructions: string, da
     "",
     `- **Found in build:** ${i.fm.found_in_build ?? "unknown"}`,
     `- **Affected surfaces:** ${(i.fm.surfaces ?? []).join(", ") || "unknown"}`,
+    ...(cc ? [
+      `- **Failed re-test (cycle ${i.cycle}):** ${oneLine(cc.failed_retest_evidence)}; QA notes: ${oneLine(cc.qa_notes)}`,
+      `- **Verification delta:** ${oneLine(cc.verification_delta)}`,
+    ] : []),
     "",
     "## Build / Install / Testing Instructions",
     "",

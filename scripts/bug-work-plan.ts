@@ -94,7 +94,24 @@ export const TASK_COLUMNS = ["id", "description", "platform", "files touched", "
 
 export const FIX_DESIGN_LABELS = ["Root-cause fix", "Minimal change surface", "Affected files / areas", "Non-goals", "No unrelated refactoring", "Risks"] as const;
 export const VERIFICATION_LABELS = ["Reproduction path", "Developer Testing", "Regression test", "Affected surfaces", "QA re-test", "Verification debt"] as const;
-export const CYCLE_LABELS = ["Failed build", "Failed surfaces", "Failed re-test evidence", "Fix-design delta"] as const;
+/**
+ * What every appended fix cycle records (Bug Development Flow, Step 8). The first five come from
+ * QA's failed re-test; the rest are the cycle's analysis — what changes and how it is verified.
+ * No tool could produce a cycle before Step 8, so tightening this list kept bug-work-plan@1.
+ */
+export const CYCLE_LABELS = [
+  "Failed build",
+  "Failed surfaces",
+  "Failed re-test evidence",
+  "QA notes",
+  "Previous fix claim",
+  "Why the previous fix was insufficient",
+  "Fix-design delta",
+  "New risks",
+  "Changed non-goals",
+  "Changed affected files / areas",
+  "Verification delta",
+] as const;
 
 const QA_ORIGINS = ["qa-execution", "qa-standalone"];
 const ORIGINS = [...QA_ORIGINS, ...DEV_ORIGINS];
@@ -123,7 +140,14 @@ export interface PlanCycle {
   failed_build: string;
   failed_surfaces: string[];
   failed_retest_evidence: string;
+  qa_notes: string;
+  previous_fix_claim: string;
+  why_insufficient: string;
   fix_design_delta: string;
+  new_risks: string;
+  changed_non_goals: string;
+  changed_affected_files: string;
+  verification_delta: string;
   tasks: PlanTask[];
 }
 
@@ -334,7 +358,14 @@ export function validateBugWorkPlan(buf: Buffer): Record<string, any> {
         failed_build: (got["Failed build"] ?? "").replace(/`/g, ""),
         failed_surfaces: (got["Failed surfaces"] ?? "").replace(/`/g, "").split(",").map((s) => s.trim()).filter(Boolean),
         failed_retest_evidence: got["Failed re-test evidence"] ?? "",
+        qa_notes: got["QA notes"] ?? "",
+        previous_fix_claim: got["Previous fix claim"] ?? "",
+        why_insufficient: got["Why the previous fix was insufficient"] ?? "",
         fix_design_delta: got["Fix-design delta"] ?? "",
+        new_risks: got["New risks"] ?? "",
+        changed_non_goals: got["Changed non-goals"] ?? "",
+        changed_affected_files: got["Changed affected files / areas"] ?? "",
+        verification_delta: got["Verification delta"] ?? "",
         tasks: cycleTasks,
       });
     });

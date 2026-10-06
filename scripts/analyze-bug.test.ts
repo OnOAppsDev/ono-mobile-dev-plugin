@@ -402,7 +402,8 @@ try {
     for (const outcome of ["BUG_PLAN_APPROVED", "BUG_PLAN_AWAITING_APPROVAL"]) check(`command never regenerates on ${outcome}`, /Do \*\*not\*\* regenerate/.test(row(outcome)));
     check("command proceeds to analysis only on BUG_PLAN_NEW and BUG_PLAN_REGENERATE", /Continue at step 4/.test(row("BUG_PLAN_NEW")) && /continue at step 4/i.test(row("BUG_PLAN_REGENERATE")));
     check("5 command: partial context proceeds — never blocked only because QA state is unavailable", /Analysis is never blocked only because QA state is unavailable/.test(cmd) && /Never state, assume or write a QA state/.test(cmd));
-    check("2 command never creates Cycle 2", /Cycle 2/.test(cmd) && /never (creates|append)/i.test(cmd));
+    // Step 8: a reopen appends the next fix cycle — only from a verified reopen, never by rewriting history.
+    check("2 command appends a fix cycle only from a verified reopen", cmd.includes("`BUG_CYCLE_NEW`") && /verified reopen/i.test(cmd) && /Never edit an earlier cycle/.test(cmd));
     check("16 command reuses the analyze-feature confirmation gate", cmd.includes("`/analyze-feature` step 2") && /Is this bug in this context\?/.test(cmd) && /exactly \*\*one\*\* platform/.test(cmd));
     check("15 command asks only when routing is not inherited", /requires_confirmation/.test(cmd) && /ask once/i.test(cmd));
     check("17 command: QA surfaces corroborate, never route", /surfaces .*corroborat/i.test(cmd) && /never choose/i.test(cmd));

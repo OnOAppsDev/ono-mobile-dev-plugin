@@ -480,7 +480,7 @@ Bug Development Flow, Step 5. `/implement-task bug:<bug_key> <task-id>` runs on 
 |---|---|---|
 | Work id (`--feature`, the file's `feature`) | the feature slug | `bug:<bug_key>`: the explicit prefix and a path-safe key, never inferred from a name. The CLI refuses an unsafe one as `invalid`. |
 | Breakdown (`--breakdown`) | the Task Breakdown | the approved Bug Work Plan, `docs/bugs/<bug_key>/bug-work-plan.md` |
-| Task rows | every table row of the breakdown | the rows of the plan's `## Tasks` section only, read by the same `parseBreakdown` and fingerprinted by the same `fingerprintRow` |
+| Task rows | every table row of the breakdown | the rows of the plan's `## Tasks` section (cycle 1: `T<n>`) and of each `### Cycle <n>` under `## Fix Cycles` (`C<n>-T<m>`), HTML comments removed, read by the same `parseBreakdown` and fingerprinted by the same `fingerprintRow`. Every cycle's tasks share the one store; only the current cycle's tasks are current work |
 | State file | `docs/tasks/<feature>-task-state.json` | `docs/tasks/bugs/<bug_key>.task-state.json` |
 
 **The two state files cannot collide.** Every feature file name ends `-task-state.json`, and every bug file name ends `.task-state.json`, so no feature slug can name a bug's file. Both are store artifacts, never task work.

@@ -75,6 +75,7 @@ const PHASES: Phase[] = [
       "bug-implementation",
       "bug-review",
       "qa-handoff-gate",
+      "bug-fix-cycles",
     ],
   },
   {

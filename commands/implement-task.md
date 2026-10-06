@@ -21,7 +21,7 @@ Parse `$ARGUMENTS` as `[feature] [task-id]` (e.g. `biometric-login T3`).
 
 Bug work runs on this command's engine — the same task-row parser, task-state store, checkpoints, resume, developer-testing lifecycle, platform lanes and hooks. Only what differs is stated here.
 
-**The plan.** The approved Bug Work Plan at `docs/bugs/<bug_key>/bug-work-plan.md` (`docs/bug-work-plan-contract.md`) is the **sole planning document**: no Feature Analysis, DD, Dev Plan or Task Breakdown is resolved or required. Its `## Tasks` rows are the tasks; its cycle-1 ids are `T1`, `T2`, ….
+**The plan.** The approved Bug Work Plan at `docs/bugs/<bug_key>/bug-work-plan.md` (`docs/bug-work-plan-contract.md`) is the **sole planning document**: no Feature Analysis, DD, Dev Plan or Task Breakdown is resolved or required. Its tasks are those of its **current fix cycle** (`fix_cycle`): in cycle 1 the `## Tasks` rows `T1`, `T2`, …; in cycle n ≥ 2 the rows `C<n>-T1`, `C<n>-T2`, … of `### Cycle <n>`. Earlier cycles' tasks are history.
 
 **The evidence source.** The bug evidence is re-read on every invocation, so this command needs where it lives: `--qa-repo=<path>` for a QA bug, `--report=<path>` for an external or Dev-discovered bug. When it is missing, ask once; never search for or guess it.
 
@@ -41,8 +41,9 @@ It validates the plan, verifies its content-bound approval for the current fix c
 | `BUG_PLAN_NOT_APPROVED` · `BUG_APPROVAL_STALE` · `BUG_APPROVAL_INVALID` | **Stop** and give the `route` — `/analyze-bug` resumes at approval. This command never re-approves a plan and never edits `status` or any `approved_*` field. |
 | `BUG_EVIDENCE_STALE` | **Stop.** The bug evidence changed since approval (`drift`); re-plan through the `route`. A change of QA context alone with the same evidence is not drift and passes. |
 | `BUG_QA_DENIED` | **Stop.** QA's verified state no longer hands the bug to Dev; report intake's `reason`. |
-| `BUG_REOPENED` | **Stop.** QA re-tested a fix and it failed: the next fix cycle is planned through `/analyze-bug` — never created here. |
-| `BUG_CYCLE_UNSUPPORTED` · `BUG_TASK_UNSUPPORTED` | **Stop.** Implementing a reopened fix cycle (`C<n>-T<m>`) is not available yet. |
+| `BUG_REOPENED` | **Stop.** QA re-tested a fix and it failed, and no cycle of the plan answers that failure yet: the next fix cycle is planned through `/analyze-bug` — never created here. (When the latest cycle answers it, the gate passes with `QA_REOPEN_RECONCILED`.) |
+| `BUG_TASK_NOT_CURRENT` | **Stop.** The task belongs to an earlier fix cycle, which is history; implement the current cycle's tasks. |
+| `BUG_TASK_FUTURE_CYCLE` · `BUG_TASK_UNSUPPORTED` | **Stop.** The task's cycle does not exist yet, or the id is not `T<n>` / `C<n>-T<m>`. |
 | `BUG_TASK_UNKNOWN` · `BUG_EVIDENCE_SOURCE_REQUIRED` · `BUG_INSUFFICIENT_EVIDENCE` · `BUG_WORK_ID_INVALID` | **Stop** and report `reason`. |
 
 From §5, the gates that are not about feature documents still apply unchanged: the task row exists and is not complete or blocked, its dependencies are proven (§6), `platform` is valid on the row, `device_type` comes from the plan, and the branch is not `main`/`master`. A bug plan carries no design reference: the reproduction and the expected behaviour it records are the reference.

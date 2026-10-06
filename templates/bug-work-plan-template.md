@@ -81,15 +81,22 @@ date: # YYYY-MM-DD
 No additional fix cycles yet. Cycle 1 is the Tasks section above.
 
 <!--
-Append-only. When QA re-tests a fix and it fails, the next cycle is appended here and fix_cycle is set to its number; earlier cycles are never edited. Each cycle has this shape:
+Append-only. When QA re-tests a fix and it fails, the next cycle is appended here and fix_cycle is set to its number; earlier cycles are never edited. Each cycle has this shape (the first five lines are written from QA's re-test; the analysis writes the rest):
 
 ```md
 ### Cycle 2
 
 - **Failed build:** the build whose fix failed QA re-test
 - **Failed surfaces:** the surfaces it failed on
-- **Failed re-test evidence:** the re-test run, notes and evidence, labelled
-- **Fix-design delta:** what changes from the previous cycle's Fix Design, and why
+- **Failed re-test evidence:** the re-test run and its result, labelled
+- **QA notes:** QA's notes and evidence from that re-test
+- **Previous fix claim:** the failed fix claim, and any earlier ones
+- **Why the previous fix was insufficient:** labelled; an incomplete hypothesis, a missed path, another cause
+- **Fix-design delta:** what changes from the previous fix, and why — not a copy of the Fix Design
+- **New risks:** what the new change can break
+- **Changed non-goals:** none, or what changed
+- **Changed affected files / areas:** none, or what changed
+- **Verification delta:** the failed re-test path as mandatory acceptance evidence, the developer and regression tests that cover it, and the failed surfaces
 
 | id | description | platform | files touched | depends-on | size | acceptance criteria |
 |---|---|---|---|---|---|---|

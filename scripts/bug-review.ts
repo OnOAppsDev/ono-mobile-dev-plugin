@@ -35,7 +35,7 @@ import { join } from "path";
 import { createHash } from "crypto";
 import { validateBugWorkPlan, bugWorkPlanPath } from "./bug-work-plan.ts";
 import { approvalFingerprint, verifyApproval } from "./work-approval.ts";
-import { BUG_REPRO_CRITERION, bugKeyOf, parseBreakdown, stateFilePath } from "./task-state.ts";
+import { BUG_REPRO_CRITERION, bugKeyOf, stateFilePath } from "./task-state.ts";
 import { contentFingerprint, isStoreArtifact, rowCells, taskRowsText } from "./task-resume.ts";
 import { planContext } from "./bug-implementation.ts";
 import { canonical } from "./qa-release-gate.ts";
@@ -166,7 +166,7 @@ function load(work: string, rootIn: string): Stop | (Omit<Ready, "stateRaw"> & {
   const buf = readFileSync(join(root, rel));
   const v = validateBugWorkPlan(buf);
   if (!v.ok || v.frontmatter.bug_key !== key) return { ok: false, outcome: "BUG_PLAN_INVALID", reason: `${rel} is not a valid Bug Work Plan for ${key}`, route: "/analyze-bug <bug-ref>" };
-  return { ok: true, key, root, rel, buf, fm: v.frontmatter, approval: verifyApproval(buf) };
+  return { ok: true, key, root, rel, buf, fm: v.frontmatter, approval: verifyApproval(buf), planTasks: v.tasks as Array<{ id: string; cycle: number }> };
 }
 
 function readState(root: string, key: string): Record<string, any> | null {
@@ -197,13 +197,13 @@ export function reviewContext(req: { root: string; work: string }): Record<strin
   const r = load(req.work, req.root);
   if (!r.ok) return r;
   const route = "/analyze-bug <bug-ref>";
-  if (r.fm.fix_cycle !== 1) return { ok: false, outcome: "BUG_CYCLE_UNSUPPORTED", reason: `the plan is at fix cycle ${r.fm.fix_cycle}; reviewing a reopened cycle is not available yet`, route };
   if (r.approval.status === "draft") return { ok: false, outcome: "BUG_PLAN_NOT_APPROVED", reason: "the Bug Work Plan is not approved", route };
   if (r.approval.status === "approval_stale") return { ok: false, outcome: "BUG_APPROVAL_STALE", reason: "the plan changed, or its cycle moved, after it was approved", route, reasons: r.approval.reasons };
   if (r.approval.status !== "approved") return { ok: false, outcome: "BUG_APPROVAL_INVALID", reason: "the plan's approval fields are incomplete or inconsistent", route };
 
   const text = r.buf.toString("utf-8");
-  const ids = Object.keys(parseBreakdown(taskRowsText(text)));
+  // The current fix cycle's tasks only: a review is always of the current cycle (review-c<n>.md).
+  const ids = r.planTasks.filter((t) => t.cycle === r.fm.fix_cycle).map((t) => t.id);
   const state = readState(r.root, r.key);
   const recorded = ids.filter((id) => state?.tasks?.[id] !== undefined);
   if (state === null || recorded.length === 0) {

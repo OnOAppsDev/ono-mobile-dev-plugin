@@ -76,6 +76,10 @@ export function planContext(buf: Buffer, fm: Record<string, any>): Record<string
   const fixDesign = section(body, "Fix Design");
   const verification = section(body, "Verification Strategy");
   const rootCause = section(body, "Root Cause");
+  const v = validateBugWorkPlan(buf);
+  const cycle = fm.fix_cycle > 1 ? (v.cycles as Array<Record<string, any>>).find((c) => c.cycle === fm.fix_cycle) : undefined;
+  const fixCycles = section(body, "Fix Cycles");
+  const cycleAt = cycle ? fixCycles.lastIndexOf(`### Cycle ${cycle.cycle}\n`) : -1;
   return {
     bug: {
       bug_key: fm.bug_key,
@@ -101,6 +105,24 @@ export function planContext(buf: Buffer, fm: Record<string, any>): Record<string
     reproduction_path: labelled(verification, "Reproduction path"),
     regression_test: labelled(verification, "Regression test"),
     repo_knowledge_reference: section(body, "Repo Knowledge Reference"),
+    // Fix cycle n ≥ 2: QA's failed re-test and the cycle's deltas. null in cycle 1.
+    current_cycle: cycle
+      ? {
+          cycle: cycle.cycle,
+          failed_build: cycle.failed_build,
+          failed_surfaces: cycle.failed_surfaces,
+          failed_retest_evidence: cycle.failed_retest_evidence,
+          qa_notes: cycle.qa_notes,
+          previous_fix_claim: cycle.previous_fix_claim,
+          why_insufficient: cycle.why_insufficient,
+          fix_design_delta: cycle.fix_design_delta,
+          new_risks: cycle.new_risks,
+          changed_non_goals: cycle.changed_non_goals,
+          changed_affected_files: cycle.changed_affected_files,
+          verification_delta: cycle.verification_delta,
+          section: cycleAt === -1 ? "" : fixCycles.slice(cycleAt),
+        }
+      : null,
   };
 }
 
@@ -131,9 +153,6 @@ export function bugGate(req: GateRequest): Record<string, any> {
   const fm = v.frontmatter;
   const route = analyzeRoute(fm, req);
   if (fm.bug_key !== key) return stop("BUG_PLAN_INVALID", `${rel} records bug_key ${fm.bug_key}, not ${key}`, { ...generic, route });
-  if (fm.fix_cycle !== 1) {
-    return stop("BUG_CYCLE_UNSUPPORTED", `the plan is at fix cycle ${fm.fix_cycle}; implementing a reopened cycle is not available yet`, { ...generic, route });
-  }
 
   // Approval: content-bound, current cycle. Never re-approved here.
   const approval = verifyApproval(buf);
@@ -158,7 +177,10 @@ export function bugGate(req: GateRequest): Record<string, any> {
   if (it.context_level === "insufficient" || it.status === "invalid" || it.status === "ambiguous") {
     return stop("BUG_INSUFFICIENT_EVIDENCE", it.reason, { ...withIntake, missing: it.missing ?? [] });
   }
-  if (it.status === "reopened") {
+  // A reopen is reconciled only when the plan's latest cycle answers that very failed fix.
+  const cycles = v.cycles as Array<{ failed_build: string }>;
+  const reconciled = it.status === "reopened" && cycles.length > 0 && cycles[cycles.length - 1].failed_build === it.reopened?.failed_fix_build;
+  if (it.status === "reopened" && !reconciled) {
     return stop("BUG_REOPENED", "QA re-tested the fix and it failed — the next fix cycle is planned through /analyze-bug; no cycle is created here", { ...withIntake, reopened: it.reopened });
   }
   if (it.dev_may_start !== true) return stop("BUG_QA_DENIED", it.reason, withIntake);
@@ -167,14 +189,22 @@ export function bugGate(req: GateRequest): Record<string, any> {
     return stop("BUG_EVIDENCE_STALE", `the bug evidence changed since the plan was approved (${drift.join(", ")}) — re-plan it through /analyze-bug`, { ...withIntake, drift });
   }
 
-  // The task: cycle-1 rows only, read by task-state's own parser.
+  // The task: a row of the current fix cycle only, read by task-state's own parser.
   const text = buf.toString("utf-8");
   const rows = parseBreakdown(taskRowsText(text));
+  const current = fm.fix_cycle as number;
   let task: Record<string, unknown> | null = null;
   if (req.task !== undefined) {
-    if (!/^T[1-9][0-9]*$/.test(req.task)) return stop("BUG_TASK_UNSUPPORTED", `task ${req.task} is not a cycle-1 task (T<n>); later fix cycles are not available yet`, withIntake);
+    if (!/^(?:T[1-9][0-9]*|C[1-9][0-9]*-T[1-9][0-9]*)$/.test(req.task)) return stop("BUG_TASK_UNSUPPORTED", `task ${req.task} is not a bug task id (T<n> in cycle 1, C<n>-T<m> in cycle n)`, withIntake);
+    const taskCycle = Number(/^C([1-9][0-9]*)-/.exec(req.task)?.[1] ?? 1);
+    const planTask = (v.tasks as Array<{ id: string; cycle: number }>).find((t) => t.id === req.task);
+    const currentIds = (v.tasks as Array<{ id: string; cycle: number }>).filter((t) => t.cycle === current).map((t) => t.id);
+    if (taskCycle > current) return stop("BUG_TASK_FUTURE_CYCLE", `task ${req.task} belongs to fix cycle ${taskCycle}, which does not exist — the plan is at cycle ${current}`, { ...withIntake, tasks: currentIds });
     const row = rows[req.task];
-    if (!row) return stop("BUG_TASK_UNKNOWN", `the Bug Work Plan has no task ${req.task}`, { ...withIntake, tasks: Object.keys(rows) });
+    if (!row || !planTask) return stop("BUG_TASK_UNKNOWN", `the Bug Work Plan has no task ${req.task}`, { ...withIntake, tasks: currentIds });
+    if (planTask.cycle < current) {
+      return stop("BUG_TASK_NOT_CURRENT", `task ${req.task} belongs to fix cycle ${planTask.cycle}, which is history — the current cycle is ${current} (${currentIds.join(", ")})`, { ...withIntake, tasks: currentIds });
+    }
     const cells = rowCells(text, req.task) ?? {};
     task = {
       id: row.id,
@@ -189,6 +219,7 @@ export function bugGate(req: GateRequest): Record<string, any> {
   const warnings = [
     ...(it.warnings ?? []),
     ...(transition ? [{ code: "FOUND_IN_BUILD_UNVERIFIED", message: "the QA context changed but the evidence is the same; found_in_build is known on one side only and was not contradicted" }] : []),
+    ...(reconciled ? [{ code: "QA_REOPEN_RECONCILED", message: `QA's state is still reopened after fix ${it.reopened?.failed_fix_build} failed; fix cycle ${current} answers it` }] : []),
   ];
   return {
     ok: true,
@@ -214,7 +245,12 @@ export function bugWorkStatus(req: { root: string; work: string }): Record<strin
   const root = realpathSync(req.root);
   const abs = join(root, bugWorkPlanPath(key) as string);
   if (!existsSync(abs)) return { ok: false, outcome: "BUG_PLAN_MISSING", reason: `no Bug Work Plan for ${key}` };
-  const ids = Object.keys(parseBreakdown(taskRowsText(readFileSync(abs, "utf-8"))));
+  const v = validateBugWorkPlan(readFileSync(abs));
+  const cycle = (v.frontmatter?.fix_cycle ?? 1) as number;
+  const planTasks = (v.tasks ?? []) as Array<{ id: string; cycle: number }>;
+  // The current fix cycle's tasks; earlier cycles' completed tasks are history.
+  const ids = planTasks.filter((t) => t.cycle === cycle).map((t) => t.id);
+  const history = planTasks.filter((t) => t.cycle < cycle).map((t) => t.id);
   const state = readTaskState(root, `bug:${key}`, abs);
   const remaining = ids.filter((id) => state.tasks[id]?.deterministicProof !== true);
   const all = ids.length > 0 && remaining.length === 0;
@@ -222,7 +258,9 @@ export function bugWorkStatus(req: { root: string; work: string }): Record<strin
     ok: true,
     outcome: all ? "BUG_CYCLE_COMPLETE" : "BUG_CYCLE_IN_PROGRESS",
     work_id: `bug:${key}`,
+    fix_cycle: cycle,
     tasks: ids,
+    history,
     remaining,
     all_complete: all,
     next_action: all ? `/review-code --bug ${key}` : null,

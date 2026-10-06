@@ -210,7 +210,7 @@ const SECTIONS = [
   }
   const emptyLabel = V(edit(CYCLE1, "- **Risks:** stacked coupons [inference]; covered by the regression test.", "- **Risks:**"));
   check("a required label must carry content", emptyLabel?.ok === false && codes(emptyLabel).includes("LABEL_MISSING"), show(emptyLabel));
-  check("labels are declared", api.FIX_DESIGN_LABELS?.length === 6 && api.VERIFICATION_LABELS?.length === 6 && api.CYCLE_LABELS?.length === 4);
+  check("labels are declared", api.FIX_DESIGN_LABELS?.length === 6 && api.VERIFICATION_LABELS?.length === 6 && api.CYCLE_LABELS?.length === 11);
 }
 
 /* ── 18–21. fingerprints ─────────────────────────────────────────────── */

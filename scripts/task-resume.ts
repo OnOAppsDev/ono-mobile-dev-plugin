@@ -351,15 +351,20 @@ export function isBugPlan(fm: Frontmatter | null | undefined): boolean {
 
 /**
  * The text whose table rows are tasks. A feature's Task Breakdown is read whole, exactly as
- * before; a Bug Work Plan's tasks are the rows of its `## Tasks` section only, so a table
- * elsewhere in the plan is never mistaken for one. The rows are still read by the one parser.
+ * before. A Bug Work Plan's tasks are the rows of its `## Tasks` section (cycle 1) and of its
+ * `## Fix Cycles` section (`### Cycle n`, n ≥ 2), with HTML comments removed — so neither a
+ * table elsewhere in the plan nor the template's commented example cycle is mistaken for one.
+ * The rows are still read by the one parser.
  */
 export function taskRowsText(markdown: string): string {
   if (!isBugPlan(readFrontmatter(Buffer.from(markdown, "utf-8")))) return markdown;
-  const start = markdown.indexOf("\n## Tasks\n");
-  if (start === -1) return "";
-  const next = markdown.indexOf("\n## ", start + 1);
-  return markdown.slice(start, next === -1 ? markdown.length : next);
+  const section = (name: string) => {
+    const start = markdown.indexOf(`\n## ${name}\n`);
+    if (start === -1) return "";
+    const next = markdown.indexOf("\n## ", start + 1);
+    return markdown.slice(start, next === -1 ? markdown.length : next);
+  };
+  return `${section("Tasks")}\n${section("Fix Cycles")}`.replace(/<!--[\s\S]*?-->/g, "");
 }
 
 /** The selected row's cells keyed by the breakdown's own header names, lowercased. */
