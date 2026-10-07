@@ -108,7 +108,7 @@ export const CURRENT_SCHEMA_VERSION = 1;
  * so the two cannot drift. It records the version that actually wrote a record, never a
  * planned future release — a release bump is separate work.
  */
-export const PLUGIN_VERSION = "0.5.0";
+export const PLUGIN_VERSION = "0.6.0";
 
 export const WRITABLE_STATES = ["in-progress", "complete", "blocked", "failed"] as const;
 export type TaskState = (typeof WRITABLE_STATES)[number];

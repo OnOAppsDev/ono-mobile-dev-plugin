@@ -9,16 +9,14 @@ version below is the plugin's own `version` in
 
 ## [Unreleased]
 
-Work merged since the 0.5.0 release (`d829d78`). **`plugin.json` still declares `0.5.0`,
-so nothing below has shipped** — a git-sourced install pinned by that version string does
-not receive any of it. The next version bump is deliberately separate work.
+## [0.6.0] - 2026-09-30
 
-A `## [0.6.0]` heading previously sat above this section for the NativeWind theme-sync
-work. It was never a release: no commit ever set `plugin.json` to `0.6.0`, there is no
-`v0.6.0` tag, and the commit that wrote the heading (`aeecd08`) did not touch the manifest
-— unlike every prior release, each of which bumped it in the same commit. Its entries were
-folded in here rather than deleted, so no content was lost and this file once again obeys
-its own rule that the newest version heading is the manifest's version.
+Everything merged since the 0.5.0 release (`d829d78`), shipped together: this release
+sets `plugin.json` to `0.6.0` in the same commit as this heading.
+
+An earlier `## [0.6.0]` heading, written for the NativeWind theme-sync work in `aeecd08`,
+was never a release — no commit set `plugin.json` to `0.6.0` then, and there was no tag.
+Its entries were folded into the Unreleased section rather than deleted, and ship here.
 
 REACT-001 — the six React (web) standards. REACT-002 — the four React agents and
 three React skills. REACT-003 — React Smart TV via `device_type: tv`. Each epic carries an
@@ -26,6 +24,57 @@ independent adversarial review and the fixes it produced.
 
 ### Added
 
+- **QA readiness release gate** (Stage 7 of the QA lifecycle). `/prepare-mobile-release` now takes its QA evidence from QA-owned readiness artifacts — ono-plugin-qa's `readiness/<kind>/<id>.md`, whose contract is vendored verbatim as `docs/qa-readiness-contract.md` (sha-pinned to ono-plugin-qa `aab471e`) — instead of treating the Dev QA handoff as QA sign-off. `scripts/qa-release-gate.ts` is the one reader: it refuses a malformed artifact, requires a valid sign-off matching the artifact's fingerprint and a `READY` / `READY_WITH_EXCEPTIONS` verdict, and requires every release item — features by canonical Dev feature id, bug fixes by exact QA bug id — to be covered by exactly one artifact; bug-fix-only and mixed releases are first-class. `READY_WITH_EXCEPTIONS` passes with every exception and known issue surfaced for a human decision; a known release build is compared with QA's candidate build; QA's Release Notes Input is filtered to the release's contents and stays input only. `REL-QA-1` is rewritten and `REL-QA-2` … `REL-QA-5` added; the checklist's "QA Sign-off" section is now "QA Readiness (QA-owned)". Tests: `scripts/qa-release-gate.test.ts`, including in-file mutation tests of every gate rule.
+- **QA readiness gate follow-up** (`qa_readiness_schema: 2`; the contract copy is re-vendored and re-pinned). `REL-QA-6` and `REL-QA-7` are added. The fixture is now a real QA repository under `scripts/fixtures/qa-repo/`.
+  - **Release artifact:** a `release:` scope's `readiness/release/<id>.md` covers a release through its Members table. Its members must be exactly the release's items.
+  - **Bug identity:** a bug item may name a QA bug id, an external ref or both (`--bug BUG-27` / `qa=` / `external=` / both). An item with neither is invalid, both must identify the same bug, and an ambiguous match fails.
+  - **Freshness:** the gate recomputes each artifact's ledger freshness token from its own QA repository, re-verifying every record hash. An artifact rendered from an outdated ledger is No-Go (`QA_READINESS_OUTDATED`), and one whose ledger is missing or corrupt is No-Go too (`QA_FRESHNESS_UNVERIFIABLE`).
+  - **Schema:** schema-1 artifacts carry no token and are refused.
+- **QA readiness artifact integrity.** The gate recomputes each artifact's `artifact_integrity` before trusting any content: sha256 over the rendered Markdown without that line, with CRLF normalized to LF. An edited artifact is No-Go (`QA_ARTIFACT_TAMPERED`), and an artifact without the field is refused as malformed. The check is separate from ledger freshness, and both must pass (`REL-QA-6`). The contract copy is re-vendored and re-pinned, and the fixture artifacts are re-rendered.
+- **Upstream planning-change detection** (SHARED-013, #36). The DD and the Task Breakdown
+  record a `source_fingerprint` — the body hash of the document they were generated from —
+  and every stage verifies it at entry. `/implement-task` runs a consistency preflight on
+  every invocation, walks the transitive dependency closure, and prints a feature-wide impact
+  report (unchanged / modified / removed / unrecorded). Absent means unknown, never mismatch.
+- **Accessibility as a first-class implementation dimension** (SHARED-014, #38).
+  `standards/shared/verification.md` owns the Tier 1 / Tier 2 / Tier 3 vocabulary; the task
+  record carries an `accessibility` block and generic, domain-tagged `verificationDebt`, and
+  `complete` is refused on a failing check. A Tier 3 obligation is unrepresentable as a pass.
+- **Mandatory developer testing** (Stage 3, #42). Every implementation records whether
+  in-repository developer tests were required, which were added or updated or why none were,
+  what actually ran, and developer-owned debt for what could not — never QA's. `complete` is
+  refused without the decision or with a failing developer test.
+- **Stale Project Knowledge is verified on use** (Stage 4B, #43). The reader derives source
+  drift since `fingerprint.knowledgeHead` exactly as the Inspector does and marks only the
+  categories it can move as `verifyOnUse`; stale knowledge is a starting point, never
+  authoritative, and the refresh path is `/inspect` → Refresh Project Knowledge.
+- **Deterministic implementation resume and upstream reconciliation** (ENG-003, #45). An
+  in-progress task record carries an execution block — git baseline, confirmed context,
+  plan, step checkpoints, validations, probes — and `/implement-task` resumes an interrupted
+  run as the same run (same `runId`, same attempt) when the repository still matches, with
+  explicit `resume` / `restart` / `abandon` and a hard stop on any unexplained change. The
+  `chain` check names the earliest stale SDLC stage; checkpoints and validations cite DD
+  sections and row cells, so only work whose basis moved is redone. External design and
+  specification sources are fingerprinted by the content actually read, never the URL, and an
+  unread one is `unverifiable`, never unchanged.
+- **Project surfaces, capabilities and relationships consumed** (Stage B, #46), from
+  ono-project-inspector 0.11.0; `docs/repo-knowledge-contract.md` is the producer's copy
+  byte for byte. Surfaces scope a feature after the human routing gate and never choose
+  routing; capabilities are looked up by id, exact name or source root, never by similarity,
+  with first-degree relationships as context rather than scope; `/review-code` now actually
+  resolves Project Knowledge for the changed files.
+- **The shared TV baseline** (SHARED-015, #48) — `standards/shared/tv-baseline.md`, ten
+  platform-neutral `TVB-*` rules every TV surface carries: focus, remote input and Back,
+  playback ownership and teardown, lifecycle, the repository's TV budget, and accessibility
+  under the shared `A11Y-*` rules. No mechanisms, repository facts or versions.
+- **tvOS-specific rules** (ATV-001, ATV-002, #49) — five `IOS-UI-TV-*` rules in
+  `swiftui-uikit-standards.md` § *Apple TV (tvOS)*, cited by the iOS planning, implementation
+  and review lanes.
+- **Android TV-specific rules** (ANDROID-003, #49) — three `AND-UI-TV-*` rules in
+  `compose-xml-standards.md` § *Android TV*, cited by the Android lanes; no UI toolkit, player,
+  DI framework or navigation library is required.
+- **Persisted Dev QA handoff notes** (#23) — `/create-dev-qa-notes` writes
+  `docs/qa/{FEATURE}-qa-handoff.md` and links it from the Task Breakdown (`qa_handoff_link`).
 - `standards/react/react-smart-tv.md` (REACT-003) — the standalone React Smart TV
   standard, a seventh React standards document. **54 rules** across
   `REACT-TV-FOCUS-1..8`, `REACT-TV-INPUT-1..8`, `REACT-TV-UI-1..7`,
@@ -322,10 +371,29 @@ independent adversarial review and the fixes it produced.
   React-Native-only. No architect, dev-planning skill, `repo-analyst` or
   `repo-knowledge-consumer` changed — only the command's description was stale.
 
+- **One role agent per stage over one platform lane** (#40). `feature-architect`,
+  `feature-implementer`, `code-reviewer` and `performance-reviewer` apply the shared
+  `platform-planning`, `platform-implementation` and `platform-review` methodologies against
+  exactly one resolved platform lane; the per-platform architect, developer and reviewer agents
+  are removed. Dev Planning ownership was normalized first (#25), and the React Native
+  implementation architecture aligned (#24).
+- **Project Knowledge ownership completed** (ENG-001, #47). React Native's `ARCH-*`
+  conformance now runs only when the confirmed platform is `react-native` — iOS, Android and
+  React report it `N/A` and are judged by their own lane; planning-lane discovery is
+  knowledge-first with the checklists as the fallback; `device_type: tv` no longer skips
+  accessibility; volatile platform claims now say to verify against the target SDK.
+- **The completed React lane reflected across docs, gates and tests** (#35).
+
+### Removed
+
+- **The unwired DD subsystem** (#39) — the adaptive multi-stage DD orchestration and
+  consolidation added in #18 and #20, which was never wired into a command.
+- **`dd-complexity-assessment`** (ENG-006, #44) — inert: it changed no behaviour and nothing
+  read its band.
+
 ### Unchanged (deliberately)
 
-- The eight-stage pipeline, every approval gate, all three safety hooks, all
-  `standards/**`, and every other command.
+- The eight-stage pipeline, every human approval gate, and all three safety hooks.
 
 ## [0.5.0] - 2026-08-12
 

@@ -18,7 +18,7 @@ author: rn-architect
 status: approved
 date: 2026-05-06
 migrated_from_version: 2
-migrated_by: ono-mobile-dev-plugin 0.5.0
+migrated_by: ono-mobile-dev-plugin 0.6.0
 ---
 
 # Feature Analysis — Profile Avatar Upload

@@ -56,7 +56,7 @@ import { dirname, join } from "path";
  * itself; `scripts/migrate-planning-doc.test.ts` asserts it matches
  * .claude-plugin/plugin.json so the two cannot drift.
  */
-export const PLUGIN_VERSION = "0.5.0";
+export const PLUGIN_VERSION = "0.6.0";
 
 export type DocKind = "feature-analysis" | "dd" | "dev-plan" | "task-breakdown";
 
