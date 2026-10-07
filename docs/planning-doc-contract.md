@@ -23,6 +23,7 @@ version is brought forward, and the rules for adding a version later.
 | `dd` | 2 |
 | `dev-plan` | 1 |
 | `task-breakdown` | 1 |
+| `bug-work-plan` | 1 |
 
 Every generated planning document carries `doc_schema_version` in its
 frontmatter. Generating commands stamp it at creation; the migration framework
@@ -32,6 +33,28 @@ stamps it at the end of a successful chain. Nothing else writes it.
 0.5.0"**. No migration chain is authored for them, so an unstamped document of
 those kinds is *assumed* current — exactly the behavior that existed before
 SHARED-011. See [Known limitations](#known-limitations).
+
+`bug-work-plan` is different: it is **born stamped**. Its v1 is its first shape, so no
+legacy copy exists — see [Bug Work Plan](#bug-work-plan).
+
+## Bug Work Plan
+
+`bug-work-plan` is the planning document for one bug, at
+`docs/bugs/<bug_key>/bug-work-plan.md` in the target repository. Its full contract is
+[`docs/bug-work-plan-contract.md`](bug-work-plan-contract.md), and
+[`scripts/bug-work-plan.ts`](../scripts/bug-work-plan.ts) validates its shape. This
+framework does exactly three things for it:
+
+| Rule | Behavior |
+|---|---|
+| **Born stamped** | Stamped at `1` is `current`; stamped above is `schema-too-new`. A copy that is **unstamped, or stamped below 1, is `unsupported`**. It is never detected, never assumed current and never migrated, because there is no earlier version, and a migration could only invent one. There are no markers and an empty chain. |
+| **Positive kind check** | A document requested as `bug-work-plan` must carry `work_type: bug`, otherwise it is a `kind-mismatch`. |
+| **Exclusive markers** | `bug_key` and `bug_evidence_fingerprint` belong only to `bug-work-plan`, so a bug plan requested as any feature kind is a `kind-mismatch`. |
+
+The four feature kinds are untouched. When `bug-work-plan` gains a v2, append a
+`{ from: 1, to: 2 }` step as for any other kind. Bug identity (`bug_key`, `qa_bug_id`,
+`external_ref`, `origin`) and the reserved `approved_*` fields then belong with the
+protected keys. No step may write them.
 
 ## Feature Analysis version history
 
@@ -429,6 +452,7 @@ still single.
 | `/dev-design-start` | `feature-analysis` | Yes |
 | `/dev-feature-start` | `dd` | **Yes** — wired when `dd` gained a chain at v2 |
 | `/implement-task` | all four | Deferred — see below |
+| — | `bug-work-plan` | None yet. The kind is recognized, and nothing loads it until the bug flow's command exists. |
 
 ## `source_fingerprint` — upstream-change detection
 
@@ -532,8 +556,8 @@ Recorded so a later author does not discover them the hard way.
   Note which fields are **not** on that list. `feature_analysis_link` looks like
   a DD marker but the task breakdown carries it too, so treating it as exclusive
   wrongly refuses a valid task breakdown. Only add a field here after checking
-  every template for it; `migrate-planning-doc.test.ts` loads all four shipped
-  templates through the framework to catch exactly that mistake.
+  every template for it; `migrate-planning-doc.test.ts` loads every shipped
+  planning template through the framework to catch exactly that mistake.
 - **Fixtures live on disk**, unlike `read-repo-knowledge.test.ts`'s temp-directory
   fixtures. Deliberate: these documents are compared byte-for-byte and contain
   ` ```yaml ` fences, CRLF endings, and trailing whitespace, none of which

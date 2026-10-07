@@ -472,6 +472,47 @@ The helper enforces what it can structurally — a checkpoint can never carry a 
 target a finished run and cannot target another run. Which component calls it is the rule
 above.
 
+## Bug work
+
+Bug Development Flow, Step 5. `/implement-task bug:<bug_key> <task-id>` runs on this store, with the same schema and semantics. There is no separate bug state engine.
+
+| | Feature work | Bug work |
+|---|---|---|
+| Work id (`--feature`, the file's `feature`) | the feature slug | `bug:<bug_key>`: the explicit prefix and a path-safe key, never inferred from a name. The CLI refuses an unsafe one as `invalid`. |
+| Breakdown (`--breakdown`) | the Task Breakdown | the approved Bug Work Plan, `docs/bugs/<bug_key>/bug-work-plan.md` |
+| Task rows | every table row of the breakdown | the rows of the plan's `## Tasks` section (cycle 1: `T<n>`) and of each `### Cycle <n>` under `## Fix Cycles` (`C<n>-T<m>`), HTML comments removed, read by the same `parseBreakdown` and fingerprinted by the same `fingerprintRow`. Every cycle's tasks share the one store; only the current cycle's tasks are current work |
+| State file | `docs/tasks/<feature>-task-state.json` | `docs/tasks/bugs/<bug_key>.task-state.json` |
+
+**The two state files cannot collide.** Every feature file name ends `-task-state.json`, and every bug file name ends `.task-state.json`, so no feature slug can name a bug's file. Both are store artifacts, never task work.
+
+Unchanged for bug work:
+- runs, attempts, `runId`, `start` / `resume` / `restart` / `abandon`;
+- checkpoints and the resume verdict;
+- dependencies and `deterministicProof`;
+- accessibility, `developerTesting` and `verificationDebt`.
+
+**Basis references.** A Bug Work Plan adds:
+- `plan`: the plan's body fingerprint;
+- `plan#<anchor>`: one per section, such as `plan#root-cause`, `plan#fix-design`, `plan#verification-strategy` and `plan#tasks`;
+- `evidence`: the plan's recorded `bug_evidence_fingerprint`.
+
+A run on a plan records `plan` and `evidence` in its `upstream`. A plan change therefore invalidates only checkpoints and validations whose basis cites what moved. A frontmatter change outside the body (author, date, `repo_knowledge_*`) invalidates nothing.
+
+**The chain.** A Bug Work Plan has no feature chain. Before every bug task, `scripts/bug-implementation.ts gate` checks three things:
+- the plan's approval;
+- its fix cycle;
+- the bug evidence, re-read through intake.
+
+The `chain` verdict for a plan names that gate and never reports a stale feature stage.
+
+**Bug completion (`invalid-bug-completion`).** On top of every `complete` rule above:
+- The plan row's acceptance criteria are recorded verbatim and met.
+- When the row's first criterion is "The reported reproduction path no longer fails" (the fix task), the record also needs:
+  - `developerTesting.required: true`;
+  - `developerTesting.regression`, either:
+    - `{ "command", "failedBefore": true, "passesAfter": true }`, where the command is one of the passing `developerTesting.runs`; or
+    - `{ "notFeasibleReason" }`, plus a `VERIFY-4` developer-testing debt owned by `developer`.
+
 ## Known limitations
 
 - **No locking.** `in-progress` is an advisory marker, not a lock. Two concurrent runs against the
