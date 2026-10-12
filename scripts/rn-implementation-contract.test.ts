@@ -282,5 +282,28 @@ if (failures === 0) {
   check("12 shared defers the gates to the command", /never re-derive them here/.test(sharedFlat));
 }
 
+// --- 13. The three RN lanes cite the same ID families -------------------------
+// The citation maps drifted once (ARCH-COMPOSE-* was cited by planning but not by
+// implementation or review). The review lane may omit SEC-* — security is its own reviewer.
+{
+  const families = (rel: string): Set<string> => {
+    const doc = readFileSync(join(REPO_ROOT, rel), "utf-8");
+    const rows = doc.split("\n").filter((l) => /^\|[^|]+\|\s*`standards\//.test(l));
+    return new Set(rows.flatMap((r) => [...r.matchAll(/`([A-Z0-9]+(?:-[A-Z0-9]+)+)-\*`/g)].map((m) => m[1])));
+  };
+  const plan = families("skills/rn-dev-planning/SKILL.md");
+  const impl = families("skills/rn-feature-implementation/SKILL.md");
+  const review = families("skills/rn-code-review/SKILL.md");
+  const diff = (a: Set<string>, b: Set<string>) => [...a].filter((x) => !b.has(x));
+  check(`13 planning cites a full family set (${plan.size})`, plan.size >= 40, String(plan.size));
+  check("13 implementation cites exactly planning's families",
+    diff(plan, impl).length === 0 && diff(impl, plan).length === 0,
+    `missing: ${diff(plan, impl).join(",")} extra: ${diff(impl, plan).join(",")}`);
+  const planNoSec = new Set([...plan].filter((f) => !f.startsWith("SEC-")));
+  check("13 review cites planning's families except SEC-*",
+    diff(planNoSec, review).length === 0 && diff(review, planNoSec).length === 0,
+    `missing: ${diff(planNoSec, review).join(",")} extra: ${diff(review, planNoSec).join(",")}`);
+}
+
 console.log(failures === 0 ? "\nALL TESTS PASSED" : `\n${failures} TEST(S) FAILED`);
 process.exit(failures > 0 ? 1 : 0);

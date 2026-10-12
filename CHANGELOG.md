@@ -26,6 +26,17 @@ independent adversarial review and the fixes it produced.
 
 ### Added
 
+- **React Native AI coding guidelines** (plan: `docs/planning/RN-GUIDELINES-GAP-PLAN.md`) —
+  closes the gap between the RN lane and the "AI Agent Coding Guidelines". New IDs:
+  `RN-TS-5`, `RN-FC-5`, `RN-FC-6`, `RN-STYLE-5`, `RN-CMT-1`, `RN-DEP-1`, `RN-DEP-2`,
+  `ARCH-COMPOSE-4`, `ARCH-REUSE-4`. Extended: `RN-STYLE-1/2/3`, `RN-PROPS-3`,
+  `RN-CONST-3/4`, `ARCH-COMPOSE-2`, `RN-PERF-LIST-1`, `RN-PERF-BUNDLE-1`.
+  `ARCH-LOGIC-1` keeps its thresholds; its remedy is now responsibility extraction (a
+  custom hook only for stateful or reusable logic). `I18N-*` is gated in the React Native
+  lanes only — it applies when the repository already localizes or the DD requires it;
+  `standards/shared/i18n-rtl.md` and the other platforms are unchanged. The three RN lanes'
+  citation tables are synced to one ID-family set, guarded by a drift test.
+
 - `standards/react/react-smart-tv.md` (REACT-003) — the standalone React Smart TV
   standard, a seventh React standards document. **54 rules** across
   `REACT-TV-FOCUS-1..8`, `REACT-TV-INPUT-1..8`, `REACT-TV-UI-1..7`,

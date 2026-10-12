@@ -15,7 +15,7 @@ These standards apply to React Native app code audited by the `performance-revie
 
 ## List Virtualization
 
-- `RN-PERF-LIST-1` [WARNING] A list backed by data whose size isn't fixed and small at build time — pagination, search results, user-generated content, or anything that can grow past roughly a screen's worth of rows — renders via `FlatList`/`FlashList` with a correct `keyExtractor` (and `getItemLayout` where row height is known), not `ScrollView` with `.map()`. A short, fixed list (a settings screen's dozen static rows) is not this finding — `ScrollView` is the right choice there, and citing this rule against it is a false finding.
+- `RN-PERF-LIST-1` [WARNING] A list backed by data whose size isn't fixed and small at build time — pagination, search results, user-generated content, or anything that can grow past roughly a screen's worth of rows — renders via `FlatList`/`FlashList` with a correct `keyExtractor` (and `getItemLayout` where row height is known), not `ScrollView` with `.map()` or a plain `.map()` render. Keys (`keyExtractor` or `.map()` `key`) use a stable unique id, never the array index when an id exists. A short, fixed list (a settings screen's dozen static rows) is not this finding — `ScrollView` is the right choice there, and citing this rule against it is a false finding.
 
 ## JS-Thread Blocking
 
@@ -33,7 +33,7 @@ These standards apply to React Native app code audited by the `performance-revie
 
 ## Bundle Size
 
-- `RN-PERF-BUNDLE-1` [WARNING] A new dependency's contribution to bundle size is stated when it's proposed — measured via the project's bundle-analysis tooling (e.g. `npx react-native-bundle-visualizer`, Metro's bundle report) rather than guessed from the `package.json` diff. A dependency that duplicates one already in the project (a second date library, a second icon set, a second HTTP client) is flagged regardless of its individual size. An unmeasured "this feels big/small" claim is reported at `[INFO]` as needing verification, per the Anti-hallucination thresholds in `rn-coding-standards.md` — not asserted as a `[WARNING]` finding.
+- `RN-PERF-BUNDLE-1` [WARNING] A new dependency's contribution to bundle size is stated when it's proposed — measured via the project's bundle-analysis tooling (e.g. `npx react-native-bundle-visualizer`, Metro's bundle report) rather than guessed from the `package.json` diff. A dependency that duplicates one already in the project is flagged under `RN-DEP-2` (`rn-coding-standards.md`), regardless of its individual size. An unmeasured "this feels big/small" claim is reported at `[INFO]` as needing verification, per the Anti-hallucination thresholds in `rn-coding-standards.md` — not asserted as a `[WARNING]` finding.
 
 ## References
 

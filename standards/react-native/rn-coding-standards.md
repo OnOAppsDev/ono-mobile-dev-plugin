@@ -10,6 +10,7 @@ These standards apply to all React Native application code reviewed by `code-rev
 - `RN-TS-2` [CRITICAL] No `any` without an inline comment justifying why a more specific type isn't feasible, using the deterministic format `// typed-any: [TICKET-ID] <reason>` directly above or beside the `any` usage (e.g. `// typed-any: [RN-482] third-party SDK ships no types`); prefer `unknown` plus a narrowing check. A justification in any other comment format (a bare `// any because...`, a TODO, a commit-message explanation, or `// typed-any:` missing the `[TICKET-ID]` segment) does not satisfy this rule.
 - `RN-TS-3` [CRITICAL] Exported functions and hooks have explicit return types.
 - `RN-TS-4` [CRITICAL] No `as` type assertions to force a mismatched shape past the compiler; fix the underlying type, or narrow with a type guard.
+- `RN-TS-5` [INFO] A known finite set of values (states, types, variants) is typed with the project's established representation — enum or string-literal union — not bare `string` repeated across call sites. Do not introduce enums where unions are the convention, or vice versa.
 
 ## Functional Components & Hooks
 
@@ -17,6 +18,8 @@ These standards apply to all React Native application code reviewed by `code-rev
 - `RN-FC-2` [WARNING] Reusable stateful logic is extracted into a custom hook rather than duplicated across components.
 - `RN-FC-3` [WARNING] Hooks follow the Rules of Hooks (no conditional/looped hook calls); `eslint-plugin-react-hooks` rules are not disabled to work around a violation.
 - `RN-FC-4` [WARNING] Side effects live in `useEffect`/`useLayoutEffect` (or an equivalent data-fetching hook) with a complete, accurate dependency array — not in the render body.
+- `RN-FC-5` [INFO] Optional callbacks are invoked with `?.()` rather than defaulted to a local `noop`. One behaviour gets one handler pattern — toggle vs explicit open/close is chosen by what callers need; keep explicit open/close when callers need deterministic state.
+- `RN-FC-6` [INFO] Do not create a custom hook just to move one component's single-use local state/callbacks out of the file; extract a hook when it gives real reuse, isolates genuinely complex stateful logic, or is the remedy chosen under `ARCH-LOGIC-1`.
 
 ## Naming & File Conventions
 
@@ -31,15 +34,15 @@ These standards apply to all React Native application code reviewed by `code-rev
 
 - `RN-PROPS-1` [WARNING] Component props are typed via a named `interface` or `type`, not inline object literals or untyped destructuring.
 - `RN-PROPS-2` [WARNING] Default prop values are supplied via default parameters in the function signature, not the legacy `defaultProps` static.
-- `RN-PROPS-3` [WARNING] Optional props are marked `?` rather than typed as `T | undefined` and required everywhere they're passed.
+- `RN-PROPS-3` [WARNING] Optional props and optional function parameters are marked `?` rather than typed as `T | undefined` and required everywhere they're passed. No `| null` on an optional prop/param unless `null` carries a distinct meaning; no redundant unions, duplicated types, or default values that add nothing.
 - `RN-PROPS-4` [WARNING] Callback props are typed with explicit parameter and return types (`onSelect: (id: string) => void`), not `Function` or untyped arrow types.
 
 ## Constants
 
 - `RN-CONST-1` [INFO] A value used more than once, or referenced across files, is extracted into a named constant, not repeated as an inline literal.
 - `RN-CONST-2` [INFO] Constants are declared in a file scoped to what they configure (a feature's own constants module for feature-specific values, a shared `constants/` module for cross-feature values) — not scattered inline or redeclared per file.
-- `RN-CONST-3` [INFO] Constant names use `SCREAMING_SNAKE_CASE` for primitive values and `PascalCase` for enum-like object maps, consistent across the codebase.
-- `RN-CONST-4` [WARNING] No magic numbers: a numeric literal with domain meaning (timeouts, durations, retry counts, pagination sizes, dimensions, z-indices, thresholds) is extracted into a named constant rather than inlined at the call site. `0`, `1`, `-1`, and array/index bookkeeping in idiomatic use (loop counters, `.length - 1`) are exempt, as are values already covered by a design-token module under `RN-STYLE-3`.
+- `RN-CONST-3` [INFO] Constant names follow the project's established constant naming convention. Only where the project has none, the default is `SCREAMING_SNAKE_CASE` for primitive values and `PascalCase` for enum-like object maps.
+- `RN-CONST-4` [WARNING] No magic numbers: a numeric literal with domain meaning (timeouts, durations, retry counts, pagination sizes, dimensions, z-indices, thresholds, hit slop/touch targets, opacity, border radii, animation durations) is extracted into a named constant rather than inlined at the call site — reusing an existing shared constant or theme value first. Do not create a constant solely to hide an arbitrary number. `0`, `1`, `-1`, array/index bookkeeping in idiomatic use (loop counters, `.length - 1`), and incidental self-explanatory literals are exempt, as are values already covered by a design-token module under `RN-STYLE-3`.
 
 ## Security
 
@@ -47,10 +50,11 @@ These standards apply to all React Native application code reviewed by `code-rev
 
 ## Styling
 
-- `RN-STYLE-1` [WARNING] The app uses one styling method consistently (e.g. `StyleSheet.create`, a single styling library) — no mixing of approaches across the codebase.
-- `RN-STYLE-2` [WARNING] Styles are defined via `StyleSheet.create` (or the detected styling library's equivalent) outside the render function, not as inline style objects/arrays recreated on every render.
-- `RN-STYLE-3` [INFO] Shared design tokens (colors, spacing, typography) are sourced from a single theme/tokens module, not hardcoded per component.
+- `RN-STYLE-1` [WARNING] New code follows the styling approach established for the surrounding area; do not introduce another method (NativeWind, `StyleSheet`, `makeStyles`, inline, or other) alongside it, and never convert unrelated existing code as part of a change. Do not assume any particular styling library.
+- `RN-STYLE-2` [WARNING] Styles are defined the detected approach's way (e.g. `StyleSheet.create` outside the render function, or the styling library's equivalent), not as inline style objects/arrays recreated on every render. When NativeWind is installed, supported for the component, and established for that area, new styling uses `className` rather than a new `StyleSheet`.
+- `RN-STYLE-3` [INFO] Shared design tokens (colors, spacing, typography) are sourced from a single theme/tokens module, not hardcoded per component. No arbitrary values (`max-w-[350px]`, `rounded-[32px]`, raw hex/px) when a token expresses the same design intent; a genuinely missing reusable value is added to the shared theme location, while a genuinely one-off value is not abstracted. A repeated style block (e.g. a shadow) becomes a shared theme value/style.
 - `RN-STYLE-4` [INFO] Component-specific styles are colocated with the component; only genuinely shared styles live in a common style/theme module.
+- `RN-STYLE-5` [INFO] A new theme value follows the naming convention of the theme section it joins (e.g. an existing `sm`/`md`/`lg` scale vs specific semantic names) and reuses an existing value for the same concept; never introduce a parallel naming system or rename established tokens.
 
 ## Lint & Format
 
@@ -85,6 +89,15 @@ A rule met with only one of a pair is met on one platform and silently unmet on 
 - `RN-A11Y-9` List items derive every accessibility prop from their own item data, and carry position information in `accessibilityLabel` or `accessibilityValue` — React Native exposes no collection-semantics API, so position that is not stated is not announced. Accessibility props are never held in state shared across rows, which is how a recycled row inherits a previous item's label.
 - `RN-A11Y-10` A row exposed as a single element re-exposes its inner actions through `accessibilityActions` with an `onAccessibilityAction` handler, so grouping does not make an action unreachable.
 - `RN-A11Y-11` Timer-driven advancement is suspended while `AccessibilityInfo.isScreenReaderEnabled()` reports an active screen reader (tracked through the `screenReaderChanged` event), and motion-carried meaning has a still equivalent when `AccessibilityInfo.isReduceMotionEnabled()` is true.
+
+## Comments
+
+- `RN-CMT-1` [INFO] Comments explain non-obvious reasoning, constraints, and workarounds — not narrate what the code plainly does. Standard IDs or standard text never appear in application code comments. Mandated comment formats (`RN-TS-2`, `RN-LINT-2`) are unaffected.
+
+## Dependencies
+
+- `RN-DEP-1` [WARNING] Before using a package, read its installed version (`package.json`/lockfile) and use only APIs supported by that version and compatible with the installed React Native version, following the project's existing usage; introduce no deprecated API. Newer docs never justify migrating unrelated code (`platform-implementation` §3).
+- `RN-DEP-2` [WARNING] Use an installed library or existing project utility (date formatting, validation, haptics, API response handling, …) instead of re-implementing it or adding a competing one; do not add a dependency when the project already solves the need cleanly.
 
 ## References
 
