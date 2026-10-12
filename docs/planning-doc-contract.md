@@ -160,7 +160,7 @@ A migrated document carries exactly these four fields, and no others:
 ```yaml
 doc_schema_version: 3
 migrated_from_version: 0
-migrated_by: ono-mobile-dev-plugin 0.6.0
+migrated_by: ono-mobile-dev-plugin 0.7.0
 migration_inputs: device_type=human@migration, platform=human@migration
 ```
 
