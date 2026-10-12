@@ -133,6 +133,25 @@ export type ReadStatus =
 export interface AcceptanceCriterion {
   criterion: string;
   met: boolean;
+  /**
+   * Bug work only (Bug Flow P1). A criterion only a person can verify — on a device, visually —
+   * is recorded `{ met: false, status: "deferred_to_cycle_verification" }`: it is neither met
+   * nor failed, and the fix cycle's consolidated verification (scripts/bug-verification.ts)
+   * verifies it once for the whole cycle. `passed` is the same as `met: true`; `failed` blocks.
+   * Feature work never defers a criterion.
+   */
+  status?: "passed" | "failed" | typeof DEFERRED_TO_CYCLE_VERIFICATION;
+}
+
+export const DEFERRED_TO_CYCLE_VERIFICATION = "deferred_to_cycle_verification";
+
+/**
+ * Whether one recorded criterion lets a task complete: met (and not marked otherwise), or — for
+ * bug work only — explicitly deferred to the cycle's consolidated verification and not met.
+ */
+export function criterionSettled(c: AcceptanceCriterion, bugWork: boolean): boolean {
+  if (c.met === true) return c.status === undefined || c.status === "passed";
+  return bugWork && c.met === false && c.status === DEFERRED_TO_CYCLE_VERIFICATION;
 }
 
 export interface ValidationEntry {
@@ -1014,10 +1033,10 @@ export function developerTestingProblem(payload: WritePayload): string | null {
  * `complete` record can only exist after section 10 verification succeeded, so the
  * helper refuses rather than trusting the caller.
  */
-export function verificationSatisfied(payload: WritePayload): boolean {
+export function verificationSatisfied(payload: WritePayload, bugWork = false): boolean {
   const ac = payload.acceptanceCriteria ?? [];
   const val = payload.validation ?? [];
-  if (!(ac.length > 0 && ac.every((c) => c.met === true) && val.length > 0)) return false;
+  if (!(ac.length > 0 && ac.every((c) => criterionSettled(c, bugWork)) && val.length > 0)) return false;
 
   // SHARED-014. Accessibility gates completion only where it applies, and only on the
   // evidence the plugin actually produced: a failing Tier 1/2 check is a proven defect
@@ -1039,7 +1058,8 @@ export function verificationSatisfied(payload: WritePayload): boolean {
  * Bug work's completion rule, on top of every rule above (Bug Development Flow, Step 5):
  *
  *   - the plan row's acceptance criteria are recorded verbatim and met — never weakened or
- *     rewritten;
+ *     rewritten — or, for one only a person can verify, deferred to the fix cycle's
+ *     consolidated verification (`deferred_to_cycle_verification`, never met);
  *   - the fix task (its first criterion is the reported reproduction path) requires developer
  *     testing, and a regression test that failed before the fix and passes after it — one of
  *     the developer tests that actually ran — or, when one cannot be authored, the reason and
@@ -1048,8 +1068,8 @@ export function verificationSatisfied(payload: WritePayload): boolean {
 export function bugCompletionProblem(payload: WritePayload, row: Record<string, string> | null): string | null {
   if (row === null) return "Refused: the bug task's row could not be read from the Bug Work Plan (--breakdown).";
   const criteria = (row["acceptance criteria"] ?? "").split(/;|<br\s*\/?>/i).map((c) => c.trim()).filter(Boolean);
-  const recorded = new Map((payload.acceptanceCriteria ?? []).map((c) => [String(c.criterion ?? "").trim(), c.met]));
-  const missing = criteria.filter((c) => recorded.get(c) !== true);
+  const recorded = new Map((payload.acceptanceCriteria ?? []).map((c) => [String(c.criterion ?? "").trim(), c]));
+  const missing = criteria.filter((c) => { const r = recorded.get(c); return r === undefined || !criterionSettled(r, true); });
   if (missing.length > 0) {
     return `Refused: bug work records the Bug Work Plan row's acceptance criteria verbatim, each met — missing, unmet or rewritten: ${missing.map((c) => `"${c}"`).join(", ")}.`;
   }
@@ -1136,7 +1156,7 @@ export function writeTaskState(
     };
   }
 
-  if (nextState === "complete" && !verificationSatisfied(payload)) {
+  if (nextState === "complete" && !verificationSatisfied(payload, isBugWork(feature))) {
     return {
       status: "refused",
       path,

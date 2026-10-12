@@ -312,7 +312,8 @@ try {
 
     // 12 — completion: the next action once every cycle-1 task is complete.
     const st = api.bugWorkStatus?.({ root, work: W });
-    check("12 when every cycle-1 task is complete, the next action is /review-code --bug <key>", st?.all_complete === true && st.next_action === "/review-code --bug BUG-43", JSON.stringify(st));
+    // Bug Flow P1 changed this on purpose: a complete cycle is verified once, as a whole, before its review.
+    check("12 when every cycle-1 task is complete, the next action is the cycle's verification", st?.all_complete === true && st.next_action === "/verify-fix-cycle bug:BUG-43", JSON.stringify(st));
     const st2 = api.bugWorkStatus?.({ root: debtRoot.root, work: W });
     check("12 …and not before", st2?.all_complete === false && JSON.stringify(st2.remaining) === '["T1"]' && st2.next_action === null, JSON.stringify(st2));
   }

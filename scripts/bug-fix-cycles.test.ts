@@ -20,6 +20,7 @@ import { validateBugWorkPlan } from "./bug-work-plan.ts";
 import { approveWorkPackage, verifyApproval } from "./work-approval.ts";
 import { bugGate, bugWorkStatus } from "./bug-implementation.ts";
 import { reviewContext, writeReviewRecord, verifyReviewRecord } from "./bug-review.ts";
+import { generateVerification, recordVerification } from "./bug-verification.ts";
 import { handoffCheck, generateHandoff, approveHandoff, verifyHandoff } from "./qa-handoff-gate.ts";
 import { parseBreakdown, readTaskState, resumeTask, stateFilePath, writeCheckpoint, writeTaskState } from "./task-state.ts";
 import { sectionFingerprints, taskRowsText } from "./task-resume.ts";
@@ -86,7 +87,15 @@ function complete(root: string, plan: string, task: string, criteria: string[], 
   } as any, plan);
   if (r.status !== "written") throw new Error(`complete ${task}: ${JSON.stringify(r)}`);
 }
+/** Bug Flow P1: a cycle is verified, once and as a whole, before its review. */
+function verifyCycle(root: string) {
+  const g = generateVerification({ root, work: W });
+  if (!g.ok) throw new Error(`verify: ${JSON.stringify(g)}`);
+  const r = recordVerification({ root, work: W, by: "dana", acceptDebt: true, results: g.items.flatMap((it: any) => it.surfaces.map((surface: string) => ({ id: it.id, surface, result: "pass" }))) });
+  if (!r.ok) throw new Error(`verify: ${JSON.stringify(r)}`);
+}
 function review(root: string) {
+  if (generateVerification({ root, work: W }).ok) verifyCycle(root);
   const ctx = reviewContext({ root, work: W });
   if (!ctx.ok) throw new Error(`review: ${JSON.stringify(ctx)}`);
   const f = join(TMP, `rv-${++n}.json`);
@@ -310,7 +319,8 @@ try {
     writeFileSync(join(one.root, FIX_FILE), "// cycle 2 fix\n");
     complete(one.root, one.plan, "C2-T2", [REPRO2, "C2-T1 passes"], true);
     const done = bugWorkStatus({ root: one.root, work: W });
-    check("27 the cycle is complete once its own tasks are", done.all_complete === true && done.next_action === "/review-code --bug BUG-44");
+    // Bug Flow P1 changed the next action on purpose: a complete cycle is verified before its review.
+    check("27 the cycle is complete once its own tasks are", done.all_complete === true && done.next_action === "/verify-fix-cycle bug:BUG-44");
     const after = JSON.parse(readFileSync(statePath, "utf-8"));
     check("26 Cycle 1's records are intact in the same store", JSON.stringify(after.tasks.T1) === JSON.stringify(before.tasks.T1) && JSON.stringify(after.tasks.T2) === JSON.stringify(before.tasks.T2) && after.feature === W);
   }
@@ -318,6 +328,7 @@ try {
   /* ── 38–42. review and handoff bind to the current cycle ───────────────── */
   {
     check("39 review-c1.md cannot satisfy Cycle 2", verifyReviewRecord({ root: one.root, work: W }).status === "missing" && existsSync(join(one.root, "docs/bugs/BUG-44/review-c1.md")));
+    verifyCycle(one.root);
     const ctx = reviewContext({ root: one.root, work: W });
     check("38 the review context is Cycle 2's", ctx.ok === true && ctx.fix_cycle === 2 && ctx.record_path === "docs/bugs/BUG-44/review-c2.md" && JSON.stringify(ctx.tasks.map((t: any) => t.id)) === '["C2-T1","C2-T2"]', JSON.stringify([ctx.outcome, ctx.record_path]));
     const w = review(one.root);

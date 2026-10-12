@@ -47,6 +47,7 @@ Without `--bug`, nothing in this section applies: the review above is the whole 
    | `BUG_REVIEW_READY` | Continue. Show `incomplete_tasks` in one line if any task of the cycle is not complete. |
    | `BUG_PLAN_MISSING` · `BUG_PLAN_INVALID` · `BUG_PLAN_NOT_APPROVED` · `BUG_APPROVAL_STALE` · `BUG_APPROVAL_INVALID` | **Stop** and give the `route`: the bug is (re)planned and approved through `/analyze-bug`. |
    | `BUG_TASK_STATE_MISSING` | **Stop.** Nothing has been implemented for this cycle yet; give the `route` (`/implement-task bug:<bug_key> T1`). |
+   | `BUG_VERIFICATION_REQUIRED` | **Stop.** The cycle has no current, passed consolidated developer verification (`verification.status`: missing, stale, incomplete or failed). Review never bypasses it: offer `next_command`, `/verify-fix-cycle bug:<bug_key>`, under the Continue rule below. |
    | `BUG_WORK_ID_INVALID` · `BUG_ROOT_INVALID` · `BUG_REPOSITORY_UNAVAILABLE` | **Stop** and report `reason`. |
 
    The QA state is not re-read here. The review is about the implementation now in the repository, against the plan that was approved for it.

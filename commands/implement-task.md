@@ -120,6 +120,8 @@ Across an approved cycle, the same lines per task, ending in one cycle line:
 ✓ T2
 ✓ T3
 ✓ Cycle implementation complete
+✓ Automated Developer Testing complete
+▸ Cycle <n> manual verification required
 ```
 
 - **Allowed:** the current stage, the task id, a blocker that needs the developer (with its `reason` or `route`), and completion or failure.
@@ -128,15 +130,21 @@ Across an approved cycle, the same lines per task, ending in one cycle line:
 
 **The final report**, once, after §10: tasks completed, files changed, automated tests run, which passed or failed, developer debt and blockers, and the next action.
 
-**§10 for bug work.** Acceptance criteria are the plan row's, recorded verbatim and each met — never weakened or rewritten. The fix task (its first criterion is that the reported reproduction path no longer fails) also records `developerTesting.regression`: the regression test that failed before the fix and passes after it, or — when one cannot be authored — `notFeasibleReason` with a `VERIFY-4` developer-testing debt owned by the developer. The helper refuses anything else as `invalid-bug-completion`. After recording the outcome, read the cycle's progress:
+**§10 for bug work.** Acceptance criteria are the plan row's, recorded verbatim — never weakened or rewritten. Every criterion that can be proven automatically (a build, a compile, lint, a unit or integration test, the regression test) is proven in the task and recorded met; an automated failure still blocks the task. A criterion only a person can verify — on a device, visually, by hand — is recorded `{"criterion": "…", "met": false, "status": "deferred_to_cycle_verification"}`: never met merely because the implementation finished, and verified once for the whole cycle by `/verify-fix-cycle` (`docs/bug-work-plan-contract.md` § *Consolidated verification*). No manual verification is shown, requested or asked after a task — not "how to verify T1", not "how to verify T2". The fix task (its first criterion is that the reported reproduction path no longer fails) also records `developerTesting.regression`: the regression test that failed before the fix and passes after it, or — when one cannot be authored — `notFeasibleReason` with a `VERIFY-4` developer-testing debt owned by the developer. The helper refuses anything else as `invalid-bug-completion`. After recording the outcome, read the cycle's progress:
 
 ```
 node --no-warnings "${CLAUDE_PLUGIN_ROOT}/scripts/bug-implementation.ts" status bug:<bug_key> --root "<TARGET_ROOT>"
 ```
 
-The final report's next action is the status's `next_command`: the cycle's next task, or `/review-code --bug <bug_key>` once `all_complete` is true.
+The final report's next action is the status's `next_command`: the cycle's next task; once `all_complete` is true, the cycle's consolidated verification (`/verify-fix-cycle bug:<bug_key>`) — or `/review-code --bug <bug_key>` if that already passed and is still fresh.
 
-**Continue.** While this cycle's approval holds (`edit-approval.ts status` → `reusable: true`) and `next_command` is the cycle's next task, continue to it without asking again — the cycle approval already covers every task of the cycle, and the next task still passes this whole gate. Otherwise — the cycle is complete and `next_command` is the review, or no cycle approval holds — offer `next_command` in one short message, such as `✓ Cycle implementation complete. Next: review the fix. Continue?`, and chain only on an explicit yes. Either way, invoke the Skill tool with `skill` set to `next_command.skill` and `args` set to `next_command.args`, verbatim; never a bare command name, and the developer never retypes it. If that invocation is unavailable or fails, show `next_command.display` as the command to run, and never guess another. The next command re-runs every one of its own gates, so chaining never replaces an approval (`docs/command-handoff.md`). A completed cycle's edit approval is consumed: later code edits ask again.
+**Continue.** While this cycle's approval holds (`edit-approval.ts status` → `reusable: true`) and `next_command` is the cycle's next task, continue to it without asking again — the cycle approval already covers every task of the cycle, and the next task still passes this whole gate. Otherwise — the cycle is complete, or no cycle approval holds — offer `next_command` in one short message — such as `✓ T1 complete. Next: T2. Continue?` — and chain only on an explicit yes. When the cycle is complete and `next_command` is its verification, the message is the verification question:
+
+```
+✓ Automated Developer Testing complete
+▸ Cycle <n> manual verification required
+Run Fix Cycle <n> verification now?
+``` Either way, invoke the Skill tool with `skill` set to `next_command.skill` and `args` set to `next_command.args`, verbatim; never a bare command name, and the developer never retypes it. If that invocation is unavailable or fails, show `next_command.display` as the command to run, and never guess another. The next command re-runs every one of its own gates, so chaining never replaces an approval (`docs/command-handoff.md`). A completed cycle's edit approval is consumed: later code edits ask again.
 
 **Commits.** This command never creates a git commit — for bug work exactly as for feature work. It changes code, task state and checkpoints, runs validation and developer tests, and prepares the work for a commit; then it stops. Any product-code commit waits for explicit developer approval, and the `require-approval-before-code`, `block-main-branch-changes` and `protect-secrets` hooks apply unchanged.
 

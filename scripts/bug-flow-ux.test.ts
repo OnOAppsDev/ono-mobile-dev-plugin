@@ -28,6 +28,7 @@ import { reviewContext, writeReviewRecord } from "./bug-review.ts";
 import { handoffCheck } from "./qa-handoff-gate.ts";
 import { approveWorkPackage } from "./work-approval.ts";
 import { writeTaskState } from "./task-state.ts";
+import { generateVerification, recordVerification } from "./bug-verification.ts";
 
 const HERE = import.meta.dirname ?? __dirname;
 const REPO_ROOT = dirname(HERE);
@@ -133,7 +134,8 @@ try {
     check("1 the next command names the first unfinished task", s2.next_command?.args === "bug:BUG-43 T2");
     const done = repo("both");
     const s3 = startBug({ root: done.root, ref: "BUG-43", qaRepo: QA });
-    check("1 with every task done, the next command is the bug review", JSON.stringify(s3.next_command) === NCMD(`${PLUGIN}:review-code`, "--bug BUG-43", "/review-code --bug BUG-43"), JSON.stringify(s3.next_command));
+    // Bug Flow P1 changed this on purpose: a complete cycle is verified once before its review.
+    check("1 with every task done, the next command is the cycle's verification", JSON.stringify(s3.next_command) === NCMD(`${PLUGIN}:verify-fix-cycle`, "bug:BUG-43", "/verify-fix-cycle bug:BUG-43"), JSON.stringify(s3.next_command));
     const draft = (() => {
       const r = repo("none");
       writeFileSync(r.plan, readFileSync(r.plan, "utf-8").replace("status: approved", "status: draft"));
@@ -148,7 +150,16 @@ try {
     const st = bugWorkStatus({ root: half.root, work: W });
     check("2 status names the next task as a qualified command", JSON.stringify(st.next_command) === NCMD(`${PLUGIN}:implement-task`, "bug:BUG-43 T2", "/implement-task bug:BUG-43 T2"), JSON.stringify(st.next_command));
     const stDone = bugWorkStatus({ root: done.root, work: W });
-    check("2 a complete cycle hands on to the review", JSON.stringify(stDone.next_command) === NCMD(`${PLUGIN}:review-code`, "--bug BUG-43", "/review-code --bug BUG-43") && stDone.next_action === "/review-code --bug BUG-43");
+    check("2 a complete cycle hands on to its verification", JSON.stringify(stDone.next_command) === NCMD(`${PLUGIN}:verify-fix-cycle`, "bug:BUG-43", "/verify-fix-cycle bug:BUG-43") && stDone.next_action === "/verify-fix-cycle bug:BUG-43");
+    const noReview = repo("both");
+    const kn = handoffCheck({ root: noReview.root, work: W, qaRepo: QA });
+    check("2 a handoff blocked on a missing verification points at it first", JSON.stringify(kn.next_command) === NCMD(`${PLUGIN}:verify-fix-cycle`, "bug:BUG-43", "/verify-fix-cycle bug:BUG-43"), JSON.stringify(kn.next_command));
+    const gv = generateVerification({ root: done.root, work: W });
+    recordVerification({ root: done.root, work: W, by: "dana", results: gv.items.flatMap((it: any) => it.surfaces.map((surface: string) => ({ id: it.id, surface, result: "pass" }))) });
+    const stVerified = bugWorkStatus({ root: done.root, work: W });
+    check("2 a verified cycle hands on to the review", JSON.stringify(stVerified.next_command) === NCMD(`${PLUGIN}:review-code`, "--bug BUG-43", "/review-code --bug BUG-43") && stVerified.next_action === "/review-code --bug BUG-43");
+    const knr = handoffCheck({ root: done.root, work: W, qaRepo: QA });
+    check("2 a handoff blocked on a missing review points at the bug review", JSON.stringify(knr.next_command) === NCMD(`${PLUGIN}:review-code`, "--bug BUG-43", "/review-code --bug BUG-43"), JSON.stringify(knr.next_command));
 
     const g = bugGate({ root: fresh.root, work: W, task: "T1", qaRepo: QA });
     check("7 the gate delegates implementation to the existing feature-implementer subagent", g.ok === true && g.delegate?.subagent_type === `${PLUGIN}:feature-implementer`, JSON.stringify(g.delegate));
@@ -167,9 +178,6 @@ try {
     check("2 a handoff blocked on an unfinished task points at that task", k.ok === false && JSON.stringify(k.next_command) === NCMD(`${PLUGIN}:implement-task`, "bug:BUG-43 T2", "/implement-task bug:BUG-43 T2"), JSON.stringify(k.next_command));
     const kr = handoffCheck({ root: done.root, work: W, qaRepo: QA });
     check("2 a handoff with a fresh review and no block offers no command (the same command continues)", kr.ok === true && kr.next_command === undefined);
-    const noReview = repo("both");
-    const kn = handoffCheck({ root: noReview.root, work: W, qaRepo: QA });
-    check("2 a handoff blocked on a missing review points at the bug review", JSON.stringify(kn.next_command) === NCMD(`${PLUGIN}:review-code`, "--bug BUG-43", "/review-code --bug BUG-43"), JSON.stringify(kn.next_command));
   }
 
   /* ── 4. lint: nothing instructs an unqualified invocation ─────────────── */

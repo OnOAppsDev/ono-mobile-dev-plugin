@@ -42,7 +42,7 @@ Written by /create-dev-qa-notes bug:<bug_key> to docs/qa/bug-<bug_key>-qa-handof
 
 ## Developer Verification
 
-<!-- From task state only: each current-cycle task, its developer-testing decision, the runs, the regression evidence, the reproduction-path criterion, VERIFY-4 developer debt; the review result and every Major finding with its id. -->
+<!-- The automated evidence from task state — each current-cycle task, its developer-testing decision, the runs, the regression evidence, the reproduction-path criterion, VERIFY-4 developer debt — then the cycle's consolidated developer verification (docs/bugs/<bug_key>/verification-c<fix_cycle>.md): its result, the surfaces verified and the automated checks; then the review result and every Major finding with its id. Never per-task verification steps. -->
 
 ## Regression Scope
 

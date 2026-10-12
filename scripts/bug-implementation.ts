@@ -16,8 +16,9 @@
  *           the lane receives, and `delegate.subagent_type` — the existing feature-implementer,
  *           run as a subagent (scripts/next-command.ts).
  *   status  read-only. Which cycle-1 tasks are proven complete, and — once all are — the
- *           next action, `/review-code --bug <bug_key>`. `next_command` is the next task or
- *           that review, in docs/command-handoff.md's shape.
+ *           next action: the cycle's consolidated verification (`/verify-fix-cycle`), then
+ *           `/review-code --bug <bug_key>` once it passed. `next_command` is the next task or
+ *           that step, in docs/command-handoff.md's shape.
  *
  * It never writes: task state is written only by scripts/task-state.ts, as for a feature,
  * and approval only by scripts/work-approval.ts. It runs no process, reads no clock, and
@@ -38,6 +39,7 @@ import { bugKeyOf, parseBreakdown, readTaskState, stateFilePath } from "./task-s
 import { rowCells, taskRowsText } from "./task-resume.ts";
 import { splitDocument } from "./migrate-planning-doc.ts";
 import { nextCommand, subagentType } from "./next-command.ts";
+import { afterCycle } from "./bug-verification.ts";
 
 /** What bug work adds to the existing developer-testing lifecycle, stated to the lane. */
 export const BUG_EXPECTATIONS = [
@@ -268,8 +270,11 @@ export function bugWorkStatus(req: { root: string; work: string }): Record<strin
     history,
     remaining,
     all_complete: all,
-    next_action: all ? `/review-code --bug ${key}` : null,
-    next_command: all ? nextCommand("review-code", `--bug ${key}`) : remaining.length ? nextCommand("implement-task", `bug:${key} ${remaining[0]}`) : undefined,
+    // Bug Flow P1: a complete cycle is verified once, as a whole, before its review.
+    ...(() => {
+      const next = all ? afterCycle(root, key) : remaining.length ? nextCommand("implement-task", `bug:${key} ${remaining[0]}`) : undefined;
+      return { next_action: all ? (next as { display: string }).display : null, next_command: next };
+    })(),
   };
 }
 

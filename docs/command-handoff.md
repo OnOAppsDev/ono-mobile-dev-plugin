@@ -14,9 +14,11 @@ Which helper returns it:
 
 | Helper | Field | Next command |
 |---|---|---|
-| `analyze-bug.ts start` → `BUG_PLAN_APPROVED` | `next_command` | `implement-task bug:<key> <first unfinished task>`, or `review-code --bug <key>` once the cycle's tasks are done |
-| `bug-implementation.ts status` | `next_command` | the cycle's next unfinished task, or `review-code --bug <key>` |
+| `analyze-bug.ts start` → `BUG_PLAN_APPROVED` | `next_command` | `implement-task bug:<key> <first unfinished task>`; once the cycle's tasks are done, `verify-fix-cycle bug:<key>`, then `review-code --bug <key>` once that passed |
+| `bug-implementation.ts status` | `next_command` | the cycle's next unfinished task; then `verify-fix-cycle bug:<key>`; then `review-code --bug <key>` |
 | `bug-review.ts context` → `BUG_TASK_STATE_MISSING` | `next_command` | `implement-task bug:<key> <first task of the cycle>` |
+| `bug-review.ts context` → `BUG_VERIFICATION_REQUIRED` | `next_command` | `verify-fix-cycle bug:<key>` |
+| `bug-verification.ts check` | `next_command` | `review-code --bug <key>` once passed; `verify-fix-cycle bug:<key>` while missing, stale or incomplete; the failed task when an item failed in implementation |
 | `bug-review.ts record` → `BUG_REVIEW_RECORDED` | `next_command` | `create-dev-qa-notes bug:<key>` |
 | `qa-handoff-gate.ts check` → `HANDOFF_BLOCKED` | `next_command` | the first blocker's route, when it needs no placeholder filled |
 

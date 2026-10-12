@@ -505,8 +505,10 @@ A run on a plan records `plan` and `evidence` in its `upstream`. A plan change t
 
 The `chain` verdict for a plan names that gate and never reports a stale feature stage.
 
+**Deferred criteria (bug work only).** An acceptance criterion carries an optional `status`: `passed` (the same as `met: true`), `failed` (blocks `complete`), or `deferred_to_cycle_verification`, recorded `{ "criterion", "met": false, "status": "deferred_to_cycle_verification" }`. A deferred criterion is neither met nor failed: the task may complete, and the cycle's consolidated verification (`scripts/bug-verification.ts`, `docs/bug-work-plan-contract.md` § *Consolidated verification*) verifies it once for the whole cycle. A deferred criterion can never also be met. Feature work cannot defer a criterion: its `complete` still needs every criterion `met: true` (`complete-without-verification`). Automated checks are unchanged — validation entries are required and a failing developer test blocks, for bug work as for feature work.
+
 **Bug completion (`invalid-bug-completion`).** On top of every `complete` rule above:
-- The plan row's acceptance criteria are recorded verbatim and met.
+- The plan row's acceptance criteria are recorded verbatim and settled: met, or — for a criterion only a person can verify — deferred to the fix cycle's consolidated verification.
 - When the row's first criterion is "The reported reproduction path no longer fails" (the fix task), the record also needs:
   - `developerTesting.required: true`;
   - `developerTesting.regression`, either:

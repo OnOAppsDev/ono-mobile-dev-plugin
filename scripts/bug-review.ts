@@ -41,6 +41,7 @@ import { planContext } from "./bug-implementation.ts";
 import { canonical } from "./qa-release-gate.ts";
 import { splitDocument } from "./migrate-planning-doc.ts";
 import { nextCommand } from "./next-command.ts";
+import { verifyVerification } from "./bug-verification.ts";
 
 const sha = (s: string | Buffer): string => `sha256:${createHash("sha256").update(s).digest("hex")}`;
 
@@ -66,7 +67,7 @@ const BINDING_FIELDS = ["fix_cycle", "reviewed_head", "reviewed_tree_fingerprint
  * (each bound on its own), and Bug QA handoffs (docs/qa/bug-<key>-qa-handoff.md, generated
  * downstream of the review — writing one must never make the review it was built from stale).
  */
-const notCode = (rel: string) => rel.startsWith("docs/bugs/") || isStoreArtifact(rel) || /^docs\/qa\/bug-[^/]+-qa-handoff\.md(\.qa-handoff\.tmp)?$/.test(rel);
+export const notCode = (rel: string) => rel.startsWith("docs/bugs/") || isStoreArtifact(rel) || /^docs\/qa\/bug-[^/]+-qa-handoff\.md(\.qa-handoff\.tmp)?$/.test(rel);
 
 export interface Finding {
   severity: (typeof SEVERITIES)[number];
@@ -170,7 +171,7 @@ function load(work: string, rootIn: string): Stop | (Omit<Ready, "stateRaw"> & {
   return { ok: true, key, root, rel, buf, fm: v.frontmatter, approval: verifyApproval(buf), planTasks: v.tasks as Array<{ id: string; cycle: number }> };
 }
 
-function readState(root: string, key: string): Record<string, any> | null {
+export function readState(root: string, key: string): Record<string, any> | null {
   const p = stateFilePath(root, `bug:${key}`);
   if (!existsSync(p)) return null;
   try {
@@ -209,6 +210,11 @@ export function reviewContext(req: { root: string; work: string }): Record<strin
   const recorded = ids.filter((id) => state?.tasks?.[id] !== undefined);
   if (state === null || recorded.length === 0) {
     return { ok: false, outcome: "BUG_TASK_STATE_MISSING", reason: "no task state is recorded for this fix cycle — nothing has been implemented to review", route: `/implement-task bug:${r.key} ${ids[0] ?? "T1"}`, ...(ids[0] ? { next_command: nextCommand("implement-task", `bug:${r.key} ${ids[0]}`) } : {}) };
+  }
+  // Bug Flow P1: a review needs the cycle's consolidated developer verification, fresh and passed.
+  const ver = verifyVerification({ root: r.root, work: `bug:${r.key}` });
+  if (!ver.ok) {
+    return { ok: false, outcome: "BUG_VERIFICATION_REQUIRED", reason: `fix cycle ${r.fm.fix_cycle} has no current, passed developer verification (${ver.status}${ver.stale_reasons.length ? `: ${ver.stale_reasons.join(", ")}` : ""}) — verify the cycle first`, verification: ver, route: `/verify-fix-cycle bug:${r.key}`, next_command: nextCommand("verify-fix-cycle", `bug:${r.key}`) };
   }
   const b = binding(r, state);
   if (b.reviewed_tree_fingerprint === null) return { ok: false, outcome: "BUG_REPOSITORY_UNAVAILABLE", reason: "the repository's content could not be read through git" };

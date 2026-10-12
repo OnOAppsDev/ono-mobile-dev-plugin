@@ -41,6 +41,7 @@ import { dirname, join, relative, resolve, sep } from "path";
 import { lookupQaBug, normalizeBug, isSafeKey, evidenceFingerprint } from "./bug-intake.ts";
 import { validateBugWorkPlan, bugWorkPlanPath, BUG_WORK_PLAN_FIELDS, BUG_WORK_PLAN_SECTIONS } from "./bug-work-plan.ts";
 import { nextCommand, subagentType } from "./next-command.ts";
+import { afterCycle } from "./bug-verification.ts";
 import { rewriteFrontmatterValues, verifyApproval } from "./work-approval.ts";
 import { readFrontmatter, splitDocument } from "./migrate-planning-doc.ts";
 import { rowCells, sectionFingerprints } from "./task-resume.ts";
@@ -275,8 +276,8 @@ function assess(req: BugRequest): Record<string, any> {
       outcome: "BUG_PLAN_APPROVED",
       proceed: null,
       reason: `the plan is approved for fix cycle ${progress.cycle} and still matches the bug evidence`,
-      next_action: progress.first_incomplete ? `/implement-task bug:${key} ${progress.first_incomplete}` : `/review-code --bug ${key}, then /create-dev-qa-notes bug:${key}`,
-      next_command: progress.first_incomplete ? nextCommand("implement-task", `bug:${key} ${progress.first_incomplete}`) : nextCommand("review-code", `--bug ${key}`),
+      next_action: progress.first_incomplete ? `/implement-task bug:${key} ${progress.first_incomplete}` : `/verify-fix-cycle bug:${key}, then /review-code --bug ${key}, then /create-dev-qa-notes bug:${key}`,
+      next_command: progress.first_incomplete ? nextCommand("implement-task", `bug:${key} ${progress.first_incomplete}`) : afterCycle(root, key),
       next_action_note: "Pass the bug's evidence source to /implement-task too (--qa-repo=<path> for a QA bug, --report=<path> otherwise): it re-reads the evidence before every task.",
     };
   }

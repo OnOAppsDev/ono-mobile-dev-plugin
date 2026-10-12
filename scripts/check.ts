@@ -78,6 +78,7 @@ const PHASES: Phase[] = [
       "bug-fix-cycles",
       "bug-flow-ux",
       "edit-approval",
+      "bug-verification",
     ],
   },
   {

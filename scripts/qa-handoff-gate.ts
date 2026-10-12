@@ -43,6 +43,7 @@ import { rowCells, taskRowsText } from "./task-resume.ts";
 import { canonical } from "./qa-release-gate.ts";
 import { splitDocument } from "./migrate-planning-doc.ts";
 import { routeCommand } from "./next-command.ts";
+import { checkVerification, verificationPath } from "./bug-verification.ts";
 
 const sha = (s: string | Buffer): string => `sha256:${createHash("sha256").update(s).digest("hex")}`;
 const ALGORITHM = "qa-handoff/bug/v1";
@@ -72,6 +73,8 @@ interface Inputs {
   currentIds: string[];
   review: ReturnType<typeof readReviewRecord>;
   taskStateFp: string | null;
+  /** The cycle's consolidated verification artifact, hashed (Bug Flow P1) — null when there is none. */
+  verificationFp: string | null;
 }
 
 function loadInputs(req: Request): { ok: true; inputs: Inputs } | { ok: false; check: CheckResult } {
@@ -99,13 +102,16 @@ function loadInputs(req: Request): { ok: true; inputs: Inputs } | { ok: false; c
     }
   }
   const currentIds = (v.tasks as Array<{ id: string; cycle: number }>).filter((t) => t.cycle === v.frontmatter.fix_cycle).map((t) => t.id);
-  return { ok: true, inputs: { key, root, planAbs, planBuf, fm: v.frontmatter, cycle: v.frontmatter.fix_cycle, currentIds, review: readReviewRecord(root, key, v.frontmatter.fix_cycle), taskStateFp } };
+  const verAbs = join(root, verificationPath(key, v.frontmatter.fix_cycle));
+  const verificationFp = existsSync(verAbs) ? sha(readFileSync(verAbs, "utf-8")) : null;
+  return { ok: true, inputs: { key, root, planAbs, planBuf, fm: v.frontmatter, cycle: v.frontmatter.fix_cycle, currentIds, review: readReviewRecord(root, key, v.frontmatter.fix_cycle), taskStateFp, verificationFp } };
 }
 
 /**
  * The handoff-input fingerprint (R8): the exact inputs a handoff is generated from — the bug,
- * the fix cycle, the plan's approval fingerprint, the task state, and the review record's
- * result and binding (not its reviewer or time). Null when an input is missing.
+ * the fix cycle, the plan's approval fingerprint, the task state, the review record's
+ * result and binding (not its reviewer or time), and the cycle's consolidated verification.
+ * Null when an input is missing.
  */
 function inputFingerprint(i: Inputs): string | null {
   const r = i.review?.frontmatter;
@@ -116,6 +122,7 @@ function inputFingerprint(i: Inputs): string | null {
     fix_cycle: i.cycle,
     bug_work_plan_fingerprint: approvalFingerprint(i.planBuf),
     task_state_fingerprint: i.taskStateFp,
+    verification_fingerprint: i.verificationFp,
     review: {
       findings_fingerprint: r.findings_fingerprint,
       reviewed_tree_fingerprint: r.reviewed_tree_fingerprint,
@@ -198,7 +205,7 @@ export function handoffCheck(req: Request): Record<string, any> {
   const loaded = loadInputs(req);
   const notRun = (id: string): CheckResult => ({ id, status: "not-run", message: "R1 did not pass" });
   if (!loaded.ok) {
-    const checks = [loaded.check, ...["R2", "R3", "R4", "R5", "R6", "R7", "R8", "R9"].map(notRun)];
+    const checks = [loaded.check, ...["R2", "R3", "R4", "R10", "R5", "R6", "R7", "R8", "R9"].map(notRun)];
     return { ok: false, outcome: "HANDOFF_BLOCKED", next: "blocked", checks, blockers: [loaded.check], majors: [], warnings: [], developer_debt: [], qa_debt: [] };
   }
   const i = loaded.inputs;
@@ -244,6 +251,13 @@ export function handoffCheck(req: Request): Record<string, any> {
   checks.push(dtProblems.length === 0
     ? { id: "R4", status: "pass", message: `developer testing recorded for every task; the reproduction path is covered${developerDebt.length ? `; ${developerDebt.length} developer-owned VERIFY-4 item(s) outstanding` : ""}`, details: { developer_debt: developerDebt } }
     : { id: "R4", status: "block", code: "DEVELOPER_TESTING", message: dtProblems.join("; ") });
+
+  // R10 — the cycle's consolidated developer verification is fresh and passed (Bug Flow P1).
+  // Checked before the review, which requires it, so the first blocker is the step to take next.
+  const ver = checkVerification({ root: i.root, work });
+  checks.push(ver.status === "passed"
+    ? { id: "R10", status: "pass", message: `${ver.path}: every item passed on ${(ver.surfaces ?? []).join(", ")}` }
+    : { id: "R10", status: "block", code: `VERIFICATION_${String(ver.status).toUpperCase()}`, message: `the fix cycle's developer verification is ${ver.status}${ver.stale_reasons?.length ? ` (${ver.stale_reasons.join(", ")})` : ""}`, route: `/verify-fix-cycle ${work}` });
 
   // R5 — the review record is fresh for this cycle.
   const rv = verifyReviewRecord({ root: i.root, work });
@@ -330,6 +344,13 @@ function render(i: Inputs, k: Record<string, any>, buildInstructions: string, da
     for (const d of v?.developerVerificationDebt ?? []) parts.push(`VERIFY-4 developer debt: ${oneLine(d.requiredVerification)}`);
     return `- \`${tid}\` — ${v?.state ?? "unrecorded"}${v?.deterministicProof ? " (deterministic proof)" : ""}: ${parts.join("; ")}`;
   });
+  const ver = checkVerification({ root: i.root, work });
+  const results = Object.values((ver.results ?? {}) as Record<string, { by: string }>);
+  const consolidated = [
+    `- Consolidated manual verification: ${ver.status} — ${ver.counts?.pass ?? 0} item check(s) passed${results.length ? `, verified by ${[...new Set(results.map((x) => x.by))].sort().join(", ")}` : ""}`,
+    `- Surfaces verified: ${(ver.surfaces ?? []).join(", ") || "none"}`,
+    `- Automated checks: ${[...new Set(ids.flatMap((tid) => [...(raw[tid]?.validation ?? []), ...(raw[tid]?.developerTesting?.runs ?? [])].map((x: any) => `\`${x.command}\` — ${x.result}`)))].join("; ") || "none recorded"}`,
+  ];
   const f = r.frontmatter;
   const majors = majorsOf(i);
   const debtRows = (k.qa_debt as Array<Record<string, any>>).map((d) => `| ${oneLine(d.domain)} | ${oneLine(d.ruleId)} | ${oneLine(d.requiredVerification)} | ${oneLine(d.whyNotAutomatable)} | ${oneLine(d.owner)} |`);
@@ -393,6 +414,11 @@ function render(i: Inputs, k: Record<string, any>, buildInstructions: string, da
     `From task state (\`docs/tasks/bugs/${i.key}.task-state.json\`), fix cycle ${i.cycle}:`,
     "",
     ...verification,
+    "",
+    `Consolidated developer verification (\`${verificationPath(i.key, i.cycle)}\`), the whole cycle at once:`,
+    "",
+    ...consolidated,
+    "",
     `- Review: \`${id.review_link}\` — ${f.blocking_count} blocking, ${f.major_count} major, ${f.minor_count} minor, ${f.nit_count} nit`,
     ...(majors.length ? ["", "Major findings, each acknowledged explicitly by the approver (`acknowledged_majors`):", "", ...majors.map((m) => `- \`${m.id}\` \`${m.platform ? `[${m.platform}] ` : ""}${m.path ?? "—"}${m.line ? `:${m.line}` : ""}\` — [${m.rule}] ${m.description} — ${m.remediation}`)] : []),
     "",
