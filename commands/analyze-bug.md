@@ -287,16 +287,38 @@ Approve this Bug Work Plan for <bug_key>?
 
 ## 10. Report and continue
 
-Only after `work-approval.ts approve` succeeds — or on `BUG_PLAN_APPROVED` — run `start` again; it returns `next_command`, the cycle's first unfinished task: `/implement-task bug:<bug_key> T1`, or `C<n>-T1` for fix cycle n. Report the plan path, its approval status, the context level and any warnings, then offer it in one short message:
+Only after `work-approval.ts approve` succeeds — or on `BUG_PLAN_APPROVED` — run `start` again; it returns `next_command`, the cycle's first unfinished task: `/implement-task bug:<bug_key> T1`, or `C<n>-T1` for fix cycle n. Report the plan path, its approval status, the context level and any warnings.
 
-```
-Bug plan approved.
-Next: implement Cycle <n> (`<first task>`).
-Continue?
-```
+When `next_command` is a task, the offer to continue is the fix cycle's one implementation approval (`commands/implement-task.md` §1a). Read `edit-approval.ts status bug:<bug_key> --root "<TARGET_ROOT>"`:
+- `reusable: true` — the cycle is already approved: say so, then ask `Continue?`.
+- Otherwise read `edit-approval.ts scope bug:<bug_key> --root "<TARGET_ROOT>"` and ask:
+
+  ```
+  Bug Work Plan approved.
+
+  Cycle <n>:
+  - T1 — <description>
+  - T2 — <description>
+
+  Planned implementation scope:
+  - <path>
+  Non-goals: <non-goals>
+
+  Implement Fix Cycle <n>?
+  1. Yes — as: <your name>
+  2. Not now
+  ```
+
+  On an explicit yes, record it with the identity the developer gave:
+
+  ```
+  node --no-warnings "${CLAUDE_PLUGIN_ROOT}/scripts/edit-approval.ts" approve bug:<bug_key> --root "<TARGET_ROOT>" --by "<approver>"
+  ```
+
+When `next_command` is the bug review, ask `Continue?` in one short message.
 
 - **Continue only on an explicit yes.** Then invoke the Skill tool with `skill` set to `next_command.skill` and `args` set to `next_command.args`, verbatim — never a bare command name, and the developer never retypes it.
 - **Fallback.** If that invocation is unavailable or fails, show `next_command.display` as the command to run. Never guess another skill name or form.
-- `/implement-task` asks once for the bug's evidence source (`--qa-repo=<path>` for a QA bug, `--report=<path>` otherwise) and re-runs every one of its own gates: it re-reads the bug evidence and re-verifies the approval before every task (`commands/implement-task.md` §1a). Continuing never replaces an approval (`docs/command-handoff.md`).
+- `/implement-task` asks once for the bug's evidence source (`--qa-repo=<path>` for a QA bug, `--report=<path>` otherwise) and re-runs every one of its own gates: it re-reads the bug evidence and re-verifies the approval before every task (`commands/implement-task.md` §1a). Continuing never replaces an approval (`docs/command-handoff.md`). The cycle approval covers code edits only — never a commit, a push or a merge.
 
 This command does not run implementation itself, and it never creates task state.

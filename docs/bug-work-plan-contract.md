@@ -366,6 +366,25 @@ Task state for the bug is `docs/tasks/bugs/<bug_key>.task-state.json`, with work
 
 `status` reports the cycle's progress. Once every cycle-1 task is proven complete, it reports `/review-code --bug <bug_key>`.
 
+## Cycle approval (code edits, once per fix cycle)
+
+Plan approval says *what* to do; the cycle approval says the developer is ready for the code of the current fix cycle to be written, once, instead of approving every edit. It is written only by `scripts/edit-approval.ts approve`, after an explicit yes from a named developer, to `docs/tasks/bugs/<bug_key>.cycle-approval.json` — beside the task-state store and, like it, a store artifact. Task state stays per task.
+
+| Field | Meaning |
+|---|---|
+| `work_id`, `bug_key` | The bug |
+| `fix_cycle` | The cycle approved; a cycle-1 approval never covers cycle 2 |
+| `approved_plan_fingerprint` | The plan's `approved_fingerprint` when the cycle was approved |
+| `branch` | The branch it was approved on; never `main`/`master` |
+| `approved_scope` | The scope derived from the plan (below) |
+| `expansions` | Files added one at a time after a developer approved each, with the task, the reason and the approver |
+| `status` | `active` or `revoked` |
+| `record_fingerprint` | Seals the record; a hand edit invalidates it |
+
+There is no timestamp. **Scope:** the current cycle's `files touched`, the Fix Design's affected files (and the cycle's changed affected files), and each scoped source file's conventional test file (Kotlin/Java `src/main/` → `src/test/` and `src/androidTest/` `<Name>Test`; TS/JS `<name>.test|spec.<ext>` and `__tests__/`; Swift `<Top>Tests/…/<Name>Tests.swift`). A directory is in scope only when the plan names it explicitly and it is at least three segments deep; a path a non-goal names never is.
+
+`edit-approval.ts check` — the `require-approval-before-code` hook's only source of an `allow` — returns `APPROVED` only when the record is intact and active, the branch matches, `fix_cycle` matches, the plan is still approved with the recorded fingerprint, the derived scope equals the recorded one, a task of the cycle is in progress, no feature task is in progress, only one bug has a task in progress, and the file is in scope or an approved expansion. Otherwise it returns `NO_ACTIVE_APPROVAL`, `INVALID_APPROVAL`, `WRONG_BRANCH`, `CYCLE_CHANGED`, `PLAN_APPROVAL_STALE`, `PLAN_CHANGED`, `CYCLE_COMPLETE`, `WORK_NOT_IN_PROGRESS`, `FEATURE_WORK_ACTIVE`, `MULTIPLE_ACTIVE_WORK` or `OUT_OF_SCOPE`, and the hook asks. Every one of those is derived from the files on each call, so the approval lapses on its own; a completed cycle's approval is consumed. It never grants a commit, a push, a merge, or a write the branch and secret hooks block.
+
 ## Review record (`/review-code --bug <bug_key>`)
 
 The existing review runs over the bug fix and is persisted as one record per fix cycle: `docs/bugs/<bug_key>/review-c<fix_cycle>.md`, written by [`scripts/bug-review.ts`](../scripts/bug-review.ts) `record`.

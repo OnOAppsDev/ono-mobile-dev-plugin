@@ -216,8 +216,10 @@ try {
       check(`5 ${file}: the next command re-runs its own preconditions; chaining never replaces an approval`, /re-runs every one of its own (gates|preconditions)/i.test(text) && /never (skips|replaces) (a|an) (human )?approval/i.test(text));
     }
     const ab = sections["commands/analyze-bug.md"];
-    check("5 /analyze-bug offers to continue only after the plan approval succeeds", /after `work-approval\.ts approve` succeeds/i.test(ab) && ab.indexOf("Approve this Bug Work Plan for <bug_key>?") < ab.indexOf("Bug plan approved."));
-    check("the offer is short: what finished, what is next, Continue?", /Bug plan approved\.\nNext: implement Cycle <n> \(`<first task>`\)\.\nContinue\?/.test(ab));
+    // P0.3 changed this on purpose: the offer after plan approval is now the fix cycle's one
+    // implementation approval, "Implement Fix Cycle <n>?" (pinned by edit-approval.test.ts).
+    check("5 /analyze-bug offers to continue only after the plan approval succeeds", /after `work-approval\.ts approve` succeeds/i.test(ab) && ab.indexOf("Approve this Bug Work Plan for <bug_key>?") < ab.indexOf("Bug Work Plan approved.\n"));
+    check("the offer is short: what finished, the cycle and its scope, then one question", /Bug Work Plan approved\.\n\n  Cycle <n>:[\s\S]*Planned implementation scope:[\s\S]*Implement Fix Cycle <n>\?/.test(ab));
   }
 
   /* ── 7–10. subagent execution and the output policy ───────────────────── */
@@ -243,7 +245,7 @@ try {
     check("13 commits stay a human act", /never creates a git commit/i.test(read("commands/implement-task.md")) && /never creates a git commit/i.test(read("commands/create-dev-qa-notes.md")) && /never creates a git commit/i.test(read("commands/review-code.md")));
     const HOOKS: Record<string, string> = {
       "hooks/require-approval-before-code.json": "37f5f2e5dbe97ccac0f432a7b3eacc6f8595b0d2a60ade3674df0f6ec69db043",
-      "hooks/require-approval-before-code.sh": "f4333da9c0a95003cf5dd08323e3f702b16d4468edc2bff65230e6468385dcfe",
+      // hooks/require-approval-before-code.sh: P0.3 changed it on purpose (one approval per Bug Fix Cycle); pinned by edit-approval.test.ts and hooks.test.ts.
       "hooks/block-main-branch-changes.json": "89599088f364c9d6dd1af0a0cc7438610bf9b417a9b8e320d2866bf1c6857b2c",
       "hooks/block-main-branch-changes.sh": "771aef6d81d25308edbc77e4cca8c663cf2f05946cfe254fd150e34342636d34",
       "hooks/protect-secrets.json": "e1eaeb813e75d5b80927dcf6630c292c0bc7acd32519349af088dc0994cc00fb",

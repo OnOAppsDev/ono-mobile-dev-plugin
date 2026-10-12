@@ -50,7 +50,55 @@ From §5, the gates that are not about feature documents still apply unchanged: 
 
 **The rest of this command, with two substitutions.** §5b, §6, §6a, §7, §7a, §9 and §10 apply as written, where every `<feature>` is `bug:<bug_key>` and every `<absolute Task Breakdown path>` is the absolute Bug Work Plan path — for example `--feature "bug:<bug_key>" --breakdown "<absolute plan path>"`. The store keeps the bug at `docs/tasks/bugs/<bug_key>.task-state.json`, apart from every feature (`docs/task-state-contract.md` § *Bug work*). Where §6 names `/dev-feature-start` to repair the task graph, a bug's plan is repaired through `/analyze-bug`. Checkpoints may cite the plan's sections as basis — `plan#root-cause`, `plan#fix-design`, `plan#verification-strategy`, `plan#tasks` — plus `evidence`, so a later plan change invalidates only the work built on what moved.
 
-**§8 for bug work — a subagent, never this conversation.** The implementer is the existing `feature-implementer` agent with the shared `platform-implementation` methodology and the row's platform lane — there is no bug agent and no bug lane. Run it through the Agent tool with `subagent_type` set to the gate's `delegate.subagent_type`, verbatim: the task is implemented in that subagent, and you never write code in this conversation. Its prompt carries `TARGET_ROOT`, the absolute plan path, the task id and row, `platform`, `device_type`, the dependency and approval status, the `runId`, any resume verdict, and from the gate: the bug identity, the reproduction evidence, Observed vs Expected, Root Cause, Fix Design, its **non-goals**, the Verification Strategy, the affected surfaces and capability, the Repo Knowledge Reference, the partial-context `warnings`, and `expectations`. The non-goals are **hard scope limits**, and there is no unrelated refactoring: if the fix cannot be made without crossing one, the subagent stops and recommends re-planning through `/analyze-bug` (§9). The prompt also tells it to work quietly and to return only the structured completion report of §10 — task id, outcome, files changed, validation and developer-testing runs with their results, acceptance criteria, deviations and blockers — with no narration and no code.
+**Cycle approval — once per fix cycle.** Code edits are approved for the whole current fix cycle at once, not per file or per task (`docs/bug-work-plan-contract.md` § *Cycle approval*). After the gate passes, and before the task's first edit, read:
+
+```
+node --no-warnings "${CLAUDE_PLUGIN_ROOT}/scripts/edit-approval.ts" status bug:<bug_key> --root "<TARGET_ROOT>"
+```
+
+- **`reusable: true`** — this bug's current cycle is already approved, for this approved plan and this branch. Continue without asking again: this is how the next task, and a resumed or restarted run, reuse it.
+- **Anything else** (`NO_ACTIVE_APPROVAL`, `PLAN_CHANGED`, `PLAN_APPROVAL_STALE`, `CYCLE_CHANGED`, `WRONG_BRANCH`, `INVALID_APPROVAL`) — a new approval is needed. Read the scope the plan allows:
+
+  ```
+  node --no-warnings "${CLAUDE_PLUGIN_ROOT}/scripts/edit-approval.ts" scope bug:<bug_key> --root "<TARGET_ROOT>"
+  ```
+
+  Then ask once — the bug, the cycle, its tasks, the planned scope (`scope[].path`) and the non-goals:
+
+  ```
+  Fix Cycle <n> of <bug_key>:
+  - T1 — <description>
+  - T2 — <description>
+  Planned implementation scope:
+  - <path>
+  Non-goals: <non-goals>
+
+  Implement Fix Cycle <n>?
+  1. Yes — as: <your name>
+  2. Not now
+  ```
+
+  On an explicit yes, record it with the identity the developer gave (never inferred), and report a refusal verbatim:
+
+  ```
+  node --no-warnings "${CLAUDE_PLUGIN_ROOT}/scripts/edit-approval.ts" approve bug:<bug_key> --root "<TARGET_ROOT>" --by "<approver>"
+  ```
+
+  On "Not now", stop before any edit.
+
+From then on, the `require-approval-before-code` hook lets an in-scope code edit through without asking again, as long as `edit-approval.ts check` says so: same bug, same fix cycle, the same approved plan, the same branch, a task of the cycle in progress, the file inside the approved scope. Anything else asks, as before. The approval stops being valid by itself when the plan changes or its approval goes stale, the cycle moves, the branch changes, the work is abandoned, or the cycle is complete — nobody revokes it by hand. Never write `docs/tasks/bugs/<bug_key>.cycle-approval.json` yourself. **The cycle approval does not grant a commit, a push, a merge or a write on `main`/`master`:** it only spares the per-edit question for in-scope code files.
+
+**An out-of-scope file.** The subagent receives the approved scope and must stop **before** editing any code file outside it, returning a scope-expansion blocker instead: the requested file, why it is needed, the task that needs it, and whether it contradicts a non-goal. Show those four, then:
+- If it contradicts a non-goal or the approved Fix Design, do not offer an expansion — route back to `/analyze-bug` to re-plan.
+- Otherwise ask `Allow <file> for Fix Cycle <n>? 1. Yes — as: <your name> 2. No`. On an explicit yes, record it, then run the task again:
+
+  ```
+  node --no-warnings "${CLAUDE_PLUGIN_ROOT}/scripts/edit-approval.ts" expand bug:<bug_key> --root "<TARGET_ROOT>" --file "<path>" --task <task-id> --reason "<why>" --by "<approver>"
+  ```
+
+  It refuses a path a non-goal names (`NON_GOAL_CONFLICT`, route `/analyze-bug`). It never rewrites the plan, and nothing widens the scope silently. If an out-of-scope edit reaches the hook anyway, the hook asks and says it is out of scope.
+
+**§8 for bug work — a subagent, never this conversation.** The implementer is the existing `feature-implementer` agent with the shared `platform-implementation` methodology and the row's platform lane — there is no bug agent and no bug lane. Run it through the Agent tool with `subagent_type` set to the gate's `delegate.subagent_type`, verbatim: the task is implemented in that subagent, and you never write code in this conversation. Its prompt carries `TARGET_ROOT`, the absolute plan path, the task id and row, `platform`, `device_type`, the dependency and approval status, the `runId`, any resume verdict, and from the gate: the bug identity, the reproduction evidence, Observed vs Expected, Root Cause, Fix Design, its **non-goals**, the Verification Strategy, the affected surfaces and capability, the Repo Knowledge Reference, the partial-context `warnings`, and `expectations`. The non-goals are **hard scope limits**, and there is no unrelated refactoring: if the fix cannot be made without crossing one, the subagent stops and recommends re-planning through `/analyze-bug` (§9). The prompt also carries the approved scope from `edit-approval.ts scope` (plus any recorded expansions) and the out-of-scope rule above. It tells it to work quietly and to return only the structured completion report of §10 — task id, outcome, files changed, validation and developer-testing runs with their results, acceptance criteria, deviations and blockers — with no narration and no code.
 
 ### Output policy (bug work)
 
@@ -62,6 +110,16 @@ This conversation orchestrates; the developer sees progress, not process. While 
 ✓ T1 complete
 ▸ Running developer tests…
 ✓ Tests passed
+```
+
+Across an approved cycle, the same lines per task, ending in one cycle line:
+
+```
+▸ Implementing Cycle 1…
+✓ T1
+✓ T2
+✓ T3
+✓ Cycle implementation complete
 ```
 
 - **Allowed:** the current stage, the task id, a blocker that needs the developer (with its `reason` or `route`), and completion or failure.
@@ -78,7 +136,7 @@ node --no-warnings "${CLAUDE_PLUGIN_ROOT}/scripts/bug-implementation.ts" status 
 
 The final report's next action is the status's `next_command`: the cycle's next task, or `/review-code --bug <bug_key>` once `all_complete` is true.
 
-**Continue.** Offer `next_command` in one short message — `✓ T1 complete. Next: T2. Continue?` — and chain only on an explicit yes. Then invoke the Skill tool with `skill` set to `next_command.skill` and `args` set to `next_command.args`, verbatim; never a bare command name, and the developer never retypes it. If that invocation is unavailable or fails, show `next_command.display` as the command to run, and never guess another. The next command re-runs every one of its own gates — the next task passes this whole gate again — so chaining never replaces an approval (`docs/command-handoff.md`).
+**Continue.** While this cycle's approval holds (`edit-approval.ts status` → `reusable: true`) and `next_command` is the cycle's next task, continue to it without asking again — the cycle approval already covers every task of the cycle, and the next task still passes this whole gate. Otherwise — the cycle is complete and `next_command` is the review, or no cycle approval holds — offer `next_command` in one short message, such as `✓ Cycle implementation complete. Next: review the fix. Continue?`, and chain only on an explicit yes. Either way, invoke the Skill tool with `skill` set to `next_command.skill` and `args` set to `next_command.args`, verbatim; never a bare command name, and the developer never retypes it. If that invocation is unavailable or fails, show `next_command.display` as the command to run, and never guess another. The next command re-runs every one of its own gates, so chaining never replaces an approval (`docs/command-handoff.md`). A completed cycle's edit approval is consumed: later code edits ask again.
 
 **Commits.** This command never creates a git commit — for bug work exactly as for feature work. It changes code, task state and checkpoints, runs validation and developer tests, and prepares the work for a commit; then it stops. Any product-code commit waits for explicit developer approval, and the `require-approval-before-code`, `block-main-branch-changes` and `protect-secrets` hooks apply unchanged.
 

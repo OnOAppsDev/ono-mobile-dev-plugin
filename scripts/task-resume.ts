@@ -497,7 +497,9 @@ export function contentFingerprint(root: string, excluded: (rel: string) => bool
 export function isStoreArtifact(rel: string): boolean {
   return /^docs\/tasks\/[^/]+-task-state\.json$/.test(rel) || /^docs\/tasks\/\.[^/]*\.task-state\.tmp$/.test(rel) ||
     // Bug work (Bug Development Flow, Step 5): docs/tasks/bugs/<bug_key>.task-state.json and its temp file.
-    /^docs\/tasks\/bugs\/[^/]+\.task-state\.json$/.test(rel) || /^docs\/tasks\/bugs\/\.[^/]*\.task-state\.tmp$/.test(rel);
+    /^docs\/tasks\/bugs\/[^/]+\.task-state\.json$/.test(rel) || /^docs\/tasks\/bugs\/\.[^/]*\.task-state\.tmp$/.test(rel) ||
+    // Bug Flow UX P0.3: the fix cycle's edit approval (scripts/edit-approval.ts) and its temp file.
+    /^docs\/tasks\/bugs\/[^/]+\.cycle-approval\.json$/.test(rel) || /^docs\/tasks\/bugs\/\.[^/]*\.cycle-approval\.tmp$/.test(rel);
 }
 
 export interface Baseline {
