@@ -1,0 +1,5 @@
+# Deliberate hazards: these migration fixtures must keep CRLF line endings and trailing
+# whitespace byte-for-byte (see scripts/fixtures/planning-docs/README.md), so git's
+# whitespace checks do not apply to them.
+scripts/fixtures/planning-docs/fa-hazards.md -whitespace
+scripts/fixtures/planning-docs/fa-hazards.expected.md -whitespace

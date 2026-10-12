@@ -257,3 +257,16 @@ above. `agents/feature-implementer.md` executes this methodology against one res
 the lane supplies the platform content; the command owns orchestration; the
 `require-approval-before-code`, `block-main-branch-changes` and `protect-secrets` hooks
 gate every edit.
+
+## Bug work
+
+`/implement-task bug:<bug_key> <task-id>` runs this methodology unchanged, on one task row of an approved Bug Work Plan (`docs/bug-work-plan-contract.md`) instead of a feature's documents, and on the same platform lane. The command passes the plan and the bug context it gated (`commands/implement-task.md` §1a). Four things are specific to a bug:
+
+- **Root cause over symptom.** Fix the cause the plan's Root Cause and Fix Design state. A change that only suppresses the symptom (a guard, a swallowed error, a retry) is not the fix: say so and stop rather than ship it.
+- **Non-goals are scope limits.** The Fix Design's non-goals bound the change as hard as the row's files do. No unrelated refactoring. If the fix cannot be made inside them, stop and report it for re-planning (§5); never widen the fix silently.
+- **Regression test by default.** Write a test that fails before the fix and passes after it, and record it as `developerTesting.regression` (§7a): the command, `failedBefore: true`, `passesAfter: true`, and the run among `developerTesting.runs`. When one genuinely cannot be authored, record `notFeasibleReason` and a `VERIFY-4` developer-testing verification debt owned by the developer — never a silent omission.
+- **Verify the reproduction path.** The fix task's first acceptance criterion is that the reported reproduction path no longer fails. Check it against the plan's reproduction, on each affected surface the repository can exercise, and record any surface it cannot exercise as verification debt. Record every acceptance criterion verbatim, as the row states it.
+
+**A later fix cycle** (`C<n>-T<m>`, after QA reopened the bug) adds the cycle's own context: the failed re-test, why the previous fix was insufficient, the fix-design delta and the verification delta. The delta bounds the change together with the plan's non-goals; the failed re-test path and surfaces are mandatory acceptance evidence. Earlier cycles' code and tasks are history — change them only where the delta says so.
+
+Checkpoints may cite the plan's sections as basis (`plan#root-cause`, `plan#fix-design`, `plan#verification-strategy`, `plan#tasks`, `plan#cycle-<n>`) and `evidence`, exactly like any other basis reference (§6a).

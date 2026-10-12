@@ -1,6 +1,6 @@
 ---
-description: Review the current changes against the org's shared and platform-specific mobile/web standards.
-argument-hint: [scope]
+description: Review the current changes against the org's shared and platform-specific mobile/web standards — with --bug, also persist the bug's review record for its fix cycle.
+argument-hint: [scope] [--bug <bug_key>]
 ---
 
 Review the current changes for correctness, style, standards-adherence, and performance.
@@ -28,3 +28,55 @@ Review the current changes for correctness, style, standards-adherence, and perf
 6. Merge all agents' output into a single `templates/code-review-template.md`, keeping **severity as the primary organizing axis** even for a mixed-platform diff — tag each finding inline with `[platform]` rather than sectioning the whole document by platform. Note the platform(s) reviewed in Scope.
 
 This command is complementary to `/review-security`, not a replacement for it — a full Review-stage pass runs both. Do not duplicate security commentary here; that belongs to `/review-security`'s reviewer. Findings here are strictly correctness/style/standards/performance, cited against the standards loaded above.
+
+## Bug review (`--bug <bug_key>`)
+
+Without `--bug`, nothing in this section applies: the review above is the whole command, unchanged. With it, the same review runs over the current bug fix, and its result is persisted as the bug's review record for the current fix cycle (`review-c<fix_cycle>.md`: a cycle-1 review never stands for cycle 2). There is no separate bug review engine.
+
+1. **Resolve `TARGET_ROOT`** exactly as `/implement-task` §2 does (`scripts/resolve-target-repo-root.ts`). Remove `--bug <bug_key>` from `$ARGUMENTS` before step 1 resolves the scope.
+2. **Read the bug's review context:**
+
+   ```
+   node --no-warnings "${CLAUDE_PLUGIN_ROOT}/scripts/bug-review.ts" context bug:<bug_key> --root "<TARGET_ROOT>"
+   ```
+
+   It always exits 0 and prints one JSON object. Act on `outcome`:
+
+   | `outcome` | Do |
+   |---|---|
+   | `BUG_REVIEW_READY` | Continue. Show `incomplete_tasks` in one line if any task of the cycle is not complete. |
+   | `BUG_PLAN_MISSING` · `BUG_PLAN_INVALID` · `BUG_PLAN_NOT_APPROVED` · `BUG_APPROVAL_STALE` · `BUG_APPROVAL_INVALID` | **Stop** and give the `route`: the bug is (re)planned and approved through `/analyze-bug`. |
+   | `BUG_TASK_STATE_MISSING` | **Stop.** Nothing has been implemented for this cycle yet; give the `route` (`/implement-task bug:<bug_key> T1`). |
+   | `BUG_WORK_ID_INVALID` · `BUG_ROOT_INVALID` · `BUG_REPOSITORY_UNAVAILABLE` | **Stop** and report `reason`. |
+
+   The QA state is not re-read here. The review is about the implementation now in the repository, against the plan that was approved for it.
+3. **Steps 1–6 run as written**, over the default scope (the current diff against the base branch), with the same `code-reviewer` and `performance-reviewer` agents, the shared `platform-review` methodology and one lane per touched platform. Each platform's pair also receives the bug context from step 2:
+   - the bug identity, reproduction evidence and Observed vs Expected;
+   - Root Cause (and `root_cause_inference`), Fix Design, its minimal change surface and **non-goals**, and the Verification Strategy;
+   - each task's row and recorded developer-testing evidence;
+   - the affected surfaces and capability, the Blast Radius, and the Repo Knowledge Reference.
+
+   Step 2a's Project Knowledge is limited to what the plan already records: the capability and its **first-degree** relationships named in the plan. Never expand the graph from here.
+4. **The four bug-specific checks** are run once over the merged review, as `skills/platform-review/SKILL.md` § *Bug review* defines them: `root-cause`, `reproduction-path`, `plan-conformance` and `regression-risk`. A concern is filed as an ordinary finding, citing its `BUG-CHECK-*` rule, with the usual severity, location and remediation. Platform and shared rules apply exactly as today.
+5. **Merge** into `templates/code-review-template.md` as step 6 says. That document is the review.
+6. **Persist the record.** Write the merged result as JSON, outside `TARGET_ROOT` (the session's scratch directory):
+   - `binding`: exactly the object step 2 returned;
+   - `reviewed_by`: the reviewers;
+   - `generated_at`: the current UTC time;
+   - `findings`: every finding, with `severity`, `platform`, `path`, `line`, `rule`, `description` and `remediation`, as in the template;
+   - `checks`: `{ id, status, note }` for each of the four.
+
+   Then run:
+
+   ```
+   node --no-warnings "${CLAUDE_PLUGIN_ROOT}/scripts/bug-review.ts" record bug:<bug_key> --root "<TARGET_ROOT>" --review "<review json>"
+   ```
+
+   It writes `docs/bugs/<bug_key>/review-c<fix_cycle>.md` atomically, replacing an earlier record of the same cycle. It refuses, and writes nothing, when the code, plan or task state moved since step 2 (`REVIEW_STATE_MOVED` — review again) or when a finding or check is malformed. Report a refusal verbatim.
+7. **Report** the record path and its counts. `verify` says later whether the record still describes the code, plan and task state:
+
+   ```
+   node --no-warnings "${CLAUDE_PLUGIN_ROOT}/scripts/bug-review.ts" verify bug:<bug_key> --root "<TARGET_ROOT>"
+   ```
+
+The record is evidence of the latest review for the cycle. It does not approve a QA handoff: what its findings mean for a handoff is decided in a later step of the Bug Development Flow. This command never writes task state and never creates a git commit.

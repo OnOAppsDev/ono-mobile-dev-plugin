@@ -1,0 +1,1 @@
+{"build_id":"atv-104","fixes_claimed":["bug:BUG-27"],"hash":"sha256:d8bfecdf017516c93ab36b1a86b3498ca6e31a68835208caa65e5a012e235c55","kind":"build.registered","registered_at":"2026-10-01T09:00:29.000Z","registered_by":"omer","related_scopes":[],"source":null,"surfaces":["android-tv"],"v":1,"version":null}

@@ -214,14 +214,15 @@ The pipeline is deliberately gated: `/dev-design-start` refuses to run on a feat
 | Command | Arguments | What it does |
 |---|---|---|
 | `/analyze-feature` | feature description (± a design reference) | Detects the platform and the repo's actual stack/conventions, has the user confirm a single platform, then proposes a technical approach via that platform's architect; requires a design reference only for UI-changing work; output starts as `status: proposed` |
+| `/analyze-bug` | `BUG-27` / `qa=BUG-27` (`--qa-repo`), `--external=<key> --report`, or `--origin=dev-review\|dev-testing\|production --report` | Prepares a bug in one flow: deterministic bug intake (QA ownership honoured; partial QA context degrades with warnings), confirmed routing, Project Knowledge context, root cause, minimal fix design, verification and cycle-1 tasks, in one Bug Work Plan at `docs/bugs/<bug_key>/bug-work-plan.md` (`docs/bug-work-plan-contract.md`) with one content-bound approval through `scripts/work-approval.ts`. It plans only; the approved plan's tasks are then run with `/implement-task bug:<bug_key> T1` |
 | `/dev-design-start` | feature name | Turns an **approved** feature analysis into a Detailed Design (DD), reading `platform` rather than re-detecting; output starts as `status: draft` |
 | `/dev-feature-start` | feature name | Turns an **approved** DD into a task breakdown + thin feature plan, carrying `platform` and the design-reference fields forward |
-| `/implement-task` | task id | Implements a single task from the approved breakdown, using the task's own `platform` value; gated by the `require-approval-before-code` hook |
+| `/implement-task` | task id (`[feature] T3`, or `bug:<bug_key> T1` with `--qa-repo` / `--report`) | Implements a single task from the approved breakdown, using the task's own `platform` value; gated by the `require-approval-before-code` hook. Bug work runs on the same engine from an approved Bug Work Plan, after re-verifying its approval and the bug evidence |
 | `/review-code` | scope (optional) | Detects touched platform(s) from the diff; reviews for correctness, style, standards-adherence, and performance using shared + platform-specific standards; defaults to the current diff against the base branch |
 | `/review-security` | scope (optional) | Always uses the shared mobile security standards; adds platform-specific concerns/examples only when relevant |
-| `/fix-review-comments` | review-notes path | Root-causes findings (grouped by platform for a mixed review) and delegates each fix to the matching platform's feature-developer agent |
+| `/fix-review-comments` | review-notes path | Root-causes findings (grouped by platform for a mixed review) and delegates each fix to `feature-implementer` against the matching platform's implementation lane |
 | `/create-dev-qa-notes` | feature name | Writes shared QA handoff notes with platform-specific build/install/testing instructions to `docs/qa/{FEATURE-NAME}-qa-handoff.md` as `status: draft`, then records `qa_handoff_link` in the task breakdown |
-| `/prepare-mobile-release` | version | Validates shippability with a shared checklist plus platform-specific release validation for every platform the release ships |
+| `/prepare-mobile-release` | version, release contents (`--feature` / `--bug`), QA readiness (`--qa-readiness`) | Validates shippability with a shared checklist plus platform-specific release validation for every platform the release ships. QA evidence is QA-owned readiness from ono-plugin-qa (`docs/qa-readiness-contract.md`), checked by `scripts/qa-release-gate.ts` — signed, current, untampered, fresh against the QA ledger, covering every feature and bug fix (bugs by QA id and/or external ref, or through a release artifact); the Dev QA handoff is Dev → QA input, not QA sign-off |
 
 ### Utilities (outside the pipeline)
 
@@ -346,6 +347,8 @@ skills/                             (flat, one level — prefix = scope)
   repo-knowledge-consumer/          (resolves canonical repository knowledge; the only reader of the contract)
   planning-doc-migration/           (loads a planning document through the migration framework; the single frontmatter compatibility layer)
   dev-design-start/  dev-feature-start/    (shared design + task-generation stages)
+  platform-planning/  platform-implementation/  platform-review/  (shared methodologies — platform-independent,
+                                     each applied against exactly one platform lane)
   rn-dev-planning/  rn-feature-implementation/  rn-code-review/
   rn-nativewind-theme-sync/         (Figma variables -> NativeWind theme; observation layer only — classification, normalization,
                                      diffing, and rendering are decided by scripts/figma-theme-tokens.ts; no dedicated agent)
@@ -360,15 +363,16 @@ agents/                             (flat)
                                        each run against exactly one platform lane)
 
 standards/
-  shared/       mobile-security.md, accessibility.md, i18n-rtl.md, release-readiness.md, qa-handoff.md
+  shared/       mobile-security.md, accessibility.md, i18n-rtl.md, release-readiness.md, qa-handoff.md,
+                verification.md, tv-baseline.md                         (TVB-* — the shared TV baseline)
   react-native/ rn-coding-standards.md, rn-navigation.md, rn-state-management.md,
                 rn-performance.md, rn-architecture.md, rn-api-service-layer.md
   ios/          swift-standards.md, swiftui-uikit-standards.md, ios-architecture.md,
-                xcode-build-signing.md, ios-performance.md               (authored, IOS-* IDs)
+                xcode-build-signing.md, ios-performance.md               (authored, IOS-* IDs; Apple TV: IOS-UI-TV-*)
   android/      kotlin-standards.md, compose-xml-standards.md, android-architecture.md,
                 android-navigation.md, android-networking.md, android-persistence.md,
                 android-logging-analytics.md, android-testing.md,
-                gradle-build-signing.md, android-performance.md          (authored, AND-* IDs)
+                gradle-build-signing.md, android-performance.md          (authored, AND-* IDs; Android TV: AND-UI-TV-*)
   react/        react-coding-standards.md, react-routing.md, react-state-management.md,
                 react-performance.md, react-architecture.md, react-api-service-layer.md  (authored, REACT-* IDs)
                 react-smart-tv.md                                       (authored, REACT-TV-* IDs, REACT-003-1)

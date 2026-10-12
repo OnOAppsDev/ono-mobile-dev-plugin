@@ -20,7 +20,7 @@ author: rn-architect
 status: approved
 date: 2026-01-14
 migrated_from_version: 0
-migrated_by: ono-mobile-dev-plugin 0.5.0
+migrated_by: ono-mobile-dev-plugin 0.6.0
 migration_inputs: platform=human@migration, device_type=human@migration, design_reference_status=human@migration, design_reference_type=human@migration, design_reference=human@migration
 ```
 

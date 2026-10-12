@@ -1,6 +1,6 @@
 ---
-description: Write QA handoff notes for a completed feature.
-argument-hint: [feature-name]
+description: Write QA handoff notes for a completed feature — or, with bug:<bug_key>, a gated Bug QA handoff handed to QA through one explicit approval.
+argument-hint: [feature-name | bug:<bug_key> [--qa-repo=<path> | --report=<path>]]
 ---
 
 Write QA handoff notes for the completed feature named in `$ARGUMENTS`, and write them to disk under the target repository.
@@ -101,3 +101,60 @@ Add the field after `dev_plan_link` if it is absent; update its value in place i
 ## 9. Report
 
 Report the absolute path written, the existing-file strategy applied, and whether `qa_handoff_link` was recorded in the Task Breakdown. State that the handoff is `status: draft` and needs a human to flip it to `ready-for-qa` before QA treats it as delivered.
+
+## Bug handoff (`bug:<bug_key>`)
+
+Without a `bug:` prefix, nothing in this section applies: the feature handoff above is the whole command, unchanged. With `bug:<bug_key>`, §2 still resolves `TARGET_ROOT`, and this section replaces §1 and §3–§9. The handoff is `docs/qa/bug-<bug_key>-qa-handoff.md` (`templates/qa-bug-handoff-template.md`, contract in `docs/bug-work-plan-contract.md` § *QA handoff*). It is generated and approved only through `scripts/qa-handoff-gate.ts`.
+
+1. **The evidence source.** The bug evidence is re-read for the readiness check, so this command needs where it lives: `--qa-repo=<path>` for a QA bug, `--report=<path>` otherwise. When it is missing, ask once; never guess it.
+2. **Check readiness (R1–R9):**
+
+   ```
+   node --no-warnings "${CLAUDE_PLUGIN_ROOT}/scripts/qa-handoff-gate.ts" check bug:<bug_key> --root "<TARGET_ROOT>" [--qa-repo "<path>" | --report "<path>"]
+   ```
+
+   Show each check's result in one line. Branch on `next`:
+   - `blocked`: **stop.** Report every blocker with its `route`, for example `/analyze-bug` for a stale or reopened bug, `/implement-task` for an incomplete task, or `/review-code --bug` for a missing, stale or blocking review.
+   - `done`: the handoff is already `ready-for-qa` and current. Report it and the QA next action, then stop. Nothing is regenerated.
+   - `generate`: go to step 3.
+   - `approve`: go to step 4.
+
+   A partial QA context (QA ownership state unavailable) is a warning to show, not a blocker.
+3. **Generate the draft.** Write the build/install/testing instructions through `feature-implementer` with the shared `platform-implementation` methodology and the plan's platform lane. Use the same lane table and readiness gate as §4, and the `mobile-testing-and-qa-handoff` methodology for the instructions. Save them to a file outside `TARGET_ROOT`, using `###` headings only, one subsection per platform. Then run:
+
+   ```
+   node --no-warnings "${CLAUDE_PLUGIN_ROOT}/scripts/qa-handoff-gate.ts" generate bug:<bug_key> --root "<TARGET_ROOT>" [--qa-repo "<path>" | --report "<path>"] --date <YYYY-MM-DD> --build-instructions "<file>"
+   ```
+
+   It writes every other section deterministically: bug summary, fix claim, reproduction scenario (verbatim from the plan), developer verification (from task state), regression scope, known limitations, and QA-owned pending verification. Inputs that changed regenerate the handoff as a draft, and any earlier approval no longer holds. It never overwrites a file at that path that is not this bug's handoff.
+4. **Present, then ask once.** Show:
+   - the bug and its fix cycle — for cycle n ≥ 2, the failed prior fix, why it was insufficient and the cycle's verification delta first (the handoff is always the current cycle's; an earlier cycle's approval never carries over);
+   - the review result;
+   - the developer-testing summary, including developer-owned VERIFY-4 debt (the developer's, never QA's);
+   - the QA verification debt;
+   - **each Major finding**, with its id, location, rule, description and remediation;
+   - the exact QA next action (`qa_next_action`).
+
+   When the bug has no QA bug id, say plainly that QA must create or bind a QA bug before `/register-build --fixes`. Then ask:
+
+   ```
+   Hand this bug fix to QA?
+   1. Yes — as: <your name>, acknowledging each Major finding listed above
+   2. Not now — leave the handoff as a draft
+   ```
+
+   Major findings are acknowledged explicitly, one by one, never implicitly. If the human does not acknowledge every listed Major finding, there is no approval.
+5. **On approval**, run (one `--ack-major` per Major finding):
+
+   ```
+   node --no-warnings "${CLAUDE_PLUGIN_ROOT}/scripts/qa-handoff-gate.ts" approve bug:<bug_key> --root "<TARGET_ROOT>" [--qa-repo "<path>" | --report "<path>"] --by "<approver>" --ack-major <id> …
+   ```
+
+   It re-checks R1–R9, then records `status: ready-for-qa`, `approved_by`, `acknowledged_majors` and `approved_fingerprint`. The fingerprint binds the handoff body, its input fingerprint and the acknowledgements. Report a refusal verbatim.
+
+   **When declined**, the handoff stays a draft. Rerunning `/create-dev-qa-notes bug:<bug_key>` returns to this step without regenerating it.
+6. **Report:**
+   - the handoff path and its status;
+   - the QA next action, for example `/register-build <build-id> --fixes bug:<qa_bug_id> --surfaces …`, run by QA once CI produces the build.
+
+   Never edit `status` or any `approved_*` field by hand. This command never registers a build, never writes task state, the plan or the review record, and never creates a git commit. The human commits after reviewing the changes, with every hook applying unchanged.

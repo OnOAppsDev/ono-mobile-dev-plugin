@@ -688,6 +688,7 @@ try {
       ["dd-template.md", "dd"],
       ["dev-plan-template.md", "dev-plan"],
       ["task-breakdown-template.md", "task-breakdown"],
+      ["bug-work-plan-template.md", "bug-work-plan"],
     ];
     for (const [file, kind] of templates) {
       const src = join(REPO_ROOT, "templates", file);

@@ -27,7 +27,7 @@ author: rn-architect
 status: approved
 date: 2026-06-18
 migrated_from_version: 1
-migrated_by: ono-mobile-dev-plugin 0.5.0
+migrated_by: ono-mobile-dev-plugin 0.6.0
 ```
 
 ## Feature Request
