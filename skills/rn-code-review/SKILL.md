@@ -30,10 +30,11 @@ review free of manufactured noise:
 
 - `RN-*` — any component, hook or TypeScript file.
 - `ARCH-*` — folder placement, layering, composition, reuse.
+- `RN-DEP-*` — `package.json`/lockfile changes, and files adding a new third-party import or newly using a package API.
 - `API-*` — endpoint and service files. The Universal Principles in `rn-api-service-layer.md` always apply; its RTK Query section only when RTK Query is the detected data-fetching layer.
 - `STATE-*` — slices and selectors. The Universal Principles in `rn-state-management.md` always apply; its Redux Toolkit section only when Redux Toolkit is the detected state library.
 - `NAV-*` — navigator and route files.
-- `I18N-*` — files carrying user-facing copy.
+- `I18N-*` — files carrying user-facing copy, **only when** the repository already has a localization setup (an i18n library wired in) or the approved DD explicitly requires localization/RTL. Otherwise the bucket is Not Applicable, recorded with that reason, and a plain string literal is not a finding. This is the lane's applicability decision for the shared standard (including `I18N-TEST-1`'s required check) and takes precedence for React Native.
 - `A11Y-*` — screens and interactive components.
 
 ## The two passes over this lane
@@ -52,14 +53,16 @@ scope stays with `code-reviewer` rather than `performance-reviewer`.
 
 | Area | Standard file | IDs |
 |---|---|---|
-| TypeScript, components, hooks, naming, props, constants, styling, lint | `standards/react-native/rn-coding-standards.md` | `RN-TS-*`, `RN-FC-*`, `RN-NAME-*`, `RN-PROPS-*`, `RN-CONST-*`, `RN-STYLE-*`, `RN-LINT-*` |
-| Layering, structure, dependency direction, reuse | `standards/react-native/rn-architecture.md` | `ARCH-LAYERS-*`, `ARCH-FOLDERS-*`, `ARCH-DEPS-*`, `ARCH-LOGIC-*`, `ARCH-REUSE-*` |
-| Data fetching & API layer | `standards/react-native/rn-api-service-layer.md` | `API-ORG-*`, `API-CACHE-*`, `API-BASEQ-*`, `API-ERR-*` |
-| Shared & global state | `standards/react-native/rn-state-management.md` | `STATE-SLICE-*`, `STATE-SELECT-*`, `STATE-ENTITY-*`, `STATE-BOUNDARY-*` |
-| Navigation & deep links | `standards/react-native/rn-navigation.md` | `NAV-TYPED-*`, `NAV-SERVICE-*`, `NAV-DEEPLINK-*` |
-| Performance | `standards/react-native/rn-performance.md` | `RN-PERF-RERENDER-*`, `RN-PERF-LIST-*`, `RN-PERF-JSTHREAD-*`, `RN-PERF-IMAGE-*`, `RN-PERF-BUNDLE-*` |
+| TypeScript, components, hooks, naming, props, constants, styling, lint, testing, comments, dependencies, RN accessibility | `standards/react-native/rn-coding-standards.md` | `RN-TS-*`, `RN-FC-*`, `RN-NAME-*`, `RN-PROPS-*`, `RN-CONST-*`, `RN-STYLE-*`, `RN-LINT-*`, `RN-TEST-*`, `RN-CMT-*`, `RN-DEP-*`, `RN-A11Y-*` |
+| Layering, structure, dependency direction, composition, reuse, architecture mode | `standards/react-native/rn-architecture.md` | `ARCH-LAYERS-*`, `ARCH-STRUCT-*`, `ARCH-FOLDERS-*`, `ARCH-TYPE-*`, `ARCH-DEPS-*`, `ARCH-LOGIC-*`, `ARCH-COMPOSE-*`, `ARCH-REUSE-*`, `ARCH-NEW-*`, `ARCH-LEGACY-*` |
+| Data fetching, cache, errors, pagination, cancellation | `standards/react-native/rn-api-service-layer.md` | `API-ORG-*`, `API-ERR-*`, `API-PAGE-*`, `API-CANCEL-*`, `API-CACHE-*`, `API-BASEQ-*` |
+| State, selectors, boundaries, serialisation, persistence | `standards/react-native/rn-state-management.md` | `STATE-SELECT-*`, `STATE-BOUNDARY-*`, `STATE-SERIAL-*`, `STATE-PERSIST-*`, `STATE-SLICE-*`, `STATE-ENTITY-*` |
+| Navigation, typed routes, deep links, back behaviour | `standards/react-native/rn-navigation.md` | `NAV-TYPED-*`, `NAV-DEEPLINK-*`, `NAV-SERVICE-*`, `NAV-BACK-*` |
+| Performance | `standards/react-native/rn-performance.md` | `RN-PERF-RERENDER-*`, `RN-PERF-LIST-*`, `RN-PERF-JSTHREAD-*`, `RN-PERF-ANIM-*`, `RN-PERF-DEFER-*`, `RN-PERF-IMAGE-*`, `RN-PERF-BUNDLE-*` |
 | Accessibility (shared) | `standards/shared/accessibility.md` | `A11Y-ROLES-*`, `A11Y-TOUCH-*`, `A11Y-FONT-*`, `A11Y-SR-*` |
 | Localization & RTL (shared) | `standards/shared/i18n-rtl.md` | `I18N-COPY-*`, `I18N-RTL-*`, `I18N-FMT-*`, `I18N-TEST-*` |
+
+`SEC-*` is omitted: security is reviewed separately by `mobile-security-reviewer`.
 
 ## Out-of-lane observations — React Native's policy
 

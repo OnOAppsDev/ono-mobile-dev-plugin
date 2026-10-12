@@ -338,7 +338,8 @@ try {
       "templates/code-review-template.md": "23621fd42028242e12a0abb28a3187f4114e21256d808b42a06174089215365b",
       "agents/code-reviewer.md": "290c5efae292e7190894713e34fe87cce0b4df0900c743997c4f02b4484c2752",
       "agents/performance-reviewer.md": "325982f461b1c538d917e50854c694c8611dffb902273feac06146e3717738ef",
-      "skills/rn-code-review/SKILL.md": "441309e50840868519edfa701b5d969af00468df1ad4c4f9caa9d99073774b2c",
+      // RN AI coding guidelines (#52) changed this lane's buckets and citation table on purpose; re-pinned.
+      "skills/rn-code-review/SKILL.md": "dfb80ec6f12ee0da929d8c0f3ebdb16205b2d60d35c09c20815bf66c1a9e9edc",
       "skills/ios-code-review/SKILL.md": "c645b6577094f31551d10181294740bf517a90a875b48b295fccf2d225a104fe",
       "skills/android-code-review/SKILL.md": "d438f1156092e8d9a81344b4be099ead575b3077a33395c10b9a44ef8f241e5f",
       "skills/react-code-review/SKILL.md": "361f52aa0f8c83d723cefea33841859133564c1c7567b3c8835971d12a677d4b",

@@ -49,15 +49,15 @@ Feature-specific detail no repository-wide document holds — the signatures, st
 Collect evidence for each dimension, recording the path that proves it:
 
 1. **Workspace and package layout** — single package vs. monorepo (Yarn/PNPM workspaces, Nx, Turborepo); which package this feature belongs to; how shared code is resolved across packages.
-2. **App framework and tooling** — bare React Native vs. Expo (managed or bare), Metro configuration, path aliases, and the env/config mechanism in use.
+2. **App framework and tooling** — bare React Native vs. Expo (managed or bare), Metro configuration, path aliases, the env/config mechanism in use, and the installed versions of React Native and the key libraries the feature will use (`RN-DEP-1`).
 3. **TypeScript configuration** — strictness, path mapping, and any per-directory overrides that change what is enforceable.
 4. **Structural convention** — feature-based (`src/features/<name>/`) or type-based (top-level kind folders), per `ARCH-STRUCT-1`; which one the repository has actually standardised on, and how consistently.
 5. **Navigation** — which library (React Navigation, Expo Router, or another), how routes and params are typed, whether a navigation abstraction exists, and how deep links are declared.
 6. **State management** — which library or mechanism holds global state, where stores/slices/selectors live, and what stays local.
 7. **Data fetching** — which layer talks to the backend, its shared client or base query, its cache/invalidation mechanism, and its error-normalisation convention.
-8. **Styling** — `StyleSheet`, a styling library, or a mix; whether a theme/design-token module exists and how consistently it is used.
+8. **Styling** — `StyleSheet`, a styling library, or a mix; whether NativeWind is installed and its major version; whether a theme/design-token module exists, how consistently it is used, and its token naming conventions.
 9. **Reusable components and hooks** — existing screens, shared components, and hooks this feature should reuse rather than duplicate.
-10. **Internationalisation** — the i18n library, where keys live, the namespacing convention, and whether RTL is exercised.
+10. **Internationalisation** — the i18n library, where keys live, the namespacing convention, and whether RTL is exercised. This dimension feeds the `I18N-*` gate in [§4](#4-technical-implementation-approach-dd-19).
 11. **Testing** — the runner, the component-testing library, the test-file convention (colocated, `__tests__/`, or other), and what is actually covered today.
 12. **Native surface and architecture mode** — whether the app runs the New Architecture (Bridgeless, TurboModules, Fabric, Codegen) or the Legacy Architecture, and which native modules or custom native views the feature would touch.
 13. **Platform divergence** — where the codebase forks behaviour by platform (`.ios.tsx`/`.android.tsx` files, `Platform.OS`/`Platform.select` branches) and how consistently.
@@ -81,7 +81,7 @@ Express the approach in the repository's own React Native vocabulary, grounded s
 - **Styling** — how the feature's styles are organised against the detected approach and theme/token module.
 - **Placement** — where the new code lands under the repository's detected structural convention, and why.
 - **Native surface** — where the feature touches a native module or custom view, expressed against the architecture mode found in §3.12.
-- **Cross-cutting** — the i18n, accessibility, performance and security decisions the feature actually makes, each citing the ID it follows.
+- **Cross-cutting** — the i18n, accessibility, performance and security decisions the feature actually makes, each citing the ID it follows. Plan i18n/RTL decisions only when the `I18N-*` gate holds — §3.10 found a localization setup, or the approved Feature Analysis explicitly requires localization/RTL; otherwise record i18n as `N/A`.
 
 Cite the standard IDs each decision follows, from [§5](#5-react-native-standards-citation) only. The output is **decisions and their cited IDs** — the sweep itself is working material and does not belong in the DD.
 
@@ -103,7 +103,7 @@ Cite only IDs that exist in these files and genuinely apply to the point being m
 
 | Area | Standard file | ID roots |
 |---|---|---|
-| TypeScript, components, hooks, naming, props, constants, styling, lint, testing | `standards/react-native/rn-coding-standards.md` | `RN-TS-*`, `RN-FC-*`, `RN-NAME-*`, `RN-PROPS-*`, `RN-CONST-*`, `RN-STYLE-*`, `RN-LINT-*`, `RN-TEST-*` |
+| TypeScript, components, hooks, naming, props, constants, styling, lint, testing, comments, dependencies, RN accessibility | `standards/react-native/rn-coding-standards.md` | `RN-TS-*`, `RN-FC-*`, `RN-NAME-*`, `RN-PROPS-*`, `RN-CONST-*`, `RN-STYLE-*`, `RN-LINT-*`, `RN-TEST-*`, `RN-CMT-*`, `RN-DEP-*`, `RN-A11Y-*` |
 | Layering, structure, dependency direction, composition, reuse, architecture mode | `standards/react-native/rn-architecture.md` | `ARCH-LAYERS-*`, `ARCH-STRUCT-*`, `ARCH-FOLDERS-*`, `ARCH-TYPE-*`, `ARCH-DEPS-*`, `ARCH-LOGIC-*`, `ARCH-COMPOSE-*`, `ARCH-REUSE-*`, `ARCH-NEW-*`, `ARCH-LEGACY-*` |
 | Data fetching, cache, errors, pagination, cancellation | `standards/react-native/rn-api-service-layer.md` | `API-ORG-*`, `API-ERR-*`, `API-PAGE-*`, `API-CANCEL-*`, `API-CACHE-*`, `API-BASEQ-*` |
 | State, selectors, boundaries, serialisation, persistence | `standards/react-native/rn-state-management.md` | `STATE-SELECT-*`, `STATE-BOUNDARY-*`, `STATE-SERIAL-*`, `STATE-PERSIST-*`, `STATE-SLICE-*`, `STATE-ENTITY-*` |

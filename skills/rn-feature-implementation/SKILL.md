@@ -50,34 +50,32 @@ that discipline is applied to:
 - The state-management approach actually in use, and where slices/stores/selectors live.
 - The data-fetching layer actually in use, its base query or client, and its error-normalisation convention.
 - Existing reusable components, hooks, and design-system primitives this task should reuse rather than duplicate.
-- The i18n setup: which library, where keys live, and the namespacing convention.
+- The i18n setup, if any: which library, where keys live, and the namespacing convention — this decides the [localization gate](#react-native-implementation-methodology).
 - Test setup: runner, component-testing library, and what is actually covered today.
 - Lint and format configuration, and any rules the repository has deliberately disabled.
+- Code-level style of the nearest analogous files: component declaration style (function vs. `React.FC`), arrow-function body style, export style, file and naming patterns.
+- The styling approach of the touched area, the theme/token module and its naming conventions, and whether NativeWind is installed (and its major version).
+- Installed versions of every package the task uses — React Native, Reanimated, navigation, NativeWind, … (`RN-DEP-1`).
+- Existing utilities and libraries already covering the task's needs — dates, validation, haptics, API response handling (`RN-DEP-2`).
 
 ## React Native implementation methodology
 
+The code should read as if written by an existing member of this project.
+
 Apply each area's authored rules to the surfaces the task actually touches; an area the
-task does not touch is not applicable. The rules themselves live in the standards below —
-read them there rather than from a summary, which is how the severity markers and exact
-formats survive.
+task does not touch is not applicable. The rules themselves live in the standards cited in
+[Standards citation](#standards-citation) — read them there rather than from a summary,
+which is how the severity markers and exact formats survive.
 
-| Area | Rules |
-|---|---|
-| TypeScript & types | `RN-TS-*` |
-| Components & hooks | `RN-FC-*` |
-| Naming, files & props | `RN-NAME-*`, `RN-PROPS-*` |
-| Constants & styling | `RN-CONST-*`, `RN-STYLE-*` |
-| Architecture, layering & folder placement | `ARCH-LAYERS-*`, `ARCH-FOLDERS-*`, `ARCH-DEPS-*`, `ARCH-LOGIC-*`, `ARCH-REUSE-*` |
-| Data fetching & API layer | `API-ORG-*`, `API-CACHE-*`, `API-BASEQ-*`, `API-ERR-*` |
-| Shared & global state | `STATE-SLICE-*`, `STATE-SELECT-*`, `STATE-ENTITY-*`, `STATE-BOUNDARY-*` |
-| Navigation & deep links | `NAV-TYPED-*`, `NAV-SERVICE-*`, `NAV-DEEPLINK-*` |
-| Copy, localization & RTL | `I18N-COPY-*`, `I18N-FMT-*`, `I18N-RTL-*` |
-| Accessibility | `A11Y-ROLES-*`, `A11Y-TOUCH-*`, `A11Y-FONT-*`, `A11Y-SR-*`, `RN-A11Y-1`, `RN-A11Y-11` |
-| Performance | `RN-PERF-RERENDER-*`, `RN-PERF-LIST-*`, `RN-PERF-JSTHREAD-*`, `RN-PERF-IMAGE-*`, `RN-PERF-BUNDLE-*` |
-| Security & privacy | `SEC-SECRETS-*`, `SEC-STORAGE-*`, `SEC-NET-*`, `SEC-AUTH-*`, `SEC-DEEPLINK-*`, `SEC-WEBVIEW-*`, `SEC-BRIDGE-*`, `SEC-PERMS-*`, `SEC-LOG-*` |
-| Lint & format | `RN-LINT-*` |
+**Localization gate.** `I18N-*` applies only when the repository already has a localization
+setup (an i18n library wired in) or the approved DD explicitly requires localization/RTL.
+Otherwise `I18N-*` is not applicable: plain string literals are fine and no i18n is
+introduced. Under the gate, using the repository's established formatting library (e.g.
+date-fns) satisfies `I18N-FMT-*`. This gate is the React Native lane's applicability decision
+for `standards/shared/i18n-rtl.md`, in the same way library-gated sections apply only when
+detected; it takes precedence for React Native work and is not a standards conflict to flag.
 
-Apply those shared requirements through the React Native rules that implement them (`RN-A11Y-1`..`RN-A11Y-11` in `standards/react-native/rn-coding-standards.md`). Several RN accessibility props are single-platform — `accessibilityElementsHidden` and `accessibilityViewIsModal` are iOS-only, `importantForAccessibility` and `accessibilityLiveRegion` are Android-only — so a requirement met with only one of a pair is silently unmet on the other platform. Cover focus placement on screen entry, modal focus restoration to the invoking control, item position in lists (RN exposes no collection-semantics API, so position that is not stated is not announced), deriving item accessibility props from item data so a recycled row cannot inherit a stale label, and suspending timer-driven advancement while a screen reader is active.
+Apply the shared accessibility requirements through the React Native rules that implement them (`RN-A11Y-1`..`RN-A11Y-11` in `standards/react-native/rn-coding-standards.md`). Several RN accessibility props are single-platform — `accessibilityElementsHidden` and `accessibilityViewIsModal` are iOS-only, `importantForAccessibility` and `accessibilityLiveRegion` are Android-only — so a requirement met with only one of a pair is silently unmet on the other platform. Cover focus placement on screen entry, modal focus restoration to the invoking control, item position in lists (RN exposes no collection-semantics API, so position that is not stated is not announced), deriving item accessibility props from item data so a recycled row cannot inherit a stale label, and suspending timer-driven advancement while a screen reader is active.
 
 **Verification reach.** `standards/shared/verification.md` owns the tier vocabulary — do not restate it. Typecheck, lint and any accessibility assertions the repository's existing test setup supports are Tier 1 and gate the task; a VoiceOver or TalkBack walkthrough is Tier 3 and is recorded as `verificationDebt`, never as a passed check. Do not assume a particular automation framework.
 ## Validation tooling
@@ -90,7 +88,7 @@ actually touched:
 TypeScript typecheck (`tsc --noEmit` or the repository's script); ESLint; Prettier check;
 unit and component tests (Jest with React Native Testing Library, or whatever the
 repository uses); the Metro bundle; a native build when the task touches `ios/` or
-`android/`; a bidirectional LTR/RTL walkthrough for UI copy changes (`I18N-TEST-*`); a
+`android/`; a bidirectional LTR/RTL walkthrough for UI copy changes when the localization gate holds (`I18N-TEST-*`); a
 screen-reader walkthrough for new or changed interactive flows (`A11Y-SR-1`); and manual
 acceptance-criteria validation.
 
@@ -98,7 +96,13 @@ acceptance-criteria validation.
 
 Added to the shared self-review list: Rules of Hooks · effect dependency arrays ·
 re-render cost · selector memoization · navigation typing and back behaviour · list and
-image performance.
+image performance · an existing component, way or utility reused (`ARCH-REUSE-*`,
+`RN-DEP-2`) · APIs valid for the installed version, nothing deprecated (`RN-DEP-1`) ·
+surrounding code style matched · the simpler option taken, no speculative abstraction or
+single-use hook (`RN-FC-6`) · composition over prop growth (`ARCH-COMPOSE-*`) · the area's
+styling approach, tokens over arbitrary values, theme naming kept (`RN-STYLE-*`) · no magic
+numbers (`RN-CONST-4`) · finite sets typed, optionals clean (`RN-TS-5`, `RN-PROPS-3`) · no
+narrating comments (`RN-CMT-1`) · i18n only under the localization gate.
 
 ## Standards citation
 
@@ -106,12 +110,12 @@ Record which standard IDs were **applied** (not merely reviewed) — this is the
 
 | Area | Standard file | IDs |
 |---|---|---|
-| TypeScript, components, hooks, naming, constants, styling, lint | `standards/react-native/rn-coding-standards.md` | `RN-TS-*`, `RN-FC-*`, `RN-NAME-*`, `RN-PROPS-*`, `RN-CONST-*`, `RN-STYLE-*`, `RN-LINT-*` |
-| Layering, folders, dependency direction, reuse | `standards/react-native/rn-architecture.md` | `ARCH-LAYERS-*`, `ARCH-FOLDERS-*`, `ARCH-DEPS-*`, `ARCH-LOGIC-*`, `ARCH-REUSE-*` |
-| Data fetching & API layer | `standards/react-native/rn-api-service-layer.md` | `API-ORG-*`, `API-CACHE-*`, `API-BASEQ-*`, `API-ERR-*` |
-| Shared & global state | `standards/react-native/rn-state-management.md` | `STATE-SLICE-*`, `STATE-SELECT-*`, `STATE-ENTITY-*`, `STATE-BOUNDARY-*` |
-| Navigation & deep links | `standards/react-native/rn-navigation.md` | `NAV-TYPED-*`, `NAV-SERVICE-*`, `NAV-DEEPLINK-*` |
-| Performance | `standards/react-native/rn-performance.md` | `RN-PERF-RERENDER-*`, `RN-PERF-LIST-*`, `RN-PERF-JSTHREAD-*`, `RN-PERF-IMAGE-*`, `RN-PERF-BUNDLE-*` |
+| TypeScript, components, hooks, naming, props, constants, styling, lint, testing, comments, dependencies, RN accessibility | `standards/react-native/rn-coding-standards.md` | `RN-TS-*`, `RN-FC-*`, `RN-NAME-*`, `RN-PROPS-*`, `RN-CONST-*`, `RN-STYLE-*`, `RN-LINT-*`, `RN-TEST-*`, `RN-CMT-*`, `RN-DEP-*`, `RN-A11Y-*` |
+| Layering, structure, dependency direction, composition, reuse, architecture mode | `standards/react-native/rn-architecture.md` | `ARCH-LAYERS-*`, `ARCH-STRUCT-*`, `ARCH-FOLDERS-*`, `ARCH-TYPE-*`, `ARCH-DEPS-*`, `ARCH-LOGIC-*`, `ARCH-COMPOSE-*`, `ARCH-REUSE-*`, `ARCH-NEW-*`, `ARCH-LEGACY-*` |
+| Data fetching, cache, errors, pagination, cancellation | `standards/react-native/rn-api-service-layer.md` | `API-ORG-*`, `API-ERR-*`, `API-PAGE-*`, `API-CANCEL-*`, `API-CACHE-*`, `API-BASEQ-*` |
+| State, selectors, boundaries, serialisation, persistence | `standards/react-native/rn-state-management.md` | `STATE-SELECT-*`, `STATE-BOUNDARY-*`, `STATE-SERIAL-*`, `STATE-PERSIST-*`, `STATE-SLICE-*`, `STATE-ENTITY-*` |
+| Navigation, typed routes, deep links, back behaviour | `standards/react-native/rn-navigation.md` | `NAV-TYPED-*`, `NAV-DEEPLINK-*`, `NAV-SERVICE-*`, `NAV-BACK-*` |
+| Performance | `standards/react-native/rn-performance.md` | `RN-PERF-RERENDER-*`, `RN-PERF-LIST-*`, `RN-PERF-JSTHREAD-*`, `RN-PERF-ANIM-*`, `RN-PERF-DEFER-*`, `RN-PERF-IMAGE-*`, `RN-PERF-BUNDLE-*` |
 | Accessibility (shared) | `standards/shared/accessibility.md` | `A11Y-ROLES-*`, `A11Y-TOUCH-*`, `A11Y-FONT-*`, `A11Y-SR-*` |
 | Localization & RTL (shared) | `standards/shared/i18n-rtl.md` | `I18N-COPY-*`, `I18N-RTL-*`, `I18N-FMT-*`, `I18N-TEST-*` |
 | Security & privacy (shared) | `standards/shared/mobile-security.md` | `SEC-SECRETS-*`, `SEC-STORAGE-*`, `SEC-NET-*`, `SEC-AUTH-*`, `SEC-DEEPLINK-*`, `SEC-WEBVIEW-*`, `SEC-BRIDGE-*`, `SEC-PERMS-*`, `SEC-LOG-*` |
