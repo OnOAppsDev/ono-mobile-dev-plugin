@@ -23,7 +23,7 @@ Bug work runs on this command's engine — the same task-row parser, task-state 
 
 **The plan.** The approved Bug Work Plan at `docs/bugs/<bug_key>/bug-work-plan.md` (`docs/bug-work-plan-contract.md`) is the **sole planning document**: no Feature Analysis, DD, Dev Plan or Task Breakdown is resolved or required. Its tasks are those of its **current fix cycle** (`fix_cycle`): in cycle 1 the `## Tasks` rows `T1`, `T2`, …; in cycle n ≥ 2 the rows `C<n>-T1`, `C<n>-T2`, … of `### Cycle <n>`. Earlier cycles' tasks are history.
 
-**The evidence source.** The bug evidence is re-read on every invocation, so this command needs where it lives: `--qa-repo=<path>` for a QA bug, `--report=<path>` for an external or Dev-discovered bug. When it is missing, ask once; never search for or guess it.
+**The evidence source.** The bug evidence is re-checked on every invocation, from the bug's canonical evidence snapshot, `docs/bugs/<bug_key>/bug-report.json`, which `/analyze-bug` persisted once (`docs/bug-work-plan-contract.md` § *Bug evidence snapshot*). Pass no source: the gate resolves it, reads a QA bug's live state through the QA repository the snapshot records when it is available (partial context when not), and shows one line — `✓ Bug evidence current`. `--qa-repo=<path>` or `--report=<path>` is only an explicit override, for recovery; it is compared with the plan, never written into the snapshot. Ask for a source only when the gate says `BUG_EVIDENCE_SOURCE_REQUIRED` (no snapshot yet) — once — and never search for or guess it; `BUG_EVIDENCE_SNAPSHOT_INVALID` stops and routes to `/analyze-bug`.
 
 **The gate — replaces §3, §4, the document gates of §5, and §5a.** After §2 resolves `TARGET_ROOT`, run:
 
@@ -44,6 +44,7 @@ It validates the plan, verifies its content-bound approval for the current fix c
 | `BUG_REOPENED` | **Stop.** QA re-tested a fix and it failed, and no cycle of the plan answers that failure yet: the next fix cycle is planned through `/analyze-bug` — never created here. (When the latest cycle answers it, the gate passes with `QA_REOPEN_RECONCILED`.) |
 | `BUG_TASK_NOT_CURRENT` | **Stop.** The task belongs to an earlier fix cycle, which is history; implement the current cycle's tasks. |
 | `BUG_TASK_FUTURE_CYCLE` · `BUG_TASK_UNSUPPORTED` | **Stop.** The task's cycle does not exist yet, or the id is not `T<n>` / `C<n>-T<m>`. |
+| `BUG_EVIDENCE_SNAPSHOT_INVALID` | **Stop.** The canonical evidence snapshot failed its integrity check and is never trusted; re-run `/analyze-bug` with the original source. |
 | `BUG_TASK_UNKNOWN` · `BUG_EVIDENCE_SOURCE_REQUIRED` · `BUG_INSUFFICIENT_EVIDENCE` · `BUG_WORK_ID_INVALID` | **Stop** and report `reason`. |
 
 From §5, the gates that are not about feature documents still apply unchanged: the task row exists and is not complete or blocked, its dependencies are proven (§6), `platform` is valid on the row, `device_type` comes from the plan, and the branch is not `main`/`master`. A bug plan carries no design reference: the reproduction and the expected behaviour it records are the reference.

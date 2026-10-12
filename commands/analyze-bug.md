@@ -27,6 +27,9 @@ Accept exactly one of:
 - **An external tracker bug.** `--external=<key>` (a tracker key, not a URL) plus `--report=<path>` (the report as JSON: `title`, `steps`, `expected`, `actual`, optionally `surfaces`, `found_in_build`, `environment`, `description`).
 - **A Dev-discovered bug.** `--origin=dev-review|dev-testing|production` plus `--report=<path>` in the same shape.
 
+- **A document** (Word, PDF, Markdown export). Extract the evidence from it **once**, into that JSON shape, saved outside `TARGET_ROOT` (the session's scratch directory); if a required field is missing or the extraction is uncertain, show what was extracted and ask the developer once, before anything is persisted. Pass it as `--report=<json>` with `--source-document=<the original file>` (provenance only). Hand-prepared structured evidence adds `--source-type=manual`. Later stages never reopen, re-read or re-extract the document.
+- **A bug already analysed.** Once its canonical evidence snapshot exists (`docs/bugs/<bug_key>/bug-report.json`), the reference alone is enough — `BUG-27`, `--external=<key>`, or `bug:<bug_key>` for a Dev-discovered bug — with no `--qa-repo` or `--report`. A source passed anyway is compared with the snapshot (step 3), never silently written over it.
+
 Pass these to every helper call below as `<ref-args>`, unchanged.
 
 ## 2. Resolve one authoritative repository root
@@ -46,7 +49,7 @@ node "${CLAUDE_PLUGIN_ROOT}/scripts/resolve-target-repo-root.ts" "<candidate>"
 node --no-warnings "${CLAUDE_PLUGIN_ROOT}/scripts/analyze-bug.ts" start <ref-args> --root "<TARGET_ROOT>"
 ```
 
-`start` performs intake exactly as `scripts/bug-intake.ts` defines it. It returns intake's JSON verbatim under `intake`, then reads any existing plan:
+`start` performs intake exactly as `scripts/bug-intake.ts` defines it — from the source given, or, with none, from the bug's canonical evidence snapshot (a QA bug's live state is still read through the QA repository the snapshot records; partial context when it is unavailable). It returns intake's JSON verbatim under `intake`, then reads any existing plan:
 - validates it;
 - verifies its approval through `scripts/work-approval.ts`;
 - compares its `bug_evidence_fingerprint` and identity with the current intake.
@@ -71,6 +74,27 @@ Act on `outcome` exactly:
 | `BUG_PLAN_APPROVED` | The plan is approved for its current fix cycle and still matches the evidence | Do **not** regenerate. Report the plan and its approval, then offer `next_command` (the cycle's next task, or the bug review once its tasks are done) as step 10 does. |
 | `BUG_PLAN_STALE` | The evidence changed under an approved plan, or under one already in implementation | **Stop.** Report `reason` and `plan.drift`. Reconciling a plan with work already approved or begun belongs to a later step. Nothing is regenerated. |
 | `BUG_PLAN_INVALID` | The file at the plan path is not a valid plan for this bug | **Stop.** Report `plan.errors`. The file is never overwritten. If it is an unfinished scaffold from an interrupted run, the developer may fix it or remove it and rerun. |
+
+**Canonical evidence (`evidence_snapshot`).** `start` also reports how this intake stands against `docs/bugs/<bug_key>/bug-report.json` (`docs/bug-work-plan-contract.md` § *Bug evidence snapshot*): `missing`, `current`, `differs` (with the `changed` fields) or `conflict`. When `start` succeeded on an explicit source, persist it:
+
+```
+node --no-warnings "${CLAUDE_PLUGIN_ROOT}/scripts/analyze-bug.ts" persist-evidence <ref-args> --root "<TARGET_ROOT>" [--source-document <file>] [--source-type manual]
+```
+
+- `CREATED` — the first normalization is saved; `UNCHANGED` — the same evidence is already saved (never rewritten, whatever the source's bytes); `REPLACED` — new evidence the plan already records.
+- `NEW_EVIDENCE` — the source's evidence differs (`changed`) and the plan has not reconciled to it, so the snapshot is kept: say what changed and continue with `start`'s outcome — its stale/regenerate/new-cycle logic decides. `scaffold` and `append-cycle` update the snapshot together with the plan they write.
+- `IDENTITY_CONFLICT` / `BUG_INSUFFICIENT_EVIDENCE` — **stop** and report it.
+- `BUG_EVIDENCE_SNAPSHOT_INVALID` from `start` — the snapshot failed its integrity check; ask for the original source once and run again.
+
+Show it as:
+
+```
+✓ Bug evidence loaded
+✓ Canonical evidence saved
+✓ Evidence fingerprint: current
+```
+
+To compare a new source without persisting anything, run `analyze-bug.ts compare-evidence <ref-args> --root "<TARGET_ROOT>"` (`SAME_EVIDENCE`, `NEW_EVIDENCE`, `IDENTITY_CONFLICT` or `INVALID_SOURCE`).
 
 **Partial QA context.** `context_level: partial` means the bug evidence verifies but QA's state does not.
 - Continue. Analysis is never blocked only because QA state is unavailable.
@@ -319,6 +343,6 @@ When `next_command` is the bug review, ask `Continue?` in one short message.
 
 - **Continue only on an explicit yes.** Then invoke the Skill tool with `skill` set to `next_command.skill` and `args` set to `next_command.args`, verbatim — never a bare command name, and the developer never retypes it.
 - **Fallback.** If that invocation is unavailable or fails, show `next_command.display` as the command to run. Never guess another skill name or form.
-- `/implement-task` asks once for the bug's evidence source (`--qa-repo=<path>` for a QA bug, `--report=<path>` otherwise) and re-runs every one of its own gates: it re-reads the bug evidence and re-verifies the approval before every task (`commands/implement-task.md` §1a). Continuing never replaces an approval (`docs/command-handoff.md`). The cycle approval covers code edits only — never a commit, a push or a merge.
+- `/implement-task` needs no evidence source: it resolves the canonical evidence snapshot, and re-runs every one of its own gates: it re-reads the bug evidence and re-verifies the approval before every task (`commands/implement-task.md` §1a). Continuing never replaces an approval (`docs/command-handoff.md`). The cycle approval covers code edits only — never a commit, a push or a merge.
 
 This command does not run implementation itself, and it never creates task state.

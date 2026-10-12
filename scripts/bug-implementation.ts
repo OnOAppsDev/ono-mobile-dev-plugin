@@ -40,6 +40,7 @@ import { rowCells, taskRowsText } from "./task-resume.ts";
 import { splitDocument } from "./migrate-planning-doc.ts";
 import { nextCommand, subagentType } from "./next-command.ts";
 import { afterCycle } from "./bug-verification.ts";
+import { intakeFromSnapshot, snapshotPath } from "./bug-evidence.ts";
 
 /** What bug work adds to the existing developer-testing lifecycle, stated to the lane. */
 export const BUG_EXPECTATIONS = [
@@ -165,20 +166,33 @@ export function bugGate(req: GateRequest): Record<string, any> {
   if (approval.status === "approval_stale") return stop("BUG_APPROVAL_STALE", "the plan changed, or its cycle moved, after it was approved — re-approve it through /analyze-bug", { ...generic, route, reasons: approval.reasons });
   if (approval.status !== "approved") return stop("BUG_APPROVAL_INVALID", "the plan's approval fields are incomplete or inconsistent", { ...generic, route, reasons: approval.reasons });
 
-  // Evidence freshness: intake, exactly as /analyze-bug reads it.
+  // Evidence freshness: intake, exactly as /analyze-bug reads it. An explicit source is an override;
+  // by default the bug's canonical evidence snapshot is resolved (Bug Flow P1.5) — a QA bug still
+  // reads QA's live state when its QA repository is found, and degrades to partial context when not.
   const isQa = fm.qa_bug_id !== null;
-  if (isQa ? !req.qaRepo : !req.report) {
-    return stop("BUG_EVIDENCE_SOURCE_REQUIRED", isQa ? "the bug evidence is re-read from its QA repository — pass --qa-repo <path>; it is never guessed" : "the bug evidence is re-read from its report — pass --report <file.json>", { ...generic, route });
+  const explicit = isQa ? !!req.qaRepo : !!req.report;
+  let got: ReturnType<typeof runIntake>;
+  let evidenceSource: string;
+  if (explicit) {
+    const intakeReq: BugRequest = isQa
+      ? { root, ref: `qa=${fm.qa_bug_id}`, qaRepo: req.qaRepo } // by QA id: a changed external ref is drift, not a lookup failure
+      : fm.origin === "external"
+        ? { root, external: fm.external_ref, report: req.report }
+        : { root, origin: fm.origin, report: req.report };
+    got = runIntake(intakeReq);
+    evidenceSource = "explicit";
+  } else {
+    const snap = intakeFromSnapshot(root, key);
+    if ("missing" in snap) {
+      return stop("BUG_EVIDENCE_SOURCE_REQUIRED", `there is no canonical evidence snapshot (${snapshotPath(key)}) yet — ${isQa ? "pass --qa-repo <path>" : "pass --report <file.json>"} once, or run /analyze-bug to persist it; it is never guessed`, { ...generic, route });
+    }
+    if ("invalid" in snap) return stop("BUG_EVIDENCE_SNAPSHOT_INVALID", `${snap.invalid} — it is never trusted; re-run /analyze-bug with the original source to persist it again`, { ...generic, route });
+    got = { result: snap.result, evidenceRef: snap.evidenceRef };
+    evidenceSource = snap.evidence_source;
   }
-  const intakeReq: BugRequest = isQa
-    ? { root, ref: `qa=${fm.qa_bug_id}`, qaRepo: req.qaRepo } // by QA id: a changed external ref is drift, not a lookup failure
-    : fm.origin === "external"
-      ? { root, external: fm.external_ref, report: req.report }
-      : { root, origin: fm.origin, report: req.report };
-  const got = runIntake(intakeReq);
   if (got.refusal) return stop("BUG_INSUFFICIENT_EVIDENCE", got.refusal.reason, { ...generic, route });
   const it = got.result as Record<string, any>;
-  const withIntake = { ...generic, route, context_level: it.context_level, intake_status: it.status };
+  const withIntake = { ...generic, route, context_level: it.context_level, intake_status: it.status, evidence_source: evidenceSource };
   if (it.context_level === "insufficient" || it.status === "invalid" || it.status === "ambiguous") {
     return stop("BUG_INSUFFICIENT_EVIDENCE", it.reason, { ...withIntake, missing: it.missing ?? [] });
   }

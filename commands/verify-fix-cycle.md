@@ -11,6 +11,8 @@ This command verifies; it never changes code, task state or the plan, never crea
 
 `$ARGUMENTS` must be `bug:<bug_key>`; otherwise stop and ask for it. Resolve `TARGET_ROOT` exactly as `/implement-task` §2 does (`scripts/resolve-target-repo-root.ts`).
 
+Verification needs no evidence source: the checklist is built from the approved plan and the task state, and the bug's evidence is its canonical snapshot (`docs/bugs/<bug_key>/bug-report.json`). Never ask for `--report` or `--qa-repo` here.
+
 ## 2. Generate, or resume, the checklist
 
 ```

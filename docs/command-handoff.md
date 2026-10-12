@@ -7,7 +7,7 @@ A Bug Flow helper that knows what comes next returns it as data, in one shape, b
 ```
 
 - `skill` is the command fully qualified with the plugin's name, read from `.claude-plugin/plugin.json`. A plugin command is invoked through the Skill tool only by this qualified name; the bare name (`implement-task`) is not a skill Claude Code knows, which is what failed with "Args from unknown skill".
-- `args` are the command's arguments, exactly — never rebuilt, reordered or extended.
+- `args` are the command's arguments, exactly — never rebuilt, reordered or extended. A Bug command never carries an evidence source (`--report`, `--qa-repo`): once `/analyze-bug` persisted the canonical evidence snapshot, every later command resolves it.
 - `display` is the slash command a developer can copy and run.
 
 Which helper returns it:

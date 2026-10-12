@@ -42,6 +42,7 @@ import { canonical } from "./qa-release-gate.ts";
 import { splitDocument } from "./migrate-planning-doc.ts";
 import { nextCommand } from "./next-command.ts";
 import { verifyVerification } from "./bug-verification.ts";
+import { readSnapshot } from "./bug-evidence.ts";
 
 const sha = (s: string | Buffer): string => `sha256:${createHash("sha256").update(s).digest("hex")}`;
 
@@ -211,10 +212,15 @@ export function reviewContext(req: { root: string; work: string }): Record<strin
   if (state === null || recorded.length === 0) {
     return { ok: false, outcome: "BUG_TASK_STATE_MISSING", reason: "no task state is recorded for this fix cycle — nothing has been implemented to review", route: `/implement-task bug:${r.key} ${ids[0] ?? "T1"}`, ...(ids[0] ? { next_command: nextCommand("implement-task", `bug:${r.key} ${ids[0]}`) } : {}) };
   }
+  // Bug Flow P1.5: the bug's canonical evidence, resolved from its snapshot — never re-read from the source.
+  const snap = readSnapshot(r.root, r.key);
+  const evidence_snapshot = snap.status === "valid"
+    ? { status: snap.snapshot.bug_evidence_fingerprint === r.fm.bug_evidence_fingerprint ? "current" : "differs-from-plan", path: snap.path, title: snap.snapshot.evidence.title, description: snap.snapshot.evidence.description, bug_evidence_fingerprint: snap.snapshot.bug_evidence_fingerprint }
+    : { status: snap.status, ...(snap.status === "invalid" ? { code: snap.code, reason: snap.reason } : {}) };
   // Bug Flow P1: a review needs the cycle's consolidated developer verification, fresh and passed.
   const ver = verifyVerification({ root: r.root, work: `bug:${r.key}` });
   if (!ver.ok) {
-    return { ok: false, outcome: "BUG_VERIFICATION_REQUIRED", reason: `fix cycle ${r.fm.fix_cycle} has no current, passed developer verification (${ver.status}${ver.stale_reasons.length ? `: ${ver.stale_reasons.join(", ")}` : ""}) — verify the cycle first`, verification: ver, route: `/verify-fix-cycle bug:${r.key}`, next_command: nextCommand("verify-fix-cycle", `bug:${r.key}`) };
+    return { ok: false, evidence_snapshot, outcome: "BUG_VERIFICATION_REQUIRED", reason: `fix cycle ${r.fm.fix_cycle} has no current, passed developer verification (${ver.status}${ver.stale_reasons.length ? `: ${ver.stale_reasons.join(", ")}` : ""}) — verify the cycle first`, verification: ver, route: `/verify-fix-cycle bug:${r.key}`, next_command: nextCommand("verify-fix-cycle", `bug:${r.key}`) };
   }
   const b = binding(r, state);
   if (b.reviewed_tree_fingerprint === null) return { ok: false, outcome: "BUG_REPOSITORY_UNAVAILABLE", reason: "the repository's content could not be read through git" };
@@ -234,6 +240,7 @@ export function reviewContext(req: { root: string; work: string }): Record<strin
   return {
     ok: true,
     outcome: "BUG_REVIEW_READY",
+    evidence_snapshot,
     work_id: `bug:${r.key}`,
     plan_path: r.rel,
     fix_cycle: r.fm.fix_cycle,

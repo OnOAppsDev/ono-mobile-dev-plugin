@@ -106,7 +106,7 @@ Report the absolute path written, the existing-file strategy applied, and whethe
 
 Without a `bug:` prefix, nothing in this section applies: the feature handoff above is the whole command, unchanged. With `bug:<bug_key>`, §2 still resolves `TARGET_ROOT`, and this section replaces §1 and §3–§9. The handoff is `docs/qa/bug-<bug_key>-qa-handoff.md` (`templates/qa-bug-handoff-template.md`, contract in `docs/bug-work-plan-contract.md` § *QA handoff*). It is generated and approved only through `scripts/qa-handoff-gate.ts`.
 
-1. **The evidence source.** The bug evidence is re-read for the readiness check, so this command needs where it lives: `--qa-repo=<path>` for a QA bug, `--report=<path>` otherwise. When it is missing, ask once; never guess it.
+1. **The evidence source.** The readiness check resolves the bug's canonical evidence snapshot, `docs/bugs/<bug_key>/bug-report.json`, by itself — and a QA bug's live state through the QA repository it records — so no source is passed. `--qa-repo=<path>` or `--report=<path>` is only an explicit override. Ask for one, once, only when R2 reports `BUG_EVIDENCE_SOURCE_REQUIRED`; never guess it.
 2. **Check readiness (R1–R9):**
 
    ```

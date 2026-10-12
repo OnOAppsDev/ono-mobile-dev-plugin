@@ -16,6 +16,10 @@
  *             and the empty sections the analysis fills. Only when `start` says
  *             `BUG_PLAN_NEW` or `BUG_PLAN_REGENERATE`; never over an approved, stale or
  *             invalid plan.
+ *   persist-evidence  writes the canonical evidence snapshot, docs/bugs/<bug_key>/bug-report.json
+ *             (scripts/bug-evidence.ts) from an explicit source — once; never over different
+ *             evidence the plan has not reconciled to. compare-evidence is its read-only twin.
+ *             With no source, every command reads the snapshot instead (Bug Flow P1.5).
  *   check     read-only. The plan is a valid bug-work-plan, still matches intake, and meets
  *             the generation rules (docs/bug-work-plan-contract.md, "Generation").
  *
@@ -42,6 +46,7 @@ import { lookupQaBug, normalizeBug, isSafeKey, evidenceFingerprint } from "./bug
 import { validateBugWorkPlan, bugWorkPlanPath, BUG_WORK_PLAN_FIELDS, BUG_WORK_PLAN_SECTIONS } from "./bug-work-plan.ts";
 import { nextCommand, subagentType } from "./next-command.ts";
 import { afterCycle } from "./bug-verification.ts";
+import { compareEvidence as compareSnapshot, describeSource, intakeFromSnapshot, readSnapshot, saveSnapshot, snapshotPath } from "./bug-evidence.ts";
 import { rewriteFrontmatterValues, verifyApproval } from "./work-approval.ts";
 import { readFrontmatter, splitDocument } from "./migrate-planning-doc.ts";
 import { rowCells, sectionFingerprints } from "./task-resume.ts";
@@ -68,20 +73,33 @@ export interface BugRequest {
   capability?: string;
   author?: string;
   date?: string;
+  /** The original document a --report was extracted from, once (provenance only). */
+  sourceDocument?: string;
+  /** `manual` when the --report is hand-prepared structured evidence. */
+  sourceType?: string;
+  /** compare-evidence: the bug whose snapshot the source is compared with (defaults to the source's own key). */
+  key?: string;
 }
 
 /* ------------------------------------------------------------------ intake */
 
 /** The request → one intake call, exactly as bug-intake.ts defines it. Shared with /implement-task's bug gate. */
-export function runIntake(req: BugRequest): { result?: Record<string, any>; refusal?: { outcome: string; reason: string }; evidenceRef?: string } {
+export function runIntake(req: BugRequest): { result?: Record<string, any>; refusal?: { outcome: string; reason: string }; evidenceRef?: string; evidenceSource?: string } {
   const isDev = req.origin !== undefined;
   const modes = [req.ref !== undefined, req.external !== undefined, isDev].filter(Boolean).length;
   if (modes === 0) return { refusal: { outcome: "BUG_REF_REQUIRED", reason: "name the bug: a QA ref (BUG-27 / qa=BUG-27 with --qa-repo), --external <key> --report <file>, or --origin dev-review|dev-testing|production --report <file>" } };
   if (modes > 1) return { refusal: { outcome: "BUG_REF_CONFLICT", reason: "give exactly one of: a QA ref, --external, --origin" } };
+  // Bug Flow P1.5: with no source, a bug that already has a canonical evidence snapshot is read from it.
+  const snapKey = !req.qaRepo && !req.report ? (req.ref !== undefined ? req.ref.replace(/^(bug:|qa=)/, "") : req.external) : undefined;
+  if (snapKey !== undefined && req.root && existsSync(req.root) && snapshotPath(snapKey) !== null) {
+    const got = intakeFromSnapshot(realpathSync(req.root), snapKey);
+    if ("invalid" in got) return { refusal: { outcome: "BUG_EVIDENCE_SNAPSHOT_INVALID", reason: `${got.invalid} — re-run /analyze-bug with the original source to persist it again` } };
+    if ("result" in got) return { result: got.result, evidenceRef: got.evidenceRef, evidenceSource: got.evidence_source };
+  }
   if (req.ref !== undefined) {
     if (!req.qaRepo) return { refusal: { outcome: "BUG_QA_REPO_REQUIRED", reason: "a QA bug is read from its QA repository — pass --qa-repo <path>; it is never searched for or guessed" } };
     const result = lookupQaBug(req.qaRepo, req.ref);
-    return { result, evidenceRef: result.provenance?.evidence?.path };
+    return { result, evidenceRef: result.provenance?.evidence?.path, evidenceSource: "explicit" };
   }
   if (isDev && !DEV_ORIGIN_FLAGS.includes(req.origin as string)) {
     return { refusal: { outcome: "BUG_REF_REQUIRED", reason: `--origin must be one of ${DEV_ORIGIN_FLAGS.join(", ")} (an external tracker bug uses --external)` } };
@@ -97,7 +115,7 @@ export function runIntake(req: BugRequest): { result?: Record<string, any>; refu
     };
   }
   const input = req.external !== undefined ? { ...report, origin: "external", external_ref: req.external } : { ...report, origin: req.origin };
-  return { result: normalizeBug(input, { source: "report-file", path: req.report }), evidenceRef: req.report };
+  return { result: normalizeBug(input, { source: "report-file", path: req.report }), evidenceRef: req.report, evidenceSource: "explicit" };
 }
 
 /* ---------------------------------------------------------------- routing */
@@ -173,7 +191,7 @@ function assess(req: BugRequest): Record<string, any> {
   const got = runIntake(req);
   if (got.refusal) return { ok: false, outcome: got.refusal.outcome, proceed: null, reason: got.refusal.reason };
   const it = got.result as Record<string, any>;
-  const base = { root, intake: it, context_level: it.context_level, warnings: it.warnings ?? [], evidence_ref: got.evidenceRef ?? null };
+  const base = { root, intake: it, context_level: it.context_level, warnings: it.warnings ?? [], evidence_ref: got.evidenceRef ?? null, evidence_source: got.evidenceSource ?? "explicit" };
 
   if (it.context_level === "insufficient" || it.status === "invalid" || it.status === "ambiguous") {
     return { ...base, ok: false, outcome: "BUG_INSUFFICIENT_EVIDENCE", proceed: null, reason: it.reason, code: it.code, missing: it.missing ?? [], candidates: it.candidates ?? [] };
@@ -278,7 +296,7 @@ function assess(req: BugRequest): Record<string, any> {
       reason: `the plan is approved for fix cycle ${progress.cycle} and still matches the bug evidence`,
       next_action: progress.first_incomplete ? `/implement-task bug:${key} ${progress.first_incomplete}` : `/verify-fix-cycle bug:${key}, then /review-code --bug ${key}, then /create-dev-qa-notes bug:${key}`,
       next_command: progress.first_incomplete ? nextCommand("implement-task", `bug:${key} ${progress.first_incomplete}`) : afterCycle(root, key),
-      next_action_note: "Pass the bug's evidence source to /implement-task too (--qa-repo=<path> for a QA bug, --report=<path> otherwise): it re-reads the evidence before every task.",
+      next_action_note: "Persist the bug's canonical evidence snapshot (persist-evidence) so /implement-task needs no source; without one, pass the evidence source to /implement-task too (--qa-repo=<path> for a QA bug, --report=<path> otherwise): it re-reads the evidence before every task.",
     };
   }
   if (approval.status === "draft" || (approval.status === "approval_stale" && progress.recorded === 0)) {
@@ -314,7 +332,64 @@ const PLANNING = new Set(["create", "regenerate", "append-cycle", "complete-cycl
 export function startBug(req: BugRequest): Record<string, any> {
   const { root, ...out } = assess(req);
   if (PLANNING.has(out.proceed)) out.planner = { subagent_type: subagentType("feature-architect") };
+  // Bug Flow P1.5: how this intake stands against the canonical evidence snapshot (read-only).
+  const key = out.intake?.identity?.bug_key;
+  if (root && typeof key === "string" && snapshotPath(key) !== null) {
+    const r = readSnapshot(root, key);
+    const path = snapshotPath(key);
+    if (r.status !== "valid") out.evidence_snapshot = { status: r.status, path, ...(r.status === "invalid" ? { code: r.code, reason: r.reason } : {}) };
+    else {
+      const c = compareSnapshot(r.snapshot, out.intake);
+      out.evidence_snapshot = { status: c.outcome === "SAME_EVIDENCE" ? "current" : c.outcome === "NEW_EVIDENCE" ? "differs" : "conflict", path, comparison: c.outcome, changed: c.changed, source: out.evidence_source };
+      if (c.outcome === "SAME_EVIDENCE" && out.next_action_note) out.next_action_note = `The evidence is read from ${path}; /implement-task needs no source argument.`;
+    }
+  }
   return out;
+}
+
+/** Whether the plan (if any) already records this intake's evidence — the reconciliation the snapshot follows. */
+function planState(root: string, intake: Record<string, any>): "none" | "reconciled" | "unreconciled" {
+  const abs = join(root, bugWorkPlanPath(intake.identity.bug_key) as string);
+  if (!existsSync(abs)) return "none";
+  const v = validateBugWorkPlan(readFileSync(abs));
+  if (!v.ok) return "unreconciled";
+  return evidenceDrift(v.frontmatter, intake).drift.length === 0 ? "reconciled" : "unreconciled";
+}
+
+function sourceOf(root: string, req: BugRequest, intake: Record<string, any>) {
+  return describeSource(root, { qaRepo: req.qaRepo, qaId: intake.identity?.qa_bug_id ?? undefined, report: req.report, document: req.sourceDocument, sourceType: req.sourceType });
+}
+
+/**
+ * Persist the intake as the bug's canonical evidence snapshot (docs/bugs/<bug_key>/bug-report.json).
+ * Written once, from an explicit source; the same evidence is never rewritten, and new evidence
+ * only once the plan reconciled to it. Intake read from the snapshot itself writes nothing.
+ */
+export function persistEvidence(req: BugRequest): Record<string, any> {
+  const a = assess(req);
+  const it = a.intake as Record<string, any> | undefined;
+  if (!it || !it.identity || it.context_level === "insufficient" || it.status === "invalid" || it.status === "ambiguous") {
+    return { ok: false, outcome: a.outcome === "BUG_INSUFFICIENT_EVIDENCE" || !a.outcome ? "BUG_INSUFFICIENT_EVIDENCE" : a.outcome, reason: a.reason, missing: a.missing ?? [] };
+  }
+  if (it.dev_may_start !== true && it.status !== "reopened") return { ok: false, outcome: "BUG_QA_DENIED", reason: it.reason };
+  const key = it.identity.bug_key as string;
+  if (a.evidence_source !== "explicit") return { ok: true, outcome: "UNCHANGED", changed: false, bug_key: key, path: snapshotPath(key), reason: "the evidence was read from the snapshot itself" };
+  return { ...saveSnapshot(a.root, it, sourceOf(a.root, req, it), { plan: planState(a.root, it) }), bug_key: key };
+}
+
+/** Read-only: a source against the bug's snapshot — SAME_EVIDENCE, NEW_EVIDENCE, IDENTITY_CONFLICT or INVALID_SOURCE. */
+export function compareEvidence(req: BugRequest): Record<string, any> {
+  if (!req.root || !existsSync(req.root)) return { ok: false, outcome: "BUG_ROOT_INVALID", reason: "--root does not exist" };
+  const root = realpathSync(req.root);
+  const got = runIntake({ ...req, root });
+  const it = got.result;
+  if (got.refusal || !it || it.ok === false || it.context_level === "insufficient" || !it.identity) return { ok: false, outcome: "INVALID_SOURCE", reason: got.refusal?.reason ?? it?.reason ?? "the source could not be normalized" };
+  const key = req.key ?? it.identity.bug_key;
+  const r = readSnapshot(root, key);
+  if (r.status === "missing") return { ok: true, outcome: "NO_SNAPSHOT", bug_key: key, path: snapshotPath(key) };
+  if (r.status === "invalid") return { ok: false, outcome: "SNAPSHOT_INVALID", bug_key: key, code: r.code, reason: r.reason };
+  const c = compareSnapshot(r.snapshot, it);
+  return { ok: c.outcome === "SAME_EVIDENCE" || c.outcome === "NEW_EVIDENCE", ...c, bug_key: key, path: r.path, snapshot_fingerprint: r.snapshot.bug_evidence_fingerprint, source_fingerprint: it.bug_evidence_fingerprint };
 }
 
 /* ---------------------------------------------------------------- scaffold */
@@ -490,9 +565,12 @@ export function scaffoldPlan(req: BugRequest): Record<string, any> {
   if (!resolve(abs).startsWith(a.root + sep)) return refuse("UNSAFE_PATH", `${a.plan_path} escapes the repository root`);
   const failed = atomicWrite(abs, text);
   if (failed !== null) return refuse("WRITE_FAILED", `could not write ${a.plan_path}: ${failed}`);
+  // The plan now records this evidence: the canonical snapshot follows it (Bug Flow P1.5).
+  const evidence = a.evidence_source === "explicit" ? saveSnapshot(a.root, a.intake, sourceOf(a.root, req, a.intake), { plan: "reconciled" }) : { ok: true, outcome: "UNCHANGED", changed: false };
   return {
     ok: true,
     outcome: "SCAFFOLDED",
+    evidence_snapshot: { outcome: evidence.outcome, changed: evidence.changed, path: snapshotPath(a.intake.identity.bug_key) },
     plan_path: a.plan_path,
     regenerated: a.outcome === "BUG_PLAN_REGENERATE",
     routing: route,
@@ -605,9 +683,12 @@ export function appendCycle(req: BugRequest): Record<string, any> {
 
   const failedWrite = atomicWrite(abs, out.buf);
   if (failedWrite !== null) return refuse("WRITE_FAILED", `could not write ${a.plan_path}: ${failedWrite}`);
+  // A reopen with unchanged evidence leaves the snapshot alone; refreshed evidence replaces it with the plan.
+  const evidence = a.evidence_source === "explicit" ? saveSnapshot(a.root, a.intake, sourceOf(a.root, req, a.intake), { plan: "reconciled" }) : { ok: true, outcome: "UNCHANGED", changed: false };
   return {
     ok: true,
     outcome: "CYCLE_APPENDED",
+    evidence_snapshot: { outcome: evidence.outcome, changed: evidence.changed, path: snapshotPath(a.intake.identity.bug_key) },
     plan_path: a.plan_path,
     cycle: next,
     evidence_class: a.evidence_class,
@@ -705,12 +786,17 @@ function main(): void {
     capability: flags.capability,
     author: flags.author,
     date: flags.date,
+    sourceDocument: flags["source-document"],
+    sourceType: flags["source-type"],
+    key: flags.key,
   };
   if (cmd === "start") print(startBug(req));
   if (cmd === "scaffold") print(scaffoldPlan(req));
   if (cmd === "check") print(checkPlan(req));
   if (cmd === "append-cycle") print(appendCycle(req));
-  print({ ok: false, outcome: "UNKNOWN_COMMAND", reason: "usage: analyze-bug.ts start|scaffold|check <ref-args> --root <TARGET_ROOT>" });
+  if (cmd === "persist-evidence") print(persistEvidence(req));
+  if (cmd === "compare-evidence") print(compareEvidence(req));
+  print({ ok: false, outcome: "UNKNOWN_COMMAND", reason: "usage: analyze-bug.ts start|scaffold|check|append-cycle|persist-evidence|compare-evidence <ref-args> --root <TARGET_ROOT> [--source-document <file>] [--source-type manual]" });
 }
 
 const invokedDirectly = typeof process !== "undefined" && process.argv[1] !== undefined && /analyze-bug\.ts$/.test(realpathSync(process.argv[1]));

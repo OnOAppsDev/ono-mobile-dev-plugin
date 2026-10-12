@@ -50,7 +50,7 @@ Without `--bug`, nothing in this section applies: the review above is the whole 
    | `BUG_VERIFICATION_REQUIRED` | **Stop.** The cycle has no current, passed consolidated developer verification (`verification.status`: missing, stale, incomplete or failed). Review never bypasses it: offer `next_command`, `/verify-fix-cycle bug:<bug_key>`, under the Continue rule below. |
    | `BUG_WORK_ID_INVALID` · `BUG_ROOT_INVALID` · `BUG_REPOSITORY_UNAVAILABLE` | **Stop** and report `reason`. |
 
-   The QA state is not re-read here. The review is about the implementation now in the repository, against the plan that was approved for it.
+   The bug's evidence is its canonical snapshot (`evidence_snapshot`, from `docs/bugs/<bug_key>/bug-report.json`) — never re-read from the original source, and no `--report` or `--qa-repo` is needed. The QA state is not re-read here. The review is about the implementation now in the repository, against the plan that was approved for it.
 3. **Steps 1–6 run as written**, over the default scope (the current diff against the base branch), with the same `code-reviewer` and `performance-reviewer` agents, the shared `platform-review` methodology and one lane per touched platform. Each platform's pair also receives the bug context from step 2:
    - the bug identity, reproduction evidence and Observed vs Expected;
    - Root Cause (and `root_cause_inference`), Fix Design, its minimal change surface and **non-goals**, and the Verification Strategy;
