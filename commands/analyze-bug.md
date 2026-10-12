@@ -7,6 +7,18 @@ Prepare the bug named in `$ARGUMENTS` for implementation. This is the single ent
 
 The deterministic decisions all come from `scripts/analyze-bug.ts` (`start` · `scaffold` · `check`), which runs bug intake through `scripts/bug-intake.ts`. Never re-derive in prose what a helper decided. All three helpers always exit 0 and print one JSON object, so branch on its `outcome` / `ok`.
 
+### Output policy
+
+This conversation orchestrates. The root-cause and planning work (steps 3a and 7) runs in the planning subagent, never here; this conversation shows only the stage, a question or blocker that needs the developer, and — once the plan validates — the plan summary and the step 9 approval:
+
+```
+✓ Bug intake: <bug_key> (<context level>)
+▸ Analysing root cause and planning the fix…
+✓ Plan ready — summary below
+```
+
+Do not narrate file reads, searches or helper calls; never echo helper JSON, never paste code unless the developer asks, and never show your reasoning. Permission prompts Claude Code shows for a hook are not this command's output.
+
 ## 1. Read the bug reference
 
 Accept exactly one of:
@@ -56,7 +68,7 @@ Act on `outcome` exactly:
 | `BUG_PLAN_NEW` | No plan exists | Continue at step 4 and create the cycle-1 plan. |
 | `BUG_PLAN_REGENERATE` | The evidence changed under an unapproved draft with no task state | Say which fields drifted (`plan.drift`), then continue at step 4 and regenerate the draft in place. |
 | `BUG_PLAN_AWAITING_APPROVAL` | A current draft exists, or the plan was edited after approval | Do **not** regenerate. Go straight to step 9 with the existing plan. |
-| `BUG_PLAN_APPROVED` | The plan is approved for its current fix cycle and still matches the evidence | Do **not** regenerate. Report the plan, its approval and the next action (`next_action`: the cycle's next task, or review and handoff once its tasks are done; `next_action_note`), then stop. |
+| `BUG_PLAN_APPROVED` | The plan is approved for its current fix cycle and still matches the evidence | Do **not** regenerate. Report the plan and its approval, then offer `next_command` (the cycle's next task, or the bug review once its tasks are done) as step 10 does. |
 | `BUG_PLAN_STALE` | The evidence changed under an approved plan, or under one already in implementation | **Stop.** Report `reason` and `plan.drift`. Reconciling a plan with work already approved or begun belongs to a later step. Nothing is regenerated. |
 | `BUG_PLAN_INVALID` | The file at the plan path is not a valid plan for this bug | **Stop.** Report `plan.errors`. The file is never overwritten. If it is an unfinished scaffold from an interrupted run, the developer may fix it or remove it and rerun. |
 
@@ -89,7 +101,7 @@ Only a **verified reopen** (full QA context) after a fix this plan handed to QA 
 2. **The evidence class (`evidence_class`).**
    - `unchanged`: the failed re-test does not change the bug's evidence. Root Cause, Fix Design and the rest of the shared analysis stay exactly as approved. Never rewrite them because QA reopened the bug.
    - `changed`: QA's evidence moved (`drift`). `append-cycle` has already refreshed Reproduction Evidence, Observed vs Expected and the evidence frontmatter, marked them refreshed, and kept their previous text in the new cycle. Refresh the earliest analysis the change makes stale (Root Cause first, then Fix Design) and mark each refreshed passage `[Refreshed in Cycle <N+1>]`, keeping the evidence labels.
-3. **Analyse the failed fix.** Invoke `feature-architect` with the `platform-planning` methodology and the plan's lane (the step 7 table and readiness gate), applying `mobile-debugging` to the **failed re-test**. Fill the new cycle only, labelling every claim:
+3. **Analyse the failed fix — in the planning subagent.** Run it through the Agent tool with `subagent_type` set to `start`'s `planner.subagent_type`, verbatim, exactly as step 7 does. It is `feature-architect` with the `platform-planning` methodology and the plan's lane (the step 7 table and readiness gate), applying `mobile-debugging` to the **failed re-test**. Never analyse in this conversation. The subagent fills the new cycle only, labelling every claim:
    - **Why the previous fix was insufficient**: an incomplete hypothesis, a missed path, or another contributing cause. This is the cycle's root-cause note; the shared Root Cause is not rewritten for unchanged evidence.
    - **Fix-design delta**: what changes now compared with the previous fix, not a copy of the Fix Design. Also fill **New risks**, **Changed non-goals** and **Changed affected files / areas** (write `none` when nothing changed).
    - **Verification delta**: the failed re-test path is mandatory acceptance evidence. It names the cycle task that writes or updates the regression test (or begins `Not feasible:`), and covers every failed surface.
@@ -175,7 +187,7 @@ Then fill the six `repo_knowledge_*` frontmatter fields exactly as the `repo-kno
 
 ## 7. Analyze: root cause, fix design, verification, tasks
 
-Invoke the `feature-architect` agent. It applies the shared `platform-planning` methodology against exactly one planning lane, resolved from the confirmed platform and never re-detected:
+The analysis runs in the planning subagent, the existing `feature-architect` agent. Run it through the Agent tool with `subagent_type` set to `start`'s `planner.subagent_type`, verbatim. Never analyse or plan in this conversation. It applies the shared `platform-planning` methodology against exactly one planning lane, resolved from the confirmed platform and never re-detected:
 
 | Confirmed `platform` | Agent | Shared methodology | Planning lane | Status |
 |---|---|---|---|---|
@@ -189,10 +201,14 @@ Invoke the `feature-architect` agent. It applies the shared `platform-planning` 
 - **Readiness gate (any platform).** Before invoking, check the resolved planning lane for the placeholder marker. The marker is a frontmatter `description` ending "not yet authored, currently a structure-only placeholder" **and** a `## Status: Not yet authored` heading; match on those markers only. If present, **stop with: "Platform architecture methodology for `<platform>` is not yet authored"**. Do not fall back to another platform's lane. **No lane is gated today.**
 
 Give the agent:
+- `TARGET_ROOT` and the absolute plan path;
 - the intake evidence;
 - the confirmed context;
 - the Project Knowledge context from step 5;
-- the scaffold.
+- the scaffold;
+- step 8's two commands, which it runs until both report `ok: true`.
+
+It works quietly, records anything that needs a human decision under Open Questions (it never asks the developer itself), and returns only the plan summary step 9 presents — no narration and no file contents.
 
 For root cause, it applies the `mobile-debugging` methodology: reproduce first, then root-cause, and never treat a symptom as the cause.
 
@@ -234,7 +250,7 @@ node --no-warnings "${CLAUDE_PLUGIN_ROOT}/scripts/bug-work-plan.ts" validate "<a
 node --no-warnings "${CLAUDE_PLUGIN_ROOT}/scripts/analyze-bug.ts" check <ref-args> --root "<TARGET_ROOT>"
 ```
 
-Both must report `ok: true`. Fix every reported problem in the plan and run both again. Never present a plan that fails either.
+Both must report `ok: true`. The planning subagent fixes every reported problem in the plan and runs both again; this conversation runs both once more before step 9. Never present a plan that fails either.
 
 ## 9. One human approval
 
@@ -267,13 +283,20 @@ Approve this Bug Work Plan for <bug_key>?
   - The helper binds the approval to the plan's content, identity and cycle.
   - Never write `status` or any `approved_*` field yourself.
   - Report a refusal verbatim.
-- **Declined.** Leave the plan as a draft. Say that rerunning `/analyze-bug <ref>` resumes at approval without regenerating it.
+- **Declined.** Leave the plan as a draft. Say that rerunning `/analyze-bug <ref>` resumes at approval without regenerating it. There is no next command.
 
-## 10. Report
+## 10. Report and continue
 
-Report:
-- the plan path and its approval status;
-- the context level and any warnings;
-- the next action, `/implement-task bug:<bug_key> T1` — or `C<n>-T1` for fix cycle n.
+Only after `work-approval.ts approve` succeeds — or on `BUG_PLAN_APPROVED` — run `start` again; it returns `next_command`, the cycle's first unfinished task: `/implement-task bug:<bug_key> T1`, or `C<n>-T1` for fix cycle n. Report the plan path, its approval status, the context level and any warnings, then offer it in one short message:
 
-Run it with the bug's evidence source (`--qa-repo=<path>` for a QA bug, `--report=<path>` otherwise): `/implement-task` re-reads the bug evidence and re-verifies the approval before every task (`commands/implement-task.md` §1a). This command does not invoke implementation, and it never creates task state.
+```
+Bug plan approved.
+Next: implement Cycle <n> (`<first task>`).
+Continue?
+```
+
+- **Continue only on an explicit yes.** Then invoke the Skill tool with `skill` set to `next_command.skill` and `args` set to `next_command.args`, verbatim — never a bare command name, and the developer never retypes it.
+- **Fallback.** If that invocation is unavailable or fails, show `next_command.display` as the command to run. Never guess another skill name or form.
+- `/implement-task` asks once for the bug's evidence source (`--qa-repo=<path>` for a QA bug, `--report=<path>` otherwise) and re-runs every one of its own gates: it re-reads the bug evidence and re-verifies the approval before every task (`commands/implement-task.md` §1a). Continuing never replaces an approval (`docs/command-handoff.md`).
+
+This command does not run implementation itself, and it never creates task state.

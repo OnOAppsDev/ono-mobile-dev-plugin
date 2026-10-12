@@ -50,7 +50,25 @@ From §5, the gates that are not about feature documents still apply unchanged: 
 
 **The rest of this command, with two substitutions.** §5b, §6, §6a, §7, §7a, §9 and §10 apply as written, where every `<feature>` is `bug:<bug_key>` and every `<absolute Task Breakdown path>` is the absolute Bug Work Plan path — for example `--feature "bug:<bug_key>" --breakdown "<absolute plan path>"`. The store keeps the bug at `docs/tasks/bugs/<bug_key>.task-state.json`, apart from every feature (`docs/task-state-contract.md` § *Bug work*). Where §6 names `/dev-feature-start` to repair the task graph, a bug's plan is repaired through `/analyze-bug`. Checkpoints may cite the plan's sections as basis — `plan#root-cause`, `plan#fix-design`, `plan#verification-strategy`, `plan#tasks` — plus `evidence`, so a later plan change invalidates only the work built on what moved.
 
-**§8 for bug work.** Invoke the same `feature-implementer` agent with the shared `platform-implementation` methodology and the row's platform lane — there is no bug agent and no bug lane. Pass `TARGET_ROOT`, the absolute plan path, the task id and row, `platform`, `device_type`, the dependency and approval status, the `runId`, any resume verdict, and from the gate: the bug identity, the reproduction evidence, Observed vs Expected, Root Cause, Fix Design, its **non-goals**, the Verification Strategy, the affected surfaces and capability, the Repo Knowledge Reference, the partial-context `warnings`, and `expectations`. The non-goals are **hard scope limits**, and there is no unrelated refactoring: if the fix cannot be made without crossing one, stop and recommend re-planning through `/analyze-bug` (§9).
+**§8 for bug work — a subagent, never this conversation.** The implementer is the existing `feature-implementer` agent with the shared `platform-implementation` methodology and the row's platform lane — there is no bug agent and no bug lane. Run it through the Agent tool with `subagent_type` set to the gate's `delegate.subagent_type`, verbatim: the task is implemented in that subagent, and you never write code in this conversation. Its prompt carries `TARGET_ROOT`, the absolute plan path, the task id and row, `platform`, `device_type`, the dependency and approval status, the `runId`, any resume verdict, and from the gate: the bug identity, the reproduction evidence, Observed vs Expected, Root Cause, Fix Design, its **non-goals**, the Verification Strategy, the affected surfaces and capability, the Repo Knowledge Reference, the partial-context `warnings`, and `expectations`. The non-goals are **hard scope limits**, and there is no unrelated refactoring: if the fix cannot be made without crossing one, the subagent stops and recommends re-planning through `/analyze-bug` (§9). The prompt also tells it to work quietly and to return only the structured completion report of §10 — task id, outcome, files changed, validation and developer-testing runs with their results, acceptance criteria, deviations and blockers — with no narration and no code.
+
+### Output policy (bug work)
+
+This conversation orchestrates; the developer sees progress, not process. While the command runs, show only:
+
+```
+✓ Preconditions passed
+▸ Implementing T1…
+✓ T1 complete
+▸ Running developer tests…
+✓ Tests passed
+```
+
+- **Allowed:** the current stage, the task id, a blocker that needs the developer (with its `reason` or `route`), and completion or failure.
+- **Do not narrate** file reads, searches, helper calls or your plan. Never echo helper JSON or helper output, never paste code unless the developer asks, and never show your reasoning. A failed gate is one line: the outcome and its `reason`.
+- **Permission prompts are not this command's output.** Claude Code shows them when the `require-approval-before-code` hook asks before a code file is written; they are the hook's approval policy, left exactly as it is. Approve them as usual; nothing here suppresses or answers them.
+
+**The final report**, once, after §10: tasks completed, files changed, automated tests run, which passed or failed, developer debt and blockers, and the next action.
 
 **§10 for bug work.** Acceptance criteria are the plan row's, recorded verbatim and each met — never weakened or rewritten. The fix task (its first criterion is that the reported reproduction path no longer fails) also records `developerTesting.regression`: the regression test that failed before the fix and passes after it, or — when one cannot be authored — `notFeasibleReason` with a `VERIFY-4` developer-testing debt owned by the developer. The helper refuses anything else as `invalid-bug-completion`. After recording the outcome, read the cycle's progress:
 
@@ -58,7 +76,9 @@ From §5, the gates that are not about feature documents still apply unchanged: 
 node --no-warnings "${CLAUDE_PLUGIN_ROOT}/scripts/bug-implementation.ts" status bug:<bug_key> --root "<TARGET_ROOT>"
 ```
 
-When `all_complete` is true, report the next action, `/review-code --bug <bug_key>`. Otherwise name the remaining tasks.
+The final report's next action is the status's `next_command`: the cycle's next task, or `/review-code --bug <bug_key>` once `all_complete` is true.
+
+**Continue.** Offer `next_command` in one short message — `✓ T1 complete. Next: T2. Continue?` — and chain only on an explicit yes. Then invoke the Skill tool with `skill` set to `next_command.skill` and `args` set to `next_command.args`, verbatim; never a bare command name, and the developer never retypes it. If that invocation is unavailable or fails, show `next_command.display` as the command to run, and never guess another. The next command re-runs every one of its own gates — the next task passes this whole gate again — so chaining never replaces an approval (`docs/command-handoff.md`).
 
 **Commits.** This command never creates a git commit — for bug work exactly as for feature work. It changes code, task state and checkpoints, runs validation and developer tests, and prepares the work for a commit; then it stops. Any product-code commit waits for explicit developer approval, and the `require-approval-before-code`, `block-main-branch-changes` and `protect-secrets` hooks apply unchanged.
 

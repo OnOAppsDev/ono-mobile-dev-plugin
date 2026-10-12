@@ -40,6 +40,7 @@ import { contentFingerprint, isStoreArtifact, rowCells, taskRowsText } from "./t
 import { planContext } from "./bug-implementation.ts";
 import { canonical } from "./qa-release-gate.ts";
 import { splitDocument } from "./migrate-planning-doc.ts";
+import { nextCommand } from "./next-command.ts";
 
 const sha = (s: string | Buffer): string => `sha256:${createHash("sha256").update(s).digest("hex")}`;
 
@@ -207,7 +208,7 @@ export function reviewContext(req: { root: string; work: string }): Record<strin
   const state = readState(r.root, r.key);
   const recorded = ids.filter((id) => state?.tasks?.[id] !== undefined);
   if (state === null || recorded.length === 0) {
-    return { ok: false, outcome: "BUG_TASK_STATE_MISSING", reason: "no task state is recorded for this fix cycle — nothing has been implemented to review", route: `/implement-task bug:${r.key} T1` };
+    return { ok: false, outcome: "BUG_TASK_STATE_MISSING", reason: "no task state is recorded for this fix cycle — nothing has been implemented to review", route: `/implement-task bug:${r.key} ${ids[0] ?? "T1"}`, ...(ids[0] ? { next_command: nextCommand("implement-task", `bug:${r.key} ${ids[0]}`) } : {}) };
   }
   const b = binding(r, state);
   if (b.reviewed_tree_fingerprint === null) return { ok: false, outcome: "BUG_REPOSITORY_UNAVAILABLE", reason: "the repository's content could not be read through git" };
@@ -408,6 +409,7 @@ export function writeReviewRecord(req: { root: string; work: string; review: str
     findings_fingerprint: fp,
     counts: { blocking: count("blocking"), major: count("major"), minor: count("minor"), nit: count("nit") },
     binding: ctx.binding,
+    next_command: nextCommand("create-dev-qa-notes", ctx.work_id),
   };
 }
 

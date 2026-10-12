@@ -12,10 +12,12 @@
  *           (scripts/work-approval.ts), and still match the bug evidence intake reads now
  *           (scripts/bug-intake.ts, through analyze-bug's shared intake call and drift rule).
  *           QA must not have denied or reopened the bug since. On `BUG_READY` it returns the
- *           task row (read by task-state's parseBreakdown) and the implementation context
- *           the lane receives.
+ *           task row (read by task-state's parseBreakdown), the implementation context
+ *           the lane receives, and `delegate.subagent_type` — the existing feature-implementer,
+ *           run as a subagent (scripts/next-command.ts).
  *   status  read-only. Which cycle-1 tasks are proven complete, and — once all are — the
- *           next action, `/review-code --bug <bug_key>`.
+ *           next action, `/review-code --bug <bug_key>`. `next_command` is the next task or
+ *           that review, in docs/command-handoff.md's shape.
  *
  * It never writes: task state is written only by scripts/task-state.ts, as for a feature,
  * and approval only by scripts/work-approval.ts. It runs no process, reads no clock, and
@@ -35,6 +37,7 @@ import { runIntake, evidenceDrift, type BugRequest } from "./analyze-bug.ts";
 import { bugKeyOf, parseBreakdown, readTaskState, stateFilePath } from "./task-state.ts";
 import { rowCells, taskRowsText } from "./task-resume.ts";
 import { splitDocument } from "./migrate-planning-doc.ts";
+import { nextCommand, subagentType } from "./next-command.ts";
 
 /** What bug work adds to the existing developer-testing lifecycle, stated to the lane. */
 export const BUG_EXPECTATIONS = [
@@ -235,6 +238,8 @@ export function bugGate(req: GateRequest): Record<string, any> {
     warnings,
     context: planContext(buf, fm),
     expectations: [...BUG_EXPECTATIONS],
+    // The task is implemented by the existing implementer, run as a subagent — never in the main conversation.
+    delegate: { subagent_type: subagentType("feature-implementer") },
   };
 }
 
@@ -264,6 +269,7 @@ export function bugWorkStatus(req: { root: string; work: string }): Record<strin
     remaining,
     all_complete: all,
     next_action: all ? `/review-code --bug ${key}` : null,
+    next_command: all ? nextCommand("review-code", `--bug ${key}`) : remaining.length ? nextCommand("implement-task", `bug:${key} ${remaining[0]}`) : undefined,
   };
 }
 

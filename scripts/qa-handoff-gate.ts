@@ -42,6 +42,7 @@ import { BUG_REPRO_CRITERION, bugKeyOf, parseBreakdown, readTaskState, stateFile
 import { rowCells, taskRowsText } from "./task-resume.ts";
 import { canonical } from "./qa-release-gate.ts";
 import { splitDocument } from "./migrate-planning-doc.ts";
+import { routeCommand } from "./next-command.ts";
 
 const sha = (s: string | Buffer): string => `sha256:${createHash("sha256").update(s).digest("hex")}`;
 const ALGORITHM = "qa-handoff/bug/v1";
@@ -285,6 +286,8 @@ export function handoffCheck(req: Request): Record<string, any> {
     plan_path: bugWorkPlanPath(i.key),
     checks,
     blockers,
+    // The first blocker's route as a next command, when it can run as-is — never a later blocker's, which would skip the first.
+    next_command: routeCommand(blockers[0]?.route),
     majors,
     warnings,
     developer_debt: developerDebt,

@@ -8,7 +8,9 @@
  *   start     read-only. Runs bug intake (scripts/bug-intake.ts) and reads any existing plan
  *             at docs/bugs/<bug_key>/bug-work-plan.md, then names exactly one outcome — and,
  *             when the flow may proceed, the routing a human already confirmed (if any) and
- *             the capability QA bound (if any).
+ *             the capability QA bound (if any). When plan content is to be written it names
+ *             the planning subagent (`planner`); on `BUG_PLAN_APPROVED`, the `next_command`
+ *             (scripts/next-command.ts, docs/command-handoff.md).
  *   scaffold  writes the cycle-1 draft plan's deterministic half — frontmatter identity from
  *             intake, the routing and capability, Reproduction Evidence, Observed vs Expected,
  *             and the empty sections the analysis fills. Only when `start` says
@@ -38,6 +40,7 @@ import { existsSync, mkdirSync, readFileSync, readdirSync, realpathSync, renameS
 import { dirname, join, relative, resolve, sep } from "path";
 import { lookupQaBug, normalizeBug, isSafeKey, evidenceFingerprint } from "./bug-intake.ts";
 import { validateBugWorkPlan, bugWorkPlanPath, BUG_WORK_PLAN_FIELDS, BUG_WORK_PLAN_SECTIONS } from "./bug-work-plan.ts";
+import { nextCommand, subagentType } from "./next-command.ts";
 import { rewriteFrontmatterValues, verifyApproval } from "./work-approval.ts";
 import { readFrontmatter, splitDocument } from "./migrate-planning-doc.ts";
 import { rowCells, sectionFingerprints } from "./task-resume.ts";
@@ -273,6 +276,7 @@ function assess(req: BugRequest): Record<string, any> {
       proceed: null,
       reason: `the plan is approved for fix cycle ${progress.cycle} and still matches the bug evidence`,
       next_action: progress.first_incomplete ? `/implement-task bug:${key} ${progress.first_incomplete}` : `/review-code --bug ${key}, then /create-dev-qa-notes bug:${key}`,
+      next_command: progress.first_incomplete ? nextCommand("implement-task", `bug:${key} ${progress.first_incomplete}`) : nextCommand("review-code", `--bug ${key}`),
       next_action_note: "Pass the bug's evidence source to /implement-task too (--qa-repo=<path> for a QA bug, --report=<path> otherwise): it re-reads the evidence before every task.",
     };
   }
@@ -303,8 +307,12 @@ function cycleProgress(root: string, key: string, planAbs: string, v: Record<str
   return { cycle: n, tasks: ids, recorded, incomplete, first_incomplete: incomplete[0] ?? null, complete: ids.length > 0 && incomplete.length === 0, handed_off: handedOff };
 }
 
+/** The outcomes whose next step is writing plan content — done by the planning subagent, never in the main conversation. */
+const PLANNING = new Set(["create", "regenerate", "append-cycle", "complete-cycle"]);
+
 export function startBug(req: BugRequest): Record<string, any> {
   const { root, ...out } = assess(req);
+  if (PLANNING.has(out.proceed)) out.planner = { subagent_type: subagentType("feature-architect") };
   return out;
 }
 

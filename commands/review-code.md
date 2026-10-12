@@ -80,3 +80,5 @@ Without `--bug`, nothing in this section applies: the review above is the whole 
    ```
 
 The record is evidence of the latest review for the cycle. It does not approve a QA handoff: what its findings mean for a handoff is decided in a later step of the Bug Development Flow. This command never writes task state and never creates a git commit.
+
+**Continue.** Once `record` reports `BUG_REVIEW_RECORDED`, offer its `next_command` — the QA handoff — in one short message: `✓ Review recorded (<counts>). Next: prepare the QA handoff. Continue?` Chain only on an explicit yes. Then invoke the Skill tool with `skill` set to `next_command.skill` and `args` set to `next_command.args`, verbatim; never a bare command name, and the developer never retypes it. If that invocation is unavailable or fails, show `next_command.display` as the command to run, and never guess another. On `BUG_TASK_STATE_MISSING`, the same applies to the context's `next_command`. The next command re-runs every one of its own gates, so chaining never replaces an approval: the QA handoff still asks its own approval (`docs/command-handoff.md`).

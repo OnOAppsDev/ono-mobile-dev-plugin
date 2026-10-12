@@ -426,7 +426,9 @@ try {
     check("28 command never edits the approval fields itself", /Never (write|edit) `status` or any `approved_\*` field/.test(cmd));
     check("11 command: partial context surfaces unverified QA ownership at approval", /QA ownership state is unverified/.test(cmd));
     check("30 command: a declined approval leaves the draft; rerunning resumes at approval", /declin/i.test(cmd) && /rerun.*\/analyze-bug.*resumes at approval/i.test(cmd));
-    check("12 command reports the next action without invoking it", cmd.includes("/implement-task bug:<bug_key> T1") && /does not (invoke|run) implementation/i.test(cmd));
+    // Bug Flow UX P0.1 changed this on purpose: the command now offers the next action and continues to it
+    // only on an explicit yes (pinned by bug-flow-ux.test.ts); it still never implements anything itself.
+    check("12 command reports the next action and never runs implementation itself", cmd.includes("/implement-task bug:<bug_key> T1") && /does not (invoke|run) implementation/i.test(cmd));
     check("32 command never creates task state", /never creates task state/i.test(cmd));
   }
 

@@ -114,7 +114,7 @@ Without a `bug:` prefix, nothing in this section applies: the feature handoff ab
    ```
 
    Show each check's result in one line. Branch on `next`:
-   - `blocked`: **stop.** Report every blocker with its `route`, for example `/analyze-bug` for a stale or reopened bug, `/implement-task` for an incomplete task, or `/review-code --bug` for a missing, stale or blocking review.
+   - `blocked`: **stop.** Report every blocker with its `route`, for example `/analyze-bug` for a stale or reopened bug, `/implement-task` for an incomplete task, or `/review-code --bug` for a missing, stale or blocking review. When the result carries `next_command` (the first blocker's route, with nothing left to fill in), offer it in one short message — `Handoff blocked: <blocker>. Next: <what it does>. Continue?` — and chain only on an explicit yes. Then invoke the Skill tool with `skill` set to `next_command.skill` and `args` set to `next_command.args`, verbatim; never a bare command name. If that invocation is unavailable or fails, show `next_command.display` as the command to run, and never guess another. A route with a placeholder, such as `/analyze-bug <bug-ref>`, is only reported. The next command re-runs every one of its own gates, and chaining never replaces an approval (`docs/command-handoff.md`).
    - `done`: the handoff is already `ready-for-qa` and current. Report it and the QA next action, then stop. Nothing is regenerated.
    - `generate`: go to step 3.
    - `approve`: go to step 4.
