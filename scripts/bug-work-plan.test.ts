@@ -278,7 +278,8 @@ const SECTIONS = [
   // Existing migration fixtures and templates are byte-identical to before this step.
   const dir = join(HERE, "fixtures/planning-docs");
   const digest = sha(readdirSync(dir).sort().map((f) => `${f}\0${createHash("sha256").update(readFileSync(join(dir, f))).digest("hex")}`).join("\n"));
-  check("22 existing migration fixtures are byte-identical", digest === "sha256:d4a2bd658aaf5989355318bd29500bd00cfa0e46ef032ed37bc5a4eae0f139ca", digest);
+  // Re-pinned for the 0.7.0 release: the fixtures' migrated_by stamp follows PLUGIN_VERSION.
+  check("22 existing migration fixtures are byte-identical", digest === "sha256:b1bcd59839bf25614383dc0400d75ce1a3cf5d6eed67a996fc48b1eb46a08484", digest);
   const TEMPLATES: Record<string, string> = {
     "feature-analysis-template.md": "2bba7fc13a75acd08f423752f7b9fe41347f98f8b870261cbafa5650cb8f52d9",
     "dd-template.md": "2f8b8229b858c62087485366f6dddc7e1a0139f6a0d2123117b377a884227933",

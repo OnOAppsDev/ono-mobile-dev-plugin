@@ -319,7 +319,8 @@ try {
     for (const [f, h] of Object.entries(TEMPLATES)) check(`28 ${f} is unchanged`, createHash("sha256").update(readFileSync(join(REPO_ROOT, "templates", f))).digest("hex") === h);
     const dir = join(HERE, "fixtures/planning-docs");
     const digest = sha(readdirSync(dir).sort().map((f) => `${f}\0${createHash("sha256").update(readFileSync(join(dir, f))).digest("hex")}`).join("\n"));
-    check("29 existing migration fixtures are byte-identical", digest === "sha256:d4a2bd658aaf5989355318bd29500bd00cfa0e46ef032ed37bc5a4eae0f139ca", digest);
+    // Re-pinned for the 0.7.0 release: the fixtures' migrated_by stamp follows PLUGIN_VERSION.
+    check("29 existing migration fixtures are byte-identical", digest === "sha256:b1bcd59839bf25614383dc0400d75ce1a3cf5d6eed67a996fc48b1eb46a08484", digest);
     const bwpDir = join(HERE, "fixtures/bug-work-plans");
     check("29 the bug-work-plan fixtures are still drafts (approval tests work on copies)", ["bwp-cycle1.md", "bwp-cycle2.md"].every((f) => readFileSync(join(bwpDir, f), "utf-8").includes("status: draft\n")));
     // Step 4 added /analyze-bug, which approves through this helper; no other command calls it.

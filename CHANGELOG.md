@@ -9,8 +9,38 @@ version below is the plugin's own `version` in
 
 ## [Unreleased]
 
+## [0.7.0] - 2026-10-12
+
+Everything merged since the 0.6.0 release (`91dd870`): the Bug Development Flow (#51) and
+the React Native AI coding guidelines (#52). This release sets `plugin.json` to `0.7.0` in
+the same commit as this heading.
+
 ### Added
 
+- **Bug Development Flow** (#51) — bugs are prepared, implemented, reviewed and handed to
+  QA on the existing engine, with feature behaviour unchanged (every feature section of the
+  touched commands is byte-identical; bug mode is an appended section).
+  - **Intake and identity:** `scripts/bug-intake.ts` normalizes a bug from any origin into
+    one identity, read-only, with a declared `context_level` so partial QA context no
+    longer blocks intake.
+  - **Bug Work Plan:** a new `bug-work-plan` planning-document kind (v1) at
+    `docs/bugs/<bug_key>/bug-work-plan.md` (`templates/bug-work-plan-template.md`), with a
+    content-bound approval (`scripts/work-approval.ts`) tied to the exact work package a
+    human approved.
+  - **`/analyze-bug`:** the single entry point — intake, routing, Project Knowledge, root
+    cause, fix design, verification and tasks, ending in one plan and one approval.
+  - **`/implement-task bug:<bug_key> <task>`:** runs plan tasks on the same task-state
+    store, checkpoints, resume, developer-testing lifecycle, lanes and hooks.
+  - **`/review-code --bug <bug_key>`:** the existing review plus four bug checks
+    (`root-cause`, `reproduction-path`, `plan-conformance`, `regression-risk`) in
+    `platform-review`, persisted per fix cycle at `docs/bugs/<bug_key>/review-c<n>.md`
+    (`scripts/bug-review.ts`) and staled by any change to the reviewed code.
+  - **`/create-dev-qa-notes bug:<bug_key>`:** a gated Bug QA handoff
+    (`templates/qa-bug-handoff-template.md`, `scripts/qa-handoff-gate.ts`) that reaches
+    `ready-for-qa` only through readiness checks R1–R9 plus one explicit human approval.
+  - **Reopened fix cycles:** a failed QA re-test continues the same bug in cycle N+1 —
+    same identity, plan and task-state store, `C<n>-T<m>` task ids — with earlier cycles
+    kept byte-identical as history.
 - **React Native AI coding guidelines** (plan: `docs/planning/RN-GUIDELINES-GAP-PLAN.md`) —
   closes the gap between the RN lane and the "AI Agent Coding Guidelines". New IDs:
   `RN-TS-5`, `RN-FC-5`, `RN-FC-6`, `RN-STYLE-5`, `RN-CMT-1`, `RN-DEP-1`, `RN-DEP-2`,
