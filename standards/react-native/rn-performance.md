@@ -33,7 +33,7 @@ These standards apply to React Native app code audited by the `performance-revie
 
 ## Bundle Size
 
-- `RN-PERF-BUNDLE-1` [WARNING] A new dependency's contribution to bundle size is stated when it's proposed — measured via the project's bundle-analysis tooling (e.g. `npx react-native-bundle-visualizer`, Metro's bundle report) rather than guessed from the `package.json` diff. A dependency that duplicates one already in the project is flagged under `RN-DEP-2` (`rn-coding-standards.md`), regardless of its individual size. An unmeasured "this feels big/small" claim is reported at `[INFO]` as needing verification, per the Anti-hallucination thresholds in `rn-coding-standards.md` — not asserted as a `[WARNING]` finding.
+- `RN-PERF-BUNDLE-1` [WARNING] A new dependency's contribution to bundle size is stated when it's proposed — measured via the project's bundle-analysis tooling (e.g. `npx react-native-bundle-visualizer`, Metro's bundle report) rather than guessed from the `package.json` diff. A dependency that duplicates one already in the project (a second date library, icon set or HTTP client) is flagged here for its bundle cost regardless of its individual size; whether it should exist at all is `RN-DEP-2`'s question (`rn-coding-standards.md`). An unmeasured "this feels big/small" claim is reported at `[INFO]` as needing verification, per the Anti-hallucination thresholds in `rn-coding-standards.md` — not asserted as a `[WARNING]` finding.
 
 ## References
 

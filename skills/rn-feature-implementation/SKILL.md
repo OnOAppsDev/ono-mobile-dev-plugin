@@ -71,7 +71,9 @@ which is how the severity markers and exact formats survive.
 setup (an i18n library wired in) or the approved DD explicitly requires localization/RTL.
 Otherwise `I18N-*` is not applicable: plain string literals are fine and no i18n is
 introduced. Under the gate, using the repository's established formatting library (e.g.
-date-fns) satisfies `I18N-FMT-*`.
+date-fns) satisfies `I18N-FMT-*`. This gate is the React Native lane's applicability decision
+for `standards/shared/i18n-rtl.md`, in the same way library-gated sections apply only when
+detected; it takes precedence for React Native work and is not a standards conflict to flag.
 
 Apply the shared accessibility requirements through the React Native rules that implement them (`RN-A11Y-1`..`RN-A11Y-11` in `standards/react-native/rn-coding-standards.md`). Several RN accessibility props are single-platform — `accessibilityElementsHidden` and `accessibilityViewIsModal` are iOS-only, `importantForAccessibility` and `accessibilityLiveRegion` are Android-only — so a requirement met with only one of a pair is silently unmet on the other platform. Cover focus placement on screen entry, modal focus restoration to the invoking control, item position in lists (RN exposes no collection-semantics API, so position that is not stated is not announced), deriving item accessibility props from item data so a recycled row cannot inherit a stale label, and suspending timer-driven advancement while a screen reader is active.
 

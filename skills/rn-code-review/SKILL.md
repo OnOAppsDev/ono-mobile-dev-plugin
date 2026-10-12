@@ -34,7 +34,7 @@ review free of manufactured noise:
 - `API-*` — endpoint and service files. The Universal Principles in `rn-api-service-layer.md` always apply; its RTK Query section only when RTK Query is the detected data-fetching layer.
 - `STATE-*` — slices and selectors. The Universal Principles in `rn-state-management.md` always apply; its Redux Toolkit section only when Redux Toolkit is the detected state library.
 - `NAV-*` — navigator and route files.
-- `I18N-*` — files carrying user-facing copy, **only when** the repository already has a localization setup (an i18n library wired in) or the approved DD explicitly requires localization/RTL. Otherwise the bucket is Not Applicable, recorded with that reason, and a plain string literal is not a finding.
+- `I18N-*` — files carrying user-facing copy, **only when** the repository already has a localization setup (an i18n library wired in) or the approved DD explicitly requires localization/RTL. Otherwise the bucket is Not Applicable, recorded with that reason, and a plain string literal is not a finding. This is the lane's applicability decision for the shared standard (including `I18N-TEST-1`'s required check) and takes precedence for React Native.
 - `A11Y-*` — screens and interactive components.
 
 ## The two passes over this lane
