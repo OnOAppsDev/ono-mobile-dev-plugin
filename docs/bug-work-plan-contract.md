@@ -366,6 +366,67 @@ Task state for the bug is `docs/tasks/bugs/<bug_key>.task-state.json`, with work
 
 `status` reports the cycle's progress. Once every cycle-1 task is proven complete, it reports `/review-code --bug <bug_key>`.
 
+## Cycle approval (code edits, once per fix cycle)
+
+Plan approval says *what* to do; the cycle approval says the developer is ready for the code of the current fix cycle to be written, once, instead of approving every edit. It is written only by `scripts/edit-approval.ts approve`, after an explicit yes from a named developer, to `docs/tasks/bugs/<bug_key>.cycle-approval.json` — beside the task-state store and, like it, a store artifact. Task state stays per task.
+
+| Field | Meaning |
+|---|---|
+| `work_id`, `bug_key` | The bug |
+| `fix_cycle` | The cycle approved; a cycle-1 approval never covers cycle 2 |
+| `approved_plan_fingerprint` | The plan's `approved_fingerprint` when the cycle was approved |
+| `branch` | The branch it was approved on; never `main`/`master` |
+| `approved_scope` | The scope derived from the plan (below) |
+| `expansions` | Files added one at a time after a developer approved each, with the task, the reason and the approver |
+| `status` | `active` or `revoked` |
+| `record_fingerprint` | Seals the record; a hand edit invalidates it |
+
+There is no timestamp. **Scope:** the current cycle's `files touched`, the Fix Design's affected files (and the cycle's changed affected files), and each scoped source file's conventional test file (Kotlin/Java `src/main/` → `src/test/` and `src/androidTest/` `<Name>Test`; TS/JS `<name>.test|spec.<ext>` and `__tests__/`; Swift `<Top>Tests/…/<Name>Tests.swift`). A directory is in scope only when the plan names it explicitly and it is at least three segments deep; a path a non-goal names never is.
+
+`edit-approval.ts check` — the `require-approval-before-code` hook's only source of an `allow` — returns `APPROVED` only when the record is intact and active, the branch matches, `fix_cycle` matches, the plan is still approved with the recorded fingerprint, the derived scope equals the recorded one, a task of the cycle is in progress, no feature task is in progress, only one bug has a task in progress, and the file is in scope or an approved expansion. Otherwise it returns `NO_ACTIVE_APPROVAL`, `INVALID_APPROVAL`, `WRONG_BRANCH`, `CYCLE_CHANGED`, `PLAN_APPROVAL_STALE`, `PLAN_CHANGED`, `CYCLE_COMPLETE`, `WORK_NOT_IN_PROGRESS`, `FEATURE_WORK_ACTIVE`, `MULTIPLE_ACTIVE_WORK` or `OUT_OF_SCOPE`, and the hook asks. Every one of those is derived from the files on each call, so the approval lapses on its own; a completed cycle's approval is consumed. It never grants a commit, a push, a merge, or a write the branch and secret hooks block.
+
+## Bug evidence snapshot (`docs/bugs/<bug_key>/bug-report.json`)
+
+**Source model.** A bug's evidence comes from outside the plugin once and is normalized once:
+
+```
+external bug source  →  canonical evidence snapshot  →  Bug Work Plan  →  implementation, verification, review, QA handoff
+```
+
+| Layer | What it is | Who owns it | Changes when |
+|---|---|---|---|
+| Source evidence | the QA ledger, a JSON report, a Word/PDF/Markdown export, hand-prepared evidence — later a tracker such as Jira | outside the plugin | its owner edits it |
+| Canonical evidence snapshot | `docs/bugs/<bug_key>/bug-report.json` — the normalized evidence, its fingerprint and provenance | `scripts/bug-evidence.ts`, written by `/analyze-bug` | `/analyze-bug` accepts new evidence |
+| Live QA state | assigned, reopened, fix delivered, closed — QA's ledger | QA | QA acts |
+| Bug Work Plan | the approved analysis and tasks, recording `bug_evidence_fingerprint` | `/analyze-bug` + one human approval | a re-plan or a new fix cycle |
+| Fix-cycle state | task state, cycle approval, verification, review, handoff | each step's helper | the work progresses |
+
+**Contents** (`schema: bug-evidence-snapshot/v1`): `bug_key`; `identity` — `qa_bug_id`, `external_ref`, `origin`, `found_in_build`, `surfaces`, `capability`, `related_feature`; `evidence` — `title`, `description`, `steps`, `expected`, `actual`, `environment`; `bug_evidence_fingerprint` (bug-intake's own `evidenceFingerprint`, recomputed, never copied); `provenance` — `source_type` (`qa-ledger`, `json-report`, `document`, `manual`), `source_ref` (repository-relative for the QA ledger, the file name for a file — never an absolute local path), `source_fingerprint` (SHA-256 of the source's bytes, provenance only) and, for a QA bug, `qa_repo_hint` (the QA repository relative to the repository root); `snapshot_fingerprint` — SHA-256 over the canonical JSON (keys sorted, no whitespace) of every other field. QA's state is never stored: it stays live.
+
+**Normalization.** Every source goes through `scripts/bug-intake.ts` — `lookupQaBug` for QA, `normalizeBug` for everything else; a document is first extracted once into the JSON report shape, and an incomplete extraction is asked about once before anything is persisted. Two representations that normalize to the same title, steps, expected, actual, surfaces (as a set) and found-in build have the same `bug_evidence_fingerprint`, whatever their formatting, field order, export metadata or bytes; only `source_fingerprint` differs, and it decides nothing.
+
+**Writing it.** `analyze-bug.ts persist-evidence` after a successful `start`, and `scaffold` / `append-cycle` together with the plan they write. Atomic (a temp file renamed into place). Same evidence: `UNCHANGED`, never rewritten — the first provenance is kept, because a second source with identical semantics adds no evidence and rewriting would only churn the file. New evidence: `REPLACED` only when no plan exists yet or the plan already records it (a regenerated draft, an appended cycle with refreshed evidence); otherwise `NEW_EVIDENCE`, and the snapshot is kept until `/analyze-bug`'s existing reconciliation (stale, regenerate, new cycle) accepts it. An identity conflict never writes. A QA reopen with unchanged evidence never rewrites it; fix cycles and their history are never touched.
+
+**Reading it.** Every helper that needs the bug's evidence resolves the snapshot by default — `/analyze-bug` re-entry (the reference alone), `/implement-task`'s gate, the QA handoff's R2; `/review-code --bug` shows it; `/verify-fix-cycle` needs no source. A QA bug is still read live through the QA repository at `qa_repo_hint` when it is there (current state, current evidence, the existing drift rule); when it is not, the snapshot's evidence is used at partial context, and no QA state is assumed. On every read the schema, the identity (the file's key and the key bug-intake derives), the required evidence, the evidence fingerprint and the seal are checked; any failure is `invalid` (`BUG_EVIDENCE_SNAPSHOT_INVALID`) and never trusted. `--qa-repo` / `--report` remain an explicit override: compared, never written over the snapshot. Chained commands carry no source argument (`bug:<bug_key> <task>`).
+
+**Privacy and the repository — committed.** The snapshot is committed with the plan, like every other Bug Flow artifact under `docs/bugs/<bug_key>/` and the task state under `docs/tasks/`. This follows the plugin's existing convention rather than adding a new class of data: the Bug Work Plan already carries the reproduction evidence and Observed vs Expected verbatim, and the QA handoff carries them to QA; the snapshot holds the same normalized fields, plus the title, description and environment. Keeping it local would break exactly what it is for — another developer, another machine or a resumed session would have to find and convert the source again. What keeps it safe is what it excludes: only normalized fields, never the source document, attachments, raw bytes or absolute local paths; and, as `standards/shared/mobile-security.md` already requires of anything committed (`SEC-SECRETS-*`, `SEC-LOG-1`), no credentials, tokens or personal data — strip customer PII from the evidence before `/analyze-bug` persists it, exactly as before writing it into the plan. A repository whose bugs cannot be committed in any form should not run the Bug Flow in it.
+
+**Future trackers.** A Jira (or any tracker) connector is an adapter in front of this boundary: it reads the issue, normalizes it through `normalizeBug`, sets `source_type`, `source_ref` (the issue key) and a deterministic `source_fingerprint` (the issue's revision), and persists the same snapshot. Nothing downstream changes, and nothing downstream knows which tracker it came from.
+
+## Consolidated verification (`/verify-fix-cycle bug:<bug_key>`)
+
+Verification is split by what can prove it. **Per task, automatically:** each task runs every deterministic check it can — build, compile, lint, unit and integration tests, its regression test — and an automated failure blocks the task, exactly as before. **Per fix cycle, manually:** a criterion only a person can verify is recorded `deferred_to_cycle_verification` (`docs/task-state-contract.md` § *Bug work*) and nothing manual is asked per task. Once every task of the cycle is complete, `scripts/bug-verification.ts generate` writes one checklist, `docs/bugs/<bug_key>/verification-c<fix_cycle>.md`:
+
+- **What it is built from** — only what was already recorded: the reported reproduction path (always the first item, `V1`), Observed vs Expected, the Verification Strategy, the deferred criteria of the cycle's tasks (identical criteria merged with every task that carries them; distinct ones never dropped), approved scope expansions, the automated results and regression evidence from task state, and VERIFY-4 debt. A reopened cycle (n ≥ 2) adds QA's failed re-test — on the surfaces it failed on — and the cycle's verification delta. No new test is invented.
+- **Surfaces** — the plan's affected surfaces, plus any a failed re-test names. Every item is verified on every surface it lists; one surface never stands for another.
+- **Results** — `record` merges one result per item and surface: `pass`, `fail`, `blocked` or `not_run`, with notes and evidence. A `fail` names where it goes back to: `implementation` (a task of the cycle) or `replan` (`/analyze-bug`). Outstanding VERIFY-4 developer debt must be accepted explicitly (`--accept-debt`). Results are kept across sessions; a fresh checklist is resumed, never restarted.
+- **Status** — `passed` only when every item passed on every surface and any developer debt was accepted; `failed` when any item failed; `incomplete` while any is blocked, not run or pending.
+- **Freshness** — the checklist binds the bug, its fix cycle, the plan's approval fingerprint, the raw task state and the code content (everything but the bug's documents and the plugin's stores). Any of them moving makes it `stale` (`CYCLE_CHANGED`, `PLAN_CHANGED`, `PLAN_NOT_APPROVED`, `TASK_STATE_CHANGED`, `CODE_CHANGED`); `generate` then replaces it with a new run. No timestamp decides validity. Its state is embedded in the artifact and the rest rendered from it, so a hand edit makes it `invalid`.
+- **Cycles** — each cycle has its own artifact; cycle n's never satisfies cycle n + 1, and earlier ones stay as history. A failed verification never creates a fix cycle: a new QA fix cycle comes only from a verified QA reopen.
+- **Gates** — `/review-code --bug` refuses without a fresh, passed verification (`BUG_VERIFICATION_REQUIRED`), and the QA handoff blocks on it (R10). The handoff's Developer Verification shows the automated evidence, the consolidated result, the surfaces verified, the regression evidence and VERIFY-4 debt — never per-task verification steps. Recording the review leaves the verification fresh: review records live under `docs/bugs/`, outside the code it binds.
+
+The human gates are: approve the Bug Work Plan, approve the fix cycle's implementation (`scripts/edit-approval.ts`), verify the cycle, hand it to QA. Commits stay the developer's own action.
+
 ## Review record (`/review-code --bug <bug_key>`)
 
 The existing review runs over the bug fix and is persisted as one record per fix cycle: `docs/bugs/<bug_key>/review-c<fix_cycle>.md`, written by [`scripts/bug-review.ts`](../scripts/bug-review.ts) `record`.

@@ -106,7 +106,7 @@ Report the absolute path written, the existing-file strategy applied, and whethe
 
 Without a `bug:` prefix, nothing in this section applies: the feature handoff above is the whole command, unchanged. With `bug:<bug_key>`, §2 still resolves `TARGET_ROOT`, and this section replaces §1 and §3–§9. The handoff is `docs/qa/bug-<bug_key>-qa-handoff.md` (`templates/qa-bug-handoff-template.md`, contract in `docs/bug-work-plan-contract.md` § *QA handoff*). It is generated and approved only through `scripts/qa-handoff-gate.ts`.
 
-1. **The evidence source.** The bug evidence is re-read for the readiness check, so this command needs where it lives: `--qa-repo=<path>` for a QA bug, `--report=<path>` otherwise. When it is missing, ask once; never guess it.
+1. **The evidence source.** The readiness check resolves the bug's canonical evidence snapshot, `docs/bugs/<bug_key>/bug-report.json`, by itself — and a QA bug's live state through the QA repository it records — so no source is passed. `--qa-repo=<path>` or `--report=<path>` is only an explicit override. Ask for one, once, only when R2 reports `BUG_EVIDENCE_SOURCE_REQUIRED`; never guess it.
 2. **Check readiness (R1–R9):**
 
    ```
@@ -114,7 +114,7 @@ Without a `bug:` prefix, nothing in this section applies: the feature handoff ab
    ```
 
    Show each check's result in one line. Branch on `next`:
-   - `blocked`: **stop.** Report every blocker with its `route`, for example `/analyze-bug` for a stale or reopened bug, `/implement-task` for an incomplete task, or `/review-code --bug` for a missing, stale or blocking review.
+   - `blocked`: **stop.** Report every blocker with its `route`, for example `/analyze-bug` for a stale or reopened bug, `/implement-task` for an incomplete task, `/verify-fix-cycle` when the cycle's consolidated developer verification (R10) is missing, stale, incomplete or failed, or `/review-code --bug` for a missing, stale or blocking review. When the result carries `next_command` (the first blocker's route, with nothing left to fill in), offer it in one short message — `Handoff blocked: <blocker>. Next: <what it does>. Continue?` — and chain only on an explicit yes. Then invoke the Skill tool with `skill` set to `next_command.skill` and `args` set to `next_command.args`, verbatim; never a bare command name. If that invocation is unavailable or fails, show `next_command.display` as the command to run, and never guess another. A route with a placeholder, such as `/analyze-bug <bug-ref>`, is only reported. The next command re-runs every one of its own gates, and chaining never replaces an approval (`docs/command-handoff.md`).
    - `done`: the handoff is already `ready-for-qa` and current. Report it and the QA next action, then stop. Nothing is regenerated.
    - `generate`: go to step 3.
    - `approve`: go to step 4.
@@ -126,7 +126,7 @@ Without a `bug:` prefix, nothing in this section applies: the feature handoff ab
    node --no-warnings "${CLAUDE_PLUGIN_ROOT}/scripts/qa-handoff-gate.ts" generate bug:<bug_key> --root "<TARGET_ROOT>" [--qa-repo "<path>" | --report "<path>"] --date <YYYY-MM-DD> --build-instructions "<file>"
    ```
 
-   It writes every other section deterministically: bug summary, fix claim, reproduction scenario (verbatim from the plan), developer verification (from task state), regression scope, known limitations, and QA-owned pending verification. Inputs that changed regenerate the handoff as a draft, and any earlier approval no longer holds. It never overwrites a file at that path that is not this bug's handoff.
+   It writes every other section deterministically: bug summary, fix claim, reproduction scenario (verbatim from the plan), developer verification (the automated evidence from task state and the cycle's consolidated verification result, its surfaces and its artifact — never per-task "how to verify" steps), regression scope, known limitations, and QA-owned pending verification. Inputs that changed regenerate the handoff as a draft, and any earlier approval no longer holds. It never overwrites a file at that path that is not this bug's handoff.
 4. **Present, then ask once.** Show:
    - the bug and its fix cycle — for cycle n ≥ 2, the failed prior fix, why it was insufficient and the cycle's verification delta first (the handoff is always the current cycle's; an earlier cycle's approval never carries over);
    - the review result;

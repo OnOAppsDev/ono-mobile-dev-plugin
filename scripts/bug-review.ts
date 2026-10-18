@@ -40,6 +40,9 @@ import { contentFingerprint, isStoreArtifact, rowCells, taskRowsText } from "./t
 import { planContext } from "./bug-implementation.ts";
 import { canonical } from "./qa-release-gate.ts";
 import { splitDocument } from "./migrate-planning-doc.ts";
+import { nextCommand } from "./next-command.ts";
+import { verifyVerification } from "./bug-verification.ts";
+import { readSnapshot } from "./bug-evidence.ts";
 
 const sha = (s: string | Buffer): string => `sha256:${createHash("sha256").update(s).digest("hex")}`;
 
@@ -65,7 +68,7 @@ const BINDING_FIELDS = ["fix_cycle", "reviewed_head", "reviewed_tree_fingerprint
  * (each bound on its own), and Bug QA handoffs (docs/qa/bug-<key>-qa-handoff.md, generated
  * downstream of the review — writing one must never make the review it was built from stale).
  */
-const notCode = (rel: string) => rel.startsWith("docs/bugs/") || isStoreArtifact(rel) || /^docs\/qa\/bug-[^/]+-qa-handoff\.md(\.qa-handoff\.tmp)?$/.test(rel);
+export const notCode = (rel: string) => rel.startsWith("docs/bugs/") || isStoreArtifact(rel) || /^docs\/qa\/bug-[^/]+-qa-handoff\.md(\.qa-handoff\.tmp)?$/.test(rel);
 
 export interface Finding {
   severity: (typeof SEVERITIES)[number];
@@ -169,7 +172,7 @@ function load(work: string, rootIn: string): Stop | (Omit<Ready, "stateRaw"> & {
   return { ok: true, key, root, rel, buf, fm: v.frontmatter, approval: verifyApproval(buf), planTasks: v.tasks as Array<{ id: string; cycle: number }> };
 }
 
-function readState(root: string, key: string): Record<string, any> | null {
+export function readState(root: string, key: string): Record<string, any> | null {
   const p = stateFilePath(root, `bug:${key}`);
   if (!existsSync(p)) return null;
   try {
@@ -207,7 +210,17 @@ export function reviewContext(req: { root: string; work: string }): Record<strin
   const state = readState(r.root, r.key);
   const recorded = ids.filter((id) => state?.tasks?.[id] !== undefined);
   if (state === null || recorded.length === 0) {
-    return { ok: false, outcome: "BUG_TASK_STATE_MISSING", reason: "no task state is recorded for this fix cycle — nothing has been implemented to review", route: `/implement-task bug:${r.key} T1` };
+    return { ok: false, outcome: "BUG_TASK_STATE_MISSING", reason: "no task state is recorded for this fix cycle — nothing has been implemented to review", route: `/implement-task bug:${r.key} ${ids[0] ?? "T1"}`, ...(ids[0] ? { next_command: nextCommand("implement-task", `bug:${r.key} ${ids[0]}`) } : {}) };
+  }
+  // Bug Flow P1.5: the bug's canonical evidence, resolved from its snapshot — never re-read from the source.
+  const snap = readSnapshot(r.root, r.key);
+  const evidence_snapshot = snap.status === "valid"
+    ? { status: snap.snapshot.bug_evidence_fingerprint === r.fm.bug_evidence_fingerprint ? "current" : "differs-from-plan", path: snap.path, title: snap.snapshot.evidence.title, description: snap.snapshot.evidence.description, bug_evidence_fingerprint: snap.snapshot.bug_evidence_fingerprint }
+    : { status: snap.status, ...(snap.status === "invalid" ? { code: snap.code, reason: snap.reason } : {}) };
+  // Bug Flow P1: a review needs the cycle's consolidated developer verification, fresh and passed.
+  const ver = verifyVerification({ root: r.root, work: `bug:${r.key}` });
+  if (!ver.ok) {
+    return { ok: false, evidence_snapshot, outcome: "BUG_VERIFICATION_REQUIRED", reason: `fix cycle ${r.fm.fix_cycle} has no current, passed developer verification (${ver.status}${ver.stale_reasons.length ? `: ${ver.stale_reasons.join(", ")}` : ""}) — verify the cycle first`, verification: ver, route: `/verify-fix-cycle bug:${r.key}`, next_command: nextCommand("verify-fix-cycle", `bug:${r.key}`) };
   }
   const b = binding(r, state);
   if (b.reviewed_tree_fingerprint === null) return { ok: false, outcome: "BUG_REPOSITORY_UNAVAILABLE", reason: "the repository's content could not be read through git" };
@@ -227,6 +240,7 @@ export function reviewContext(req: { root: string; work: string }): Record<strin
   return {
     ok: true,
     outcome: "BUG_REVIEW_READY",
+    evidence_snapshot,
     work_id: `bug:${r.key}`,
     plan_path: r.rel,
     fix_cycle: r.fm.fix_cycle,
@@ -408,6 +422,7 @@ export function writeReviewRecord(req: { root: string; work: string; review: str
     findings_fingerprint: fp,
     counts: { blocking: count("blocking"), major: count("major"), minor: count("minor"), nit: count("nit") },
     binding: ctx.binding,
+    next_command: nextCommand("create-dev-qa-notes", ctx.work_id),
   };
 }
 

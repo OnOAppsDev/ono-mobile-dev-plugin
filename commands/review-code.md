@@ -47,9 +47,10 @@ Without `--bug`, nothing in this section applies: the review above is the whole 
    | `BUG_REVIEW_READY` | Continue. Show `incomplete_tasks` in one line if any task of the cycle is not complete. |
    | `BUG_PLAN_MISSING` · `BUG_PLAN_INVALID` · `BUG_PLAN_NOT_APPROVED` · `BUG_APPROVAL_STALE` · `BUG_APPROVAL_INVALID` | **Stop** and give the `route`: the bug is (re)planned and approved through `/analyze-bug`. |
    | `BUG_TASK_STATE_MISSING` | **Stop.** Nothing has been implemented for this cycle yet; give the `route` (`/implement-task bug:<bug_key> T1`). |
+   | `BUG_VERIFICATION_REQUIRED` | **Stop.** The cycle has no current, passed consolidated developer verification (`verification.status`: missing, stale, incomplete or failed). Review never bypasses it: offer `next_command`, `/verify-fix-cycle bug:<bug_key>`, under the Continue rule below. |
    | `BUG_WORK_ID_INVALID` · `BUG_ROOT_INVALID` · `BUG_REPOSITORY_UNAVAILABLE` | **Stop** and report `reason`. |
 
-   The QA state is not re-read here. The review is about the implementation now in the repository, against the plan that was approved for it.
+   The bug's evidence is its canonical snapshot (`evidence_snapshot`, from `docs/bugs/<bug_key>/bug-report.json`) — never re-read from the original source, and no `--report` or `--qa-repo` is needed. The QA state is not re-read here. The review is about the implementation now in the repository, against the plan that was approved for it.
 3. **Steps 1–6 run as written**, over the default scope (the current diff against the base branch), with the same `code-reviewer` and `performance-reviewer` agents, the shared `platform-review` methodology and one lane per touched platform. Each platform's pair also receives the bug context from step 2:
    - the bug identity, reproduction evidence and Observed vs Expected;
    - Root Cause (and `root_cause_inference`), Fix Design, its minimal change surface and **non-goals**, and the Verification Strategy;
@@ -80,3 +81,5 @@ Without `--bug`, nothing in this section applies: the review above is the whole 
    ```
 
 The record is evidence of the latest review for the cycle. It does not approve a QA handoff: what its findings mean for a handoff is decided in a later step of the Bug Development Flow. This command never writes task state and never creates a git commit.
+
+**Continue.** Once `record` reports `BUG_REVIEW_RECORDED`, offer its `next_command` — the QA handoff — in one short message: `✓ Review recorded (<counts>). Next: prepare the QA handoff. Continue?` Chain only on an explicit yes. Then invoke the Skill tool with `skill` set to `next_command.skill` and `args` set to `next_command.args`, verbatim; never a bare command name, and the developer never retypes it. If that invocation is unavailable or fails, show `next_command.display` as the command to run, and never guess another. On `BUG_TASK_STATE_MISSING`, the same applies to the context's `next_command`. The next command re-runs every one of its own gates, so chaining never replaces an approval: the QA handoff still asks its own approval (`docs/command-handoff.md`).

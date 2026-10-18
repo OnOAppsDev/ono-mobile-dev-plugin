@@ -313,7 +313,8 @@ const SECTIONS = [
   // Step 4 added /analyze-bug, the plan's only producer; every other command stays unaware of it.
   // Step 5 made /implement-task the plan's consumer; every other command stays unaware of it.
   // Step 7 added the bug QA handoff to /create-dev-qa-notes.
-  const others = readdirSync(join(REPO_ROOT, "commands")).filter((f) => !["analyze-bug.md", "implement-task.md", "create-dev-qa-notes.md"].includes(f)).map((f) => read(`commands/${f}`)).join("\n");
+  // Bug Flow P1 added /verify-fix-cycle, which cites the Bug Work Plan contract on purpose.
+  const others = readdirSync(join(REPO_ROOT, "commands")).filter((f) => !["analyze-bug.md", "implement-task.md", "create-dev-qa-notes.md", "verify-fix-cycle.md"].includes(f)).map((f) => read(`commands/${f}`)).join("\n");
   check("24 only /analyze-bug, /implement-task and /create-dev-qa-notes reference the bug work plan", !/bug-work-plan/.test(others) && ["analyze-bug", "implement-task", "create-dev-qa-notes"].every((c) => /bug-work-plan/.test(read(`commands/${c}.md`))));
   for (const f of ["scripts/task-state.ts", "scripts/task-resume.ts", "scripts/bug-intake.ts"]) {
     check(`25 ${f} does not reference bug-work-plan`, !/bug-work-plan/.test(read(f)));

@@ -199,8 +199,10 @@ try {
     check("29 the approved plan verifies", verifyApproval(readFileSync(planFile(root43, "BUG-43"))).status === "approved");
     const after = S({ root: root43, ref: "BUG-43", qaRepo: QA });
     check("11 an existing approved, current plan is reused — no regeneration", after?.outcome === "BUG_PLAN_APPROVED" && after.proceed === null && after.ok === true, show(after));
-    check("11 the next action is /implement-task bug:<bug_key> T1, with execution support still to come",
-      after?.next_action === "/implement-task bug:BUG-43 T1" && /--qa-repo/.test(after.next_action_note ?? ""), JSON.stringify([after?.next_action, after?.next_action_note]));
+    // Bug Flow P1.5 changed the note on purpose: scaffold persisted the canonical evidence snapshot,
+    // so /implement-task resolves it and is no longer told to pass --qa-repo.
+    check("11 the next action is /implement-task bug:<bug_key> T1, needing no evidence source",
+      after?.next_action === "/implement-task bug:BUG-43 T1" && /bug-report\.json/.test(after.next_action_note ?? "") && !/--qa-repo/.test(after.next_action_note ?? ""), JSON.stringify([after?.next_action, after?.next_action_note]));
     const approvedBytes = readFileSync(planFile(root43, "BUG-43"));
     const again = SC({ root: root43, ref: "BUG-43", qaRepo: QA });
     check("11 an approved plan is never overwritten", again?.ok === false && readFileSync(planFile(root43, "BUG-43")).equals(approvedBytes), show(again));
@@ -426,7 +428,9 @@ try {
     check("28 command never edits the approval fields itself", /Never (write|edit) `status` or any `approved_\*` field/.test(cmd));
     check("11 command: partial context surfaces unverified QA ownership at approval", /QA ownership state is unverified/.test(cmd));
     check("30 command: a declined approval leaves the draft; rerunning resumes at approval", /declin/i.test(cmd) && /rerun.*\/analyze-bug.*resumes at approval/i.test(cmd));
-    check("12 command reports the next action without invoking it", cmd.includes("/implement-task bug:<bug_key> T1") && /does not (invoke|run) implementation/i.test(cmd));
+    // Bug Flow UX P0.1 changed this on purpose: the command now offers the next action and continues to it
+    // only on an explicit yes (pinned by bug-flow-ux.test.ts); it still never implements anything itself.
+    check("12 command reports the next action and never runs implementation itself", cmd.includes("/implement-task bug:<bug_key> T1") && /does not (invoke|run) implementation/i.test(cmd));
     check("32 command never creates task state", /never creates task state/i.test(cmd));
   }
 

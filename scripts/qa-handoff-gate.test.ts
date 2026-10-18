@@ -19,6 +19,7 @@ import { approveWorkPackage } from "./work-approval.ts";
 import { writeTaskState, stateFilePath } from "./task-state.ts";
 import { reviewContext, writeReviewRecord } from "./bug-review.ts";
 import { splitDocument } from "./migrate-planning-doc.ts";
+import { generateVerification, recordVerification } from "./bug-verification.ts";
 
 const HERE = import.meta.dirname ?? __dirname;
 const REPO_ROOT = dirname(HERE);
@@ -97,7 +98,20 @@ function repo(o: Opts = {}): { root: string; plan: string; work: string } {
   if (o.review !== false && (o.tasks ?? "both") !== "none") reviewNow(root, work, o.findings ?? [MAJOR, MINOR, NIT]);
   return { root, plan: p, work };
 }
+/**
+ * Bug Flow P1: a review needs the cycle's consolidated verification first. Pass every item when the
+ * cycle can be verified; when it cannot (an unfinished task, a failed automated check), neither a
+ * verification nor a review exists, and R3/R4 are judged on task state alone, as before.
+ */
+function verifyCycle(root: string, work: string): boolean {
+  const g = generateVerification({ root, work });
+  if (!g.ok) return false;
+  const r = recordVerification({ root, work, by: "dana", acceptDebt: true, results: g.items.flatMap((it: any) => it.surfaces.map((surface: string) => ({ id: it.id, surface, result: "pass" }))) });
+  if (!r.ok) throw new Error(`verify fixture: ${JSON.stringify(r)}`);
+  return true;
+}
 function reviewNow(root: string, work: string, findings: any[], checks = CHECKS) {
+  if (!verifyCycle(root, work)) return;
   const ctx = reviewContext({ root, work });
   if (!ctx.ok) throw new Error(`review context: ${JSON.stringify(ctx)}`);
   const f = join(TMP, `review-${++n}.json`);

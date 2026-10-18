@@ -312,7 +312,8 @@ try {
 
     // 12 — completion: the next action once every cycle-1 task is complete.
     const st = api.bugWorkStatus?.({ root, work: W });
-    check("12 when every cycle-1 task is complete, the next action is /review-code --bug <key>", st?.all_complete === true && st.next_action === "/review-code --bug BUG-43", JSON.stringify(st));
+    // Bug Flow P1 changed this on purpose: a complete cycle is verified once, as a whole, before its review.
+    check("12 when every cycle-1 task is complete, the next action is the cycle's verification", st?.all_complete === true && st.next_action === "/verify-fix-cycle bug:BUG-43", JSON.stringify(st));
     const st2 = api.bugWorkStatus?.({ root: debtRoot.root, work: W });
     check("12 …and not before", st2?.all_complete === false && JSON.stringify(st2.remaining) === '["T1"]' && st2.next_action === null, JSON.stringify(st2));
   }
@@ -377,7 +378,7 @@ try {
       "hooks/block-main-branch-changes.sh": "771aef6d81d25308edbc77e4cca8c663cf2f05946cfe254fd150e34342636d34",
       "hooks/protect-secrets.json": "e1eaeb813e75d5b80927dcf6630c292c0bc7acd32519349af088dc0994cc00fb",
       "hooks/require-approval-before-code.json": "37f5f2e5dbe97ccac0f432a7b3eacc6f8595b0d2a60ade3674df0f6ec69db043",
-      "hooks/require-approval-before-code.sh": "f4333da9c0a95003cf5dd08323e3f702b16d4468edc2bff65230e6468385dcfe",
+      // hooks/require-approval-before-code.sh: Bug Flow UX P0.3 changed it on purpose (one approval per Bug Fix Cycle); pinned by edit-approval.test.ts and hooks.test.ts.
       "hooks/scan-for-secrets.sh": "be60a1fc569de494c2aa215220cf162eccfe8f6b7fc04ffc5a14d7e6827c67d9",
       // Step 6 extended /review-code with --bug; bug-review.test.ts pins its original body verbatim.
       // Step 7 extended /create-dev-qa-notes with bug:<key>; qa-handoff-gate.test.ts pins its feature body verbatim.

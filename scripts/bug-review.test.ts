@@ -18,6 +18,7 @@ import * as Review from "./bug-review.ts";
 import { approveWorkPackage } from "./work-approval.ts";
 import { writeTaskState, stateFilePath } from "./task-state.ts";
 import { splitDocument } from "./migrate-planning-doc.ts";
+import { generateVerification, recordVerification } from "./bug-verification.ts";
 
 const HERE = import.meta.dirname ?? __dirname;
 const REPO_ROOT = dirname(HERE);
@@ -73,9 +74,18 @@ function repo(opts: { approve?: boolean; tasks?: boolean; plan?: string } = {}):
     writeTaskState(root, W, "T1", "complete", { platform: "android", filesChanged: [TEST], standardIds: [], validation: [{ command: CMD, result: "pass" }], acceptanceCriteria: [{ criterion: "The test fails on the current code for the documented reproduction", met: true }], developerTesting: dt, deviations: [], blockers: [] } as any, p);
     writeTaskState(root, W, "T2", "in-progress", { platform: "android" } as any, p, { mode: "start" });
     writeTaskState(root, W, "T2", "complete", { platform: "android", filesChanged: [MAIN], standardIds: [], validation: [{ command: CMD, result: "pass" }], acceptanceCriteria: [{ criterion: REPRO, met: true }, { criterion: "T1's test passes", met: true }], developerTesting: { ...dt, regression: { command: CMD, failedBefore: true, passesAfter: true } }, deviations: [], blockers: [] } as any, p);
+    if (opts.approve !== false) verifyCycle(root);
   }
   return { root, plan: p };
 }
+/** Bug Flow P1: a review needs the cycle verified first — generate the consolidated checklist and pass every item. */
+function verifyCycle(root: string, work = W): void {
+  const g = generateVerification({ root, work });
+  if (!g.ok) throw new Error(`verify fixture: ${JSON.stringify([g.outcome, g.reason])}`);
+  const r = recordVerification({ root, work, by: "dana", acceptDebt: true, results: g.items.flatMap((it: any) => it.surfaces.map((surface: string) => ({ id: it.id, surface, result: "pass" }))) });
+  if (!r.ok) throw new Error(`verify fixture: ${JSON.stringify(r)}`);
+}
+
 const C = (root: string, work = W) => api.reviewContext?.({ root, work });
 const V = (root: string, work = W) => api.verifyReviewRecord?.({ root, work });
 /** A review result, as the merged review hands it to the record helper. */
@@ -186,7 +196,8 @@ try {
     check("27 the scope deviation is represented", /## Scope Deviations\n\n- `\[android\] app\/src\/main\/java\/com\/acme\/cart\/CartBadge\.kt:4` — \[BUG-CHECK-SCOPE\]/.test(text));
     check("11 verification evidence comes from task state", /## Verification Evidence[\s\S]*T2[\s\S]*regression `\.\/gradlew test --tests CheckoutTotalsTest` failed before the fix and passes after/.test(text));
     check("34 the review never writes task state", readFileSync(stateFilePath(base.root, W)).equals(stateBefore));
-    check("33 the write is atomic — no temp file left behind", readdirSync(join(base.root, "docs/bugs/BUG-43")).sort().join(",") === "bug-work-plan.md,review-c1.md");
+    // Bug Flow P1: the cycle's consolidated verification lives beside the review record.
+    check("33 the write is atomic — no temp file left behind", readdirSync(join(base.root, "docs/bugs/BUG-43")).sort().join(",") === "bug-work-plan.md,review-c1.md,verification-c1.md");
     const v = V(base.root);
     check("6 a just-written record verifies fresh", v?.status === "fresh" && v.ok === true, show(v));
   }
@@ -301,10 +312,11 @@ try {
     writeTaskState(noReg.root, W, "T2", "in-progress", { platform: "android" } as any, p, { mode: "start" });
     writeTaskState(noReg.root, W, "T2", "blocked", { platform: "android", developerTesting: dt, blockers: ["waiting"] } as any, p);
     const cn = C(noReg.root);
-    const passRepro = record(noReg.root, review(cn));
-    check("26 a reproduction-path pass without regression evidence in task state is refused", passRepro?.ok === false && passRepro.code === "INVALID_CHECKS" && /reproduction-path/.test(passRepro.reason), show(passRepro));
-    const honest = record(noReg.root, review(cn, { checks: review(cn).checks.map((x: any) => (x.id === "reproduction-path" ? { ...x, status: "not-verifiable", note: "No regression evidence recorded yet" } : x)) }));
-    check("26 …recorded honestly as not-verifiable, it is accepted", honest?.ok === true, show(honest));
+    // Bug Flow P1 changed this on purpose: an unfinished cycle cannot be verified, so it can no longer be
+    // reviewed at all — the review of a fix task with no regression evidence is refused at the gate, before
+    // the record's own reproduction-path rule (still in bug-review.ts as defence in depth) is reached.
+    check("26 a cycle whose fix task has no regression evidence cannot be reviewed — it is not verified", cn?.ok === false && cn.outcome === "BUG_VERIFICATION_REQUIRED", show(cn));
+    check("26 …and nothing can be recorded for it", record(noReg.root, review({ binding: {} }))?.ok === false);
     // Root cause labelled [inference] in the plan: no definite verdict.
     const inferPlan = PLAN.replace("[evidence: app/src/main/java/com/acme/checkout/CheckoutTotals.kt] `total()` sums", "[inference] `total()` likely sums");
     const ri = repo({ plan: inferPlan });
