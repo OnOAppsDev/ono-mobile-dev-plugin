@@ -36,7 +36,7 @@ import { createHash } from "crypto";
 import { validateBugWorkPlan, bugWorkPlanPath } from "./bug-work-plan.ts";
 import { approvalFingerprint, verifyApproval } from "./work-approval.ts";
 import { BUG_REPRO_CRITERION, bugKeyOf, stateFilePath } from "./task-state.ts";
-import { contentFingerprint, isStoreArtifact, rowCells, taskRowsText } from "./task-resume.ts";
+import { contentFingerprint, describeRepositoryFailure, isStoreArtifact, rowCells, taskRowsText } from "./task-resume.ts";
 import { planContext } from "./bug-implementation.ts";
 import { canonical } from "./qa-release-gate.ts";
 import { splitDocument } from "./migrate-planning-doc.ts";
@@ -183,8 +183,7 @@ export function readState(root: string, key: string): Record<string, any> | null
   }
 }
 
-function binding(r: { root: string; buf: Buffer; fm: Record<string, any> }, state: Record<string, any> | null) {
-  const code = contentFingerprint(r.root, notCode);
+function binding(r: { root: string; buf: Buffer; fm: Record<string, any> }, state: Record<string, any> | null, code = contentFingerprint(r.root, notCode)) {
   return {
     fix_cycle: r.fm.fix_cycle as number,
     reviewed_head: code.head,
@@ -222,8 +221,9 @@ export function reviewContext(req: { root: string; work: string }): Record<strin
   if (!ver.ok) {
     return { ok: false, evidence_snapshot, outcome: "BUG_VERIFICATION_REQUIRED", reason: `fix cycle ${r.fm.fix_cycle} has no current, passed developer verification (${ver.status}${ver.stale_reasons.length ? `: ${ver.stale_reasons.join(", ")}` : ""}) — verify the cycle first`, verification: ver, route: `/verify-fix-cycle bug:${r.key}`, next_command: nextCommand("verify-fix-cycle", `bug:${r.key}`) };
   }
-  const b = binding(r, state);
-  if (b.reviewed_tree_fingerprint === null) return { ok: false, outcome: "BUG_REPOSITORY_UNAVAILABLE", reason: "the repository's content could not be read through git" };
+  const code = contentFingerprint(r.root, notCode);
+  const b = binding(r, state, code);
+  if (b.reviewed_tree_fingerprint === null) return { ok: false, outcome: "BUG_REPOSITORY_UNAVAILABLE", reason: `the repository's content could not be read through git: ${describeRepositoryFailure(code.failure) || "unknown git failure"}`, diagnostic: code.failure ?? null };
   const tasks = ids.map((id) => {
     const t = state.tasks[id] ?? {};
     return {

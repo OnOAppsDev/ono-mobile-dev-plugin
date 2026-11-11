@@ -396,19 +396,62 @@ export function filesFromCell(cell: string | undefined): string[] {
 
 /* -------------------------------------------------------------------- git */
 
-function git(root: string, args: string[]): string | null {
+/**
+ * How much git output a helper captures. Node's execFileSync default (1 MiB) is exceeded by
+ * `ls-tree -r --full-tree` in repositories with committed iOS Pods/ or vendored SDKs.
+ */
+export const GIT_MAX_BUFFER = 64 * 1024 * 1024;
+
+/** Why a git invocation produced no output. Carries the git subcommand only — never paths or arguments. */
+export interface GitFailure {
+  kind: "GIT_OUTPUT_TOO_LARGE" | "GIT_NOT_FOUND" | "GIT_COMMAND_FAILED";
+  command: string;
+  exitStatus: number | null;
+}
+
+export function classifyGitFailure(args: string[], e: unknown): GitFailure {
+  let i = 0;
+  while (i < args.length && (args[i] === "-C" || args[i] === "-c")) i += 2;
+  const command = args[i] ?? "git";
+  const err = (e ?? {}) as { code?: unknown; status?: unknown };
+  if (err.code === "ENOBUFS") return { kind: "GIT_OUTPUT_TOO_LARGE", command, exitStatus: null };
+  if (err.code === "ENOENT") return { kind: "GIT_NOT_FOUND", command, exitStatus: null };
+  return { kind: "GIT_COMMAND_FAILED", command, exitStatus: typeof err.status === "number" ? err.status : null };
+}
+
+function runGit(root: string, args: string[]): { ok: true; out: Buffer } | { ok: false; failure: GitFailure } {
   try {
-    return execFileSync("git", ["-C", root, ...args], { encoding: "utf-8", stdio: ["ignore", "pipe", "ignore"] });
-  } catch {
-    return null;
+    return { ok: true, out: execFileSync("git", ["-C", root, ...args], { stdio: ["ignore", "pipe", "ignore"], maxBuffer: GIT_MAX_BUFFER }) };
+  } catch (e) {
+    return { ok: false, failure: classifyGitFailure(args, e) };
   }
 }
 
+function git(root: string, args: string[]): string | null {
+  const r = runGit(root, args);
+  return r.ok ? r.out.toString("utf-8") : null;
+}
+
 function gitBuf(root: string, args: string[]): Buffer | null {
-  try {
-    return execFileSync("git", ["-C", root, ...args], { stdio: ["ignore", "pipe", "ignore"] });
-  } catch {
-    return null;
+  const r = runGit(root, args);
+  return r.ok ? r.out : null;
+}
+
+/** Why the repository's content could not be fingerprinted. */
+export type RepositoryReadFailure =
+  | GitFailure
+  | { kind: "NOT_A_GIT_REPOSITORY"; command: "rev-parse"; exitStatus: number | null }
+  | { kind: "HASH_COUNT_MISMATCH"; command: "hash-object"; exitStatus: null };
+
+/** A one-line, path-free explanation of a RepositoryReadFailure, for a stop's `reason`. */
+export function describeRepositoryFailure(f: RepositoryReadFailure | undefined): string {
+  if (f === undefined) return "";
+  switch (f.kind) {
+    case "GIT_OUTPUT_TOO_LARGE": return `git ${f.command} output exceeded the ${GIT_MAX_BUFFER / (1024 * 1024)} MiB capture limit`;
+    case "GIT_NOT_FOUND": return "the git executable could not be run";
+    case "GIT_COMMAND_FAILED": return `git ${f.command} failed${f.exitStatus === null ? "" : ` (exit ${f.exitStatus})`}`;
+    case "NOT_A_GIT_REPOSITORY": return "the repository root is not a git repository";
+    case "HASH_COUNT_MISMATCH": return "git hash-object returned an unexpected number of ids";
   }
 }
 
@@ -469,13 +512,20 @@ function isAncestor(root: string, a: string, b: string): boolean {
  * ids are git's own (`hash-object` applies the repository's clean filters), so a committed
  * file and the same file uncommitted carry the same id. File modes are not part of it.
  */
-export function contentFingerprint(root: string, excluded: (rel: string) => boolean): { available: boolean; head: string | null; fingerprint: string | null } {
+export function contentFingerprint(root: string, excluded: (rel: string) => boolean): { available: boolean; head: string | null; fingerprint: string | null; failure?: RepositoryReadFailure } {
   const g = gitState(root);
-  if (!g.available) return { available: false, head: null, fingerprint: null };
+  if (!g.available) {
+    const probe = runGit(root, ["rev-parse", "--is-inside-work-tree"]);
+    const failure: RepositoryReadFailure = !probe.ok && probe.failure.kind !== "GIT_COMMAND_FAILED"
+      ? probe.failure
+      : { kind: "NOT_A_GIT_REPOSITORY", command: "rev-parse", exitStatus: probe.ok ? null : probe.failure.exitStatus };
+    return { available: false, head: null, fingerprint: null, failure };
+  }
   const blobs = new Map<string, string>();
   if (g.head !== null) {
-    const out = git(root, ["-c", "core.quotepath=false", "ls-tree", "-r", "-z", "--full-tree", g.head]);
-    if (out === null) return { available: true, head: g.head, fingerprint: null };
+    const listed = runGit(root, ["-c", "core.quotepath=false", "ls-tree", "-r", "-z", "--full-tree", g.head]);
+    if (!listed.ok) return { available: true, head: g.head, fingerprint: null, failure: listed.failure };
+    const out = listed.out.toString("utf-8");
     for (const e of out.split("\0")) {
       const m = /^\d+ \w+ ([0-9a-f]+)\t([\s\S]+)$/.exec(e);
       if (m !== null) blobs.set(m[2], m[1]);
@@ -484,9 +534,10 @@ export function contentFingerprint(root: string, excluded: (rel: string) => bool
   for (const p of g.changed) blobs.delete(p);
   const present = g.changed.filter((p) => readBytes(join(root, p))?.kind === "file");
   if (present.length > 0) {
-    const out = git(root, ["hash-object", "--", ...present]);
-    const ids = out?.trim().split("\n") ?? [];
-    if (ids.length !== present.length) return { available: true, head: g.head, fingerprint: null };
+    const hashed = runGit(root, ["hash-object", "--", ...present]);
+    if (!hashed.ok) return { available: true, head: g.head, fingerprint: null, failure: hashed.failure };
+    const ids = hashed.out.toString("utf-8").trim().split("\n");
+    if (ids.length !== present.length) return { available: true, head: g.head, fingerprint: null, failure: { kind: "HASH_COUNT_MISMATCH", command: "hash-object", exitStatus: null } };
     present.forEach((p, i) => blobs.set(p, ids[i]));
   }
   const entries = [...blobs.entries()].filter(([p]) => !excluded(p)).sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0));

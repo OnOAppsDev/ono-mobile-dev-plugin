@@ -23,7 +23,8 @@
  *   node scripts/task-resume.test.ts
  */
 
-import { spawnSync } from "child_process";
+import { spawnSync, execFileSync } from "child_process";
+import { createHash } from "crypto";
 import {
   mkdtempSync,
   writeFileSync,
@@ -52,6 +53,9 @@ import {
   canonicalizePart,
   evidenceFingerprint,
   sourceFingerprint,
+  contentFingerprint,
+  classifyGitFailure,
+  GIT_MAX_BUFFER,
 } from "./task-resume.ts";
 import { fingerprintBody } from "./migrate-planning-doc.ts";
 
@@ -834,6 +838,74 @@ const specEvidence = (spec: string, content = "Users unlock with Face ID.") => (
   check("determinism: no absolute path is persisted", !sa.includes(a.root));
   cleanup(a);
   cleanup(b);
+}
+
+/* ── large repositories: git output past Node's 1 MiB default buffer ───── */
+// A repository with committed iOS Pods/ lists well past execFileSync's default maxBuffer;
+// the overflow used to be swallowed and reported as "repository unavailable".
+{
+  const root = realpathSync(mkdtempSync(join(tmpdir(), "task-resume-large-")));
+  const g = (...args: string[]) => execFileSync("git", ["-C", root, ...args], { encoding: "utf-8", maxBuffer: 64 * 1024 * 1024 });
+  g("init", "-q", "-b", "main");
+  g("config", "user.email", "t@t");
+  g("config", "user.name", "t");
+  const dir = join(root, "Pods/VendoredSDK.framework/Headers/Internal/Generated");
+  mkdirSync(dir, { recursive: true });
+  for (let i = 0; i < 5000; i++) writeFileSync(join(dir, `${String(i).padStart(5, "0")}_${"x".repeat(150)}.h`), "// header\n");
+  g("add", "-A");
+  g("commit", "-qm", "pods");
+
+  let overflow: unknown = null;
+  try {
+    execFileSync("git", ["-C", root, "-c", "core.quotepath=false", "ls-tree", "-r", "-z", "--full-tree", "HEAD"], { stdio: ["ignore", "pipe", "ignore"] });
+  } catch (e) {
+    overflow = e;
+  }
+  check("large: the fixture's ls-tree output really exceeds the 1 MiB default buffer", (overflow as { code?: string } | null)?.code === "ENOBUFS");
+  check("large: a buffer overflow is classified as output-too-large, not unavailability",
+    classifyGitFailure(["-c", "core.quotepath=false", "ls-tree"], overflow).kind === "GIT_OUTPUT_TOO_LARGE");
+  check("large: the helpers capture up to 64 MiB", GIT_MAX_BUFFER === 64 * 1024 * 1024);
+
+  const fp = contentFingerprint(root, () => false);
+  check("large: the content fingerprint is computed", fp.available && fp.fingerprint !== null && fp.failure === undefined, JSON.stringify(fp));
+  const oracle = g("ls-files", "-s", "-z").split("\0").filter(Boolean)
+    .map((e) => /^\d+ ([0-9a-f]+) \d\t([\s\S]+)$/.exec(e) as RegExpExecArray)
+    .map((m) => [m[2], m[1]] as const).sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0));
+  const expected = `sha256:${createHash("sha256").update(oracle.map(([p, id]) => `${p}\0${id}`).join("\n")).digest("hex")}`;
+  check("large: the fingerprint covers every tracked file", fp.fingerprint === expected);
+  rmSync(root, { recursive: true, force: true });
+}
+
+/* ── fingerprint stability and genuinely unavailable repositories ─────── */
+{
+  const root = realpathSync(mkdtempSync(join(tmpdir(), "task-resume-pin-")));
+  const g = (...args: string[]) => execFileSync("git", ["-C", root, ...args], { encoding: "utf-8" });
+  g("init", "-q", "-b", "main");
+  g("config", "user.email", "t@t");
+  g("config", "user.name", "t");
+  mkdirSync(join(root, "src"), { recursive: true });
+  writeFileSync(join(root, "src/a.kt"), "fun a() = 1\n");
+  writeFileSync(join(root, "README.md"), "# r\n");
+  writeFileSync(join(root, "docs.md"), "excluded\n");
+  g("add", "-A");
+  g("commit", "-qm", "c");
+  writeFileSync(join(root, "src/a.kt"), "fun a() = 2\n");
+  writeFileSync(join(root, "src/new.kt"), "fun n() = 0\n");
+  // Pinned with the implementation before the 64 MiB buffer fix: identical content, identical fingerprint.
+  check("fingerprint: identical repository content keeps its fingerprint",
+    contentFingerprint(root, (p) => p === "docs.md").fingerprint === "sha256:af1f027c840736d6568d278113ece0389f0337ab3d68b200f27b522c5c772247");
+
+  rmSync(join(root, ".git"), { recursive: true, force: true });
+  const gone = contentFingerprint(root, () => false);
+  check("unavailable: a directory that is not a git repository is still unavailable",
+    gone.available === false && gone.fingerprint === null && gone.failure?.kind === "NOT_A_GIT_REPOSITORY", JSON.stringify(gone));
+  check("unavailable: the diagnostic carries no repository path", !JSON.stringify(gone.failure).includes(root));
+  rmSync(root, { recursive: true, force: true });
+  check("classify: a missing git binary is not a missing repository",
+    classifyGitFailure(["status"], Object.assign(new Error("spawn git ENOENT"), { code: "ENOENT" })).kind === "GIT_NOT_FOUND");
+  check("classify: a git error exit keeps the subcommand and status, not the arguments",
+    JSON.stringify(classifyGitFailure(["-C", "/secret/path", "-c", "core.quotepath=false", "ls-tree", "-r", "HEAD"], Object.assign(new Error("x"), { status: 128 }))) ===
+      JSON.stringify({ kind: "GIT_COMMAND_FAILED", command: "ls-tree", exitStatus: 128 }));
 }
 
 /* ── contracts: prose and code say the same thing ─────────────────────── */

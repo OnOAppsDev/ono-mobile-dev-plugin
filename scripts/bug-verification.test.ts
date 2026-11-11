@@ -302,6 +302,30 @@ try {
     check("13 the checklist groups items by surface", /### android\n[\s\S]*### android-tv\n/.test(readFileSync(artifact(r), "utf-8")));
   }
 
+  /* ── large repositories: git output past Node's 1 MiB default buffer ──── */
+  {
+    // Committed iOS Pods/ push `git ls-tree -r --full-tree` past execFileSync's 1 MiB default;
+    // the overflow used to surface as REPOSITORY_UNAVAILABLE.
+    const r = repo();
+    const pods = join(r.root, "Pods/VendoredSDK.framework/Headers/Internal/Generated");
+    mkdirSync(pods, { recursive: true });
+    for (let i = 0; i < 5000; i++) writeFileSync(join(pods, `${String(i).padStart(5, "0")}_${"x".repeat(150)}.h`), "// header\n");
+    git(r.root, "add", "Pods");
+    git(r.root, "commit", "-qm", "pods");
+    check("large: the fixture's tree listing exceeds 1 MiB", Buffer.byteLength(execFileSync("git", ["-C", r.root, "ls-tree", "-r", "-z", "--full-tree", "HEAD"], { maxBuffer: 64 * 1024 * 1024 })) > 1024 * 1024);
+    implemented(r);
+    const lg = GEN(r);
+    check("large: a large repository is not REPOSITORY_UNAVAILABLE", lg?.ok === true && lg.outcome === "VERIFICATION_GENERATED", JSON.stringify(lg).slice(0, 400));
+    check("large: the bound code fingerprint is recorded", typeof CHK(r).status === "string" && CHK(r).status === "incomplete");
+
+    const u = repo();
+    implemented(u);
+    rmSync(join(u.root, ".git"), { recursive: true, force: true });
+    const ug = GEN(u);
+    check("unavailable: a genuinely unavailable repository still stops with REPOSITORY_UNAVAILABLE", ug?.ok === false && ug.outcome === "REPOSITORY_UNAVAILABLE", JSON.stringify(ug));
+    check("unavailable: the stop says why, without a repository path", ug?.diagnostic?.kind === "NOT_A_GIT_REPOSITORY" && /not a git repository/.test(ug?.reason ?? "") && !JSON.stringify(ug).includes(u.root), JSON.stringify(ug));
+  }
+
   /* ── 38–45. boundaries ────────────────────────────────────────────────── */
   {
     const src = read("scripts/bug-verification.ts").replace(/\/\*\*[\s\S]*?\*\//g, "").replace(/^\s*\/\/.*$/gm, "");
