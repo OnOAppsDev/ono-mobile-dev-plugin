@@ -289,7 +289,7 @@ try {
     const PINS: Record<string, string> = {
       "hooks/require-approval-before-code.sh": "f518c0e554ef7c660b16504cd44eb4e5065b1520b4f519c4e34169a743b77bd2",
       "scripts/edit-approval.ts": "f43451852dc4f4639a659fff6250765c23c1474e089d5cec049859d50ff7382b",
-      "agents/feature-implementer.md": "d53845b5e31d2487754747f89227b0a54fa9d1ed457ae02934b593cce7576023",
+      "agents/feature-implementer.md": "052fec8ac10f83b1b78a94eca52a0260be977fcd4c92c629db91fd66d7b49991",
     };
     for (const [f, h] of Object.entries(PINS)) check(`37 ${f} is unchanged`, sha(readFileSync(join(REPO_ROOT, f))) === h);
     const r = planned("ext");

@@ -261,7 +261,7 @@ try {
     };
     for (const [f, h] of Object.entries(HOOKS)) check(`14 ${f} is byte-identical`, sha(readFileSync(join(REPO_ROOT, f))) === h);
     const FEATURE: Record<string, string> = {
-      "agents/feature-implementer.md": "d53845b5e31d2487754747f89227b0a54fa9d1ed457ae02934b593cce7576023",
+      "agents/feature-implementer.md": "052fec8ac10f83b1b78a94eca52a0260be977fcd4c92c629db91fd66d7b49991",
       "agents/feature-architect.md": "c715811b78c1804368766551cf42f46beec568d78a91397a4ea5f57d96bca582",
       "commands/analyze-feature.md": "42f3b7f1fbd91e9110e15877b3f746312926958ccf53f28dfc3ee76879e70051",
       "commands/dev-design-start.md": "f62963b1d156f4d9b22cd1d92678d4de25f0d66d7120801d62075d14ec8b9ca8",
