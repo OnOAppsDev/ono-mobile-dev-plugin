@@ -320,7 +320,7 @@ try {
       "hooks/block-main-branch-changes.sh": "771aef6d81d25308edbc77e4cca8c663cf2f05946cfe254fd150e34342636d34",
       "hooks/protect-secrets.json": "e1eaeb813e75d5b80927dcf6630c292c0bc7acd32519349af088dc0994cc00fb",
       "hooks/scan-for-secrets.sh": "be60a1fc569de494c2aa215220cf162eccfe8f6b7fc04ffc5a14d7e6827c67d9",
-      "agents/feature-implementer.md": "d53845b5e31d2487754747f89227b0a54fa9d1ed457ae02934b593cce7576023",
+      "agents/feature-implementer.md": "052fec8ac10f83b1b78a94eca52a0260be977fcd4c92c629db91fd66d7b49991",
     };
     for (const [f, h] of Object.entries(PINS)) check(`20/21 ${f} is byte-identical`, sha(readFileSync(join(REPO_ROOT, f))) === h);
     const it = read("commands/implement-task.md");

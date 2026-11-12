@@ -9,6 +9,27 @@ version below is the plugin's own `version` in
 
 ## [Unreleased]
 
+## [0.7.1] - 2026-11-12
+
+A patch release for the Bug Flow fix merged after 0.7.0 (`4e5fa09`, #55). This release sets
+`plugin.json` to `0.7.1` in the same commit as this heading.
+
+### Fixed
+
+- **`REPOSITORY_UNAVAILABLE` in large repositories.** `/verify-fix-cycle` (and
+  `/review-code --bug`, as `BUG_REPOSITORY_UNAVAILABLE`) stopped with "repository
+  unavailable" in repositories with many tracked files, such as committed iOS `Pods/`. The
+  git helpers in `scripts/task-resume.ts` captured output with Node's default 1 MiB buffer,
+  so `git ls-tree -r --full-tree` overflowed and the error was silently read as an
+  unavailable repository.
+  - **Buffer:** both git helpers now capture up to 64 MiB of output.
+  - **Diagnostics:** the stops keep their outcome codes but name the cause in `reason` and a
+    new `diagnostic` field — output too large, git not found, a failed git command (with
+    its exit status), not a git repository, or a `hash-object` count mismatch. Only the git
+    subcommand is reported, never repository paths or arguments.
+  - **Fingerprints:** the fix-cycle fingerprint algorithm is unchanged; identical repository
+    content keeps an identical fingerprint (pinned by a regression test).
+
 ## [0.7.0] - 2026-10-12
 
 Everything merged since the 0.6.0 release (`91dd870`): the Bug Development Flow (#51) and
