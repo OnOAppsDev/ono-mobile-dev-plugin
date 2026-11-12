@@ -48,7 +48,7 @@ import { createHash } from "crypto";
 import { validateBugWorkPlan, bugWorkPlanPath } from "./bug-work-plan.ts";
 import { approvalFingerprint, plainIdentityProblem, verifyApproval } from "./work-approval.ts";
 import { BUG_REPRO_CRITERION, DEFERRED_TO_CYCLE_VERIFICATION, bugKeyOf, readTaskState } from "./task-state.ts";
-import { contentFingerprint, rowCells } from "./task-resume.ts";
+import { contentFingerprint, describeRepositoryFailure, rowCells } from "./task-resume.ts";
 import { planContext } from "./bug-implementation.ts";
 import { notCode, readState } from "./bug-review.ts";
 import { cycleStatus } from "./edit-approval.ts";
@@ -100,12 +100,12 @@ function load(req: { root: string; work: string }): Loaded | { stop: Record<stri
   return { key, root, buf, abs, fm: v.frontmatter, v, ids };
 }
 
-function bindingNow(l: Loaded): { bug_work_plan_fingerprint: string | null; task_state_fingerprint: string | null; code_fingerprint: string | null } {
+function bindingNow(l: Loaded, code = contentFingerprint(l.root, notCode)): { bug_work_plan_fingerprint: string | null; task_state_fingerprint: string | null; code_fingerprint: string | null } {
   const state = readState(l.root, l.key);
   return {
     bug_work_plan_fingerprint: approvalFingerprint(l.buf),
     task_state_fingerprint: state === null ? null : sha(canonical(state)),
-    code_fingerprint: contentFingerprint(l.root, notCode).fingerprint,
+    code_fingerprint: code.fingerprint,
   };
 }
 
@@ -351,8 +351,10 @@ export function generateVerification(req: { root: string; work: string }): Recor
   if (verifyApproval(l.buf).status !== "approved") return { ok: false, outcome: "PLAN_NOT_APPROVED", reason: "the Bug Work Plan is not approved for its current fix cycle", route: "/analyze-bug <bug-ref>" };
   const left = incomplete(l);
   if (left.length) return { ok: false, outcome: "CYCLE_INCOMPLETE", reason: `fix cycle ${l.fm.fix_cycle} is not complete: ${left.join(", ")}`, next_command: nextCommand("implement-task", `bug:${l.key} ${left[0]}`) };
-  const now = bindingNow(l);
-  if (now.code_fingerprint === null || now.task_state_fingerprint === null || now.bug_work_plan_fingerprint === null) return { ok: false, outcome: "REPOSITORY_UNAVAILABLE", reason: "the plan, task state or code content could not be read" };
+  const code = contentFingerprint(l.root, notCode);
+  const now = bindingNow(l, code);
+  if (now.code_fingerprint === null) return { ok: false, outcome: "REPOSITORY_UNAVAILABLE", reason: `the code content could not be read: ${describeRepositoryFailure(code.failure) || "unknown git failure"}`, diagnostic: code.failure ?? null };
+  if (now.task_state_fingerprint === null || now.bug_work_plan_fingerprint === null) return { ok: false, outcome: "REPOSITORY_UNAVAILABLE", reason: "the plan, task state or code content could not be read" };
   const fresh = buildState(l, now as State["binding"]);
   const failing = fresh.automated.filter((a) => a.result !== "pass");
   if (failing.length) return { ok: false, outcome: "AUTOMATED_TESTING_FAILED", reason: `automated checks did not pass: ${failing.map((a) => a.command).join(", ")}` };
