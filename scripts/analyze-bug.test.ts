@@ -516,6 +516,157 @@ try {
     check("CLI a bad date is refused", run(["scaffold", "--origin", "production", "--report", report(EVIDENCE), "--root", repo(), "--platform", "android", "--device-type", "mobile", "--date", "today"]).json?.code === "INVALID_ARGUMENT");
     check("CLI an unknown command is refused, exit 0", run(["frobnicate"]).code === 0 && run(["frobnicate"]).json?.ok === false);
   }
+
+  /* ── routing persistence: an interrupted run resumes with its confirmed routing ── */
+  {
+    const TV = { platform: "ios", deviceType: "tv" };
+    const edit = (root: string, key: string, f: (t: string) => string) => writeFileSync(planFile(root, key), f(readFileSync(planFile(root, key), "utf-8")));
+    const route = (r: any) => JSON.stringify({ p: r?.routing?.platform, d: r?.routing?.device_type, s: r?.routing?.source, c: r?.routing?.requires_confirmation });
+    const scaffolded = (key = "BUG-50", req: Record<string, unknown> = {}) => {
+      const root = repo();
+      const req0 = key === "BUG-50" ? { ref: "BUG-50", qaRepo: QA } : req;
+      const sc = SC({ root, ...req0, ...TV, author: "dana", date: "2026-11-15" });
+      if (sc?.ok !== true) throw new Error(`scaffold fixture: ${show(sc)}`);
+      return { root, req: req0 };
+    };
+
+    // W1 — the confirmation is recorded by the scaffold that follows it at once.
+    {
+      const root = repo();
+      const fresh = S({ root, ref: "BUG-50", qaRepo: QA });
+      check("persist a new bug asks once: no routing before the confirmation", fresh?.outcome === "BUG_PLAN_NEW" && fresh.routing.requires_confirmation === true);
+      SC({ root, ref: "BUG-50", qaRepo: QA, ...TV, author: "dana", date: "2026-11-15" });
+      const fm = validateBugWorkPlan(readFileSync(planFile(root, "BUG-50"))).frontmatter;
+      check("persist the scaffold records the confirmed routing in the plan's frontmatter", fm.platform === "ios" && fm.device_type === "tv" && fm.status === "draft" && fm.fix_cycle === 1);
+    }
+
+    // W2 — resume immediately after the scaffold.
+    {
+      const { root, req } = scaffolded();
+      const before = readFileSync(planFile(root, "BUG-50"), "utf-8");
+      const s = S({ root, ...req });
+      check("persist a fresh scaffold resumes as BUG_PLAN_INCOMPLETE, not BUG_PLAN_INVALID", s?.ok === true && s.outcome === "BUG_PLAN_INCOMPLETE" && s.proceed === "complete-plan", show(s));
+      check("persist …reusing the plan's routing, with no confirmation", route(s) === JSON.stringify({ p: "ios", d: "tv", s: "existing-plan", c: false }), route(s));
+      check("persist …through the planning subagent", s?.planner?.subagent_type === "ono-mobile-dev-plugin:feature-architect");
+      check("persist …reporting the unfinished analysis", s?.plan?.valid === false && s.plan.errors.length > 0 && s.plan.errors.every((e: any) => e.code === "LABEL_MISSING" || e.code === "TASK_TABLE"));
+      check("persist start writes nothing", readFileSync(planFile(root, "BUG-50"), "utf-8") === before);
+      const again = SC({ root, ...req, ...TV, author: "dana", date: "2026-11-15" });
+      check("persist an unfinished plan is never scaffolded again", again?.ok === false && again.code === "NOT_SCAFFOLDABLE" && readFileSync(planFile(root, "BUG-50"), "utf-8") === before, show(again));
+      check("persist no fix cycle is appended", validateBugWorkPlan(readFileSync(planFile(root, "BUG-50"))).frontmatter.fix_cycle === 1 && !/^## Cycle 2/m.test(readFileSync(planFile(root, "BUG-50"), "utf-8")));
+    }
+
+    // W2 — resume a partly written analysis; a finished one is a valid draft as before.
+    {
+      const { root, req } = scaffolded();
+      edit(root, "BUG-50", (t) => t.replace(/^- \*\*Root-cause fix:\*\*\s*$/m, "- **Root-cause fix:** compute the total from the discounted subtotal").replace(/^- \*\*Risks:\*\*\s*$/m, "- **Risks:** stacked coupons [inference]"));
+      const s = S({ root, ...req });
+      check("persist a partly analysed draft resumes with its routing", s?.outcome === "BUG_PLAN_INCOMPLETE" && route(s) === JSON.stringify({ p: "ios", d: "tv", s: "existing-plan", c: false }), show(s));
+      check("persist …and only what is still missing is reported", !s?.plan?.errors.some((e: any) => /Root-cause fix|Risks/.test(e.message)));
+      edit(root, "BUG-50", (t) => fill(t.replace(/^- \*\*(Root-cause fix|Risks):\*\* .*$/gm, "- **$1:**"), { platform: "ios" }));
+      check("persist a finished draft is the existing awaiting-approval draft", S({ root, ...req })?.outcome === "BUG_PLAN_AWAITING_APPROVAL");
+    }
+
+    // Precedence: the plan's own routing wins over a related feature approved later.
+    {
+      const root = repo();
+      SC({ root, ref: "BUG-43", qaRepo: QA, ...TV, author: "dana", date: "2026-11-15" });
+      writeFileSync(join(root, "docs/planning/checkout-coupons-task-breakdown.md"), [
+        "# Task Breakdown — checkout-coupons", "", "```yaml", "doc_schema_version: 1", "feature: checkout-coupons", "feature_analysis_link: docs/x-analysis.md",
+        "dd_link: docs/x-DD.md", "dev_plan_link: docs/x-plan.md", "platform: android", "device_type: mobile", "status: approved", "```", "", ""].join("\n"));
+      const s = S({ root, ref: "BUG-43", qaRepo: QA });
+      check("persist the existing plan's routing takes precedence over related-feature inheritance", s?.outcome === "BUG_PLAN_INCOMPLETE" && route(s) === JSON.stringify({ p: "ios", d: "tv", s: "existing-plan", c: false }), route(s));
+      const inherit = S({ root: repo([{ feature: "checkout-coupons", status: "approved", platform: "android", device: "mobile" }]), ref: "BUG-43", qaRepo: QA });
+      check("persist related-feature inheritance is unchanged without a plan", inherit?.outcome === "BUG_PLAN_NEW" && inherit.routing.source !== "existing-plan" && inherit.routing.platform === "android" && inherit.routing.requires_confirmation === false);
+    }
+
+    // Changed evidence under an unfinished plan: the existing regeneration rule, keeping the routing.
+    {
+      const rep1 = report(EVIDENCE);
+      const { root } = scaffolded("PAY-77", { external: "PAY-77", report: rep1 });
+      const moved = { external: "PAY-77", report: report({ ...EVIDENCE, actual: "Total shows the full price and the coupon chip disappears" }) };
+      const s = S({ root, ...moved });
+      check("persist changed evidence under an unfinished plan regenerates, as for any draft", s?.ok === true && s.outcome === "BUG_PLAN_REGENERATE" && s.plan?.drift?.includes("bug_evidence_fingerprint"), show(s));
+      check("persist …keeping the confirmed routing", route(s) === JSON.stringify({ p: "ios", d: "tv", s: "existing-plan", c: false }), route(s));
+      const conflict = SC({ root, ...moved, platform: "android", deviceType: "mobile", author: "dana", date: "2026-11-15" });
+      check("persist a different routing is still a ROUTING_CONFLICT", conflict?.ok === false && conflict.code === "ROUTING_CONFLICT", show(conflict));
+      const regen = SC({ root, ...moved, author: "dana", date: "2026-11-15" });
+      const fm = validateBugWorkPlan(readFileSync(planFile(root, "PAY-77"))).frontmatter;
+      check("persist regeneration rewrites the draft in place with the carried routing", regen?.ok === true && regen.regenerated === true && fm.platform === "ios" && fm.device_type === "tv" && fm.bug_evidence_fingerprint === S({ root, ...moved })?.intake?.bug_evidence_fingerprint, show(regen));
+      check("persist …and it resumes as unfinished afterwards", S({ root, ...moved })?.outcome === "BUG_PLAN_INCOMPLETE");
+    }
+
+    // Never unfinished: these stay BUG_PLAN_INVALID, never overwritten.
+    const invalid = (name: string, mutate: (root: string) => void) => {
+      const { root, req } = scaffolded();
+      mutate(root);
+      const before = readFileSync(planFile(root, "BUG-50"), "utf-8");
+      const s = S({ root, ...req });
+      const sc = SC({ root, ...req, ...TV, author: "dana", date: "2026-11-15" });
+      check(`persist ${name} is not resumable`, s?.ok === false && s.outcome !== "BUG_PLAN_INCOMPLETE" && s.routing === undefined && sc?.ok === false && readFileSync(planFile(root, "BUG-50"), "utf-8") === before, `${s?.outcome} ${show(sc)}`);
+    };
+    invalid("an invalid platform in the frontmatter", (r) => edit(r, "BUG-50", (t) => t.replace("\nplatform: ios\n", "\nplatform: tvos\n")));
+    invalid("an empty device_type", (r) => edit(r, "BUG-50", (t) => t.replace("\ndevice_type: tv\n", "\ndevice_type: \n")));
+    invalid("a plan naming another bug", (r) => edit(r, "BUG-50", (t) => t.replace("\nbug_key: BUG-50\n", "\nbug_key: BUG-51\n")));
+    invalid("a missing section", (r) => edit(r, "BUG-50", (t) => t.replace("\n## Blast Radius\n", "\n")));
+    invalid("sections out of order", (r) => edit(r, "BUG-50", (t) => t.replace("\n## Root Cause\n", "\n## Root Cause Moved\n")));
+    invalid("a malformed task row", (r) => edit(r, "BUG-50", (t) => t.replace(/(\n## Tasks\n[\s\S]*?\|---\|---\|---\|---\|---\|---\|---\|\n)/, "$1| T1 | broken row |\n")));
+    invalid("a plan carrying approval fields", (r) => edit(r, "BUG-50", (t) => t.replace("\napproved_by: null\n", "\napproved_by: dana\n")));
+    invalid("a plan whose status is not draft", (r) => edit(r, "BUG-50", (t) => t.replace("\nstatus: draft\n", "\nstatus: approved\n")));
+    invalid("a plan with task state", (r) => { mkdirSync(join(r, "docs/tasks/bugs"), { recursive: true }); writeFileSync(join(r, "docs/tasks/bugs/BUG-50.task-state.json"), "{}\n"); });
+    invalid("a plan at fix cycle 2", (r) => edit(r, "BUG-50", (t) => t.replace("\nfix_cycle: 1\n", "\nfix_cycle: 2\n")));
+    {
+      const root = repo();
+      const p = planFile(root, "BUG-50");
+      mkdirSync(dirname(p), { recursive: true });
+      writeFileSync(p, "# not a plan\n\n## Root Cause\n");
+      check("persist a file with no frontmatter is still BUG_PLAN_INVALID", S({ root, ref: "BUG-50", qaRepo: QA })?.outcome === "BUG_PLAN_INVALID");
+    }
+    {
+      // An approved plan is never re-opened as unfinished, even with its labels emptied afterwards.
+      const { root, req } = scaffolded();
+      edit(root, "BUG-50", (t) => fill(t, { platform: "ios" }));
+      approveWorkPackage(planFile(root, "BUG-50"), { by: "dana" });
+      check("persist fixture: the plan is approved", S({ root, ...req })?.outcome === "BUG_PLAN_APPROVED");
+      edit(root, "BUG-50", (t) => t.replace(/^- \*\*Risks:\*\* .*$/m, "- **Risks:**"));
+      const s = S({ root, ...req });
+      check("persist an approved plan with an emptied label is never BUG_PLAN_INCOMPLETE", s?.ok === false && s.outcome === "BUG_PLAN_INVALID", s?.outcome);
+    }
+
+    // The canonical evidence snapshot is untouched by any of this.
+    {
+      const root = repo();
+      const req = { external: "PAY-78", report: report(EVIDENCE) };
+      S({ root, ...req });
+      SC({ root, ...req, ...TV, author: "dana", date: "2026-11-15" });
+      const snapAbs = join(root, "docs/bugs/PAY-78/bug-report.json");
+      const snapBefore = readFileSync(snapAbs, "utf-8");
+      const s = S({ root, external: "PAY-78" });
+      const snap = JSON.parse(readFileSync(snapAbs, "utf-8"));
+      check("persist resuming from the snapshot alone works", s?.outcome === "BUG_PLAN_INCOMPLETE" && s.evidence_snapshot?.status === "current", show(s));
+      check("persist the snapshot's bytes are unchanged by the resume", readFileSync(snapAbs, "utf-8") === snapBefore);
+      check("persist the snapshot keeps exactly its schema's fields — no routing in it",
+        JSON.stringify(Object.keys(snap).sort()) === JSON.stringify(["bug_evidence_fingerprint", "bug_key", "evidence", "identity", "provenance", "schema", "snapshot_fingerprint"]) &&
+        !/platform|device_type|routing/.test(JSON.stringify(snap)) && snap.schema === "bug-evidence-snapshot/v1");
+    }
+
+    // The command: Project Knowledge, then the confirmation, then the scaffold at once.
+    {
+      const cmd = read("commands/analyze-bug.md");
+      const at = (h: string) => cmd.indexOf(`\n${h}\n`);
+      const [pk, rt, sc, an] = ["## 4. Project Knowledge", "## 5. Routing — platform and device type", "## 6. Scaffold the plan", "## 7. Analyze: root cause, fix design, verification, tasks"].map(at);
+      check("persist command orders Project Knowledge → routing → scaffold → analysis", pk > 0 && pk < rt && rt < sc && sc < an, JSON.stringify([pk, rt, sc, an]));
+      const routingStep = cmd.slice(rt, sc);
+      check("persist command scaffolds at once after the confirmation", /\*\*Scaffold at once\.\*\*/.test(routingStep) && /Nothing runs between the answer and the scaffold/.test(routingStep) && /returns `BUG_PLAN_INCOMPLETE` and resumes with that routing/.test(routingStep));
+      check("persist command: no surface scoping between the answer and the scaffold", !/Step 3b/.test(routingStep) && /Step 3b/.test(cmd.slice(sc, an)));
+      check("persist command: Project Knowledge runs before routing and needs none", /Run this before the routing step: it needs no routing/.test(cmd.slice(pk, rt)));
+      check("persist command: the scaffold runs immediately after step 5, with step 4's capability", /Run it immediately after step 5\. Pass `--platform` \/ `--device-type` only when step 5 asked\. Pass `--capability` only when step 4 located one/.test(cmd));
+      const row = cmd.split("\n").find((l) => l.startsWith("| `BUG_PLAN_INCOMPLETE` |")) ?? "";
+      check("persist command: BUG_PLAN_INCOMPLETE skips routing and scaffold and continues the analysis",
+        /Skip step 5/.test(row) && /never ask for it again or re-run platform detection/.test(row) && /skip step 6: never scaffold again/.test(row) && /Continue at step 7/.test(row));
+      check("persist command: inherited routing — including an unfinished scaffold — is never asked again", /including an unfinished scaffold, whose frontmatter records the routing the developer already confirmed/.test(routingStep) && /do not run `repo-analyst`'s platform detection/.test(routingStep));
+      check("persist the contract documents BUG_PLAN_INCOMPLETE", /\| `BUG_PLAN_INCOMPLETE` \|/.test(read("docs/bug-work-plan-contract.md")));
+    }
+  }
 } finally {
   rmSync(TMP, { recursive: true, force: true });
 }

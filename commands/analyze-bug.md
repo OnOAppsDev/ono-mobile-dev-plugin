@@ -24,7 +24,7 @@ Do not narrate file reads, searches or helper calls; never echo helper JSON, nev
 Accept exactly one of:
 
 - **A QA bug.** `BUG-27`, `qa=BUG-27` or `qa=BUG-27,external=PAY-1182`, plus the QA repository path, `--qa-repo=<path>`. If the path is missing, ask the developer for it once. Never search sibling folders or guess a location.
-- **An external tracker bug.** `--external=<key>` (a tracker key, not a URL) plus `--report=<path>` (the report as JSON: `title`, `steps`, `expected`, `actual`, optionally `surfaces`, `found_in_build`, `environment`, `description`). Copy the ticket's environment field into `environment` verbatim. When the ticket names the affected OS or device, record it in `surfaces` as a plain id (`ios`, `android`, `tvos`, `android-tv`) — never invent one the ticket does not state. Keep the ticket's project key and name, components and labels for step 4.
+- **An external tracker bug.** `--external=<key>` (a tracker key, not a URL) plus `--report=<path>` (the report as JSON: `title`, `steps`, `expected`, `actual`, optionally `surfaces`, `found_in_build`, `environment`, `description`). Copy the ticket's environment field into `environment` verbatim. When the ticket names the affected OS or device, record it in `surfaces` as a plain id (`ios`, `android`, `tvos`, `android-tv`) — never invent one the ticket does not state. Keep the ticket's project key and name, components and labels for step 5.
 - **A Dev-discovered bug.** `--origin=dev-review|dev-testing|production` plus `--report=<path>` in the same shape.
 
 - **A document** (Word, PDF, Markdown export). Extract the evidence from it **once**, into that JSON shape, saved outside `TARGET_ROOT` (the session's scratch directory); if a required field is missing or the extraction is uncertain, show what was extracted and ask the developer once, before anything is persisted. Pass it as `--report=<json>` with `--source-document=<the original file>` (provenance only). Hand-prepared structured evidence adds `--source-type=manual`. Later stages never reopen, re-read or re-extract the document.
@@ -69,11 +69,12 @@ Act on `outcome` exactly:
 | `BUG_REOPEN_UNVERIFIED` | The current cycle was handed to QA, and QA's state is unavailable (partial context) | **Stop.** Whether QA reopened the bug cannot be verified, so no new cycle starts. Run again once QA's state is available. |
 | `BUG_CYCLE_HANDED_OFF` | The current cycle is implemented and handed to QA | Do **not** regenerate. Report it; QA re-tests next, and a new cycle starts only after a verified reopen. |
 | `BUG_PLAN_NEW` | No plan exists | Continue at step 4 and create the cycle-1 plan. |
+| `BUG_PLAN_INCOMPLETE` | The cycle-1 plan was scaffolded and its analysis is not finished — an interrupted run. Its frontmatter is valid and records the confirmed routing; it is an unapproved draft with no task state | Re-read step 4's Project Knowledge context (it asks nothing). Skip step 5 — the routing is the plan's own (`requires_confirmation: false`); never ask for it again or re-run platform detection — and skip step 6: never scaffold again. Continue at step 7 and finish the analysis in the existing draft. |
 | `BUG_PLAN_REGENERATE` | The evidence changed under an unapproved draft with no task state | Say which fields drifted (`plan.drift`), then continue at step 4 and regenerate the draft in place. |
 | `BUG_PLAN_AWAITING_APPROVAL` | A current draft exists, or the plan was edited after approval | Do **not** regenerate. Go straight to step 9 with the existing plan. |
 | `BUG_PLAN_APPROVED` | The plan is approved for its current fix cycle and still matches the evidence | Do **not** regenerate. Report the plan and its approval, then offer `next_command` (the cycle's next task, or the bug review once its tasks are done) as step 10 does. |
 | `BUG_PLAN_STALE` | The evidence changed under an approved plan, or under one already in implementation | **Stop.** Report `reason` and `plan.drift`. Reconciling a plan with work already approved or begun belongs to a later step. Nothing is regenerated. |
-| `BUG_PLAN_INVALID` | The file at the plan path is not a valid plan for this bug | **Stop.** Report `plan.errors`. The file is never overwritten. If it is an unfinished scaffold from an interrupted run, the developer may fix it or remove it and rerun. |
+| `BUG_PLAN_INVALID` | The file at the plan path is not a valid plan for this bug — and not merely an unfinished scaffold (`BUG_PLAN_INCOMPLETE`) | **Stop.** Report `plan.errors`. The file is never overwritten. The developer may fix it or remove it and rerun. |
 
 **Canonical evidence (`evidence_snapshot`).** `start` also reports how this intake stands against `docs/bugs/<bug_key>/bug-report.json` (`docs/bug-work-plan-contract.md` § *Bug evidence snapshot*): `missing`, `current`, `differs` (with the `changed` fields) or `conflict`. When `start` succeeded on an explicit source, persist it:
 
@@ -136,34 +137,9 @@ Only a **verified reopen** (full QA context) after a fix this plan handed to QA 
    **Never edit an earlier cycle.** The Tasks section and every earlier `### Cycle k` are history.
 4. **Continue at step 8**, then step 9. Validate and check the whole plan. In the approval summary, put the new cycle first: what failed, why, the delta, the tasks and the verification. One approval binds the plan to the new fix cycle.
 
-## 4. Routing — platform and device type
+## 4. Project Knowledge
 
-Read `routing` from `start`:
-
-- **`requires_confirmation: false`.** The routing is inherited. It comes either from the existing plan or from the related feature's **one approved Task Breakdown**, whose platform and device type a human confirmed at `/analyze-feature` step 2. Show it with its `source` and use it. Do not ask again.
-- **`requires_confirmation: true`.** Ask once, with the same gate as `/analyze-feature` step 2. Invoke `repo-analyst` with the `mobile-repo-analysis` methodology to detect the context — platform and device type together — and pass it the tracker evidence as corroboration: `routing.corroborating_surfaces`, `routing.corroborating_environment`, and the ticket's project key and name, components and labels from step 1. It returns one routing candidate with a resolution (`agents/repo-analyst.md` Step 5a). When it is `resolved`, present it:
-
-  ```
-  Detected development context:
-
-  Platform: <detected platform>
-  Device type: <detected device type>
-
-  Is this bug in this context?
-  1. Yes, continue
-  2. No, select another context
-  ```
-
-  The confirmed context resolves to exactly **one** platform (`react-native` / `react` / `ios` / `android`) and exactly one device type (`mobile` / `tv`). Validate the answer and re-ask on invalid input; tvOS / Apple TV is `ios` + `tv` and Android TV is `android` + `tv`. When the resolution is `ambiguous` or `conflicting`, offer no "Yes, continue" path: show the repository-supported options (and, for a conflict, what the ticket said) and the developer selects one.
-
-  - **React Native stays `react-native`.** A bug that affects only iOS or only Android in a React Native app routes `react-native`; the affected OS is in `surfaces`, never the platform. Its linked iOS and Android shells are not separate platforms to choose between.
-  - **The repository decides what is possible.** Ticket evidence may pick one of the targets the repository supports (the tvOS target of a project with iOS and tvOS targets) and may confirm a resolved one; it never adds a platform or device type the repository does not support.
-
-QA's affected surfaces (`routing.corroborating_surfaces`) and the ticket's environment (`routing.corroborating_environment`) are corroborating evidence only. Show them beside the detected context. They never choose the platform or device type on their own — `repo-analyst` may use them only to pick among the targets the repository supports — and neither does Project Knowledge. When the repository declares surfaces, scope the confirmed context to one through the `repo-knowledge-consumer` skill (Step 3b). Scope is never routing.
-
-## 5. Project Knowledge
-
-Apply the `repo-knowledge-consumer` skill.
+Run this before the routing step: it needs no routing, and it leaves nothing between the developer's routing answer and the scaffold that records it. Apply the `repo-knowledge-consumer` skill.
 
 1. **Resolve.** Resolve `.ono/repo-knowledge.json` through its helper. When it is unavailable, say so in one line and derive everything live. That never blocks.
 2. **Locate the capability (Step 3c), in priority order:**
@@ -186,9 +162,35 @@ Apply the `repo-knowledge-consumer` skill.
 5. **Keep the boundary.** Project Knowledge is advisory. **Project Knowledge never decides whether the bug exists.** The bug evidence from step 3 does.
 6. **Report staleness.** When the reader reports source drift, carry its `refreshRecommendation`, unchanged, into the plan's Repo Knowledge Reference and into the step 9 summary.
 
+## 5. Routing — platform and device type
+
+Read `routing` from `start`:
+
+- **`requires_confirmation: false`.** The routing is inherited. It comes either from the existing plan — including an unfinished scaffold, whose frontmatter records the routing the developer already confirmed — or from the related feature's **one approved Task Breakdown**, whose platform and device type a human confirmed at `/analyze-feature` step 2. Show it with its `source` and use it. Do not ask again, and do not run `repo-analyst`'s platform detection.
+- **`requires_confirmation: true`.** Ask once, with the same gate as `/analyze-feature` step 2. Invoke `repo-analyst` with the `mobile-repo-analysis` methodology to detect the context — platform and device type together — and pass it the tracker evidence as corroboration: `routing.corroborating_surfaces`, `routing.corroborating_environment`, and the ticket's project key and name, components and labels from step 1. It returns one routing candidate with a resolution (`agents/repo-analyst.md` Step 5a). When it is `resolved`, present it:
+
+  ```
+  Detected development context:
+
+  Platform: <detected platform>
+  Device type: <detected device type>
+
+  Is this bug in this context?
+  1. Yes, continue
+  2. No, select another context
+  ```
+
+  The confirmed context resolves to exactly **one** platform (`react-native` / `react` / `ios` / `android`) and exactly one device type (`mobile` / `tv`). Validate the answer and re-ask on invalid input; tvOS / Apple TV is `ios` + `tv` and Android TV is `android` + `tv`. When the resolution is `ambiguous` or `conflicting`, offer no "Yes, continue" path: show the repository-supported options (and, for a conflict, what the ticket said) and the developer selects one.
+
+  - **React Native stays `react-native`.** A bug that affects only iOS or only Android in a React Native app routes `react-native`; the affected OS is in `surfaces`, never the platform. Its linked iOS and Android shells are not separate platforms to choose between.
+  - **The repository decides what is possible.** Ticket evidence may pick one of the targets the repository supports (the tvOS target of a project with iOS and tvOS targets) and may confirm a resolved one; it never adds a platform or device type the repository does not support.
+
+QA's affected surfaces (`routing.corroborating_surfaces`) and the ticket's environment (`routing.corroborating_environment`) are corroborating evidence only. Show them beside the detected context. They never choose the platform or device type on their own — `repo-analyst` may use them only to pick among the targets the repository supports — and neither does Project Knowledge. 
+**Scaffold at once.** As soon as the developer confirms (or the routing is inherited), run step 6. Nothing runs between the answer and the scaffold: the scaffold is what records the confirmed platform and device type, in the plan's frontmatter, so a session that ends after it loses nothing — the next `start` returns `BUG_PLAN_INCOMPLETE` and resumes with that routing.
+
 ## 6. Scaffold the plan
 
-Pass `--platform` / `--device-type` only when step 4 asked. Pass `--capability` only when step 5 located one that QA had not bound.
+Run it immediately after step 5. Pass `--platform` / `--device-type` only when step 5 asked. Pass `--capability` only when step 4 located one that QA had not bound.
 
 ```
 node --no-warnings "${CLAUDE_PLUGIN_ROOT}/scripts/analyze-bug.ts" scaffold <ref-args> --root "<TARGET_ROOT>" \
@@ -196,7 +198,7 @@ node --no-warnings "${CLAUDE_PLUGIN_ROOT}/scripts/analyze-bug.ts" scaffold <ref-
 ```
 
 `scaffold` writes the draft from `templates/bug-work-plan-template.md`:
-- the identity, evidence fingerprint, routing and capability in frontmatter, verbatim from intake and steps 4–5;
+- the identity, evidence fingerprint, routing and capability in frontmatter, verbatim from intake and steps 4–5 — the durable record of the confirmed routing;
 - `fix_cycle: 1` and `status: draft`;
 - **Reproduction Evidence** and **Observed vs Expected**, with their provenance and every partial-context warning;
 - the routing and capability sources in Affected Capability & Surfaces;
@@ -210,7 +212,7 @@ It refuses:
 
 Report a refusal and stop. Never write the plan yourself.
 
-Then fill the six `repo_knowledge_*` frontmatter fields exactly as the `repo-knowledge-consumer` skill's Step 6 defines them.
+Then fill the six `repo_knowledge_*` frontmatter fields exactly as the `repo-knowledge-consumer` skill's Step 6 defines them. When the repository declares surfaces, scope the confirmed context to one through the `repo-knowledge-consumer` skill (Step 3b). Scope is never routing.
 
 ## 7. Analyze: root cause, fix design, verification, tasks
 
@@ -231,7 +233,7 @@ Give the agent:
 - `TARGET_ROOT` and the absolute plan path;
 - the intake evidence;
 - the confirmed context;
-- the Project Knowledge context from step 5;
+- the Project Knowledge context from step 4;
 - the scaffold;
 - step 8's two commands, which it runs until both report `ok: true`.
 
