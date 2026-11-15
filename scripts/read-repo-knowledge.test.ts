@@ -15,7 +15,7 @@
  */
 
 import { execFileSync } from "child_process";
-import { mkdtempSync, mkdirSync, writeFileSync, realpathSync, rmSync } from "fs";
+import { mkdtempSync, mkdirSync, writeFileSync, realpathSync, rmSync, cpSync, renameSync, readFileSync } from "fs";
 import { createHash } from "crypto";
 import { tmpdir } from "os";
 import { join, dirname } from "path";
@@ -287,6 +287,97 @@ try {
     check("13 audit topic malformed: exit 0", r.code === 0, `code=${r.code} stderr=${r.stderr}`);
     check("13 audit topic malformed: available false", r.json?.available === false);
     check("13 audit topic malformed: reason invalid", r.json?.reason === "invalid", String(r.json?.reason));
+  }
+
+  // --- Rows 14–16 (0.7.5): real Inspector manifests, at the Git root and nested below it ---
+  const FIX = join(import.meta.dirname ?? __dirname, "fixtures", "inspector-knowledge");
+  const VERSIONS = ["0.10.0", "0.11.0", "0.11.1", "0.11.2"];
+  /** Copy the fixture project into `dir` (CLAUDE.fixture.md -> CLAUDE.md). */
+  const copyApp = (dir: string): void => {
+    cpSync(join(FIX, "app"), dir, { recursive: true });
+    renameSync(join(dir, "CLAUDE.fixture.md"), join(dir, "CLAUDE.md"));
+  };
+  /** The emitted manifest, re-anchored to this repository's HEAD (artifact hashes untouched). */
+  const anchored = (v: string, head: string): any => {
+    const m = JSON.parse(readFileSync(join(FIX, "manifests", `${v}.json`), "utf-8"));
+    m.fingerprint.gitHead = head;
+    m.fingerprint.knowledgeHead = head;
+    return m;
+  };
+  const runArgs = (...args: string[]): any =>
+    JSON.parse(execFileSync(RUNTIME, [HELPER, ...args], { encoding: "utf-8", stdio: ["ignore", "pipe", "pipe"] }));
+
+  // --- Row 14: every Inspector release's manifest stays readable at the Git root ---
+  for (const v of VERSIONS) {
+    const repo = join(root, `inspector-${v}`);
+    initRepo(repo);
+    copyApp(repo);
+    git(repo, "add", "-A");
+    git(repo, "commit", "-qm", "app");
+    write(repo, ".ono/repo-knowledge.json", JSON.stringify(anchored(v, git(repo, "rev-parse", "HEAD")), null, 2));
+    const r = run(repo);
+    const modern = v !== "0.10.0";
+    check(`14 Inspector ${v}: available`, r.json?.available === true, JSON.stringify([r.json?.reason, r.json?.summary]));
+    check(`14 Inspector ${v}: fresh, no source drift`, r.json?.freshness === "fresh" && r.json?.sourceDrift?.status === "COMPLETE", JSON.stringify([r.json?.freshness, r.json?.sourceDrift?.status]));
+    check(`14 Inspector ${v}: producer version reported`, r.json?.producedBy?.version === v);
+    check(`14 Inspector ${v}: a root-level project has an empty prefix`, r.json?.projectPrefix === "", JSON.stringify(r.json?.projectPrefix));
+    check(`14 Inspector ${v}: base categories reusable`, ["stack", "structure", "inventory", "conventions", "integrations"].every((c) => r.json?.trustedCategories?.includes(c)), JSON.stringify(r.json?.trustedCategories));
+    check(`14 Inspector ${v}: surfaces ${modern ? "reused" : "derived live (pre-0.11 manifest)"}`,
+      modern ? r.json?.extendedCategories?.surfaces?.status === "trusted" && r.json?.surfaces?.length === 2 : r.json?.extendedCategories?.surfaces?.status === "deriveLive" && r.json?.surfaces === null,
+      JSON.stringify(r.json?.extendedCategories));
+    check(`14 Inspector ${v}: capabilities ${modern ? "reused" : "derived live (pre-0.11 manifest)"}`,
+      modern ? r.json?.extendedCategories?.capabilities?.status === "trusted" && r.json?.capabilities?.length === 5 : r.json?.capabilities === null);
+  }
+
+  // --- Row 15: a nested project (Inspector 0.11.2 Project Root below the Git root) ---
+  {
+    const mono = join(root, "mono");
+    const project = join(mono, "TVApp");
+    initRepo(mono);
+    write(mono, "Other/src/other.ts", "export {};\n");
+    mkdirSync(project, { recursive: true });
+    copyApp(project);
+    git(mono, "add", "-A");
+    git(mono, "commit", "-qm", "two projects");
+    const head = git(mono, "rev-parse", "HEAD");
+    write(project, ".ono/state.json", JSON.stringify({ repository: { knowledgeHead: head } }));
+    write(project, ".ono/repo-knowledge.json", JSON.stringify(anchored("0.11.2", head), null, 2));
+    git(mono, "add", "-A");
+    git(mono, "commit", "-qm", "inspector knowledge");
+
+    const atGitRoot = run(mono);
+    check("15 nested: the Git root alone has no manifest (the derive-live fallback)", atGitRoot.json?.available === false && atGitRoot.json?.reason === "absent");
+    const fresh = run(project);
+    check("15 nested: read at the Project Root it is available", fresh.json?.available === true, JSON.stringify(fresh.json?.reason));
+    check("15 nested: the project prefix is reported", fresh.json?.projectPrefix === "TVApp/", JSON.stringify(fresh.json?.projectPrefix));
+    check("15 nested: committing Inspector's own files is not source drift", fresh.json?.sourceDrift?.status === "COMPLETE", JSON.stringify(fresh.json?.sourceDrift));
+
+    write(mono, "Other/src/other.ts", "export const x = 1;\n");
+    git(mono, "commit", "-qam", "outside the project");
+    const outside = run(project);
+    check("15 nested: a change outside the project is not this project's drift", outside.json?.sourceDrift?.status === "COMPLETE" && outside.json?.sourceDrift?.changedSourceCount === 0, JSON.stringify(outside.json?.sourceDrift));
+
+    write(project, "src/tv/FocusRow.tsx", "// changed\n");
+    git(mono, "commit", "-qam", "inside the project");
+    const inside = run(project);
+    const d = inside.json?.sourceDrift;
+    check("15 nested: a change inside the project is drift", d?.status === "REFRESH_RECOMMENDED", JSON.stringify(d));
+    check("15 nested: changed files are project-relative", JSON.stringify(d?.changedSourceFiles) === JSON.stringify(["src/tv/FocusRow.tsx"]), JSON.stringify(d?.changedSourceFiles));
+    check("15 nested: no false top-level-entry signal for the project directory", !(d?.analysisSignals ?? []).some((x: string) => /TVApp|Other/.test(x)), JSON.stringify(d?.analysisSignals));
+    check("15 nested: the change is attributed to the recorded surface", (d?.affectedSurfaces ?? []).length > 0, JSON.stringify(d));
+
+    write(project, "newdir/a.ts", "export {};\n");
+    git(mono, "add", "-A");
+    git(mono, "commit", "-qm", "new top-level entry in the project");
+    const added = run(project);
+    check("15 nested: a new top-level entry of the project is still signalled", (added.json?.sourceDrift?.analysisSignals ?? []).includes("top-level entry added: newdir"), JSON.stringify(added.json?.sourceDrift?.analysisSignals));
+
+    // --- Row 16: --path accepts Git-root-relative and project-relative paths alike ---
+    const fromGitRoot = runArgs(project, "--path", "TVApp/src/tv/FocusRow.tsx").query?.paths?.[0];
+    const fromProject = runArgs(project, "--path", "src/tv/FocusRow.tsx").query?.paths?.[0];
+    check("16 --path: a Git-root-relative path is scoped like the project-relative one",
+      fromGitRoot?.surfaces?.length > 0 && JSON.stringify(fromGitRoot?.surfaces) === JSON.stringify(fromProject?.surfaces) && fromGitRoot?.path === "src/tv/FocusRow.tsx",
+      JSON.stringify([fromGitRoot, fromProject]));
   }
 } finally {
   rmSync(root, { recursive: true, force: true });

@@ -522,10 +522,21 @@ const api = Reader as any;
 {
   // sha256 of ono-project-inspector 6fa811d:docs/repo-knowledge-contract.md (Stage A, 0.11.0).
   // When the producer changes the contract, update the copy AND this pin in the same release.
-  const STAGE_A_CONTRACT_SHA256 = "b9822771b19460eadf32440bec562cc2508612a41700e399e6be9b8632413957";
+  // 0.7.5: re-synced with producer 0.11.2 (the Project Root paragraph).
+  const STAGE_A_CONTRACT_SHA256 = "6fb8eff730a2064259fbc56428d2303424517ff9ded6d5c3b276be649c6226d8";
   const contract = read("docs/repo-knowledge-contract.md");
   check("16 contract copy is byte-identical to the Stage A producer copy", sha(contract) === STAGE_A_CONTRACT_SHA256, sha(contract));
   check("16 contract carries the Stage A obligation on surfaces and capabilities", /Surfaces and capabilities are advisory too/.test(contract));
+  check("16 contract states the manifest lives at the Project Root (producer 0.11.2)", /is the inspected \*\*Project Root\*\* \(producer 0\.11\.2\+\)/.test(contract) && /every path inside the manifest is relative to it/.test(contract));
+  {
+    const c = read("skills/repo-knowledge-consumer/SKILL.md");
+    check("16 consumer: two roots — TARGET_ROOT for this plugin's documents, KNOWLEDGE_ROOT only for Project Knowledge", /`TARGET_ROOT`\*\* — the Git root/.test(c) && /`KNOWLEDGE_ROOT`\*\* — where the Ono Project Inspector's knowledge lives/.test(c) && /used \*\*only\*\* to read Project Knowledge/.test(c));
+    check("16 consumer: the reader is always run on KNOWLEDGE_ROOT", !/read-repo-knowledge\.ts" "<TARGET_ROOT>"/.test(c) && (c.match(/read-repo-knowledge\.ts" "<KNOWLEDGE_ROOT>"/g) ?? []).length === 3);
+    check("16 consumer: an ambiguous project is the developer's choice, never auto-selected", /knowledgeDecision: "select-project"/.test(c) && /Never choose one yourself, not even when there is only one candidate/.test(c) && /None — derive repository context live/.test(c));
+    check("16 consumer: project selection is never routing", /Project selection is about where knowledge is read, never routing/.test(c));
+    check("16 consumer: paths are relative to KNOWLEDGE_ROOT", /is relative to `KNOWLEDGE_ROOT`, not to `TARGET_ROOT`/.test(c));
+    check("16 consumer: the Source line records a nested project, frontmatter unchanged", /Source: `<projectPath>\/\.ono\/repo-knowledge\.json`/.test(c) && /no frontmatter field changes/.test(c));
+  }
   const producerList = /ANALYSIS_MANIFEST_BASENAMES = new Set\(\[([\s\S]*?)\]\)/.exec(read("scripts/read-repo-knowledge.ts"))?.[1] ?? "";
   check("16 the reader mirrors the producer's surface-declaring files", ["AndroidManifest.xml", "app.json", "appinfo.json", "config.xml", "project.yml"].every((f) => producerList.includes(`"${f}"`)));
 }

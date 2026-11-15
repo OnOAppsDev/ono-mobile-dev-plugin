@@ -36,6 +36,13 @@
  * by similarity, and never beyond the first degree. Stale facts are re-checked against the
  * current source; the current source always wins.
  *
+ * 0.7.5 (Inspector 0.11.2 Project Roots): the target root is the inspected Project Root,
+ * which may sit below the Git root. Every path the manifest carries is relative to it, so
+ * source drift is computed with `git diff --relative` (changes outside the project are not
+ * its drift), `projectPrefix` reports where the project sits in the Git root, and `--path`
+ * accepts a Git-root-relative path by stripping that prefix. At the Git root all of this is
+ * a no-op. Callers resolve the Project Root with resolve-target-repo-root.ts (`knowledgeRoot`).
+ *
  * Usage:
  *   node --no-warnings scripts/read-repo-knowledge.ts [target-root]   (default: CWD)
  *        [--surface <id>] [--capability <id-or-name>] [--path <repo-relative path>]... [--verify]
@@ -201,6 +208,12 @@ export interface KnowledgeResult {
   invalidRelationships: Array<{ id: string; reason: string }>;
   /** Always true — surfaces scope a confirmation, never replace it (contract obligation 9). */
   surfacesAreAdvisory: true;
+  /**
+   * 0.7.5. The target root's prefix inside the Git root (`""` at the Git root, `"YesTVOS/"` for
+   * a nested project); null when it is not in a git repository. Every path the manifest and
+   * this result carry is relative to the target root, not the Git root.
+   */
+  projectPrefix: string | null;
   /** One line for a command to show the developer. */
   summary: string;
 }
@@ -295,6 +308,7 @@ function unavailable(reason: Unavailable, summary: string, schemaVersion: number
     capabilityRelationships: null,
     invalidRelationships: [],
     surfacesAreAdvisory: true,
+    projectPrefix: null,
     summary,
   };
 }
@@ -338,7 +352,10 @@ function computeSourceDrift(targetRoot: string, knowledgeHead: string | null, he
     return { ...base, status: "COMPLETE", reason: "Knowledge was generated at the current HEAD." };
   }
 
-  const diff = git(targetRoot, ["diff", "--name-only", "--no-renames", knowledgeHead, head]);
+  // `--relative`: paths relative to the target root and limited to it, exactly like the
+  // manifest's own paths (contract: every path is relative to the Project Root). A no-op for
+  // a project at the Git root; for a nested project it keeps the Git root's other files out.
+  const diff = git(targetRoot, ["diff", "--name-only", "--no-renames", "--relative", knowledgeHead, head]);
   if (diff === null) return unknown("git diff between knowledgeHead and HEAD failed.");
   const changed = Array.from(new Set(diff.split("\n").filter((l) => l.length > 0)))
     .filter((rel) => !isInspectorOwned(rel))
@@ -621,6 +638,21 @@ function structuralErrors(m: any): string[] {
 }
 
 export function readRepoKnowledge(targetRootInput: string): KnowledgeResult {
+  const result = readAt(targetRootInput);
+  const abs = resolve(targetRootInput);
+  if (result.reason !== "root-not-found" && result.reason !== "worktree" && existsSync(abs)) {
+    result.projectPrefix = git(realpathSync(abs), ["rev-parse", "--show-prefix"]);
+  }
+  return result;
+}
+
+/** A path as the manifest records it: relative to the target root (see `projectPrefix`). */
+export function toProjectRelative(path: string, projectPrefix: string | null): string {
+  const p = path.trim().replace(/^\.\//, "");
+  return projectPrefix && p.startsWith(projectPrefix) ? p.slice(projectPrefix.length) : p;
+}
+
+function readAt(targetRootInput: string): KnowledgeResult {
   const targetRootAbs = resolve(targetRootInput);
   if (!existsSync(targetRootAbs)) {
     return unavailable("root-not-found", `Target root not found: ${targetRootAbs}. Deriving all repository knowledge live.`);
@@ -761,6 +793,7 @@ export function readRepoKnowledge(targetRootInput: string): KnowledgeResult {
     capabilityRelationships: capabilitiesCategory.status === "deriveLive" ? null : extracted.model.relationships,
     invalidRelationships: capabilitiesCategory.status === "deriveLive" ? [] : extracted.invalid,
     surfacesAreAdvisory: true,
+    projectPrefix: null,
     summary,
   };
 }
@@ -976,7 +1009,9 @@ function main(): void {
   const result: Record<string, any> = readRepoKnowledge(target);
   const surface = flagValues("surface")[0];
   const capability = flagValues("capability")[0];
-  const paths = flagValues("path");
+  // A path may be given relative to the Git root (a changed file) or to the project; the
+  // manifest's roots are project-relative, so strip the project prefix before matching.
+  const paths = flagValues("path").map((p) => toProjectRelative(p, (result as KnowledgeResult).projectPrefix));
   const verify = args.includes("--verify");
   if (surface !== undefined || capability !== undefined || paths.length > 0) {
     const root = existsSync(resolve(target)) ? realpathSync(resolve(target)) : resolve(target);

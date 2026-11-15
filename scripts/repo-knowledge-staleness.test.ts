@@ -346,7 +346,8 @@ const noSyncAdvice = (r: any) =>
   // sha256 of ono-project-inspector 6fa811d:docs/repo-knowledge-contract.md (Stage A, 0.11.0),
   // which carries Stage 4A's text unchanged and adds the surface and capability model.
   // When the producer changes the contract, update the copy AND this pin in the same release.
-  const PRODUCER_CONTRACT_SHA256 = "b9822771b19460eadf32440bec562cc2508612a41700e399e6be9b8632413957";
+  // 0.7.5: re-synced with producer 0.11.2 (the Project Root paragraph).
+  const PRODUCER_CONTRACT_SHA256 = "6fb8eff730a2064259fbc56428d2303424517ff9ded6d5c3b276be649c6226d8";
   const contract = read("docs/repo-knowledge-contract.md");
   check("8 contract copy is byte-identical to the current producer copy (Stage A)",
     sha(contract) === PRODUCER_CONTRACT_SHA256, sha(contract));

@@ -11,20 +11,31 @@ Before this plugin re-derives anything about the repository, check whether the r
 
 See `docs/repo-knowledge-contract.md` for the schema and the obligations this plugin accepts.
 
-## Step 1 — Resolve `TARGET_ROOT`
+## Step 1 — Resolve `TARGET_ROOT` and `KNOWLEDGE_ROOT`
 
-If the calling command has already resolved `TARGET_ROOT`, use it unchanged. Otherwise run the existing helper — do not reimplement worktree logic:
+Two roots, never conflated:
+
+- **`TARGET_ROOT`** — the Git root. Every document, task state and Bug Flow artifact this plugin writes lives under it, exactly as before.
+- **`KNOWLEDGE_ROOT`** — where the Ono Project Inspector's knowledge lives: the inspected **Project Root**. For most repositories it is the Git root; since Inspector 0.11.2 it may be a project directory below it (e.g. `yestvos/YesTVOS/` inside `yestvos/`). It is used **only** to read Project Knowledge.
+
+Run the helper — do not reimplement worktree or project logic. If the calling command already ran it, reuse that JSON unchanged:
 
 ```
-node "${CLAUDE_PLUGIN_ROOT}/scripts/resolve-target-repo-root.ts" "<candidate>"
+node "${CLAUDE_PLUGIN_ROOT}/scripts/resolve-target-repo-root.ts" "<candidate>" [--project "<project path>"]
 ```
 
-Use `targetRoot` from its JSON on exit 0. On exit 1/3, `ok: false`, or `targetIsWorktree: true`, stop and report — that failure is about the repository root, not about repository knowledge.
+`<candidate>` is the developer-supplied path if given, otherwise the current working directory. Pass `--project` only when the developer named the project directory. On exit 1/3, `ok: false`, or `targetIsWorktree: true`, stop and report — that failure is about the repository root, not about repository knowledge. On exit 0:
+
+- `targetRoot` is `TARGET_ROOT`.
+- `knowledgeRoot` is `KNOWLEDGE_ROOT`, and `projectPath` is where it sits inside `TARGET_ROOT` (`""` for the Git root). The helper found it deterministically — the developer named it, or the candidate is inside the nearest directory holding `.ono/repo-knowledge.json`.
+- **`knowledgeDecision: "select-project"`** — run from the Git root of a repository whose projects carry their own knowledge. `knowledgeRoot` is `null`, and `knowledgeCandidates` lists the projects. **Ask the developer** which project this work belongs to, offering every candidate plus **"None — derive repository context live"**. Never choose one yourself, not even when there is only one candidate. Then re-run the helper with `--project "<TARGET_ROOT>/<chosen>"`, or — on "None" — skip to Step 5 with reason `absent`.
+
+Project selection is about where knowledge is read, never routing: `platform` and `device_type` are still detected and confirmed exactly as before.
 
 ## Step 2 — Read the manifest through the helper
 
 ```
-node --no-warnings "${CLAUDE_PLUGIN_ROOT}/scripts/read-repo-knowledge.ts" "<TARGET_ROOT>"
+node --no-warnings "${CLAUDE_PLUGIN_ROOT}/scripts/read-repo-knowledge.ts" "<KNOWLEDGE_ROOT>"
 ```
 
 The `--no-warnings` flag is part of the canonical invocation, not optional. Node emits an `ExperimentalWarning` on stderr when executing a `.ts` file directly; any caller that merges stderr into stdout would be handed non-JSON and fail to parse it, defeating the always-valid-JSON contract below.
@@ -67,7 +78,7 @@ For every category in `trustedCategories`, use the manifest instead of deriving 
 | `integrations` | services, SDKs, auth, analytics, push, payments, env-var names | open `knowledge.documents.integrations.path` |
 | `auditTopics` | which audit topics exist and their approval status | `knowledge.auditTopics` |
 
-For a pointer category, **open the document and read the relevant section** — the manifest deliberately carries no prose. Use `anchors` to cite the exact section. Do not re-derive a fact the document already states.
+For a pointer category, **open the document and read the relevant section** — the manifest deliberately carries no prose. Every path the manifest and the helper's output carry — documents, source roots, evidence refs, changed files — is relative to `KNOWLEDGE_ROOT`, not to `TARGET_ROOT`; for a nested project, prefix it with `projectPath` to reach the file from the Git root. Use `anchors` to cite the exact section. Do not re-derive a fact the document already states.
 
 **Reuse means read, not copy.** Record a citation (path plus anchor), never a verbatim paste, per Step 6.
 
@@ -95,7 +106,7 @@ a `device_type`.
 After the human confirmed the context, resolve the surface the feature targets:
 
 ```
-node --no-warnings "${CLAUDE_PLUGIN_ROOT}/scripts/read-repo-knowledge.ts" "<TARGET_ROOT>" --surface "<surface-id>"
+node --no-warnings "${CLAUDE_PLUGIN_ROOT}/scripts/read-repo-knowledge.ts" "<KNOWLEDGE_ROOT>" --surface "<surface-id>"
 ```
 
 `query.surface` returns the surface (build selector, source roots, packaging), the shared code
@@ -113,7 +124,7 @@ feature in the Feature & Capability Map — by **capability id**, by its exact *
 **source root** / entry point the request names:
 
 ```
-node --no-warnings "${CLAUDE_PLUGIN_ROOT}/scripts/read-repo-knowledge.ts" "<TARGET_ROOT>" --capability "<id or exact name>" [--path "<repo-relative path>"]...
+node --no-warnings "${CLAUDE_PLUGIN_ROOT}/scripts/read-repo-knowledge.ts" "<KNOWLEDGE_ROOT>" --capability "<id or exact name>" [--path "<repo-relative path>"]...
 ```
 
 - **Deterministic identity only — never by semantic similarity.** "video" does not find "Video
@@ -139,7 +150,8 @@ node --no-warnings "${CLAUDE_PLUGIN_ROOT}/scripts/read-repo-knowledge.ts" "<TARG
 ## Step 3d — Path scope
 
 `--path` (repeatable) returns, for each path, the surfaces, shared-code root and capabilities it
-falls under — how `/review-code` scopes Project Knowledge to the files a change touches. A
+falls under — how `/review-code` scopes Project Knowledge to the files a change touches. A path
+may be relative to the Git root or to the project; the helper strips the project prefix itself. A
 path under no recorded root is reported with empty lists, never guessed.
 
 ## Step 4 — Derive only what is in `deriveLive`
@@ -184,7 +196,7 @@ Body section:
 ```markdown
 ## Repo Knowledge Reference
 
-Source: `.ono/repo-knowledge.json` (contract v<schema>, produced by <plugin> <version>, <freshness> @ <gitHead short>)
+Source: `<projectPath>/.ono/repo-knowledge.json` (contract v<schema>, produced by <plugin> <version>, <freshness> @ <gitHead short>)
 
 | Category | Reused from | Section |
 |---|---|---|
@@ -193,6 +205,8 @@ Source: `.ono/repo-knowledge.json` (contract v<schema>, produced by <plugin> <ve
 
 Derived live for this feature: <categories, or "none">
 ```
+
+`<projectPath>/` is omitted when the project is the Git root, so a root-level document reads exactly as before. For a nested project the Source line is the one place the selected project is recorded — no frontmatter field changes.
 
 When the feature used surface or capability knowledge, add one line each under the table —
 `Surface: <id> (<trusted | verified on use>)` and `Capability: <id> — docs/project/capabilities.md#capability-<id>` —
@@ -233,6 +247,7 @@ When `freshness` is `stale-artifacts` (an inspector-owned document was edited af
 
 - Never parse `.ono/repo-knowledge.json` directly — always go through `scripts/read-repo-knowledge.ts`.
 - Never write any inspector-owned artifact.
+- Never pick a nested project yourself — the helper resolves `KNOWLEDGE_ROOT` deterministically or the developer chooses (Step 1). Never use `KNOWLEDGE_ROOT` as the root for this plugin's own documents; that is `TARGET_ROOT`.
 - Never block, warn repeatedly, or ask the developer to run an inspection before continuing.
 - Never re-derive a category listed in `usableCategories`. A `verifyOnUse` category is verified fact-by-fact for what the feature uses (Step 3a), never re-derived wholesale.
 - Never treat a `verifyOnUse` category as authoritative as-is.
