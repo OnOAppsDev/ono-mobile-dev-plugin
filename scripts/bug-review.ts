@@ -35,7 +35,7 @@ import { join } from "path";
 import { createHash } from "crypto";
 import { validateBugWorkPlan, bugWorkPlanPath } from "./bug-work-plan.ts";
 import { approvalFingerprint, verifyApproval } from "./work-approval.ts";
-import { BUG_REPRO_CRITERION, bugKeyOf, stateFilePath } from "./task-state.ts";
+import { BUG_REPRO_CRITERION, DEFERRED_TO_CYCLE_VERIFICATION, bugKeyOf, stateFilePath } from "./task-state.ts";
 import { contentFingerprint, describeRepositoryFailure, isStoreArtifact, rowCells, taskRowsText } from "./task-resume.ts";
 import { planContext } from "./bug-implementation.ts";
 import { canonical } from "./qa-release-gate.ts";
@@ -250,15 +250,31 @@ export function reviewContext(req: { root: string; work: string }): Record<strin
     incomplete_tasks: tasks.filter((t) => t.state !== "complete").map((t) => t.id),
     checks: Object.keys(BUG_CHECKS),
     binding: b,
+    verification: ver,
   };
 }
 
 /* ----------------------------------------------------------------- record */
 
-/** The task-state evidence that lets a reproduction-path check pass: the fix task's reproduction criterion met, and a regression test or VERIFY-4 debt. */
-export function reproductionEvidence(tasks: Array<Record<string, any>>): boolean {
+/**
+ * The task-state evidence that lets a reproduction-path check pass: a completed fix task whose
+ * reproduction criterion is settled, and a regression test or VERIFY-4 debt. The criterion is
+ * settled when it is met (`met: true`), or — bug work's only alternative — when it was recorded
+ * `deferred_to_cycle_verification` and `cycle.verification` is this bug's and this fix cycle's
+ * verification as `checkVerification` / `verifyVerification` report it, `passed` (fresh against
+ * the current plan, task state and code, with no failed or open item). The verification always
+ * walks the reported reproduction path as its first item, so a passed one is the evidence the
+ * deferral waited for. The recorded `met: false` is never rewritten.
+ */
+export function reproductionEvidence(
+  tasks: Array<Record<string, any>>,
+  cycle?: { work: string; fix_cycle: number; verification: Record<string, any> | null },
+): boolean {
+  const v = cycle?.verification;
+  const cycleVerified = cycle !== undefined && v != null && v.status === "passed" && v.work_id === cycle.work && v.fix_cycle === cycle.fix_cycle;
   return tasks.some((t) => {
-    const metRepro = (t.acceptanceCriteria ?? []).some((c: any) => String(c.criterion ?? "").toLowerCase().startsWith(BUG_REPRO_CRITERION.toLowerCase()) && c.met === true);
+    const metRepro = (t.acceptanceCriteria ?? []).some((c: any) => String(c.criterion ?? "").toLowerCase().startsWith(BUG_REPRO_CRITERION.toLowerCase()) &&
+      (c.met === true || (cycleVerified && c.met === false && c.status === DEFERRED_TO_CYCLE_VERIFICATION)));
     const reg = t.developerTesting?.regression;
     const regressionOk = reg && ((reg.failedBefore === true && reg.passesAfter === true) ||
       (typeof reg.notFeasibleReason === "string" && reg.notFeasibleReason.trim() !== "" && (t.verificationDebt ?? []).some((d: any) => d.ruleId === "VERIFY-4" && d.owner === "developer")));
@@ -392,8 +408,8 @@ export function writeReviewRecord(req: { root: string; work: string; review: str
   if (ctx.context.root_cause_inference && status("root-cause") === "pass") {
     return refuse("INVALID_CHECKS", "check root-cause: the plan's root cause is an [inference] — the review cannot certify it was addressed; record not-verifiable (or concern)");
   }
-  if (status("reproduction-path") === "pass" && !reproductionEvidence(ctx.tasks)) {
-    return refuse("INVALID_CHECKS", "check reproduction-path: task state shows no completed fix task whose reproduction criterion is met with regression (or VERIFY-4) evidence — record not-verifiable (or concern)");
+  if (status("reproduction-path") === "pass" && !reproductionEvidence(ctx.tasks, { work: ctx.work_id, fix_cycle: ctx.fix_cycle, verification: ctx.verification })) {
+    return refuse("INVALID_CHECKS", "check reproduction-path: task state shows no completed fix task whose reproduction criterion is met (or deferred to a fresh, passed cycle verification) with regression (or VERIFY-4) evidence — record not-verifiable (or concern)");
   }
 
   const sorted = [...findings].sort(compareFindings);

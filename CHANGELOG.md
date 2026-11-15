@@ -9,6 +9,31 @@ version below is the plugin's own `version` in
 
 ## [Unreleased]
 
+## [0.7.2] - 2026-11-15
+
+A patch release for one Bug Flow fix (`6e268c4`). This release sets `plugin.json` to
+`0.7.2` in the same commit as this heading.
+
+### Fixed
+
+- **Deferred reproduction evidence blocked review and the QA handoff.** In a repository
+  with no automated test target, the fix task's reproduction criterion is recorded
+  `met: false, status: deferred_to_cycle_verification`, and `/verify-fix-cycle` then
+  verifies the cycle. But `reproductionEvidence()` in `scripts/bug-review.ts` accepted only
+  `met: true`, so `/review-code --bug` refused the `reproduction-path` check and QA Handoff
+  R4 blocked with `DEVELOPER_TESTING`, even though R10 passed.
+  - **Accepted:** a reproduction criterion explicitly deferred to cycle verification is now
+    settled by the cycle's verification. That verification must be for the same bug and the
+    current fix cycle, `passed`, and fresh against the current plan, task state and code,
+    with no failed or open item. A missing, stale, failed, incomplete or mismatched
+    verification never settles it, and `met: false` without an explicit deferral is still
+    rejected.
+  - **Unchanged:** the regression test (or VERIFY-4 developer debt) and complete-task
+    requirements apply on both paths, and `met: true` behaves exactly as before. The
+    recorded `met: false` is never rewritten. Feature work still cannot defer a criterion.
+  - **One source of truth:** R4 reuses the verification result R10 already reads, and the
+    review reuses the one its gate already requires. No freshness logic is duplicated.
+
 ## [0.7.1] - 2026-11-12
 
 A patch release for the Bug Flow fix merged after 0.7.0 (`4e5fa09`, #55). This release sets

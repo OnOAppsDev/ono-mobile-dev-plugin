@@ -18,9 +18,9 @@ import { tmpdir } from "os";
 import { join, dirname } from "path";
 import * as BV from "./bug-verification.ts";
 import { approveWorkPackage } from "./work-approval.ts";
-import { writeTaskState } from "./task-state.ts";
+import { criterionSettled, writeTaskState } from "./task-state.ts";
 import { validateBugWorkPlan } from "./bug-work-plan.ts";
-import { reviewContext, writeReviewRecord } from "./bug-review.ts";
+import { reproductionEvidence, reviewContext, writeReviewRecord } from "./bug-review.ts";
 import { handoffCheck, generateHandoff } from "./qa-handoff-gate.ts";
 import { bugWorkStatus } from "./bug-implementation.ts";
 import { PLUGIN_NAME } from "./next-command.ts";
@@ -240,6 +240,85 @@ try {
     check("37 …and the VERIFY-4 developer debt", h.includes("Rotation on a low-memory device"));
     check("35 the handoff carries no per-task how-to-verify instructions", !/how to verify/i.test(h));
     check("recording verification again changes the handoff's inputs", (() => { REC(r, [{ id: "V1", surface: "android", result: "pass", notes: "re-checked" }]); return handoffCheck({ root: r.root, work: W, qaRepo: QA }).checks.find((c: any) => c.id === "R8")?.status === "generate"; })());
+  }
+
+  /* ── deferred reproduction evidence (Guardian YEA-1371) ──────────────────── */
+  // A repository with no automated test target defers the reproduction criterion to the cycle's
+  // verification. Once that verification is fresh and passed, the review and R4 must accept it;
+  // anything less must not. The recorded `met: false` is never rewritten.
+  {
+    const NO_TARGET = {
+      developerTesting: { framework: null, required: true, testsChanged: [], runs: [], justification: "The app has no automated test target", notRunReason: "No automated test target exists", regression: { notFeasibleReason: "No automated test target exists" } },
+      validation: [{ command: LINT, result: "pass" }],
+      verificationDebt: [{ domain: "developer-testing", ruleId: "VERIFY-4", requiredVerification: "Walk the reproduction path on device", whyNotAutomatable: "No automated test target", owner: "developer", status: "pending" }],
+    };
+    const deferred = () => {
+      const r = repo();
+      const a = task(r, "T1", [MET(T1_TEST), DEFER(SCREEN)]);
+      const b = task(r, "T2", [DEFER(REPRO), MET("T1's test passes"), DEFER(SCREEN), DEFER(REMOVAL)], NO_TARGET);
+      if (a.status !== "written" || b.status !== "written") throw new Error(`deferred fixture: ${JSON.stringify([a, b])}`);
+      return r;
+    };
+    const r4 = (r: Repo) => handoffCheck({ root: r.root, work: W, qaRepo: QA }).checks.find((c: any) => c.id === "R4");
+    const r10 = (r: Repo) => handoffCheck({ root: r.root, work: W, qaRepo: QA }).checks.find((c: any) => c.id === "R10");
+    const reviewFile = (ctx: any) => {
+      const f = join(TMP, `review-${++n}.json`);
+      writeFileSync(f, JSON.stringify({ binding: ctx.binding, reviewed_by: "code-reviewer (tvos)", generated_at: "2026-11-15T09:00:00Z", findings: [], checks: ["root-cause", "reproduction-path", "plan-conformance", "regression-risk"].map((id) => ({ id, status: "pass", note: "ok" })) }));
+      return f;
+    };
+    const rawT2 = (r: Repo) => JSON.parse(readFileSync(join(r.root, "docs/tasks/bugs/BUG-43.task-state.json"), "utf-8")).tasks.T2;
+
+    // 2. missing verification
+    const ok = deferred();
+    check("deferred 2 no verification yet: R4 rejects the deferred reproduction criterion", r4(ok)?.status === "block" && r4(ok)?.code === "DEVELOPER_TESTING", JSON.stringify(r4(ok)));
+    check("deferred 2/9 …and R10 agrees", r10(ok)?.status === "block");
+
+    // 1, 9, 10, 11. fresh, passed verification with no automated test target
+    REC(ok, all(GEN(ok), "pass"), { acceptDebt: true });
+    check("deferred 11 a manually verified cycle with no automated test target is passed", CHK(ok).status === "passed", JSON.stringify(CHK(ok)));
+    check("deferred 1 a fresh, passed cycle verification satisfies the deferred reproduction criterion at R4", r4(ok)?.status === "pass", JSON.stringify(r4(ok)));
+    check("deferred 9 R4 and R10 agree", r10(ok)?.status === "pass");
+    const ctx = reviewContext({ root: ok.root, work: W });
+    check("deferred 10 the review context exposes the cycle verification it relied on", ctx.ok === true && ctx.verification?.status === "passed" && ctx.verification.fix_cycle === 1 && ctx.verification.work_id === W, JSON.stringify(ctx.verification));
+    const wr = writeReviewRecord({ root: ok.root, work: W, review: reviewFile(ctx) });
+    check("deferred 10 /review-code accepts the reproduction-path pass on the same evidence", wr.ok === true, JSON.stringify(wr));
+    check("deferred the recorded criterion is still met: false, deferred — never rewritten", JSON.stringify(rawT2(ok).acceptanceCriteria[0]) === JSON.stringify(DEFER(REPRO)));
+    const hk = handoffCheck({ root: ok.root, work: W, qaRepo: QA });
+    check("deferred 9 the handoff passes with R4, R10 and the review all current", hk.ok === true, JSON.stringify(hk.blockers));
+
+    // 3. failed verification
+    const failed = deferred();
+    const gf = GEN(failed);
+    REC(failed, all(gf, "pass").map((p: any, i: number) => (i === 0 ? { ...p, result: "fail", notes: "still reproduces", route: "implementation", task: "T2" } : p)), { acceptDebt: true });
+    check("deferred 3 a failed verification is failed", CHK(failed).status === "failed", JSON.stringify(CHK(failed)));
+    check("deferred 3 …and does not satisfy the deferred reproduction criterion", r4(failed)?.status === "block" && r10(failed)?.status === "block");
+    check("deferred 3/10 …and the review is refused", reviewContext({ root: failed.root, work: W }).outcome === "BUG_VERIFICATION_REQUIRED");
+
+    // 4. stale verification
+    const stale = deferred();
+    REC(stale, all(GEN(stale), "pass"), { acceptDebt: true });
+    writeFileSync(join(stale.root, MAIN), "fun total() = 0 // edited after verification\n");
+    check("deferred 4 a code change after verification makes it stale", CHK(stale).status === "stale");
+    check("deferred 4 …and a stale verification does not satisfy the deferred reproduction criterion", r4(stale)?.status === "block" && r10(stale)?.status === "block", JSON.stringify(r4(stale)));
+    check("deferred 4/10 …and the review is refused", reviewContext({ root: stale.root, work: W }).outcome === "BUG_VERIFICATION_REQUIRED");
+
+    // 5–8. the rule itself, against the exact verification shape checkVerification returns
+    const t2 = { ...rawT2(ok), id: "T2" };
+    const passed = CHK(ok);
+    const cycle = (verification: any, work = W, fix_cycle = 1) => ({ work, fix_cycle, verification });
+    check("deferred 1 the rule accepts a deferred criterion with this cycle's passed verification", reproductionEvidence([t2], cycle(passed)) === true);
+    check("deferred 2 the rule rejects a deferred criterion with no verification", reproductionEvidence([t2]) === false && reproductionEvidence([t2], cycle(null)) === false);
+    check("deferred 3/4 the rule rejects a verification that is not passed", ["failed", "stale", "incomplete", "missing", "invalid"].every((status) => reproductionEvidence([t2], cycle({ ...passed, ok: false, status })) === false));
+    check("deferred 5 the rule rejects a verification of another fix cycle", reproductionEvidence([t2], cycle({ ...passed, fix_cycle: 2 })) === false && reproductionEvidence([t2], cycle(passed, W, 2)) === false);
+    check("deferred 6 the rule rejects a verification of another bug", reproductionEvidence([t2], cycle({ ...passed, work_id: "bug:BUG-44" })) === false && reproductionEvidence([t2], cycle(passed, "bug:BUG-44")) === false);
+    const repro = (c: Record<string, unknown>) => ({ ...t2, acceptanceCriteria: [{ criterion: REPRO, ...c }, ...t2.acceptanceCriteria.slice(1)] });
+    check("deferred 7 met: false without an explicit deferral is rejected, even with a passed verification", reproductionEvidence([repro({ met: false })], cycle(passed)) === false && reproductionEvidence([repro({ met: false, status: "failed" })], cycle(passed)) === false);
+    check("deferred 8 met: true is accepted exactly as before, with or without a verification", reproductionEvidence([repro({ met: true })]) === true && reproductionEvidence([repro({ met: true })], cycle(null)) === true);
+    check("deferred the deferred path still requires the regression (or VERIFY-4) evidence", reproductionEvidence([{ ...t2, developerTesting: { ...t2.developerTesting, regression: null } }], cycle(passed)) === false &&
+      reproductionEvidence([{ ...t2, verificationDebt: [] }], cycle(passed)) === false);
+    check("deferred the deferred path still requires a complete task", reproductionEvidence([{ ...t2, state: "in-progress" }], cycle(passed)) === false);
+    // 12. Feature Flow: a feature task can never record a deferral (test 40 above), so the deferred path is unreachable there.
+    check("deferred 12 feature work still cannot settle a criterion by deferral", criterionSettled(DEFER(REPRO) as any, false) === false && criterionSettled(DEFER(REPRO) as any, true) === true);
   }
 
   /* ── 24–28. freshness ─────────────────────────────────────────────────── */
