@@ -204,7 +204,7 @@ Platform-independent stop conditions; the lane adds its own.
 | Check | Rule a concern cites | The question |
 |---|---|---|
 | `root-cause` | `BUG-CHECK-ROOT-CAUSE` | Does the change address the root-cause area the plan names, rather than mask the symptom (a guard, a swallowed error, a retry)? When the plan labels its root cause `[inference]` (`root_cause_inference`), the review cannot certify it: record `not-verifiable`, or a concern, never `pass`. |
-| `reproduction-path` | `BUG-CHECK-REPRODUCTION` | Does the developer-testing evidence in task state cover the reported reproduction path? That means a regression test that failed before and passes after, or an explicit VERIFY-4 reason. Without that evidence the result is `not-verifiable` or a concern, never `pass`. |
+| `reproduction-path` | `BUG-CHECK-REPRODUCTION` | Does the developer-testing evidence in task state cover the reported reproduction path? That means a regression test that failed before and passes after, or an explicit VERIFY-4 reason. A reproduction criterion deferred to cycle verification counts as covered only through the cycle's fresh, passed verification, which `/review-code --bug` already requires. Without that evidence the result is `not-verifiable` or a concern, never `pass`. |
 | `plan-conformance` | `BUG-CHECK-SCOPE` | Does the change stay within the plan's minimal change surface, its non-goals and the tasks' acceptance criteria? Each change outside them is a scope-deviation finding. |
 | `regression-risk` | `BUG-CHECK-REGRESSION-RISK` | What can the change break, judged only from the plan's Blast Radius and its first-degree capability context? Never expand the Project Knowledge graph. |
 

@@ -335,7 +335,7 @@ export function checkVerification(req: { root: string; work: string; cycle?: num
 /** The gate for /review-code --bug and the QA handoff: the current cycle's verification, fresh and passed. */
 export function verifyVerification(req: { root: string; work: string }): Record<string, any> {
   const c = checkVerification(req);
-  return { ok: c.status === "passed", status: c.status, path: c.path, fix_cycle: c.fix_cycle, reason: c.reason, stale_reasons: c.stale_reasons ?? [], failed: c.failed ?? [], counts: c.counts ?? null };
+  return { ok: c.status === "passed", status: c.status, work_id: c.work_id ?? null, path: c.path, fix_cycle: c.fix_cycle, reason: c.reason, stale_reasons: c.stale_reasons ?? [], failed: c.failed ?? [], counts: c.counts ?? null };
 }
 
 /** What follows a complete cycle: its verification, or — once that passed — the review. */

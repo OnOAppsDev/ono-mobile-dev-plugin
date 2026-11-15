@@ -243,8 +243,11 @@ export function handoffCheck(req: Request): Record<string, any> {
   }
   const fixIds = ids.filter((id) => (rowCells(text, id)?.["acceptance criteria"] ?? "").split(/;|<br\s*\/?>/i)[0].trim().toLowerCase().startsWith(BUG_REPRO_CRITERION.toLowerCase()));
   if (fixIds.length === 0) dtProblems.push("the plan has no fix task (a first acceptance criterion on the reported reproduction path)");
+  // The cycle's verification, read once: R10 reports it, and R4 accepts a reproduction criterion
+  // deferred to it only when it is this bug's, this cycle's, fresh and passed.
+  const ver = checkVerification({ root: i.root, work });
   for (const id of fixIds) {
-    if (!reproductionEvidence([{ ...(raw[id] ?? {}), state: raw[id]?.state }])) dtProblems.push(`${id}: the reproduction path is not shown fixed with a regression test (failed before, passes after) or VERIFY-4 developer debt`);
+    if (!reproductionEvidence([{ ...(raw[id] ?? {}), state: raw[id]?.state }], { work, fix_cycle: i.cycle, verification: ver })) dtProblems.push(`${id}: the reproduction path is not shown fixed — its criterion is neither met nor deferred to a fresh, passed cycle verification, or it has no regression test (failed before, passes after) or VERIFY-4 developer debt`);
   }
   const developerDebt = ids.flatMap((id) => (state.tasks[id]?.developerVerificationDebt ?? []).map((d) => ({ task: id, ...d })));
   const qaDebt = ids.flatMap((id) => (state.tasks[id]?.qaVerificationDebt ?? []).map((d) => ({ task: id, ...d })));
@@ -254,7 +257,6 @@ export function handoffCheck(req: Request): Record<string, any> {
 
   // R10 — the cycle's consolidated developer verification is fresh and passed (Bug Flow P1).
   // Checked before the review, which requires it, so the first blocker is the step to take next.
-  const ver = checkVerification({ root: i.root, work });
   checks.push(ver.status === "passed"
     ? { id: "R10", status: "pass", message: `${ver.path}: every item passed on ${(ver.surfaces ?? []).join(", ")}` }
     : { id: "R10", status: "block", code: `VERIFICATION_${String(ver.status).toUpperCase()}`, message: `the fix cycle's developer verification is ${ver.status}${ver.stale_reasons?.length ? ` (${ver.stale_reasons.join(", ")})` : ""}`, route: `/verify-fix-cycle ${work}` });
