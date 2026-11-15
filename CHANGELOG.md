@@ -9,6 +9,35 @@ version below is the plugin's own `version` in
 
 ## [Unreleased]
 
+## [0.7.3] - 2026-11-15
+
+A patch release for platform and device-type detection (`f351860`). This release sets
+`plugin.json` to `0.7.3` in the same commit as this heading.
+
+### Fixed
+
+- **Platform and device-type detection** (Guardian: native tvOS, YEA-1371, and React Native
+  repositories). Detection still runs in `repo-analyst` and the developer still confirms the
+  result; what changed is what it concludes and when it asks.
+  - **React Native:** a React Native app always routes `react-native`. Its linked iOS and
+    Android native shells are no longer read as separate platforms, so they no longer force a
+    platform choice. A bug affecting only iOS or only Android keeps `react-native`, with the
+    affected OS in the bug's surfaces. Expo managed apps with no committed native folders are
+    detected as apps, not libraries. The React Native TV stop is unchanged.
+  - **tvOS and Android TV:** tvOS / Apple TV maps to `ios` + `tv` and Android TV to
+    `android` + `tv`. The detected markers now include `SDKROOT = appletvos`,
+    `TVOS_DEPLOYMENT_TARGET`, Podfile `platform :tvos` and `androidx.tv`, and the device type is
+    resolved together with the platform. `ROUTING_INVALID` names the canonical pair for common
+    spellings (`tvos`, `apple-tv`, `android-tv`, `iphone`, `expo`, `rn`) without applying it.
+  - **Tracker evidence:** `/analyze-bug` passes the ticket's environment (now returned as
+    `routing.corroborating_environment`), surfaces, project, components and labels to
+    detection. It may pick among the targets the repository supports and confirm a detected
+    one; it never adds a platform or device type the repository does not support.
+  - **Fewer questions:** detection reports one candidate with a resolution — `resolved`,
+    `ambiguous` or `conflicting`. A resolved detection gets the simple confirmation; only
+    ambiguous or conflicting evidence asks the developer to select, among the repository's own
+    targets.
+
 ## [0.7.2] - 2026-11-15
 
 A patch release for one Bug Flow fix (`6e268c4`). This release sets `plugin.json` to

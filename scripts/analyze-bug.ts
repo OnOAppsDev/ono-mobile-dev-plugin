@@ -142,18 +142,51 @@ function featureBreakdowns(root: string, feature: string): Array<{ path: string;
   return out;
 }
 
-function routing(root: string, identity: Record<string, any>, plan: Record<string, any> | null) {
+/**
+ * Routing is never chosen here: it is carried from the existing plan, inherited from the related
+ * feature's one approved Task Breakdown, or confirmed by the developer from repo-analyst's detection.
+ * The tracker's affected surfaces and environment are returned as corroborating evidence for that
+ * detection — they may disambiguate among the targets the repository supports, never add one.
+ */
+function routing(root: string, identity: Record<string, any>, plan: Record<string, any> | null, environment: string | null = null) {
   const corroborating_surfaces = identity.surfaces ?? [];
+  const corroborating_environment = environment;
   if (plan) {
-    return { platform: plan.platform, device_type: plan.device_type, source: "existing-plan", requires_confirmation: false, reason: "the routing confirmed for the existing plan", corroborating_surfaces };
+    return { platform: plan.platform, device_type: plan.device_type, source: "existing-plan", requires_confirmation: false, reason: "the routing confirmed for the existing plan", corroborating_surfaces, corroborating_environment };
   }
-  const ask = (reason: string) => ({ platform: null, device_type: null, source: null, requires_confirmation: true, reason, corroborating_surfaces });
+  const ask = (reason: string) => ({ platform: null, device_type: null, source: null, requires_confirmation: true, reason, corroborating_surfaces, corroborating_environment });
   if (!identity.related_feature) return ask("no related feature with human-confirmed routing — confirm the platform and device type once");
   const found = featureBreakdowns(root, identity.related_feature);
   if (found.length !== 1) return ask(`related feature ${identity.related_feature} has ${found.length} approved Task Breakdowns — confirm the platform and device type once`);
   const [b] = found;
   if (!PLATFORMS.includes(b.platform) || !DEVICE_TYPES.includes(b.device_type)) return ask(`${b.path} does not carry a valid platform and device type — confirm them once`);
-  return { platform: b.platform, device_type: b.device_type, source: b.path, requires_confirmation: false, reason: `inherited from the approved Task Breakdown of related feature ${identity.related_feature}`, corroborating_surfaces };
+  return { platform: b.platform, device_type: b.device_type, source: b.path, requires_confirmation: false, reason: `inherited from the approved Task Breakdown of related feature ${identity.related_feature}`, corroborating_surfaces, corroborating_environment };
+}
+
+/**
+ * Common names for a target that are not routing values. Named in the refusal so the developer can
+ * confirm the canonical pair — never applied silently: an unrecognised or aliased value is refused.
+ */
+const ROUTING_ALIASES: Record<string, string> = {
+  tvos: "tvOS / Apple TV is --platform ios --device-type tv",
+  appletv: "tvOS / Apple TV is --platform ios --device-type tv",
+  androidtv: "Android TV / Google TV is --platform android --device-type tv",
+  googletv: "Android TV / Google TV is --platform android --device-type tv",
+  iphone: "iPhone / iPad is --platform ios --device-type mobile",
+  ipad: "iPhone / iPad is --platform ios --device-type mobile",
+  ipados: "iPhone / iPad is --platform ios --device-type mobile",
+  rn: "React Native (including Expo) is --platform react-native",
+  reactnative: "React Native (including Expo) is --platform react-native",
+  expo: "React Native (including Expo) is --platform react-native",
+  web: "React web is --platform react",
+};
+
+export function routingHint(platform: string | undefined, deviceType: string | undefined): string | null {
+  const hints = [platform, deviceType]
+    .filter((v): v is string => typeof v === "string" && !PLATFORMS.includes(v) && !DEVICE_TYPES.includes(v))
+    .map((v) => ROUTING_ALIASES[v.toLowerCase().replace(/[^a-z]/g, "")])
+    .filter((h): h is string => h !== undefined);
+  return hints.length ? [...new Set(hints)].join("; ") : null;
 }
 
 /* ------------------------------------------------------------------ assess */
@@ -220,7 +253,7 @@ function assess(req: BugRequest): Record<string, any> {
     if (reopened) {
       return { ...common, ok: false, outcome: "BUG_REOPENED", proceed: null, reason: "QA re-tested a fix and it failed, but there is no Bug Work Plan to continue — a reopened bug continues the plan of the fix that failed; nothing is created here", reopened: it.reopened };
     }
-    return { ...common, ok: true, outcome: "BUG_PLAN_NEW", proceed: "create", reason: "no plan exists yet — create the cycle-1 plan", plan: null, routing: routing(root, it.identity, null) };
+    return { ...common, ok: true, outcome: "BUG_PLAN_NEW", proceed: "create", reason: "no plan exists yet — create the cycle-1 plan", plan: null, routing: routing(root, it.identity, null, it.evidence?.environment ?? null) };
   }
 
   const buf = readFileSync(abs);
@@ -269,7 +302,7 @@ function assess(req: BugRequest): Record<string, any> {
         evidence_class: drift.length > 0 ? "changed" : "unchanged",
         drift,
         reopened: it.reopened,
-        routing: routing(root, it.identity, fm),
+        routing: routing(root, it.identity, fm, it.evidence?.environment ?? null),
       };
     }
     // The latest cycle already answers this reopen: report that cycle's state below.
@@ -277,7 +310,7 @@ function assess(req: BugRequest): Record<string, any> {
 
   if (drift.length) {
     if (fm.fix_cycle === 1 && approval.status === "draft" && !common.task_state_exists) {
-      return { ...withPlan, ok: true, outcome: "BUG_PLAN_REGENERATE", proceed: "regenerate", reason: `the bug evidence changed (${drift.join(", ")}) and the plan is an unapproved draft with no task state — regenerate it in place`, routing: routing(root, it.identity, fm) };
+      return { ...withPlan, ok: true, outcome: "BUG_PLAN_REGENERATE", proceed: "regenerate", reason: `the bug evidence changed (${drift.join(", ")}) and the plan is an unapproved draft with no task state — regenerate it in place`, routing: routing(root, it.identity, fm, it.evidence?.environment ?? null) };
     }
     return { ...withPlan, ok: false, outcome: "BUG_PLAN_STALE", proceed: null, reason: `the bug evidence changed (${drift.join(", ")}) under a plan that is ${approval.status === "draft" ? "already in implementation (task state exists)" : `${approval.status}`}${fm.fix_cycle > 1 ? `, at fix cycle ${fm.fix_cycle}` : ""} — reconciling it needs a verified reopen or a human decision; nothing is regenerated` };
   }
@@ -300,7 +333,7 @@ function assess(req: BugRequest): Record<string, any> {
     };
   }
   if (approval.status === "draft" || (approval.status === "approval_stale" && progress.recorded === 0)) {
-    return { ...withPlan, ok: true, outcome: "BUG_PLAN_AWAITING_APPROVAL", proceed: "approve", reason: approval.status === "draft" ? "the plan is a current draft — present it for approval" : `the plan changed after it was approved${fm.fix_cycle > 1 ? ` (fix cycle ${fm.fix_cycle} is new)` : ""} — present it for approval`, routing: routing(root, it.identity, fm) };
+    return { ...withPlan, ok: true, outcome: "BUG_PLAN_AWAITING_APPROVAL", proceed: "approve", reason: approval.status === "draft" ? "the plan is a current draft — present it for approval" : `the plan changed after it was approved${fm.fix_cycle > 1 ? ` (fix cycle ${fm.fix_cycle} is new)` : ""} — present it for approval`, routing: routing(root, it.identity, fm, it.evidence?.environment ?? null) };
   }
   if (approval.status === "approval_stale") {
     return { ...withPlan, ok: false, outcome: "BUG_PLAN_STALE", proceed: null, reason: "the plan changed after approval and this cycle's tasks have task state — reconciling it needs a human decision" };
@@ -536,7 +569,8 @@ export function scaffoldPlan(req: BugRequest): Record<string, any> {
   // Routing: a confirmed (or inherited) platform and device type, never chosen here.
   const r = a.routing;
   if ((req.platform !== undefined && !PLATFORMS.includes(req.platform)) || (req.deviceType !== undefined && !DEVICE_TYPES.includes(req.deviceType))) {
-    return refuse("ROUTING_INVALID", `platform must be one of ${PLATFORMS.join(", ")} and device type one of ${DEVICE_TYPES.join(", ")}`);
+    const hint = routingHint(req.platform, req.deviceType);
+    return refuse("ROUTING_INVALID", `platform must be one of ${PLATFORMS.join(", ")} and device type one of ${DEVICE_TYPES.join(", ")}${hint ? ` — ${hint}` : ""}`);
   }
   let route: { platform: string; device_type: string; how: string };
   if (r.requires_confirmation) {

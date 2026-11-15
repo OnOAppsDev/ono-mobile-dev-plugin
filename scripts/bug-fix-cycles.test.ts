@@ -395,7 +395,7 @@ try {
       check(`46/47/48 ${f}: no QA writes, no Inspector, no process, no commit`, !/qa-ledger\.mjs|ono-plugin-qa|project-inspector|child_process|execFile|spawn/.test(src));
     }
     const PINNED: Record<string, string> = {
-      "commands/analyze-feature.md": "42f3b7f1fbd91e9110e15877b3f746312926958ccf53f28dfc3ee76879e70051",
+      "commands/analyze-feature.md": "37dc84922229db1eb7d6eca507a8cd917dc3ddde7edc8d8e1185d8482cf7fa8e",
       "commands/dev-design-start.md": "f62963b1d156f4d9b22cd1d92678d4de25f0d66d7120801d62075d14ec8b9ca8",
       "commands/dev-feature-start.md": "0713797d25d66df5064424ffd0dcf4269fead926512c2c40dd2eb9350abce175",
       "commands/prepare-mobile-release.md": "7f7d431309a77e4af4f7485b236cf2205616f2afed3b06de94cf2a0acbf327e4",

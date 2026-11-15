@@ -106,6 +106,7 @@ const PHASES: Phase[] = [
       "project-knowledge-consumption",
       "project-knowledge-ownership",
       "device-type-contract",
+      "platform-detection-contract",
       "source-fingerprint-contract",
       "accessibility-contract",
       "shared-tv-baseline",
