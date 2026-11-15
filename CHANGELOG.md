@@ -9,6 +9,50 @@ version below is the plugin's own `version` in
 
 ## [Unreleased]
 
+## [0.7.5] - 2026-11-15
+
+A patch release for two fixes: the branch policy (`1f037c6`) and nested-project knowledge
+compatibility with Ono Project Inspector 0.11.2 (`e05d043`). This release sets `plugin.json`
+to `0.7.5` in the same commit as this heading.
+
+### Changed
+
+- **The developer chooses the branch.** The plugin no longer blocks or gates file changes
+  because of the current Git branch; `main`, `master`, `develop`, feature branches and a
+  detached HEAD are treated alike.
+  - **Removed:** the `block-main-branch-changes` hook (it blocked every `Write` / `Edit` /
+    `MultiEdit` on `main` / `master`, including documents other plugins write, such as the
+    Ono Project Inspector's), `/implement-task`'s "branch is not `main`/`master`" readiness
+    gate, and `edit-approval.ts`'s `BRANCH_PROTECTED` refusal. A Bug Fix Cycle can be
+    approved on any branch; the approval stays bound to that branch (`WRONG_BRANCH`
+    elsewhere), exactly as before.
+  - **Unchanged:** `require-approval-before-code` still asks before every code-file change
+    (outside an approved cycle's scope), `protect-secrets` still blocks hardcoded secrets, and
+    Claude Code's own permission prompts apply as always. Choosing a branch grants no Git
+    operation: the plugin never commits, pushes, rewrites history or deletes a branch, the
+    cycle approval grants none of these, and no hook grants one on any branch.
+
+### Fixed
+
+- **Inspector knowledge in nested projects.** Inspector 0.11.2 writes its knowledge at the
+  inspected Project Root, which may sit below the Git root (`yestvos/YesTVOS/`). This plugin
+  only looked at the Git root, so a nested project's knowledge was always reported absent.
+  - **Two roots:** `TARGET_ROOT` stays the Git root for every document, task state and Bug
+    Flow artifact this plugin writes. Project Knowledge is read from a separate
+    `KNOWLEDGE_ROOT`, resolved by `resolve-target-repo-root.ts` without guessing: a project
+    the developer names, else the nearest manifest above the working directory, else — run
+    from the Git root of a repository whose projects carry their own knowledge — the
+    developer chooses (`select-project`, including "None — derive live"); one is never picked
+    automatically, not even when there is only one.
+  - **Source drift is project-relative:** a change outside the project is no longer its drift,
+    Inspector's own files are no longer counted as source changes, the project directory is
+    no longer reported as a new top-level entry, and changes are attributed to the recorded
+    surfaces again. `--path` accepts Git-root-relative paths.
+  - **Compatible:** root-level projects behave exactly as before; manifests from Inspector
+    0.10.0, 0.11.0, 0.11.1 and 0.11.2 are read unchanged (now covered by real emitted
+    manifests in `scripts/fixtures/inspector-knowledge/`); a missing manifest still falls back
+    to live derivation. `docs/repo-knowledge-contract.md` is re-synced with Inspector 0.11.2.
+
 ## [0.7.4] - 2026-11-15
 
 A patch release for one Bug Flow fix (`06d52d4`). This release sets `plugin.json` to `0.7.4`
