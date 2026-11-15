@@ -315,9 +315,10 @@ syntax is unchanged.
 | `BUG_PLAN_NEW` | No plan exists. Create the cycle-1 plan. |
 | `BUG_PLAN_AWAITING_APPROVAL` | A current draft exists, or the plan was edited after approval with no task state. Present it for approval; do not regenerate. |
 | `BUG_PLAN_APPROVED` | The plan is approved and current. The next action is `/implement-task bug:<bug_key> T1`. |
+| `BUG_PLAN_INCOMPLETE` | The cycle-1 scaffold of an interrupted run: valid frontmatter naming this bug, `fix_cycle: 1`, a draft with empty approval fields and no task state, whose only problems are analysis not yet written (a Fix Design or Verification Strategy label without content, or no task rows). Resume the analysis with the routing its frontmatter records (`requires_confirmation: false`); never scaffold or ask again. Evidence drift under it is `BUG_PLAN_REGENERATE`, keeping that routing. |
 | `BUG_PLAN_REGENERATE` | The evidence or identity drifted under an unapproved draft with no task state. Regenerate the draft in place. |
 | `BUG_PLAN_STALE` | The evidence drifted under an approved plan, or under one with task state. Stop; reconciliation is a later step. |
-| `BUG_PLAN_INVALID` | Never overwritten. |
+| `BUG_PLAN_INVALID` | Never overwritten. Any frontmatter, identity, section-structure or task-row problem — anything beyond an unfinished cycle-1 analysis — is invalid. |
 | `BUG_REOPENED` | QA reopened the bug, and there is no plan to continue. Reported, with intake's reopened evidence. Nothing is created. |
 | `BUG_CYCLE_NEW` | A verified (full-context) reopen of the current cycle's handed-off fix. Proceed to `append-cycle`, with `next_cycle`, `evidence_class` (`unchanged` or `changed`) and `drift`. |
 | `BUG_CYCLE_INCOMPLETE` | An appended cycle whose judgement labels or task table are not written yet. Resume its analysis; never append again. |
@@ -335,6 +336,7 @@ known. That changes the evidence fingerprint, and the plan is then reported as d
 **Routing** is never chosen by the helper.
 - It is inherited only from the existing plan, or from the related feature's **one**
   approved Task Breakdown with a valid platform and device type.
+- An unfinished cycle-1 scaffold (`BUG_PLAN_INCOMPLETE`) is an existing plan: its routing is carried, never confirmed again. `/analyze-bug` scaffolds immediately after the developer confirms, so the confirmation is recorded at once.
 - Otherwise a human confirms it once (`ROUTING_REQUIRED`), from `repo-analyst`'s detection: a
   `resolved` detection gets a simple confirmation, an `ambiguous` or `conflicting` one a selection
   among the repository's targets (`agents/repo-analyst.md` Step 5a).

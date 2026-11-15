@@ -9,6 +9,35 @@ version below is the plugin's own `version` in
 
 ## [Unreleased]
 
+## [0.7.4] - 2026-11-15
+
+A patch release for one Bug Flow fix (`06d52d4`). This release sets `plugin.json` to `0.7.4`
+in the same commit as this heading.
+
+### Fixed
+
+- **Confirmed bug routing survives an interrupted session.** A developer who confirmed a
+  bug's platform and device type in `/analyze-bug` and then lost the session was asked again:
+  the next run repeated repository detection and the confirmation.
+  - **Persisted at once:** `/analyze-bug` now resolves Project Knowledge first, then asks for
+    the routing confirmation, then scaffolds the Bug Work Plan immediately. The scaffold
+    records the confirmed platform and device type in the plan's existing frontmatter, and
+    nothing runs between the answer and that write (surface scoping now follows the scaffold).
+  - **Incomplete initial plans resume:** an unfinished cycle-1 scaffold was reported
+    `BUG_PLAN_INVALID` ("fix it by hand or remove it"). `start` now returns
+    `BUG_PLAN_INCOMPLETE` for exactly that plan — valid frontmatter naming this bug, fix cycle
+    1, a draft with empty approval fields and no task state, whose only problems are analysis
+    not yet written. The analysis resumes with the plan's routing (`requires_confirmation:
+    false`): no repeated detection or confirmation, no second scaffold, no new fix cycle. It is
+    the cycle-1 counterpart of `BUG_CYCLE_INCOMPLETE`.
+  - **Safeguards unchanged:** existing-plan precedence, related-feature inheritance,
+    `ROUTING_CONFLICT`, bug identity checks, evidence-fingerprint validation, and approved-plan
+    and task-state protection. Changed evidence under an incomplete plan follows the existing
+    `BUG_PLAN_REGENERATE` rule and keeps the routing. Any frontmatter, identity, section or
+    task-row problem is still `BUG_PLAN_INVALID` and never overwritten. The canonical evidence
+    snapshot (`bug-report.json`) — its schema, contents and seal — is untouched, and no new
+    state file is added.
+
 ## [0.7.3] - 2026-11-15
 
 A patch release for platform and device-type detection (`f351860`). This release sets

@@ -264,6 +264,19 @@ function assess(req: BugRequest): Record<string, any> {
     // An appended cycle whose analysis is not written yet: resume it, never append again.
     return { ...common, ok: true, outcome: "BUG_CYCLE_INCOMPLETE", proceed: "complete-cycle", reason: `fix cycle ${latestCycle} was appended and its analysis is not finished — fill it, then validate and approve`, cycle: latestCycle, plan: { valid: false, errors: v.errors } };
   }
+  if (!v.ok && !reopened && incompleteInitialPlan(v, key, common.task_state_exists)) {
+    // The cycle-1 scaffold whose analysis is not written yet — the interrupted /analyze-bug run.
+    // Its frontmatter already records the developer-confirmed routing: resume the analysis with
+    // it, never ask again. Evidence drift follows the regeneration rule a valid draft follows.
+    const fm = v.frontmatter;
+    const { drift } = evidenceDrift(fm, it);
+    const route = routing(root, it.identity, fm, it.evidence?.environment ?? null);
+    const plan = { valid: false, errors: v.errors, drift, frontmatter: fm };
+    if (drift.length) {
+      return { ...common, ok: true, outcome: "BUG_PLAN_REGENERATE", proceed: "regenerate", reason: `the bug evidence changed (${drift.join(", ")}) and the plan is an unfinished draft with no task state — regenerate it in place`, plan, routing: route };
+    }
+    return { ...common, ok: true, outcome: "BUG_PLAN_INCOMPLETE", proceed: "complete-plan", reason: "the cycle-1 plan was scaffolded and its analysis is not finished — continue the analysis with the routing it records", plan, routing: route };
+  }
   if (!v.ok) {
     return { ...common, ok: false, outcome: "BUG_PLAN_INVALID", proceed: null, reason: `${rel} is not a valid bug-work-plan — fix it by hand or remove it; it is never overwritten`, plan: { valid: false, errors: v.errors } };
   }
@@ -342,6 +355,26 @@ function assess(req: BugRequest): Record<string, any> {
 }
 
 /**
+ * Whether an invalid plan is only an unfinished cycle-1 scaffold: its frontmatter is valid and
+ * names this bug, it is at fix cycle 1, a draft with empty approval fields and no task state,
+ * and every validation problem is analysis not yet written — a cycle-1 Fix Design or
+ * Verification Strategy label without content, or the Tasks table with no rows. Anything else
+ * (a frontmatter, identity, section-structure or task-row problem) is not unfinished: it is
+ * invalid, and stays BUG_PLAN_INVALID.
+ */
+function incompleteInitialPlan(v: Record<string, any>, key: string, taskStateExists: boolean): boolean {
+  const fm = v.frontmatter;
+  if (!fm || taskStateExists) return false;
+  if (fm.bug_key !== key || fm.fix_cycle !== 1 || fm.status !== "draft") return false;
+  if (fm.approved_by !== null || fm.approved_fingerprint !== null || fm.approved_cycle !== null) return false;
+  if (!PLATFORMS.includes(fm.platform) || !DEVICE_TYPES.includes(fm.device_type)) return false;
+  const errors = (v.errors ?? []) as Array<{ code: string; message: string }>;
+  return errors.length > 0 && errors.every((e) =>
+    (e.code === "LABEL_MISSING" && /^(Fix Design|Verification Strategy) must state "\*\*[^"]+:\*\*" with content$/.test(e.message)) ||
+    (e.code === "TASK_TABLE" && e.message === "Tasks's task table has no rows"));
+}
+
+/**
  * Where the plan's current fix cycle stands: its tasks (T<n> in cycle 1, C<n>-T<m> later), how
  * many have task state, which are not yet proven complete, and whether this cycle was handed to
  * QA — the bug's handoff names this cycle and is `ready-for-qa` (the handoff gate verified that
@@ -360,7 +393,7 @@ function cycleProgress(root: string, key: string, planAbs: string, v: Record<str
 }
 
 /** The outcomes whose next step is writing plan content — done by the planning subagent, never in the main conversation. */
-const PLANNING = new Set(["create", "regenerate", "append-cycle", "complete-cycle"]);
+const PLANNING = new Set(["create", "regenerate", "complete-plan", "append-cycle", "complete-cycle"]);
 
 export function startBug(req: BugRequest): Record<string, any> {
   const { root, ...out } = assess(req);
