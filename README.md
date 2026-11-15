@@ -270,19 +270,20 @@ Reviews cite standard IDs in their findings.
 
 ## Safety hooks
 
-Three hooks are always active while the plugin is installed:
+Two hooks are always active while the plugin is installed:
 
 | Hook | What it does |
 |---|---|
 | `protect-secrets` | Blocks any file write/edit that would introduce a hardcoded secret (API keys, tokens, private keys) |
 | `require-approval-before-code` | Forces a human-approval prompt before any code file is written or edited — even in auto-approve modes; covers React/TypeScript, Swift/Obj-C, and Kotlin/Java/Kotlin-script (`.kts`) files across every platform; docs and config pass through untouched |
-| `block-main-branch-changes` | Blocks file changes while checked out on `main`/`master`, enforcing a feature-branch workflow |
 
-All three hooks are already platform-agnostic and required no changes for iOS/Android/React support beyond adding the `.kts` extension.
+Both hooks are already platform-agnostic and required no changes for iOS/Android/React support beyond adding the `.kts` extension.
+
+**Branch policy.** The developer decides which Git branch to work on. No hook or command blocks a file change because of the current branch — work on `main`, `master`, `develop` or a feature branch is gated exactly the same way, by the two hooks above and Claude Code's own permission prompts. Choosing a branch never grants a Git operation: the plugin never commits, pushes, rewrites history or deletes a branch on its own, and every command that prepares work for a commit stops and leaves the commit to the developer.
 
 ## Repository validation
 
-The plugin's deterministic parts — five helper scripts, three safety hooks, the four
+The plugin's deterministic parts — five helper scripts, two safety hooks, the four
 documentation contracts, and the structural integrity of the component corpus — are
 covered by a hand-rolled check suite with no external test framework and no
 dependencies. Run it from the repository root:
@@ -320,7 +321,7 @@ validator has no dependency on that ever happening.
 
 1. **Pipeline approval** — the human sign-off between the eight SDLC stages (feature analysis → DD → task breakdown → ...). Only pipeline stages need this; a standalone utility like `/rn-sync-figma-theme` has no pipeline stage to approve and so doesn't need it.
 2. **Semantic change approval** — required whenever an operation would change an existing value or make a consequential decision a human hasn't already made, regardless of whether the command is part of the pipeline. `/rn-sync-figma-theme`'s override-confirmation gate (present any existing token that would change, then require an explicit approve/skip/cancel decision before writing) is this kind.
-3. **Repository write hooks** — `require-approval-before-code`, `block-main-branch-changes`, `protect-secrets`. Global safety mechanisms that gate every file write in this plugin, regardless of pipeline stage or semantic content.
+3. **Repository write hooks** — `require-approval-before-code`, `protect-secrets`. Global safety mechanisms that gate every file write in this plugin, regardless of pipeline stage or semantic content.
 
 The rule that keeps these consistent everywhere: **a command may bypass feature-pipeline approval because it is a standalone utility, but it never bypasses repository-level write hooks or semantic override confirmation.** When a command's docs say "no approval gate" or "needs no approval," that always means kind 1 only — never read it as "no approval at all," and no command in this plugin should be written to imply otherwise.
 
@@ -384,8 +385,7 @@ templates/                          (flat — shared pipeline artifacts, now pla
   qa-handoff-template.md, release-checklist-template.md
 
 hooks/                               (unchanged — already platform-agnostic)
-  protect-secrets.json/scan-for-secrets.sh, require-approval-before-code.json/.sh,
-  block-main-branch-changes.json/.sh
+  protect-secrets.json/scan-for-secrets.sh, require-approval-before-code.json/.sh
 ```
 
 `standards/` nests into `shared/`/`react-native/`/`ios/`/`android/`/`react/` subfolders — it holds plain reference files, not components Claude Code discovers by name, so nesting is safe. `agents/` and `skills/` stay flat with prefix-based naming (`rn-`/`ios-`/`android-`/`react-`, unprefixed for shared) instead: Claude Code's plugin loader discovers agents as flat files and skills as one level of `skills/<name>/SKILL.md` nesting, with no documented support for a second nesting level, so the flat-with-prefix convention this repo already used for React Native was extended to the new platforms rather than introducing per-platform subfolders that discovery might not pick up.

@@ -8,8 +8,7 @@
   },
   "hooks": [
     "./hooks/protect-secrets.json",
-    "./hooks/require-approval-before-code.json",
-    "./hooks/block-main-branch-changes.json"
+    "./hooks/require-approval-before-code.json"
   ],
   "mcpServers": {
     "figma": {

@@ -23,7 +23,7 @@ This plugin distinguishes three independent kinds of approval, and this command 
 
 1. **Pipeline approval** — the human sign-off between the eight SDLC stages (feature analysis → DD → task breakdown → ...). `/rn-sync-figma-theme` is a standalone utility, not a pipeline stage, so **this kind does not apply here** — no feature analysis, DD, or task breakdown is required or produced.
 2. **Semantic change approval** — required whenever an operation would change an existing value or make a consequential decision a human hasn't already made. This command's override-confirmation gate ([Step 9](#9-diff-against-existing-values--notify-and-ask-before-overriding-anything), an existing token value would change) and its naming-collision gate ([Step 6](#6-normalize-names-into-token-keys), two incoming Figma values conflict) are both this kind. They always apply, regardless of pipeline status.
-3. **Repository write hooks** — `require-approval-before-code`, `block-main-branch-changes`, `protect-secrets`. Global safety mechanisms that gate every file write in this plugin. They **always apply** and this command never bypasses them.
+3. **Repository write hooks** — `require-approval-before-code`, `protect-secrets`. Global safety mechanisms that gate every file write in this plugin. They **always apply** and this command never bypasses them.
 
 The precise statement, satisfying all three at once: **this command may bypass feature-pipeline approval because it is a standalone utility, but it never bypasses repository-level write hooks or semantic override confirmation.** Anywhere this skill or `commands/rn-sync-figma-theme.md` says "no approval gate," it means kind 1 only — never read it as "no approval at all."
 
@@ -259,7 +259,7 @@ Write only what `apply-approvals` returned in `toWrite` — additions plus expli
 
 Because both renderers are pure functions of their inputs, re-running this skill against an unchanged Figma source and an unchanged repository reproduces byte-identical output — the idempotency guarantee this whole pipeline exists to provide. Do not hand-format, reorder, or "clean up" the rendered text before writing it; whatever deviates from the script's output breaks that guarantee on the next run.
 
-Every write still passes through `require-approval-before-code`, `block-main-branch-changes`, and `protect-secrets` exactly as any other code change in this plugin — the diff/override gate above is a *complementary* semantic layer, not a replacement for them.
+Every write still passes through `require-approval-before-code` and `protect-secrets` exactly as any other code change in this plugin — the diff/override gate above is a *complementary* semantic layer, not a replacement for them.
 
 ## 11. Verify
 
@@ -327,4 +327,4 @@ The default **human-facing** report stays concise — source, scope, counts, cha
 - **`commands/rn-sync-figma-theme.md`** — resolves `TARGET_ROOT`, the Figma URL argument, `--dry-run`, and the platform/readiness gates; invokes this methodology; verifies the completion report.
 - **This skill** — the observation layer: talks to the live `figma` MCP tools, reads the repository, talks to the human at every MUST-ASK point, and hands data to/acts on results from the script below.
 - **`scripts/figma-theme-tokens.ts`** — the decision layer: classification, normalization (names/colors/font-weights), alias resolution, diffing, approvals, rendering, and verification. Pure, deterministic, covered by `scripts/figma-theme-tokens.test.ts`. No filesystem or network access of its own — every call is a function of the data the skill supplies.
-- **Hooks** — `require-approval-before-code`, `block-main-branch-changes`, `protect-secrets` gate every write exactly as elsewhere; they are complementary to, never replaced by, the semantic override-confirmation gate in Step 9.
+- **Hooks** — `require-approval-before-code` and `protect-secrets` gate every write exactly as elsewhere; they are complementary to, never replaced by, the semantic override-confirmation gate in Step 9.

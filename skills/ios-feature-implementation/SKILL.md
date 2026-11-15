@@ -351,4 +351,4 @@ Responsibilities stay separated:
 - **`skills/mobile-debugging/SKILL.md`** — owns root-causing at the Fix stage; this skill owns only proving an iOS fix.
 - **`agents/feature-implementer.md`** — the iOS specialist and executor that runs both halves.
 - **This skill** — the iOS implementation methodology itself, and nothing a platform-independent layer could state.
-- **Hooks** — `require-approval-before-code`, `block-main-branch-changes`, and `protect-secrets`.
+- **Hooks** — `require-approval-before-code` and `protect-secrets`.

@@ -255,7 +255,7 @@ Platform-independent stop conditions; the lane adds its own.
 Every boundary is stated once, in [Authoritative owners](#authoritative-owners--cite-these-never-restate-them)
 above. `agents/feature-implementer.md` executes this methodology against one resolved lane;
 the lane supplies the platform content; the command owns orchestration; the
-`require-approval-before-code`, `block-main-branch-changes` and `protect-secrets` hooks
+`require-approval-before-code` and `protect-secrets` hooks
 gate every edit.
 
 ## Bug work

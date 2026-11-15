@@ -140,6 +140,6 @@ Responsibilities stay separated:
 - **`skills/platform-implementation/SKILL.md`** — the platform-independent implementation methodology: inputs, source-of-truth hierarchy, readiness checks, grounding discipline, scope control, incremental implementation, validation rules, self-review, and the completion report.
 - **`agents/feature-implementer.md`** — the React Native specialist and executor that runs both.
 - **This skill** — the React Native implementation methodology itself, and nothing a platform-independent layer could state.
-- **Hooks** — `require-approval-before-code` (approval before any code write), `block-main-branch-changes` (feature-branch enforcement), and `protect-secrets`.
+- **Hooks** — `require-approval-before-code` (approval before any code write) and `protect-secrets`.
 
 This skill does not move command logic into itself, does not depend on undocumented ambient-CWD assumptions, and does not invent paths to the feature documents — the resolved absolute paths the command passes are verified before use.

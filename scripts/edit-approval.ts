@@ -31,8 +31,9 @@
  *
  * Task state stays per task (scripts/task-state.ts is its only writer). This helper only reads
  * it. It grants nothing but skipping the per-edit question for in-scope code files: never a
- * commit, a push, a merge or a write on main/master, which the other hooks and the commands
- * govern unchanged. Feature work never has a cycle approval, so it is never relaxed.
+ * commit, a push, a merge, a history rewrite or a branch deletion, which the commands and
+ * Claude Code's own permissions govern unchanged. The developer chooses the branch; the
+ * approval is bound to it, whichever it is. Feature work never has a cycle approval, so it is never relaxed.
  *
  * Always exits 0 and prints one JSON object.
  *
@@ -57,7 +58,6 @@ import { canonical } from "./qa-release-gate.ts";
 export const RECORD_SCHEMA = 1;
 /** The code files the require-approval-before-code hook asks about — the same list as the hook. */
 export const CODE_EXTENSIONS = [".ts", ".tsx", ".js", ".jsx", ".swift", ".kt", ".kts", ".java", ".m", ".mm", ".cpp", ".h"];
-const PROTECTED_BRANCHES = new Set(["main", "master"]);
 /** A directory is approvable only this deep; anything shallower is too broad to approve as one scope. */
 const MIN_DIR_SEGMENTS = 3;
 
@@ -393,7 +393,6 @@ export function approveCycle(req: { root: string; work: string; by?: string }): 
   if (verifyApproval(plan.buf).status !== "approved") return refuse("PLAN_NOT_APPROVED", "the Bug Work Plan is not approved for its current fix cycle — approve it through /analyze-bug first", { route: "/analyze-bug <bug-ref>" });
   const branch = currentBranch(w.root);
   if (branch === null) return refuse("BRANCH_UNKNOWN", "the current branch cannot be read — a cycle approval is bound to a branch");
-  if (PROTECTED_BRANCHES.has(branch)) return refuse("BRANCH_PROTECTED", `${branch} is protected — create a fix branch first`);
   const scope = deriveScope(plan.buf, plan.v);
   const state = readTaskState(w.root, `bug:${w.key}`, plan.abs);
   if (scope.tasks.length === 0 || scope.tasks.every((id) => state.tasks[id]?.deterministicProof === true)) return refuse("CYCLE_COMPLETE", `fix cycle ${scope.fix_cycle} has nothing left to implement`);

@@ -336,7 +336,8 @@ try {
       "2. Resolve one authoritative repository root (via the helper)": "5f4c303483f78d592a5fba83548573aa5d1486af452f0fb396813e6c320503f6",
       "3. Locate the Task Breakdown for the feature": "475698ed8b848323a984e8f65166e1ed5bb5953206a67d41aa7f3c9d4363b90c",
       "4. Resolve the upstream documents from frontmatter (no filename guessing)": "7b28c0d5151c75303c28a6fe1de766d3dd8267800daa6f02b3bdee36b0e2e739",
-      "5. Approval & readiness gates": "ba2a44848e3a26f26ff8e7b6e0a36da0d42e9da2ff99b999b449d83b44bd14a1",
+      // 0.7.5 removed the not-main/master readiness gate on purpose (the developer chooses the branch); re-pinned.
+      "5. Approval & readiness gates": "f1be3916fca864d878530de8333ea03b292692b280c3c32aa2e91321480fe143",
       "5a. Consistency preflight (runs on every invocation)": "e520bfadafec8286b28557ead91f78ab5d852773ea87cc8cf9ff9de4c7d4ece7",
       "5b. Accessibility applicability (decide once, from the confirmed context)": "dc940ea9472aafb271c37e2bde34a3f0d289c5d353b79767ac32a439e9f0bee0",
       "6. Task state and dependency completeness (read the store, then decide)": "1b5557e69e6c0d15e7e7f8c98bc4df73c5ef9105a7adabe5f5b8171deb97a3e5",
@@ -374,8 +375,7 @@ try {
     }
 
     const PINNED: Record<string, string> = {
-      "hooks/block-main-branch-changes.json": "89599088f364c9d6dd1af0a0cc7438610bf9b417a9b8e320d2866bf1c6857b2c",
-      "hooks/block-main-branch-changes.sh": "771aef6d81d25308edbc77e4cca8c663cf2f05946cfe254fd150e34342636d34",
+      // hooks/block-main-branch-changes.*: removed in 0.7.5 (the developer chooses the branch); hooks.test.ts asserts it stays gone.
       "hooks/protect-secrets.json": "e1eaeb813e75d5b80927dcf6630c292c0bc7acd32519349af088dc0994cc00fb",
       "hooks/require-approval-before-code.json": "37f5f2e5dbe97ccac0f432a7b3eacc6f8595b0d2a60ade3674df0f6ec69db043",
       // hooks/require-approval-before-code.sh: Bug Flow UX P0.3 changed it on purpose (one approval per Bug Fix Cycle); pinned by edit-approval.test.ts and hooks.test.ts.

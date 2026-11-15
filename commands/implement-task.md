@@ -3,7 +3,7 @@ description: Implement a single approved task from a feature's task breakdown, o
 argument-hint: [feature | bug:<bug_key>] [task-id] [--restart | --abandon] [--qa-repo=<path> | --report=<path>]
 ---
 
-Orchestrate the implementation of **exactly one** approved task. This command is an orchestrator only: it resolves and verifies the full implementation context, enforces the approval/readiness gates, routes to the correct platform, and hands the resolved context to that platform's feature-implementation skill. It contains **no platform coding methodology** — the platform skill owns how the code is written; the `require-approval-before-code`, `block-main-branch-changes`, and `protect-secrets` hooks gate the writes.
+Orchestrate the implementation of **exactly one** approved task. This command is an orchestrator only: it resolves and verifies the full implementation context, enforces the approval/readiness gates, routes to the correct platform, and hands the resolved context to that platform's feature-implementation skill. It contains **no platform coding methodology** — the platform skill owns how the code is written; the `require-approval-before-code` and `protect-secrets` hooks gate the writes.
 
 Do not invoke any implementation agent until every step below has passed. If any step fails, **stop, state the exact missing/failed condition, and do not edit code.**
 
@@ -47,7 +47,7 @@ It validates the plan, verifies its content-bound approval for the current fix c
 | `BUG_EVIDENCE_SNAPSHOT_INVALID` | **Stop.** The canonical evidence snapshot failed its integrity check and is never trusted; re-run `/analyze-bug` with the original source. |
 | `BUG_TASK_UNKNOWN` · `BUG_EVIDENCE_SOURCE_REQUIRED` · `BUG_INSUFFICIENT_EVIDENCE` · `BUG_WORK_ID_INVALID` | **Stop** and report `reason`. |
 
-From §5, the gates that are not about feature documents still apply unchanged: the task row exists and is not complete or blocked, its dependencies are proven (§6), `platform` is valid on the row, `device_type` comes from the plan, and the branch is not `main`/`master`. A bug plan carries no design reference: the reproduction and the expected behaviour it records are the reference.
+From §5, the gates that are not about feature documents still apply unchanged: the task row exists and is not complete or blocked, its dependencies are proven (§6), `platform` is valid on the row, and `device_type` comes from the plan. A bug plan carries no design reference: the reproduction and the expected behaviour it records are the reference.
 
 **The rest of this command, with two substitutions.** §5b, §6, §6a, §7, §7a, §9 and §10 apply as written, where every `<feature>` is `bug:<bug_key>` and every `<absolute Task Breakdown path>` is the absolute Bug Work Plan path — for example `--feature "bug:<bug_key>" --breakdown "<absolute plan path>"`. The store keeps the bug at `docs/tasks/bugs/<bug_key>.task-state.json`, apart from every feature (`docs/task-state-contract.md` § *Bug work*). Where §6 names `/dev-feature-start` to repair the task graph, a bug's plan is repaired through `/analyze-bug`. Checkpoints may cite the plan's sections as basis — `plan#root-cause`, `plan#fix-design`, `plan#verification-strategy`, `plan#tasks` — plus `evidence`, so a later plan change invalidates only the work built on what moved.
 
@@ -87,7 +87,7 @@ node --no-warnings "${CLAUDE_PLUGIN_ROOT}/scripts/edit-approval.ts" status bug:<
 
   On "Not now", stop before any edit.
 
-From then on, the `require-approval-before-code` hook lets an in-scope code edit through without asking again, as long as `edit-approval.ts check` says so: same bug, same fix cycle, the same approved plan, the same branch, a task of the cycle in progress, the file inside the approved scope. Anything else asks, as before. The approval stops being valid by itself when the plan changes or its approval goes stale, the cycle moves, the branch changes, the work is abandoned, or the cycle is complete — nobody revokes it by hand. Never write `docs/tasks/bugs/<bug_key>.cycle-approval.json` yourself. **The cycle approval does not grant a commit, a push, a merge or a write on `main`/`master`:** it only spares the per-edit question for in-scope code files.
+From then on, the `require-approval-before-code` hook lets an in-scope code edit through without asking again, as long as `edit-approval.ts check` says so: same bug, same fix cycle, the same approved plan, the same branch, a task of the cycle in progress, the file inside the approved scope. Anything else asks, as before. The approval stops being valid by itself when the plan changes or its approval goes stale, the cycle moves, the branch changes, the work is abandoned, or the cycle is complete — nobody revokes it by hand. Never write `docs/tasks/bugs/<bug_key>.cycle-approval.json` yourself. **The cycle approval does not grant a commit, a push, a merge, a history rewrite or a branch deletion:** it only spares the per-edit question for in-scope code files, on the branch it was approved on.
 
 **An out-of-scope file.** The subagent receives the approved scope and must stop **before** editing any code file outside it, returning a scope-expansion blocker instead: the requested file, why it is needed, the task that needs it, and whether it contradicts a non-goal. Show those four, then:
 - If it contradicts a non-goal or the approved Fix Design, do not offer an expansion — route back to `/analyze-bug` to re-plan.
@@ -147,7 +147,7 @@ The final report's next action is the status's `next_command`: the cycle's next 
 Run Fix Cycle <n> verification now?
 ``` Either way, invoke the Skill tool with `skill` set to `next_command.skill` and `args` set to `next_command.args`, verbatim; never a bare command name, and the developer never retypes it. If that invocation is unavailable or fails, show `next_command.display` as the command to run, and never guess another. The next command re-runs every one of its own gates, so chaining never replaces an approval (`docs/command-handoff.md`). A completed cycle's edit approval is consumed: later code edits ask again.
 
-**Commits.** This command never creates a git commit — for bug work exactly as for feature work. It changes code, task state and checkpoints, runs validation and developer tests, and prepares the work for a commit; then it stops. Any product-code commit waits for explicit developer approval, and the `require-approval-before-code`, `block-main-branch-changes` and `protect-secrets` hooks apply unchanged.
+**Commits.** This command never creates a git commit — for bug work exactly as for feature work. It changes code, task state and checkpoints, runs validation and developer tests, and prepares the work for a commit; then it stops. Any product-code commit waits for explicit developer approval, and the `require-approval-before-code` and `protect-secrets` hooks apply unchanged. The branch the developer works on never changes this: working on any branch, `main` included, grants no commit, push, history rewrite or branch deletion.
 
 ## 2. Resolve one authoritative repository root (via the helper)
 
@@ -199,7 +199,7 @@ Confirm **all** of the following before going further. On any failure, stop, nam
 - `platform` is present and valid on the row.
 - `device_type` is present and valid — exactly `mobile` or `tv` — resolved from the selected task row if it carries one, otherwise from the Task Breakdown frontmatter. If it is **missing/empty**, is an **invalid value** (anything other than `mobile`/`tv`, including `mixed`), or conflicts between the row and the frontmatter, **stop and report the exact condition** — never default to `mobile` and never re-detect it here.
 - For UI-touching work, a **design reference** is available (breakdown/Dev Plan/DD): either `figma_link` (`design_reference_type: figma`) or `design_reference` (type `document` / `screenshots` / `existing_ui` / `other`). If the task touches UI and neither is present → **stop and ask for a design reference.** Figma specifically is not required — any recorded reference type satisfies this check. `design_reference_status: not_required` is only valid for a task that changes no user-facing UI; if a UI-touching task carries it, stop and report the contradiction.
-- Branch is **not** `main`/`master` (the `block-main-branch-changes` hook enforces this on write; check it up front too) and repository policy allows edits.
+- Repository policy allows edits. The developer chooses the branch; it is never a readiness gate.
 
 ## 5a. Consistency preflight (runs on every invocation)
 

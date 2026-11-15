@@ -1,17 +1,20 @@
 /**
  * hooks.test.ts
  *
- * Tests the three PreToolUse hooks in hooks/. They are the plugin's safety layer —
- * the only thing standing between a model and a secret committed to a repository, or a
- * write straight onto `main` — and until now they were the only executable code in the
- * repo with no coverage at all.
+ * Tests the two PreToolUse hooks in hooks/. They are the plugin's safety layer —
+ * the only thing standing between a model and a secret committed to a repository, or an
+ * unapproved code change — and until now they were the only executable code in the repo
+ * with no coverage at all.
+ *
+ * 0.7.5 removed block-main-branch-changes: the developer chooses the branch, and no hook
+ * judges it. §3 pins that the hook stays gone and that both remaining hooks behave the
+ * same on every branch; scripts/branch-policy.test.ts pins the wider policy.
  *
  * Each hook reads a tool-call JSON payload on stdin and signals its decision the way
  * Claude Code expects:
  *
  *   require-approval-before-code  exit 0 + a permissionDecision JSON object -> ask
  *                                 exit 0 + no output                       -> pass through
- *   block-main-branch-changes     exit 2 + stderr -> blocked   exit 0 -> allowed
  *   scan-for-secrets              exit 2 + stderr -> blocked   exit 0 -> allowed
  *
  * NOTE ON THE FIXTURES, because it will look strange otherwise: every credential-shaped
@@ -21,7 +24,7 @@
  * own test fixtures exist. Concatenation keeps the source clean while the runtime value
  * still exercises the pattern. Do not "simplify" these back into literals.
  *
- * The hooks shell out to `jq`, and block-main-branch-changes needs a real git branch.
+ * The hooks shell out to `jq`, and §3 needs a real git branch.
  * Neither is vendored, so this suite declares its dependency instead of pretending:
  * without `jq` it prints `SUITE SKIPPED` and scripts/check.ts reports the run as
  * incomplete. A skip is never a pass.
@@ -44,7 +47,6 @@ const REPO_ROOT = dirname(HERE);
 const HOOKS = join(REPO_ROOT, "hooks");
 
 const APPROVAL = join(HOOKS, "require-approval-before-code.sh");
-const MAIN_BRANCH = join(HOOKS, "block-main-branch-changes.sh");
 const SECRETS = join(HOOKS, "scan-for-secrets.sh");
 
 let failures = 0;
@@ -98,16 +100,15 @@ const allows = (r: HookRun): boolean => r.code === 0;
 {
   for (const [name, p] of [
     ["require-approval-before-code.sh", APPROVAL],
-    ["block-main-branch-changes.sh", MAIN_BRANCH],
     ["scan-for-secrets.sh", SECRETS],
   ] as const) {
     check(`1 hook exists: ${name}`, existsSync(p));
   }
   const manifest = JSON.parse(readFileSync(join(REPO_ROOT, ".claude-plugin", "plugin.json"), "utf-8"));
-  check("1 plugin.json registers three hook configs",
-    Array.isArray(manifest.hooks) && manifest.hooks.length === 3, JSON.stringify(manifest.hooks));
+  check("1 plugin.json registers two hook configs",
+    Array.isArray(manifest.hooks) && manifest.hooks.length === 2, JSON.stringify(manifest.hooks));
 
-  for (const cfg of ["protect-secrets", "require-approval-before-code", "block-main-branch-changes"]) {
+  for (const cfg of ["protect-secrets", "require-approval-before-code"]) {
     const p = join(HOOKS, `${cfg}.json`);
     check(`1 hook config exists: ${cfg}.json`, existsSync(p));
     if (!existsSync(p)) continue;
@@ -153,49 +154,45 @@ const allows = (r: HookRun): boolean => r.code === 0;
   })());
 }
 
-/* ── 3. block-main-branch-changes ─────────────────────────────────────── */
+/* ── 3. no branch-based write blocking (0.7.5) ───────────────────────── */
 {
+  const manifest = JSON.parse(readFileSync(join(REPO_ROOT, ".claude-plugin", "plugin.json"), "utf-8"));
+  check("3 plugin.json no longer registers block-main-branch-changes",
+    !JSON.stringify(manifest.hooks).includes("block-main-branch"), JSON.stringify(manifest.hooks));
+  check("3 the hook files are gone",
+    !existsSync(join(HOOKS, "block-main-branch-changes.json")) && !existsSync(join(HOOKS, "block-main-branch-changes.sh")));
+
   if (!haveGit) {
-    console.log("SKIP  3 block-main-branch-changes (git not installed)");
+    console.log("SKIP  3 per-branch behaviour (git not installed)");
   } else {
     const repo = mkdtempSync(join(tmpdir(), "hooks-branch-"));
     const git = (...args: string[]) => spawnSync("git", ["-C", repo, ...args], { encoding: "utf-8" });
-    git("init", "-q");
+    git("init", "-q", "-b", "main");
     git("config", "user.email", "t@t");
     git("config", "user.name", "t");
     writeFileSync(join(repo, "a.txt"), "x");
     git("add", ".");
     git("commit", "-qm", "init");
 
-    const write = { tool_name: "Write", tool_input: { file_path: join(repo, "a.txt") } };
-
-    git("branch", "-M", "main");
-    const onMain = runHook(MAIN_BRANCH, write, { CLAUDE_PROJECT_DIR: repo });
-    check("3 a write on main is blocked", blocks(onMain));
-    check("3 the block explains why", /feature branch/i.test(onMain.stderr), onMain.stderr.trim());
-
-    git("branch", "-M", "master");
-    check("3 a write on master is blocked", blocks(runHook(MAIN_BRANCH, write, { CLAUDE_PROJECT_DIR: repo })));
-
-    git("checkout", "-qb", "feat/thing");
-    check("3 a write on a feature branch is allowed",
-      allows(runHook(MAIN_BRANCH, write, { CLAUDE_PROJECT_DIR: repo })));
-
-    git("checkout", "-qb", "main-ish");
-    check("3 a branch merely starting with 'main' is allowed",
-      allows(runHook(MAIN_BRANCH, write, { CLAUDE_PROJECT_DIR: repo })));
-
-    git("branch", "-M", "main");
-    check("3 a non-write tool is allowed even on main",
-      allows(runHook(MAIN_BRANCH, { tool_name: "Read", tool_input: {} }, { CLAUDE_PROJECT_DIR: repo })));
-
-    // Fails open by design: no git repo means no branch to judge.
-    const nonGit = mkdtempSync(join(tmpdir(), "hooks-nongit-"));
-    check("3 fails open outside a git repository",
-      allows(runHook(MAIN_BRANCH, write, { CLAUDE_PROJECT_DIR: nonGit })));
-
+    const doc = { tool_name: "Write", tool_input: { file_path: join(repo, "docs/notes.md"), content: "# notes\n" }, cwd: repo };
+    const code = { tool_name: "Edit", tool_input: { file_path: join(repo, "src/App.tsx"), old_string: "a", new_string: "b" }, cwd: repo };
+    const env = { CLAUDE_PROJECT_DIR: repo, CLAUDE_PLUGIN_ROOT: REPO_ROOT };
+    const branches: Array<[string, () => void]> = [
+      ["main", () => {}],
+      ["master", () => git("checkout", "-qb", "master")],
+      ["develop", () => git("checkout", "-qb", "develop")],
+      ["feature/x", () => git("checkout", "-qb", "feature/x")],
+      ["release/1.0", () => git("checkout", "-qb", "release/1.0")],
+      ["a detached HEAD", () => git("checkout", "-q", "--detach")],
+    ];
+    for (const [name, enter] of branches) {
+      enter();
+      check(`3 on ${name}: a doc write passes the approval hook`, passesThrough(runHook(APPROVAL, doc, env)));
+      check(`3 on ${name}: a doc write passes the secrets hook`, allows(runHook(SECRETS, doc, env)));
+      check(`3 on ${name}: a code edit still asks for approval — never blocked, never silently allowed`, asks(runHook(APPROVAL, code, env)));
+      check(`3 on ${name}: a clean code edit passes the secrets hook`, allows(runHook(SECRETS, code, env)));
+    }
     rmSync(repo, { recursive: true, force: true });
-    rmSync(nonGit, { recursive: true, force: true });
   }
 }
 

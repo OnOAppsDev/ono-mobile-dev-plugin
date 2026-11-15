@@ -156,7 +156,7 @@ Responsibilities stay separated:
 - **`skills/platform-implementation/SKILL.md`** — the platform-independent implementation methodology.
 - **`agents/feature-implementer.md`** — the React specialist and executor that runs both.
 - **This skill** — the React implementation methodology itself, and nothing a platform-independent layer could state.
-- **Hooks** — `require-approval-before-code`, `block-main-branch-changes`, and `protect-secrets`.
+- **Hooks** — `require-approval-before-code` and `protect-secrets`.
 
 This skill does not move command logic into itself, does not depend on undocumented
 ambient-CWD assumptions, and does not invent paths to the feature documents.

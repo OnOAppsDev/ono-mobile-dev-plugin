@@ -254,8 +254,7 @@ try {
     const HOOKS: Record<string, string> = {
       "hooks/require-approval-before-code.json": "37f5f2e5dbe97ccac0f432a7b3eacc6f8595b0d2a60ade3674df0f6ec69db043",
       // hooks/require-approval-before-code.sh: P0.3 changed it on purpose (one approval per Bug Fix Cycle); pinned by edit-approval.test.ts and hooks.test.ts.
-      "hooks/block-main-branch-changes.json": "89599088f364c9d6dd1af0a0cc7438610bf9b417a9b8e320d2866bf1c6857b2c",
-      "hooks/block-main-branch-changes.sh": "771aef6d81d25308edbc77e4cca8c663cf2f05946cfe254fd150e34342636d34",
+      // hooks/block-main-branch-changes.*: removed in 0.7.5 (the developer chooses the branch); hooks.test.ts asserts it stays gone.
       "hooks/protect-secrets.json": "e1eaeb813e75d5b80927dcf6630c292c0bc7acd32519349af088dc0994cc00fb",
       "hooks/scan-for-secrets.sh": "be60a1fc569de494c2aa215220cf162eccfe8f6b7fc04ffc5a14d7e6827c67d9",
     };

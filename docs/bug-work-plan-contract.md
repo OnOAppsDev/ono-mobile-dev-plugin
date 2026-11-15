@@ -384,7 +384,7 @@ Plan approval says *what* to do; the cycle approval says the developer is ready 
 | `work_id`, `bug_key` | The bug |
 | `fix_cycle` | The cycle approved; a cycle-1 approval never covers cycle 2 |
 | `approved_plan_fingerprint` | The plan's `approved_fingerprint` when the cycle was approved |
-| `branch` | The branch it was approved on; never `main`/`master` |
+| `branch` | The branch it was approved on — whichever branch the developer chose; the approval holds only there |
 | `approved_scope` | The scope derived from the plan (below) |
 | `expansions` | Files added one at a time after a developer approved each, with the task, the reason and the approver |
 | `status` | `active` or `revoked` |
