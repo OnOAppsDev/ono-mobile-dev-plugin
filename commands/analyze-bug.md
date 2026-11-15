@@ -24,7 +24,7 @@ Do not narrate file reads, searches or helper calls; never echo helper JSON, nev
 Accept exactly one of:
 
 - **A QA bug.** `BUG-27`, `qa=BUG-27` or `qa=BUG-27,external=PAY-1182`, plus the QA repository path, `--qa-repo=<path>`. If the path is missing, ask the developer for it once. Never search sibling folders or guess a location.
-- **An external tracker bug.** `--external=<key>` (a tracker key, not a URL) plus `--report=<path>` (the report as JSON: `title`, `steps`, `expected`, `actual`, optionally `surfaces`, `found_in_build`, `environment`, `description`).
+- **An external tracker bug.** `--external=<key>` (a tracker key, not a URL) plus `--report=<path>` (the report as JSON: `title`, `steps`, `expected`, `actual`, optionally `surfaces`, `found_in_build`, `environment`, `description`). Copy the ticket's environment field into `environment` verbatim. When the ticket names the affected OS or device, record it in `surfaces` as a plain id (`ios`, `android`, `tvos`, `android-tv`) — never invent one the ticket does not state. Keep the ticket's project key and name, components and labels for step 4.
 - **A Dev-discovered bug.** `--origin=dev-review|dev-testing|production` plus `--report=<path>` in the same shape.
 
 - **A document** (Word, PDF, Markdown export). Extract the evidence from it **once**, into that JSON shape, saved outside `TARGET_ROOT` (the session's scratch directory); if a required field is missing or the extraction is uncertain, show what was extracted and ask the developer once, before anything is persisted. Pass it as `--report=<json>` with `--source-document=<the original file>` (provenance only). Hand-prepared structured evidence adds `--source-type=manual`. Later stages never reopen, re-read or re-extract the document.
@@ -141,7 +141,7 @@ Only a **verified reopen** (full QA context) after a fix this plan handed to QA 
 Read `routing` from `start`:
 
 - **`requires_confirmation: false`.** The routing is inherited. It comes either from the existing plan or from the related feature's **one approved Task Breakdown**, whose platform and device type a human confirmed at `/analyze-feature` step 2. Show it with its `source` and use it. Do not ask again.
-- **`requires_confirmation: true`.** Ask once, with the same gate as `/analyze-feature` step 2. Invoke `repo-analyst` with the `mobile-repo-analysis` methodology to detect the context, then present it:
+- **`requires_confirmation: true`.** Ask once, with the same gate as `/analyze-feature` step 2. Invoke `repo-analyst` with the `mobile-repo-analysis` methodology to detect the context — platform and device type together — and pass it the tracker evidence as corroboration: `routing.corroborating_surfaces`, `routing.corroborating_environment`, and the ticket's project key and name, components and labels from step 1. It returns one routing candidate with a resolution (`agents/repo-analyst.md` Step 5a). When it is `resolved`, present it:
 
   ```
   Detected development context:
@@ -154,9 +154,12 @@ Read `routing` from `start`:
   2. No, select another context
   ```
 
-  The confirmed context resolves to exactly **one** platform (`react-native` / `react` / `ios` / `android`) and exactly one device type (`mobile` / `tv`). Validate the answer and re-ask on invalid input. If `repo-analyst` detected several platforms, offer no "Yes, continue" path: the developer selects one.
+  The confirmed context resolves to exactly **one** platform (`react-native` / `react` / `ios` / `android`) and exactly one device type (`mobile` / `tv`). Validate the answer and re-ask on invalid input; tvOS / Apple TV is `ios` + `tv` and Android TV is `android` + `tv`. When the resolution is `ambiguous` or `conflicting`, offer no "Yes, continue" path: show the repository-supported options (and, for a conflict, what the ticket said) and the developer selects one.
 
-QA's affected surfaces (`routing.corroborating_surfaces`) are corroborating evidence only. Show them beside the detected context, but they never choose the platform or device type, and neither does Project Knowledge. When the repository declares surfaces, scope the confirmed context to one through the `repo-knowledge-consumer` skill (Step 3b). Scope is never routing.
+  - **React Native stays `react-native`.** A bug that affects only iOS or only Android in a React Native app routes `react-native`; the affected OS is in `surfaces`, never the platform. Its linked iOS and Android shells are not separate platforms to choose between.
+  - **The repository decides what is possible.** Ticket evidence may pick one of the targets the repository supports (the tvOS target of a project with iOS and tvOS targets) and may confirm a resolved one; it never adds a platform or device type the repository does not support.
+
+QA's affected surfaces (`routing.corroborating_surfaces`) and the ticket's environment (`routing.corroborating_environment`) are corroborating evidence only. Show them beside the detected context. They never choose the platform or device type on their own — `repo-analyst` may use them only to pick among the targets the repository supports — and neither does Project Knowledge. When the repository declares surfaces, scope the confirmed context to one through the `repo-knowledge-consumer` skill (Step 3b). Scope is never routing.
 
 ## 5. Project Knowledge
 

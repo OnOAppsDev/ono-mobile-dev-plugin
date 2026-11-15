@@ -367,6 +367,36 @@ try {
     check("16 a human-confirmed routing is recorded as confirmed", confirmed?.ok === true && /\*\*Platform \/ device type:\*\* android \/ mobile — confirmed by the developer/.test(readFileSync(planFile(rootR, "BUG-50"), "utf-8")), show(confirmed));
   }
 
+  /* ── platform detection: tracker evidence and canonical routing values ── */
+  {
+    // Tracker evidence (YEA-1371: an Apple TV ticket, environment "GO TVOS") reaches the detection as corroboration only.
+    const tv = { ...EVIDENCE, environment: "GO TVOS", surfaces: ["tvos"] };
+    const ext = S({ root: repo(), external: "YEA-1371", report: report(tv) });
+    check("detect the ticket's environment is returned as corroborating evidence", ext?.routing?.corroborating_environment === "GO TVOS" && JSON.stringify(ext.routing.corroborating_surfaces) === '["tvos"]', JSON.stringify(ext?.routing));
+    check("detect tracker evidence never routes: confirmation is still required", ext?.routing?.requires_confirmation === true && ext.routing.platform === null && ext.routing.device_type === null);
+    const none = S({ root: repo(), external: "YEA-1372", report: report(EVIDENCE) });
+    check("detect missing tracker evidence is null, never guessed", none?.routing?.corroborating_environment === null && JSON.stringify(none.routing.corroborating_surfaces) === "[]" && none.routing.requires_confirmation === true, JSON.stringify(none?.routing));
+    const inherited = S({ root: repo([{ feature: "checkout-coupons", status: "approved", platform: "android", device: "mobile" }]), ref: "BUG-43", qaRepo: QA });
+    check("detect inherited routing is unchanged by corroboration", inherited?.routing?.requires_confirmation === false && inherited.routing.platform === "android" && "corroborating_environment" in inherited.routing);
+    const sameRoot = repo();
+    const scaffoldEnv = SC({ root: sameRoot, external: "YEA-1371", report: report(tv) });
+    check("detect a tvOS ticket alone still cannot scaffold without a confirmed routing", scaffoldEnv?.code === "ROUTING_REQUIRED" && !existsSync(join(sameRoot, "docs/bugs")), show(scaffoldEnv));
+
+    // Non-canonical names are refused, and the refusal names the canonical pair — never applied silently.
+    const bad = (platform: string, deviceType: string) => SC({ root: sameRoot, external: "YEA-1371", report: report(tv), platform, deviceType });
+    const tvos = bad("tvos", "tv");
+    check("detect --platform tvos is refused", tvos?.code === "ROUTING_INVALID" && !existsSync(join(sameRoot, "docs/bugs")), show(tvos));
+    check("detect …and names tvOS as ios + tv", /tvOS \/ Apple TV is --platform ios --device-type tv/.test(tvos?.reason ?? ""), tvos?.reason);
+    check("detect --device-type tvos and apple-tv name the same pair", /--platform ios --device-type tv/.test(bad("ios", "tvos")?.reason ?? "") && /--platform ios --device-type tv/.test(bad("apple-tv", "tv")?.reason ?? ""));
+    check("detect android-tv names android + tv", bad("android-tv", "tv")?.code === "ROUTING_INVALID" && /--platform android --device-type tv/.test(bad("android-tv", "tv")?.reason ?? ""));
+    check("detect expo and rn name react-native", /--platform react-native/.test(bad("expo", "mobile")?.reason ?? "") && /--platform react-native/.test(bad("RN", "mobile")?.reason ?? ""));
+    check("detect iphone names ios + mobile", /--platform ios --device-type mobile/.test(bad("iphone", "mobile")?.reason ?? ""));
+    check("detect an unknown value is refused with no invented hint", (() => { const r = bad("mixed", "mobile"); return r?.code === "ROUTING_INVALID" && !/ is --platform /.test(r.reason); })());
+    check("detect routingHint ignores canonical values", api.routingHint("ios", "tv") === null && api.routingHint("react-native", "mobile") === null);
+    const ok = SC({ root: sameRoot, external: "YEA-1371", report: report(tv), platform: "ios", deviceType: "tv" });
+    check("detect the canonical tvOS pair is accepted and recorded with the ticket's surfaces", ok?.ok === true && /\*\*Platform \/ device type:\*\* ios \/ tv — confirmed by the developer/.test(readFileSync(planFile(sameRoot, "YEA-1371"), "utf-8")) && /\nsurfaces: \[tvos\]\n/.test(readFileSync(planFile(sameRoot, "YEA-1371"), "utf-8")), show(ok));
+  }
+
   /* ── 18–21. Project Knowledge ─────────────────────────────────────────── */
   {
     const s = S({ root: repo(), ref: "BUG-50", qaRepo: QA });
@@ -440,7 +470,7 @@ try {
     // Step 5 changed /implement-task, task-state.ts and task-resume.ts on purpose; bug-implementation.test.ts
     // pins every feature section of /implement-task, and the task-state suites pin the store's behaviour.
     const PINNED: Record<string, string> = {
-      "commands/analyze-feature.md": "42f3b7f1fbd91e9110e15877b3f746312926958ccf53f28dfc3ee76879e70051",
+      "commands/analyze-feature.md": "37dc84922229db1eb7d6eca507a8cd917dc3ddde7edc8d8e1185d8482cf7fa8e",
       "commands/dev-design-start.md": "f62963b1d156f4d9b22cd1d92678d4de25f0d66d7120801d62075d14ec8b9ca8",
       "commands/dev-feature-start.md": "0713797d25d66df5064424ffd0dcf4269fead926512c2c40dd2eb9350abce175",
       // Step 7 extended /create-dev-qa-notes with bug:<key>; qa-handoff-gate.test.ts pins its feature body verbatim.

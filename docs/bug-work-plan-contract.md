@@ -335,8 +335,15 @@ known. That changes the evidence fingerprint, and the plan is then reported as d
 **Routing** is never chosen by the helper.
 - It is inherited only from the existing plan, or from the related feature's **one**
   approved Task Breakdown with a valid platform and device type.
-- Otherwise a human confirms it once (`ROUTING_REQUIRED`).
-- QA surfaces are corroboration only.
+- Otherwise a human confirms it once (`ROUTING_REQUIRED`), from `repo-analyst`'s detection: a
+  `resolved` detection gets a simple confirmation, an `ambiguous` or `conflicting` one a selection
+  among the repository's targets (`agents/repo-analyst.md` Step 5a).
+- QA surfaces and the ticket's environment (`routing.corroborating_surfaces`,
+  `routing.corroborating_environment`) are corroboration only: they may pick among the targets the
+  repository supports and never add one.
+- Only canonical values are accepted (`ROUTING_INVALID`); a common name such as `tvos` or
+  `android-tv` is refused with the canonical pair it means (`ios` + `tv`, `android` + `tv`), never
+  applied silently.
 - **The capability QA bound** wins over a Project Knowledge lookup (`CAPABILITY_CONFLICT`).
 
 **Generation rules (`check`).** Each rule, with the code reported when it fails:
