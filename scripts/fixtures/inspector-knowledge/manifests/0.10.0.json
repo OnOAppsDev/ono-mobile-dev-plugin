@@ -1,0 +1,115 @@
+{
+  "repoKnowledgeSchemaVersion": 1,
+  "producedBy": {
+    "plugin": "ono-project-inspector",
+    "version": "0.10.0"
+  },
+  "generatedAt": "2026-11-15T17:38:38.254Z",
+  "fingerprint": {
+    "gitHead": "11dab6aeb25ea5a9a813a767fe63e3bb2e2c1527",
+    "knowledgeHead": "11dab6aeb25ea5a9a813a767fe63e3bb2e2c1527",
+    "artifacts": {
+      "CLAUDE.md": "57eabaacb58a5a7fd537cb7bf5912f52a7b68f661be44084bdf225b47677dbcf",
+      "AUDIT.md": null,
+      "docs/project/overview.md": "b3c7f1a187112b47ec6cb13f0f9e7e11bceba9de3b4249c0e730846d5d939295",
+      "docs/project/components.md": "630f3a5c0ab1bfe06e307921ebe566f1a2a847155011106b5569cb4410b8cfe1",
+      "docs/project/patterns.md": "aaafa09cc9a1f89975cbd4208cdffd8147b85ece0604f2667b456a91f845b4e7",
+      "docs/project/integrations.md": "c9dd5650d6e019b7904e9bea86389a640f39e78f4ef87b638a2d6864a0bedecb"
+    }
+  },
+  "coverage": {
+    "stack": "populated",
+    "commands": "unknown",
+    "structure": "populated",
+    "inventory": "populated",
+    "conventions": "populated",
+    "integrations": "populated",
+    "auditTopics": "unknown"
+  },
+  "stack": {
+    "languages": [
+      "TypeScript"
+    ],
+    "frameworks": [
+      "React"
+    ],
+    "platformHints": [
+      "React web",
+      "Tizen"
+    ],
+    "runtimeTooling": [
+      "Node"
+    ],
+    "packageManagers": [
+      "npm"
+    ]
+  },
+  "commands": {
+    "install": null,
+    "run": null,
+    "test": null,
+    "build": null
+  },
+  "structure": {
+    "repositoryTree": "CLAUDE.md#repository-structure",
+    "keyModules": "CLAUDE.md#key-modules",
+    "entryPoints": "CLAUDE.md#entry-points"
+  },
+  "documents": {
+    "claudeMd": {
+      "path": "CLAUDE.md",
+      "exists": true,
+      "anchors": []
+    },
+    "auditMd": {
+      "path": "AUDIT.md",
+      "exists": false,
+      "anchors": []
+    },
+    "overview": {
+      "path": "docs/project/overview.md",
+      "exists": true,
+      "anchors": [
+        "#what-this-project-is"
+      ]
+    },
+    "inventory": {
+      "path": "docs/project/components.md",
+      "exists": true,
+      "anchors": [
+        "#screens",
+        "#reusable-ui-components",
+        "#shared-hooks-utilities",
+        "#navigation-map"
+      ]
+    },
+    "conventions": {
+      "path": "docs/project/patterns.md",
+      "exists": true,
+      "anchors": [
+        "#state-management",
+        "#data-fetching-api-conventions",
+        "#navigation-patterns",
+        "#testing-patterns",
+        "#architecture-and-composition",
+        "#input-and-interaction",
+        "#input-and-interaction-tizen",
+        "#app-lifecycle-and-state",
+        "#media-and-playback",
+        "#platform-adapters",
+        "#accessibility",
+        "#performance-constraints",
+        "#unknowns"
+      ]
+    },
+    "integrations": {
+      "path": "docs/project/integrations.md",
+      "exists": true,
+      "anchors": [
+        "#backend-services-apis",
+        "#third-party-sdks"
+      ]
+    }
+  },
+  "auditTopics": []
+}

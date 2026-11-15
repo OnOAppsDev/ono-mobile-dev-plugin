@@ -479,7 +479,8 @@ try {
       "agents/feature-architect.md": "c715811b78c1804368766551cf42f46beec568d78a91397a4ea5f57d96bca582",
       "skills/platform-planning/SKILL.md": "4375411ab8091ac6cd4f8433ba75e8df53d7b4ab79be95a3eeb78aa01cf3f86c",
       "skills/mobile-debugging/SKILL.md": "0b6bc7a1384ca2dc1f762dcd2946ccd8320dfe35fc0471f79e027d4f580c081e",
-      "skills/repo-knowledge-consumer/SKILL.md": "6589271d788e6a1d2259b92cfa227aede26a62d583395555b5ca58addabd4108",
+      // 0.7.5: KNOWLEDGE_ROOT for nested Inspector projects, changed on purpose; project-knowledge-consumption.test.ts pins the new rules.
+      "skills/repo-knowledge-consumer/SKILL.md": "99420131b93774c1715b4f83f96cdc6e44b2e7e43bbcf436d57293a5f43cd319",
     };
     for (const [f, h] of Object.entries(PINNED)) check(`33/36 ${f} is unchanged`, sha(readFileSync(join(REPO_ROOT, f))) === h);
     const src = read("scripts/analyze-bug.ts").replace(/\/\*\*[\s\S]*?\*\//g, "").replace(/^\s*\/\/.*$/gm, "");
