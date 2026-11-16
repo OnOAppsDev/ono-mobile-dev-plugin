@@ -9,6 +9,43 @@ version below is the plugin's own `version` in
 
 ## [Unreleased]
 
+## [0.7.6] - 2026-11-16
+
+A patch release for Bug Flow and hook fixes (`9def364`, `dd4a53c`, `de7ba7f`). This release
+sets `plugin.json` to `0.7.6` in the same commit as this heading. No approval, authorization
+or branch policy changes: `main` / `master` stay protected, and every existing approval
+requirement is unchanged.
+
+### Fixed
+
+- **First Bug Fix Cycle in a repository.** Approving a cycle before any task state existed
+  failed with `WRITE_FAILED` / `ENOENT`, because `docs/tasks/bugs/` was not there yet.
+  `edit-approval.ts` now creates the directory; the record is still written atomically, and
+  `BRANCH_PROTECTED` and every other refusal still apply first.
+- **Task completion refusals say what is missing.** A refused `complete`
+  (`complete-without-verification`) used to restate the whole rule. It now names each failing
+  condition first — e.g. `accessibility.checks is empty` — then the rule. The gate itself is
+  unchanged.
+- **Main/master branch protection hardened.** `block-main-branch-changes` keeps its rule and
+  now:
+  - blocks on `main` / `master` when it cannot read the tool call (`jq` missing, an unreadable
+    payload, no file path) instead of silently allowing it;
+  - limits itself to the project repository, so files outside it (such as the session scratch
+    directory) are no longer blocked; symlinks are resolved, and a target it cannot place is
+    blocked;
+  - covers `NotebookEdit`, alongside `Write`, `Edit` and `MultiEdit`.
+- **Approval and secrets hooks no longer fail open.** Without `jq`, or on a payload it cannot
+  parse, each hook ended with a non-blocking error and the write went through unchecked. Now
+  `require-approval-before-code` asks and `protect-secrets` blocks.
+- **Secrets in notebook cells.** `protect-secrets` now scans `NotebookEdit` cells.
+  `require-approval-before-code` is unchanged for notebooks: `NotebookEdit` can only edit
+  `.ipynb` files, which are not code files under that policy.
+
+### Known limitations
+
+- The hooks cover Claude Code's file-editing tools only; a file written through a shell
+  command is not checked by them.
+
 ## [0.7.5] - 2026-11-15
 
 A patch release for one fix: nested-project knowledge compatibility with Ono Project

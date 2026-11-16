@@ -20,7 +20,7 @@ author: android-architect
 status: approved
 date: 2026-03-02
 migrated_from_version: 1
-migrated_by: ono-mobile-dev-plugin 0.7.5
+migrated_by: ono-mobile-dev-plugin 0.7.6
 ```
 
 ## Feature Request

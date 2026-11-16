@@ -374,12 +374,16 @@ try {
     }
 
     const PINNED: Record<string, string> = {
-      "hooks/block-main-branch-changes.json": "89599088f364c9d6dd1af0a0cc7438610bf9b417a9b8e320d2866bf1c6857b2c",
-      "hooks/block-main-branch-changes.sh": "771aef6d81d25308edbc77e4cca8c663cf2f05946cfe254fd150e34342636d34",
-      "hooks/protect-secrets.json": "e1eaeb813e75d5b80927dcf6630c292c0bc7acd32519349af088dc0994cc00fb",
+      // 0.7.6: the branch hook fails closed without jq, covers NotebookEdit and no longer blocks files outside the project repository — on purpose; re-pinned.
+      "hooks/block-main-branch-changes.json": "5be63f8a2207df6847c54ee1422c98fbe113a26290696d927c7da4d5a67ed92f",
+      // 0.7.6: the branch hook fails closed without jq, covers NotebookEdit and no longer blocks files outside the project repository — on purpose; re-pinned.
+      "hooks/block-main-branch-changes.sh": "cc73c15a57a65400af30f814c4d536eab9fb87624f141883457b82106d1a6a6c",
+      // 0.7.6: protect-secrets fails closed without jq or on an unreadable call, and scans NotebookEdit — on purpose; re-pinned.
+      "hooks/protect-secrets.json": "b4b4350722c03853c22a91f53d0b25d6bc0898b8d9e51ec821a73e62242d003c",
       "hooks/require-approval-before-code.json": "37f5f2e5dbe97ccac0f432a7b3eacc6f8595b0d2a60ade3674df0f6ec69db043",
       // hooks/require-approval-before-code.sh: Bug Flow UX P0.3 changed it on purpose (one approval per Bug Fix Cycle); pinned by edit-approval.test.ts and hooks.test.ts.
-      "hooks/scan-for-secrets.sh": "be60a1fc569de494c2aa215220cf162eccfe8f6b7fc04ffc5a14d7e6827c67d9",
+      // 0.7.6: protect-secrets fails closed without jq or on an unreadable call, and scans NotebookEdit — on purpose; re-pinned.
+      "hooks/scan-for-secrets.sh": "150b922d44c432db52fa1e5898acfac3b997008e7bfea88a02562112d86c4cc0",
       // Step 6 extended /review-code with --bug; bug-review.test.ts pins its original body verbatim.
       // Step 7 extended /create-dev-qa-notes with bug:<key>; qa-handoff-gate.test.ts pins its feature body verbatim.
       "templates/qa-handoff-template.md": "3203b0e0ffd0a3e0c67044cc18dcdaf752047a2c61f1e5cd7538cf1b16cfb564",

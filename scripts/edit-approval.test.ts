@@ -148,6 +148,39 @@ try {
     check("scope: an explicit, specific directory from Fix Design is kept as a directory", (bs?.scope ?? []).some((e: any) => e.path === "app/src/main/java/com/acme/checkout/" && e.kind === "dir"));
   }
 
+  /* ── 0.7.6. the first bug in a repository ─────────────────────────────── */
+  {
+    // A repository's first Bug Fix Cycle is approved before any task state exists, so
+    // docs/tasks/bugs/ is not there yet. The approval used to fail with WRITE_FAILED/ENOENT.
+    const r = repo();
+    const dir = join(r.root, "docs/tasks/bugs");
+    check("first bug: docs/tasks/bugs/ does not exist yet", !existsSync(dir));
+    const a = APPROVE(r);
+    check("first bug: the cycle approval succeeds", a?.ok === true && a.outcome === "CYCLE_APPROVED", JSON.stringify(a));
+    const rec = join(r.root, "docs/tasks/bugs/BUG-43.cycle-approval.json");
+    check("first bug: the record is written", existsSync(rec) && JSON.parse(readFileSync(rec, "utf-8")).status === "active");
+    check("first bug: the write stayed atomic — no temp file left behind", readdirSync(dir).every((f) => !f.endsWith(".tmp")), readdirSync(dir).join(","));
+    start(r, "T1");
+    check("first bug: the approval then works as any other", allowed(CHECK(r, TEST)), show(CHECK(r, TEST)));
+    const onMain = repo({ branch: "main" });
+    const m = APPROVE(onMain);
+    check("first bug: the directory fix does not bypass BRANCH_PROTECTED", m?.ok === false && m.code === "BRANCH_PROTECTED" && !existsSync(join(onMain.root, "docs/tasks/bugs")), JSON.stringify(m));
+  }
+
+  /* ── 0.7.6. a bug task's refused completion names what is missing ─────── */
+  {
+    const r = repo();
+    start(r, "T1");
+    const w = writeTaskState(r.root, W, "T1", "complete", {
+      platform: "android", filesChanged: [TEST], standardIds: [], validation: [{ command: CMD, result: "pass" }],
+      acceptanceCriteria: [{ criterion: REPRO, met: true }, { criterion: "T1's test passes", met: true }],
+      developerTesting: { ...DT, regression: { command: CMD, failedBefore: true, passesAfter: true } }, deviations: [], blockers: [],
+      accessibility: { applicable: true, reason: null, standardIds: ["A11Y-ROLES-1"], checks: [] },
+    } as any, r.plan);
+    check("bug a11y: applicable with no checks is still refused", w.status === "refused" && w.reason === "complete-without-verification", `${w.status}/${w.reason}`);
+    check("bug a11y: the refusal names the empty accessibility.checks", /accessibility\.checks is empty/.test(w.summary ?? ""), w.summary);
+  }
+
   /* ── 1–6. one approval for the whole cycle ────────────────────────────── */
   const base = repo();
   {
@@ -316,10 +349,14 @@ try {
     check("the record is a store artifact, never part of the reviewed code", isStoreArtifact("docs/tasks/bugs/BUG-43.cycle-approval.json") && !isStoreArtifact("docs/tasks/bugs/BUG-43.cycle-approval.json.bak"));
     const PINS: Record<string, string> = {
       "hooks/require-approval-before-code.json": "37f5f2e5dbe97ccac0f432a7b3eacc6f8595b0d2a60ade3674df0f6ec69db043",
-      "hooks/block-main-branch-changes.json": "89599088f364c9d6dd1af0a0cc7438610bf9b417a9b8e320d2866bf1c6857b2c",
-      "hooks/block-main-branch-changes.sh": "771aef6d81d25308edbc77e4cca8c663cf2f05946cfe254fd150e34342636d34",
-      "hooks/protect-secrets.json": "e1eaeb813e75d5b80927dcf6630c292c0bc7acd32519349af088dc0994cc00fb",
-      "hooks/scan-for-secrets.sh": "be60a1fc569de494c2aa215220cf162eccfe8f6b7fc04ffc5a14d7e6827c67d9",
+      // 0.7.6: the branch hook fails closed without jq, covers NotebookEdit and no longer blocks files outside the project repository — on purpose; re-pinned.
+      "hooks/block-main-branch-changes.json": "5be63f8a2207df6847c54ee1422c98fbe113a26290696d927c7da4d5a67ed92f",
+      // 0.7.6: the branch hook fails closed without jq, covers NotebookEdit and no longer blocks files outside the project repository — on purpose; re-pinned.
+      "hooks/block-main-branch-changes.sh": "cc73c15a57a65400af30f814c4d536eab9fb87624f141883457b82106d1a6a6c",
+      // 0.7.6: protect-secrets fails closed without jq or on an unreadable call, and scans NotebookEdit — on purpose; re-pinned.
+      "hooks/protect-secrets.json": "b4b4350722c03853c22a91f53d0b25d6bc0898b8d9e51ec821a73e62242d003c",
+      // 0.7.6: protect-secrets fails closed without jq or on an unreadable call, and scans NotebookEdit — on purpose; re-pinned.
+      "hooks/scan-for-secrets.sh": "150b922d44c432db52fa1e5898acfac3b997008e7bfea88a02562112d86c4cc0",
       "agents/feature-implementer.md": "052fec8ac10f83b1b78a94eca52a0260be977fcd4c92c629db91fd66d7b49991",
     };
     for (const [f, h] of Object.entries(PINS)) check(`20/21 ${f} is byte-identical`, sha(readFileSync(join(REPO_ROOT, f))) === h);

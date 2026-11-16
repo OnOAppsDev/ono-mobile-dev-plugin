@@ -35,6 +35,7 @@ import {
   parseBreakdown,
   parseDependsOn,
   verificationSatisfied,
+  verificationProblems,
   readTaskState,
   writeTaskState,
 } from "./task-state.ts";
@@ -176,6 +177,39 @@ const PASSING = {
   const refused = writeTaskState(root, "biometric-login", "T1", "complete", { platform: "react-native" }, bd);
   check("5 complete without verification is refused", refused.status === "refused" && refused.reason === "complete-without-verification");
   check("5 the refusal writes nothing", !existsSync(stateFilePath(root, "biometric-login")));
+
+  // 0.7.6: the refusal names the condition that failed, instead of restating the whole rule.
+  {
+    const A11Y = { applicable: true, reason: null, standardIds: ["A11Y-ROLES-1"], checks: [{ ruleId: "A11Y-ROLES-1", tier: 1 as const, result: "pass" as const }] };
+    const say = (payload: any) => writeTaskState(root, "biometric-login", "T1", "complete", payload, bd);
+    const noChecks = say({ ...PASSING, accessibility: { ...A11Y, checks: [] } });
+    check("5d empty accessibility.checks is still refused, with the same reason code", noChecks.status === "refused" && noChecks.reason === "complete-without-verification", `${noChecks.status}/${noChecks.reason}`);
+    check("5d …and the summary names the empty accessibility.checks", /accessibility\.checks is empty/.test(noChecks.summary ?? ""), noChecks.summary);
+    check("5d …and blames nothing that passed", !/acceptanceCriteria is empty|validation is empty|not met|standardIds is empty/.test((noChecks.summary ?? "").split(". A `complete` requires")[0]), noChecks.summary);
+    const noIds = say({ ...PASSING, accessibility: { ...A11Y, standardIds: [] } });
+    check("5d empty accessibility.standardIds is named", noIds.reason === "complete-without-verification" && /accessibility\.standardIds is empty/.test(noIds.summary ?? ""), noIds.summary);
+    const failing = say({ ...PASSING, accessibility: { ...A11Y, checks: [{ ruleId: "A11Y-ROLES-1", tier: 1, result: "fail" }] } });
+    check("5d a failing accessibility check is named by rule", /accessibility check failed: "A11Y-ROLES-1"/.test(failing.summary ?? ""), failing.summary);
+    const unmet = say({ ...PASSING, acceptanceCriteria: [{ criterion: "Hook returns availability", met: false }] });
+    check("5d an unmet criterion is named", /not met: "Hook returns availability"/.test(unmet.summary ?? ""), unmet.summary);
+    const noVal = say({ ...PASSING, validation: [] });
+    check("5d a missing validation entry is named", /validation is empty/.test(noVal.summary ?? ""), noVal.summary);
+    const devFail = say({ ...PASSING, validation: [...PASSING.validation, { command: "jest a", result: "fail" }], developerTesting: { ...PASSING.developerTesting, required: true, justification: null, testsChanged: ["a.test.ts"], runs: [{ command: "jest a", result: "fail" }] } });
+    check("5d a failing developer test is named", devFail.reason === "complete-without-verification" && /developer test failed: `jest a`/.test(devFail.summary ?? ""), `${devFail.reason} ${devFail.summary}`);
+    const both = say({ ...PASSING, validation: [], accessibility: { ...A11Y, checks: [] } });
+    check("5d every failing condition is listed", /validation is empty/.test(both.summary ?? "") && /accessibility\.checks is empty/.test(both.summary ?? ""), both.summary);
+    check("5d the full rule is still stated", /requires every acceptance criterion recorded and met/.test(noChecks.summary ?? ""));
+    check("5d none of these refusals writes anything", !existsSync(stateFilePath(root, "biometric-login")));
+    // The gate itself is unchanged: verificationSatisfied is exactly "no problems".
+    const matrix: any[] = [{}, PASSING, { ...PASSING, validation: [] }, { ...PASSING, acceptanceCriteria: [] },
+      { ...PASSING, accessibility: { ...A11Y, checks: [] } }, { ...PASSING, accessibility: { ...A11Y, standardIds: [] } }, { ...PASSING, accessibility: A11Y },
+      { ...PASSING, accessibility: { applicable: false, reason: "no UI", standardIds: [], checks: [] } },
+      { ...PASSING, acceptanceCriteria: [{ criterion: "x", met: false, status: "deferred_to_cycle_verification" }] }];
+    check("5d verificationSatisfied ⇔ no verificationProblems, feature and bug work",
+      matrix.every((p) => [false, true].every((bug) => verificationSatisfied(p, bug) === (verificationProblems(p, bug).length === 0))));
+    check("5d an empty accessibility.checks never satisfies the gate, feature or bug",
+      [false, true].every((bug) => verificationSatisfied({ ...PASSING, accessibility: { ...A11Y, checks: [] } } as any, bug) === false));
+  }
 
   const allowedFail = writeTaskState(root, "biometric-login", "T1", "failed", { blockers: ["tsc failed"] }, bd);
   check("5 failed needs no verification evidence", allowedFail.status === "written");
