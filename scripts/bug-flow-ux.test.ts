@@ -29,6 +29,7 @@ import { handoffCheck } from "./qa-handoff-gate.ts";
 import { approveWorkPackage } from "./work-approval.ts";
 import { writeTaskState } from "./task-state.ts";
 import { generateVerification, recordVerification } from "./bug-verification.ts";
+import { COMMAND_STEP } from "./node-preflight.mjs";
 
 const HERE = import.meta.dirname ?? __dirname;
 const REPO_ROOT = dirname(HERE);
@@ -46,6 +47,10 @@ function check(name: string, cond: boolean, detail = ""): void {
 }
 const read = (rel: string): string => readFileSync(join(REPO_ROOT, rel), "utf-8");
 const sha = (s: string | Buffer) => createHash("sha256").update(s).digest("hex");
+// Node.js preflight: every command that runs a plugin script now opens with the one canonical
+// preflight paragraph (scripts/node-preflight.mjs COMMAND_STEP). Pins are taken without it, so they
+// still prove every other byte of the command is unchanged.
+const withoutPreflight = (b: string | Buffer) => b.toString().replace(`${COMMAND_STEP}\n\n`, "");
 const git = (root: string, ...args: string[]) => execFileSync("git", ["-C", root, ...args], { encoding: "utf-8" }).trim();
 const NCMD = (skill: string, args: string, display: string) => JSON.stringify({ skill, args, display });
 const W = "bug:BUG-43";
@@ -271,7 +276,7 @@ try {
       "commands/dev-design-start.md": "f62963b1d156f4d9b22cd1d92678d4de25f0d66d7120801d62075d14ec8b9ca8",
       "commands/dev-feature-start.md": "0713797d25d66df5064424ffd0dcf4269fead926512c2c40dd2eb9350abce175",
     };
-    for (const [f, h] of Object.entries(FEATURE)) check(`15 ${f} is unchanged`, sha(readFileSync(join(REPO_ROOT, f))) === h);
+    for (const [f, h] of Object.entries(FEATURE)) check(`15 ${f} is unchanged`, sha(withoutPreflight(readFileSync(join(REPO_ROOT, f)))) === h);
     const it = read("commands/implement-task.md");
     const featurePart = it.slice(it.indexOf("\n## 2. "));
     check("15 /implement-task's feature sections carry no bug output policy or chaining", !/next_command|Output policy/.test(featurePart));

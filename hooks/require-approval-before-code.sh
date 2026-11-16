@@ -10,6 +10,8 @@
 # this script never reads a plan, task state or an approval itself. Anything
 # but the helper's exact "allow" (no helper, no node, an error, any other
 # outcome) asks, exactly as before. Feature work never has a cycle approval.
+# When the helper cannot run because Node.js is too old for the plugin, the
+# ask names the version found and the version required (scripts/node-preflight.mjs).
 set -euo pipefail
 
 payload="$(cat)"
@@ -56,6 +58,17 @@ case "$file_path" in
       exit 0
     fi
     [ -n "$note" ] && reason="${reason} ${note}"
+    # No verdict at all usually means the helper could not run. When the cause is a Node.js
+    # the plugin does not support, say so — otherwise every code edit, even inside an
+    # approved Bug Fix Cycle, asks again with no explanation. The decision stays "ask"; a
+    # preflight that cannot run or says anything else leaves the reason as it is.
+    if [ -z "$verdict" ]; then
+      preflight="$(node "${plugin_root}/scripts/node-preflight.mjs" 2>/dev/null || true)"
+      if [ "$(jq -r '.supported | tostring' <<<"$preflight" 2>/dev/null || true)" = "false" ]; then
+        node_message="$(jq -r '.message // empty' <<<"$preflight" 2>/dev/null || true)"
+        [ -n "$node_message" ] && reason="${reason} Bug Fix Cycle approvals cannot be checked, so this will be asked on every code edit until Node.js is upgraded: ${node_message}"
+      fi
+    fi
     ask "$reason"
     ;;
   *)

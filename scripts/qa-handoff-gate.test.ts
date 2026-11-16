@@ -20,6 +20,7 @@ import { writeTaskState, stateFilePath } from "./task-state.ts";
 import { reviewContext, writeReviewRecord } from "./bug-review.ts";
 import { splitDocument } from "./migrate-planning-doc.ts";
 import { generateVerification, recordVerification } from "./bug-verification.ts";
+import { COMMAND_STEP } from "./node-preflight.mjs";
 
 const HERE = import.meta.dirname ?? __dirname;
 const REPO_ROOT = dirname(HERE);
@@ -36,6 +37,10 @@ function check(name: string, cond: boolean, detail = ""): void {
 }
 const read = (rel: string): string => readFileSync(join(REPO_ROOT, rel), "utf-8");
 const sha = (s: string | Buffer) => createHash("sha256").update(s).digest("hex");
+// Node.js preflight: every command that runs a plugin script now opens with the one canonical
+// preflight paragraph (scripts/node-preflight.mjs COMMAND_STEP). Pins are taken without it, so they
+// still prove every other byte of the command is unchanged.
+const withoutPreflight = (b: string | Buffer) => b.toString().replace(`${COMMAND_STEP}\n\n`, "");
 const api = Gate as any;
 const W = "bug:BUG-43";
 const REPRO = "The reported reproduction path no longer fails: with SAVE10 applied, checkout shows the discounted total";
@@ -362,7 +367,7 @@ try {
 
   /* ── 1, 41–46. the command and everything that must not move ─────────── */
   {
-    const cmd = read("commands/create-dev-qa-notes.md");
+    const cmd = withoutPreflight(read("commands/create-dev-qa-notes.md"));
     const body = cmd.slice(cmd.indexOf("\n---\n") + 5);
     check("1 the feature command body is byte-identical, first", sha(body.slice(0, 11007)) === "5f8b01d64ea60e069243ad27a0a16208e3296e6018c02ddd5bc9b10c5090a33d");
     const bug = body.slice(11007);
@@ -388,7 +393,7 @@ try {
       "commands/prepare-mobile-release.md": "7f7d431309a77e4af4f7485b236cf2205616f2afed3b06de94cf2a0acbf327e4",
       "scripts/qa-release-gate.ts": "88f016631998c356936fb7e04984c7c84f111390a7561a1766a3b383380e636a",
     };
-    for (const [file, h] of Object.entries(PINNED)) check(`1/15 ${file} is unchanged`, sha(readFileSync(join(REPO_ROOT, file))) === h);
+    for (const [file, h] of Object.entries(PINNED)) check(`1/15 ${file} is unchanged`, sha(withoutPreflight(readFileSync(join(REPO_ROOT, file)))) === h);
     const src = read("scripts/qa-handoff-gate.ts").replace(/\/\*\*[\s\S]*?\*\//g, "").replace(/^\s*\/\/.*$/gm, "");
     check("31 the gate never reads Project Knowledge", !/read-repo-knowledge|repo-knowledge\.json|\.ono\b|capabilityRelationships/.test(src));
     check("43 the gate never writes a QA repository", !/qa-ledger\.mjs|ono-plugin-qa|register-build"/.test(src) && sha(readdirSync(QA, { recursive: true } as any).sort().join("\n")) === qaSnap);

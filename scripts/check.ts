@@ -61,6 +61,7 @@ const PHASES: Phase[] = [
     name: "Helpers",
     why: "the deterministic code the workflow calls",
     suites: [
+      "node-preflight",
       "resolve-target-repo-root",
       "read-repo-knowledge",
       "migrate-planning-doc",

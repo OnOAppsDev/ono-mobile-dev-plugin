@@ -25,6 +25,7 @@ import { handoffCheck, generateHandoff, approveHandoff, verifyHandoff } from "./
 import { parseBreakdown, readTaskState, resumeTask, stateFilePath, writeCheckpoint, writeTaskState } from "./task-state.ts";
 import { sectionFingerprints, taskRowsText } from "./task-resume.ts";
 import { splitDocument } from "./migrate-planning-doc.ts";
+import { COMMAND_STEP } from "./node-preflight.mjs";
 
 const HERE = import.meta.dirname ?? __dirname;
 const REPO_ROOT = dirname(HERE);
@@ -44,6 +45,10 @@ function check(name: string, cond: boolean, detail = ""): void {
 }
 const read = (rel: string): string => readFileSync(join(REPO_ROOT, rel), "utf-8");
 const sha = (s: string | Buffer) => createHash("sha256").update(s).digest("hex");
+// Node.js preflight: every command that runs a plugin script now opens with the one canonical
+// preflight paragraph (scripts/node-preflight.mjs COMMAND_STEP). Pins are taken without it, so they
+// still prove every other byte of the command is unchanged.
+const withoutPreflight = (b: string | Buffer) => b.toString().replace(`${COMMAND_STEP}\n\n`, "");
 const api = Bug as any;
 const show = (r: any) => JSON.stringify([r?.outcome ?? r?.status, r?.code, r?.reason, r?.problems?.map((p: any) => p.code), r?.errors?.map((e: any) => e.code)]);
 const git = (root: string, ...args: string[]) => execFileSync("git", ["-C", root, ...args], { encoding: "utf-8" }).trim();
@@ -402,7 +407,7 @@ try {
       "templates/qa-handoff-template.md": "3203b0e0ffd0a3e0c67044cc18dcdaf752047a2c61f1e5cd7538cf1b16cfb564",
       "scripts/qa-release-gate.ts": "88f016631998c356936fb7e04984c7c84f111390a7561a1766a3b383380e636a",
     };
-    for (const [f, h] of Object.entries(PINNED)) check(`49 ${f} is unchanged`, sha(readFileSync(join(REPO_ROOT, f))) === h);
+    for (const [f, h] of Object.entries(PINNED)) check(`49 ${f} is unchanged`, sha(withoutPreflight(readFileSync(join(REPO_ROOT, f)))) === h);
     check("49 a feature id is never a bug, and feature task ids are unchanged", parseBreakdown("| T3 | a | android | x | T1, C2-T1 | S | y |\n")["T3"].dependsOn.join() === "T1,C2-T1" && stateFilePath("/r", "checkout").endsWith("docs/tasks/checkout-task-state.json"));
     const cmd = read("commands/analyze-bug.md");
     check("the command appends cycles only from a verified reopen", cmd.includes('scripts/analyze-bug.ts" append-cycle') && ["BUG_CYCLE_NEW", "BUG_REOPEN_UNVERIFIED", "BUG_REOPEN_UNMATCHED", "BUG_CYCLE_HANDED_OFF"].every((o) => cmd.includes(`\`${o}\``)) && /verified reopen/i.test(cmd));

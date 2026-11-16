@@ -19,7 +19,7 @@
  * it is duplicated here (not imported) so this plugin has no cross-plugin
  * runtime dependency.
  *
- * Runtime: runs under Node >= 23.6 (`node scripts/resolve-target-repo-root.ts`)
+ * Runtime: runs under Node 22.18+ or 24+ (`node scripts/resolve-target-repo-root.ts`; see scripts/node-preflight.mjs)
  * or Bun (`bun scripts/resolve-target-repo-root.ts`). No external deps, and it
  * does NOT rely on CLAUDE_PLUGIN_ROOT or CLAUDE_PROJECT_DIR.
  *

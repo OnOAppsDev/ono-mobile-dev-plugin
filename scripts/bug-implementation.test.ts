@@ -21,6 +21,7 @@ import { approveWorkPackage } from "./work-approval.ts";
 import { abandonTask, fingerprintRow, parseBreakdown, readTaskState, resumeTask, stateFilePath, walkDependencies, writeCheckpoint, writeTaskState } from "./task-state.ts";
 import { currentBasis, resolveDocs, isStoreArtifact } from "./task-resume.ts";
 import { splitDocument } from "./migrate-planning-doc.ts";
+import { COMMAND_STEP } from "./node-preflight.mjs";
 
 const HERE = import.meta.dirname ?? __dirname;
 const REPO_ROOT = dirname(HERE);
@@ -37,6 +38,10 @@ function check(name: string, cond: boolean, detail = ""): void {
 }
 const read = (rel: string): string => readFileSync(join(REPO_ROOT, rel), "utf-8");
 const sha = (s: string | Buffer) => createHash("sha256").update(s).digest("hex");
+// Node.js preflight: every command that runs a plugin script now opens with the one canonical
+// preflight paragraph (scripts/node-preflight.mjs COMMAND_STEP). Pins are taken without it, so they
+// still prove every other byte of the command is unchanged.
+const withoutPreflight = (b: string | Buffer) => b.toString().replace(`${COMMAND_STEP}\n\n`, "");
 const api = Impl as any;
 const show = (r: any) => JSON.stringify([r?.outcome ?? r?.status, r?.reason ?? r?.summary, r?.route]);
 const W = "bug:BUG-43";
@@ -394,7 +399,7 @@ try {
       "commands/dev-feature-start.md": "0713797d25d66df5064424ffd0dcf4269fead926512c2c40dd2eb9350abce175",
       "commands/prepare-mobile-release.md": "7f7d431309a77e4af4f7485b236cf2205616f2afed3b06de94cf2a0acbf327e4",
     };
-    for (const [f, h] of Object.entries(PINNED)) check(`14A/32/33 ${f} is unchanged`, sha(readFileSync(join(REPO_ROOT, f))) === h);
+    for (const [f, h] of Object.entries(PINNED)) check(`14A/32/33 ${f} is unchanged`, sha(withoutPreflight(readFileSync(join(REPO_ROOT, f)))) === h);
     const src = read("scripts/bug-implementation.ts").replace(/\/\*\*[\s\S]*?\*\//g, "").replace(/^\s*\/\/.*$/gm, "");
     check("30 no QA repository writes", !/qa-ledger\.mjs|ono-plugin-qa/.test(src) && !/\b(writeFileSync|appendFile|mkdirSync|rmSync|renameSync|unlinkSync)\b/.test(src));
     check("31 no Inspector or Project Knowledge access", !/project-inspector|\.ono\b|read-repo-knowledge/.test(src));

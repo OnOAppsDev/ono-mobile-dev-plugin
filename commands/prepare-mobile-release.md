@@ -3,6 +3,8 @@ description: Validate that a release is ready to ship, across whichever platform
 argument-hint: [version] [--feature=<dev-feature-id>]… [--bug=<qa-bug-id> | --bug=qa=<qa-bug-id> | --bug=external=<tracker-key> | --bug=qa=<id>,external=<key>]… [--qa-readiness=<path>]… [--release-build=<surface>=<qa-build-id>]…
 ---
 
+**Node.js preflight — first, before any plugin script.** Run `node "${CLAUDE_PLUGIN_ROOT}/scripts/node-preflight.mjs"`. If it exits non-zero, stop: show the developer its `message` verbatim and run nothing else — this command's helper scripts cannot run on that Node.js (README § Requirements).
+
 Validate that the app is ready to ship version `$ARGUMENTS`.
 
 1. Invoke `repo-analyst` to determine which platform(s) this release actually ships (react-native, iOS, Android, React web, or a combination).

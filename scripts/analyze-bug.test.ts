@@ -18,6 +18,7 @@ import { join, dirname } from "path";
 import * as Bug from "./analyze-bug.ts";
 import { validateBugWorkPlan, BUG_WORK_PLAN_SECTIONS } from "./bug-work-plan.ts";
 import { approveWorkPackage, verifyApproval } from "./work-approval.ts";
+import { COMMAND_STEP } from "./node-preflight.mjs";
 
 const HERE = import.meta.dirname ?? __dirname;
 const REPO_ROOT = dirname(HERE);
@@ -33,6 +34,10 @@ function check(name: string, cond: boolean, detail = ""): void {
 }
 const read = (rel: string): string => readFileSync(join(REPO_ROOT, rel), "utf-8");
 const sha = (s: string | Buffer) => createHash("sha256").update(s).digest("hex");
+// Node.js preflight: every command that runs a plugin script now opens with the one canonical
+// preflight paragraph (scripts/node-preflight.mjs COMMAND_STEP). Pins are taken without it, so they
+// still prove every other byte of the command is unchanged.
+const withoutPreflight = (b: string | Buffer) => b.toString().replace(`${COMMAND_STEP}\n\n`, "");
 const api = Bug as any;
 const show = (r: any) => JSON.stringify([r?.outcome, r?.code, r?.reason ?? r?.error, r?.problems?.map((p: any) => p.code)]);
 
@@ -482,7 +487,7 @@ try {
       // 0.7.5: KNOWLEDGE_ROOT for nested Inspector projects, changed on purpose; project-knowledge-consumption.test.ts pins the new rules.
       "skills/repo-knowledge-consumer/SKILL.md": "99420131b93774c1715b4f83f96cdc6e44b2e7e43bbcf436d57293a5f43cd319",
     };
-    for (const [f, h] of Object.entries(PINNED)) check(`33/36 ${f} is unchanged`, sha(readFileSync(join(REPO_ROOT, f))) === h);
+    for (const [f, h] of Object.entries(PINNED)) check(`33/36 ${f} is unchanged`, sha(withoutPreflight(readFileSync(join(REPO_ROOT, f)))) === h);
     const src = read("scripts/analyze-bug.ts").replace(/\/\*\*[\s\S]*?\*\//g, "").replace(/^\s*\/\/.*$/gm, "");
     check("34 the helper never writes the QA repository", !/qa-ledger\.mjs|ono-plugin-qa/.test(src) && snapshot(QA) === qaBefore);
     check("35 the helper never touches Inspector artifacts (it may only cite a capability anchor)", !/project-inspector|\.ono\b/.test(src) && !/(readFileSync|readdirSync|existsSync)\([^)]*docs\/project/.test(src));

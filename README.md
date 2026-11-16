@@ -19,6 +19,16 @@ Local (for development of the plugin itself):
 claude --plugin-dir /path/to/ono-mobile-dev-plugin
 ```
 
+## Requirements
+
+- **Node.js 22.18.0 or later on Node 22, or Node.js 24 or later.** The plugin's helper scripts are TypeScript files run directly by `node`, which needs built-in type stripping without a flag. Node 20, Node 22 before 22.18, and every Node 23 release are **not supported**.
+- **`jq`** — the safety hooks read each tool call with it.
+- **`git`**.
+
+**The Node.js that counts is the one Claude Code runs, which can differ from the one in your terminal** — a version manager such as nvm may set it only for interactive shells, and an app launched outside a terminal may see a different `PATH`. Check it inside Claude Code with `! node -v` and `! which node`.
+
+Every command that runs a plugin script first runs `scripts/node-preflight.mjs` — plain JavaScript, so it runs on any Node — and stops with a message naming the Node.js found, where it is, and what is required. On an unsupported Node, the `require-approval-before-code` hook cannot check a Bug Fix Cycle approval, so it asks for every code edit — and says why.
+
 ## What this plugin supports
 
 - **React Native** — the plugin's original, most fully-built-out platform. Full standards, skills, and agents.
@@ -275,7 +285,7 @@ Three hooks are always active while the plugin is installed:
 | Hook | What it does |
 |---|---|
 | `protect-secrets` | Blocks any file write/edit that would introduce a hardcoded secret (API keys, tokens, private keys) — `Write`, `Edit`, `MultiEdit` and `NotebookEdit` cells. When it cannot read the call (`jq` missing, an unreadable call) it blocks rather than let an unscanned write through |
-| `require-approval-before-code` | Forces a human-approval prompt before any code file is written or edited — even in auto-approve modes; covers React/TypeScript, Swift/Obj-C, and Kotlin/Java/Kotlin-script (`.kts`) files across every platform; docs and config pass through untouched. When it cannot read the call (`jq` missing, an unreadable call) it asks, as for a code file |
+| `require-approval-before-code` | Forces a human-approval prompt before any code file is written or edited — even in auto-approve modes; covers React/TypeScript, Swift/Obj-C, and Kotlin/Java/Kotlin-script (`.kts`) files across every platform; docs and config pass through untouched. When it cannot read the call (`jq` missing, an unreadable call) it asks, as for a code file. On an unsupported Node.js it cannot check a Bug Fix Cycle approval, so it asks and names the Node.js version required ([Requirements](#requirements)) |
 | `block-main-branch-changes` | Blocks file changes to the project repository while it is checked out on `main`/`master`, enforcing a feature-branch workflow. Covers `Write`, `Edit`, `MultiEdit` and `NotebookEdit`; files outside the project repository (e.g. the session scratch directory) are not affected. When it cannot tell which file is changed — `jq` missing, an unreadable call, a symlink — it blocks on `main`/`master`. It does not cover writes made through shell commands |
 
 All three hooks are already platform-agnostic and required no changes for iOS/Android/React support beyond adding the `.kts` extension.

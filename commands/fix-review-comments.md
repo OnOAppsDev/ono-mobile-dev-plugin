@@ -3,6 +3,8 @@ description: Address outstanding code review comments.
 argument-hint: [review-notes-path]
 ---
 
+**Node.js preflight — first, before any plugin script.** Run `node "${CLAUDE_PLUGIN_ROOT}/scripts/node-preflight.mjs"`. If it exits non-zero, stop: show the developer its `message` verbatim and run nothing else — this command's helper scripts cannot run on that Node.js (README § Requirements).
+
 Address outstanding review comments from a completed review notes file.
 
 1. Read `$ARGUMENTS` as the path to a completed review notes file — typically a filled-in `templates/code-review-template.md` or `templates/security-review-template.md`, but any similarly structured findings document is acceptable. A mixed-repo review may contain findings across multiple platforms, each tagged `[platform]`.

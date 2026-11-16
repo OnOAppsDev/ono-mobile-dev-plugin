@@ -3,6 +3,8 @@ description: Implement a single approved task from a feature's task breakdown, o
 argument-hint: [feature | bug:<bug_key>] [task-id] [--restart | --abandon] [--qa-repo=<path> | --report=<path>]
 ---
 
+**Node.js preflight — first, before any plugin script.** Run `node "${CLAUDE_PLUGIN_ROOT}/scripts/node-preflight.mjs"`. If it exits non-zero, stop: show the developer its `message` verbatim and run nothing else — this command's helper scripts cannot run on that Node.js (README § Requirements).
+
 Orchestrate the implementation of **exactly one** approved task. This command is an orchestrator only: it resolves and verifies the full implementation context, enforces the approval/readiness gates, routes to the correct platform, and hands the resolved context to that platform's feature-implementation skill. It contains **no platform coding methodology** — the platform skill owns how the code is written; the `require-approval-before-code`, `block-main-branch-changes`, and `protect-secrets` hooks gate the writes.
 
 Do not invoke any implementation agent until every step below has passed. If any step fails, **stop, state the exact missing/failed condition, and do not edit code.**

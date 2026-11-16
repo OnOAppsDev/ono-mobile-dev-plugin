@@ -3,6 +3,8 @@ description: Prepare a bug for implementation in one flow — intake, routing, P
 argument-hint: <BUG-27 | qa=BUG-27 [--qa-repo=<path>] | --external=<key> --report=<path> | --origin=dev-review|dev-testing|production --report=<path>>
 ---
 
+**Node.js preflight — first, before any plugin script.** Run `node "${CLAUDE_PLUGIN_ROOT}/scripts/node-preflight.mjs"`. If it exits non-zero, stop: show the developer its `message` verbatim and run nothing else — this command's helper scripts cannot run on that Node.js (README § Requirements).
+
 Prepare the bug named in `$ARGUMENTS` for implementation. This is the single entry point for first-time bug preparation. It produces **one** artifact, `docs/bugs/<bug_key>/bug-work-plan.md` (`docs/bug-work-plan-contract.md`), and ends with **one** human approval. It plans; it never implements, never creates task state, and never writes anywhere but that plan.
 
 The deterministic decisions all come from `scripts/analyze-bug.ts` (`start` · `scaffold` · `check`), which runs bug intake through `scripts/bug-intake.ts`. Never re-derive in prose what a helper decided. All three helpers always exit 0 and print one JSON object, so branch on its `outcome` / `ok`.

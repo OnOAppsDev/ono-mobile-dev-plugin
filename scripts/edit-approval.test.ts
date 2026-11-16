@@ -21,6 +21,7 @@ import * as EA from "./edit-approval.ts";
 import { approveWorkPackage } from "./work-approval.ts";
 import { writeTaskState, abandonTask } from "./task-state.ts";
 import { isStoreArtifact } from "./task-resume.ts";
+import { preflight, REQUIRED } from "./node-preflight.mjs";
 import { validateBugWorkPlan } from "./bug-work-plan.ts";
 import { canonical } from "./qa-release-gate.ts";
 
@@ -110,8 +111,12 @@ const show = (x: any) => JSON.stringify([x?.decision, x?.outcome, x?.code, x?.re
 const allowed = (x: any) => x?.decision === "allow" && x.outcome === "APPROVED";
 const asked = (x: any, outcome?: string) => x?.decision === "ask" && (outcome === undefined || x.outcome === outcome);
 
+// The hook runs whichever `node` is first on PATH, exactly as Claude Code runs it. Put the Node.js
+// running this suite first, so a different `node` on the developer's PATH (an unsupported one, say)
+// cannot change what these tests prove. The unsupported-Node.js cases pass their own PATH.
+const RUNNER_PATH = `${dirname(process.execPath)}:${process.env.PATH ?? ""}`;
 function hook(script: string, payload: unknown, env: Record<string, string> = {}) {
-  const p = spawnSync("bash", [script], { input: JSON.stringify(payload), encoding: "utf-8", env: { ...process.env, CLAUDE_PLUGIN_ROOT: REPO_ROOT, ...env } });
+  const p = spawnSync("bash", [script], { input: JSON.stringify(payload), encoding: "utf-8", env: { ...process.env, PATH: RUNNER_PATH, CLAUDE_PLUGIN_ROOT: REPO_ROOT, ...env } });
   let json: any = null;
   try {
     json = p.stdout.trim() ? JSON.parse(p.stdout) : null;
@@ -310,6 +315,36 @@ try {
     check("7 hook: an out-of-scope edit asks and explains why", out.decision === "ask" && /out of (the approved )?scope/i.test(out.reason) && /bug:BUG-43/.test(out.reason), out.reason);
     check("hook: a relative path resolves against the session's cwd", hook(HOOK, { tool_name: "Edit", tool_input: { file_path: TEST }, cwd: r.root }).decision === "allow");
     check("25 hook: no helper, no allow — it fails closed", hook(HOOK, edit(r, TEST), { CLAUDE_PLUGIN_ROOT: join(TMP, "no-plugin") }).decision === "ask");
+
+    /* ── Node.js preflight: an unsupported Node.js on Claude Code's PATH ─────── */
+    // A stand-in `node` that behaves like Node 20: every .ts script fails to load, and the
+    // preflight reports what scripts/node-preflight.mjs itself decides for v20.19.5.
+    const fakeNode = (name: string, preflightOut: string, preflightExit: number) => {
+      const bin = join(TMP, name);
+      mkdirSync(bin, { recursive: true });
+      writeFileSync(join(bin, "preflight.out"), preflightOut);
+      writeFileSync(join(bin, "node"), [
+        "#!/bin/bash",
+        'for a in "$@"; do case "$a" in *node-preflight.mjs) cat "$(dirname "$0")/preflight.out"; exit ' + preflightExit + ";; esac; done",
+        `echo 'TypeError [ERR_UNKNOWN_FILE_EXTENSION]: Unknown file extension ".ts"' >&2`,
+        "exit 1",
+        "",
+      ].join("\n"), { mode: 0o755 });
+      return { PATH: `${bin}:${process.env.PATH ?? ""}` };
+    };
+    const OLD = "/opt/node-20/bin/node";
+    const node20 = fakeNode("node-20", JSON.stringify(preflight("20.19.5", OLD)) + "\n", 1);
+    const n20 = hook(HOOK, edit(r, TEST), node20);
+    check("Node: on an unsupported Node.js an approved in-scope edit asks — never allows", n20.code === 0 && n20.decision === "ask", n20.stdout + n20.stderr);
+    check("Node: Write and MultiEdit ask too", hook(HOOK, edit(r, MAIN, "Write"), node20).decision === "ask" && hook(HOOK, edit(r, MAIN, "MultiEdit"), node20).decision === "ask");
+    check("Node: the ask keeps the original reason and says why it repeats", n20.reason.startsWith(ORIGINAL_ASK(join(r.root, TEST))) && /Bug Fix Cycle approvals cannot be checked/.test(n20.reason) && /every code edit/.test(n20.reason), n20.reason);
+    check("Node: the ask names the Node.js found, where it is, and what is required", n20.reason.includes("v20.19.5") && n20.reason.includes(OLD) && n20.reason.includes(REQUIRED), n20.reason);
+    check("Node: an out-of-scope edit on an unsupported Node.js still asks", hook(HOOK, edit(r, OUTSIDE), node20).decision === "ask");
+    const crashed = hook(HOOK, edit(r, TEST), fakeNode("node-crash", "Segmentation fault\n", 139));
+    check("Node: a preflight that fails unexpectedly keeps the safe fallback — the plain ask", crashed.decision === "ask" && crashed.reason === ORIGINAL_ASK(join(r.root, TEST)), crashed.reason);
+    const contradicts = hook(HOOK, edit(r, TEST), fakeNode("node-odd", JSON.stringify(preflight("24.0.0", OLD)) + "\n", 0));
+    check("Node: a preflight that reports a supported Node.js adds nothing — the plain ask", contradicts.decision === "ask" && contradicts.reason === ORIGINAL_ASK(join(r.root, TEST)), contradicts.reason);
+    check("Node: with a supported Node.js back on PATH the approved edit is allowed again", hook(HOOK, edit(r, TEST)).decision === "allow");
     check("hook: the cycle approval record itself is never written through Write/Edit", hook(HOOK, edit(r, "docs/tasks/bugs/BUG-43.cycle-approval.json", "Write")).decision === "ask");
     check("hook: other non-code files still pass through untouched", hook(HOOK, edit(r, "docs/notes.md")).stdout.trim() === "");
     const src = read("hooks/require-approval-before-code.sh");
@@ -324,6 +359,7 @@ try {
     writeFileSync(join(f, "docs/tasks/checkout-task-state.json"), JSON.stringify({ schemaVersion: 1, feature: "checkout", tasks: { T1: { state: "in-progress" } } }));
     const fh = hook(HOOK, { tool_name: "Edit", tool_input: { file_path: join(f, "src/app.ts") }, cwd: f });
     check("19 feature work: every code edit still asks, with the original reason", fh.code === 0 && fh.decision === "ask" && fh.reason === ORIGINAL_ASK(join(f, "src/app.ts")), fh.reason);
+    check("19 feature work on an unsupported Node.js still asks", hook(HOOK, { tool_name: "Edit", tool_input: { file_path: join(f, "src/app.ts") }, cwd: f }, node20).decision === "ask");
     check("19 feature work: the helper never allows it", asked(api.checkEdit?.({ file: join(f, "src/app.ts"), cwd: f })));
     // A feature task in progress beside an approved bug cycle: the relaxation applies to bug work only.
     writeFileSync(join(r.root, "docs/tasks/checkout-task-state.json"), JSON.stringify({ schemaVersion: 1, feature: "checkout", tasks: { T4: { state: "in-progress" } } }));

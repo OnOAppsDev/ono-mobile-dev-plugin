@@ -18,7 +18,7 @@
  * keeps every command byte-for-byte backward compatible on a repository that
  * was never inspected. Callers branch on `available`, never on the exit code.
  *
- * Runtime: Node >= 23.6 (`node scripts/read-repo-knowledge.ts`) or Bun. No
+ * Runtime: Node 22.18+ or 24+ (`node scripts/read-repo-knowledge.ts`; see scripts/node-preflight.mjs) or Bun. No
  * external deps, and it does NOT rely on CLAUDE_PLUGIN_ROOT or
  * CLAUDE_PROJECT_DIR.
  *

@@ -19,6 +19,7 @@ import { approveWorkPackage } from "./work-approval.ts";
 import { writeTaskState, stateFilePath } from "./task-state.ts";
 import { splitDocument } from "./migrate-planning-doc.ts";
 import { generateVerification, recordVerification } from "./bug-verification.ts";
+import { COMMAND_STEP } from "./node-preflight.mjs";
 
 const HERE = import.meta.dirname ?? __dirname;
 const REPO_ROOT = dirname(HERE);
@@ -35,6 +36,10 @@ function check(name: string, cond: boolean, detail = ""): void {
 }
 const read = (rel: string): string => readFileSync(join(REPO_ROOT, rel), "utf-8");
 const sha = (s: string | Buffer) => createHash("sha256").update(s).digest("hex");
+// Node.js preflight: every command that runs a plugin script now opens with the one canonical
+// preflight paragraph (scripts/node-preflight.mjs COMMAND_STEP). Pins are taken without it, so they
+// still prove every other byte of the command is unchanged.
+const withoutPreflight = (b: string | Buffer) => b.toString().replace(`${COMMAND_STEP}\n\n`, "");
 const api = Review as any;
 const show = (r: any) => JSON.stringify([r?.outcome ?? r?.status, r?.reason, r?.reasons]);
 const W = "bug:BUG-43";
@@ -329,7 +334,7 @@ try {
 
   /* ── 1, 35–40. the command and everything that must not move ───────────── */
   {
-    const cmd = read("commands/review-code.md");
+    const cmd = withoutPreflight(read("commands/review-code.md"));
     const body = cmd.slice(cmd.indexOf("\n---\n") + 5);
     check("1 /review-code without --bug is byte-identical: the original body is kept verbatim, first", sha(body.slice(0, 6053)) === "fa922cd35137f74ae2577e82965c6a7d36e383d591e696d1bb9515b139f4a5d7");
     const bug = body.slice(6053);
@@ -362,7 +367,7 @@ try {
       "templates/qa-handoff-template.md": "3203b0e0ffd0a3e0c67044cc18dcdaf752047a2c61f1e5cd7538cf1b16cfb564",
       "commands/prepare-mobile-release.md": "7f7d431309a77e4af4f7485b236cf2205616f2afed3b06de94cf2a0acbf327e4",
     };
-    for (const [file, h] of Object.entries(PINNED)) check(`34/37 ${file} is unchanged`, sha(readFileSync(join(REPO_ROOT, file))) === h);
+    for (const [file, h] of Object.entries(PINNED)) check(`34/37 ${file} is unchanged`, sha(withoutPreflight(readFileSync(join(REPO_ROOT, file)))) === h);
     const src = read("scripts/bug-review.ts").replace(/\/\*\*[\s\S]*?\*\//g, "").replace(/^\s*\/\/.*$/gm, "");
     check("34 the helper never writes task state", !/writeTaskState|writeCheckpoint|abandonTask/.test(src));
     check("35 no QA repository access", !/qa-ledger|ono-plugin-qa/.test(src) && sha(readdirSync(QA, { recursive: true } as any).sort().join("\n")) === qaSnap);

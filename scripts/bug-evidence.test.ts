@@ -288,7 +288,8 @@ try {
     check("the helper reads no clock", !/\bnew Date\b|\bDate\.now\b|\bMath\.random\b/.test(src));
     const PINS: Record<string, string> = {
       // 0.7.6: require-approval-before-code asks when it cannot read the call (no jq, unreadable payload) — on purpose; re-pinned.
-      "hooks/require-approval-before-code.sh": "6eab1335b824b14c38df04df8fcb50200879ea00b1c71a1b4c216461bd9b5180",
+      // Node.js preflight: on an unsupported Node.js the ask names the version required — the decision is unchanged; re-pinned.
+      "hooks/require-approval-before-code.sh": "019e286ae41cab56ac645d31db2b3778f742324f007531f184080bc5d36b4dff",
       // 0.7.6: writeRecord creates docs/tasks/bugs/ for a repository's first cycle — on purpose; re-pinned.
       "scripts/edit-approval.ts": "e6d2e24a8167506e70be5c81c323fdf41aa0ffe03e81f2823cc120e66dd39bab",
       "agents/feature-implementer.md": "052fec8ac10f83b1b78a94eca52a0260be977fcd4c92c629db91fd66d7b49991",

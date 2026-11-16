@@ -34,7 +34,7 @@
  * unlike resolve-target-repo-root.ts, because a caller here must distinguish
  * nine outcomes.
  *
- * Runtime: Node >= 23.6 (`node scripts/migrate-planning-doc.ts`) or Bun. No
+ * Runtime: Node 22.18+ or 24+ (`node scripts/migrate-planning-doc.ts`; see scripts/node-preflight.mjs) or Bun. No
  * external deps, and it does NOT rely on CLAUDE_PLUGIN_ROOT or
  * CLAUDE_PROJECT_DIR.
  *

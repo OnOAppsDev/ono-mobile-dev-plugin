@@ -3,6 +3,8 @@ description: Analyze a feature request against the current repo's conventions be
 argument-hint: [feature-description-or-requirement]
 ---
 
+**Node.js preflight — first, before any plugin script.** Run `node "${CLAUDE_PLUGIN_ROOT}/scripts/node-preflight.mjs"`. If it exits non-zero, stop: show the developer its `message` verbatim and run nothing else — this command's helper scripts cannot run on that Node.js (README § Requirements).
+
 Analyze the feature described in `$ARGUMENTS` (a feature description, product requirement, or user story, optionally including a design reference such as a Figma link) against this repo's actual conventions.
 
 **No DD exists at this stage.** A Detailed Design (DD) is produced later by `/dev-design-start` from the *approved* Feature Analysis this command creates. Do not ask for a DD, do not expect one as input, and do not treat `$ARGUMENTS` as a DD link — this command is the step that produces the Feature Analysis which later feeds `/dev-design-start`.
