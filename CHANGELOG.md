@@ -9,6 +9,13 @@ version below is the plugin's own `version` in
 
 ## [Unreleased]
 
+## [0.7.7] - 2026-11-16
+
+A patch release for Node.js compatibility (`86cb397`) and complete script output (`0a9be36`, `1644faf`).
+This release sets `plugin.json` to `0.7.7` in the same commit as this heading.
+No approval, authorization or branch policy changes: an unsupported Node.js is never allowed
+anything, `main` / `master` stay protected, and the secrets hook is unchanged.
+
 ### Fixed
 
 - **An unsupported Node.js is now named, not silently re-asked.** The plugin's scripts are TypeScript run directly by `node`, which needs Node.js 22.18+ on Node 22, or 24+. On an older Node — Node 20 in the report — the code-approval hook's helper could not start, so every code edit asked again, even inside an approved Bug Fix Cycle, with no reason given. The hook still asks — nothing is ever allowed on an unsupported Node — but the ask now names the Node.js version found, where it is, and what is required.
