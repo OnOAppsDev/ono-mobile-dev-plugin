@@ -57,6 +57,7 @@
 import { existsSync, readdirSync, realpathSync, statSync } from "fs";
 import { execFileSync } from "child_process";
 import { dirname, join, relative, resolve, sep } from "path";
+import { writeStderr, writeStdout } from "./write-output.ts";
 
 const CLAUDE_WORKTREE_MARKER = `${sep}.claude${sep}worktrees${sep}`;
 
@@ -238,7 +239,7 @@ function main(): void {
   const pi = args.indexOf("--project");
   const project = pi >= 0 ? args[pi + 1] ?? null : null;
   if (pi >= 0 && project === null) {
-    console.error("--project needs a path");
+    writeStderr("--project needs a path\n");
     process.exit(1);
   }
   const candidateArg = args.find((a, i) => !a.startsWith("--") && (pi < 0 || i !== pi + 1)) ?? process.cwd();
@@ -247,12 +248,12 @@ function main(): void {
     result = resolveTargetRepoRoot(candidateArg, { project });
   } catch (err) {
     if (err instanceof PathNotFoundError) {
-      console.error(err.message);
+      writeStderr(`${err.message}\n`);
       process.exit(1);
     }
     throw err;
   }
-  console.log(JSON.stringify(result, null, 2));
+  writeStdout(JSON.stringify(result, null, 2) + "\n");
   process.exit(result.ok ? 0 : 3);
 }
 

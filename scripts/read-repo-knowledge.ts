@@ -52,6 +52,7 @@ import { readFileSync, existsSync, realpathSync } from "fs";
 import { createHash } from "crypto";
 import { execFileSync } from "child_process";
 import { join, resolve, sep } from "path";
+import { writeStdout } from "./write-output.ts";
 
 /** Highest contract version this plugin understands. A higher one is treated as absent. */
 export const MAX_SUPPORTED_SCHEMA_VERSION = 1;
@@ -1025,7 +1026,7 @@ function main(): void {
     result.query = query;
   }
   // Always exit 0 with valid JSON — see the header note.
-  console.log(JSON.stringify(result, null, 2));
+  writeStdout(JSON.stringify(result, null, 2) + "\n");
   process.exit(0);
 }
 

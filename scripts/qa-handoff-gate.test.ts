@@ -391,7 +391,8 @@ try {
       // commands/review-code.md: // Step 8 changed this file on purpose (fix cycles); its behaviour is pinned by its own suites and bug-fix-cycles.test.ts.
       // commands/implement-task.md: // Step 8 changed this file on purpose (fix cycles); its behaviour is pinned by its own suites and bug-fix-cycles.test.ts.
       "commands/prepare-mobile-release.md": "7f7d431309a77e4af4f7485b236cf2205616f2afed3b06de94cf2a0acbf327e4",
-      "scripts/qa-release-gate.ts": "88f016631998c356936fb7e04984c7c84f111390a7561a1766a3b383380e636a",
+      // stdout reliability: the result is written completely before process.exit() (scripts/write-output.ts) — output unchanged; re-pinned.
+      "scripts/qa-release-gate.ts": "038fe8499864128dfe59c5cd931121c69df04689bd51d8b299499674ba9ae727",
     };
     for (const [file, h] of Object.entries(PINNED)) check(`1/15 ${file} is unchanged`, sha(withoutPreflight(readFileSync(join(REPO_ROOT, file)))) === h);
     const src = read("scripts/qa-handoff-gate.ts").replace(/\/\*\*[\s\S]*?\*\//g, "").replace(/^\s*\/\/.*$/gm, "");

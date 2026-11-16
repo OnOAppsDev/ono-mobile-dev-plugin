@@ -54,6 +54,7 @@ import { notCode, readState } from "./bug-review.ts";
 import { cycleStatus } from "./edit-approval.ts";
 import { canonical } from "./qa-release-gate.ts";
 import { nextCommand, type NextCommand } from "./next-command.ts";
+import { writeStdout } from "./write-output.ts";
 
 export const VERIFICATION_SCHEMA = 1;
 export const RESULTS = ["pass", "fail", "blocked", "not_run"] as const;
@@ -417,7 +418,7 @@ function flag(args: string[], name: string): string | undefined {
   if (i >= 0) return args[i + 1];
   return args.find((a) => a.startsWith(`${name}=`))?.slice(name.length + 1);
 }
-const print = (o: unknown) => process.stdout.write(JSON.stringify(o) + "\n");
+const print = (o: unknown) => writeStdout(JSON.stringify(o) + "\n");
 
 const invokedDirectly = typeof process !== "undefined" && process.argv[1] !== undefined && /bug-verification\.ts$/.test(realpathSync(process.argv[1]));
 if (invokedDirectly) {

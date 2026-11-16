@@ -41,6 +41,7 @@
 import { readFileSync, readdirSync, existsSync, realpathSync } from "fs";
 import { createHash } from "crypto";
 import { basename, dirname, join } from "path";
+import { writeStdout } from "./write-output.ts";
 
 export const SUPPORTED_SCHEMA = "2";
 const VERDICTS = ["READY", "READY_WITH_EXCEPTIONS", "NOT_READY"];
@@ -639,7 +640,7 @@ function main(): void {
   }
   const result = evaluateQaGate({ artifacts: values("readiness").map(readQaReadiness), features: values("feature"), bugs: values("bug"), releaseBuilds });
   result.qa_section_markdown = renderQaSection(result);
-  console.log(JSON.stringify(result, null, 2));
+  writeStdout(JSON.stringify(result, null, 2) + "\n");
   process.exit(0);
 }
 

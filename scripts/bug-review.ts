@@ -43,6 +43,7 @@ import { splitDocument } from "./migrate-planning-doc.ts";
 import { nextCommand } from "./next-command.ts";
 import { verifyVerification } from "./bug-verification.ts";
 import { readSnapshot } from "./bug-evidence.ts";
+import { writeStdout } from "./write-output.ts";
 
 const sha = (s: string | Buffer): string => `sha256:${createHash("sha256").update(s).digest("hex")}`;
 
@@ -543,7 +544,7 @@ function main(): void {
     else flags[m[1]] = args[++i] ?? "";
   }
   const print = (o: unknown): never => {
-    console.log(JSON.stringify(o, null, 2));
+    writeStdout(JSON.stringify(o, null, 2) + "\n");
     process.exit(0);
   };
   const [cmd, work] = positional;

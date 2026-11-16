@@ -405,7 +405,8 @@ try {
       "commands/dev-feature-start.md": "0713797d25d66df5064424ffd0dcf4269fead926512c2c40dd2eb9350abce175",
       "commands/prepare-mobile-release.md": "7f7d431309a77e4af4f7485b236cf2205616f2afed3b06de94cf2a0acbf327e4",
       "templates/qa-handoff-template.md": "3203b0e0ffd0a3e0c67044cc18dcdaf752047a2c61f1e5cd7538cf1b16cfb564",
-      "scripts/qa-release-gate.ts": "88f016631998c356936fb7e04984c7c84f111390a7561a1766a3b383380e636a",
+      // stdout reliability: the result is written completely before process.exit() (scripts/write-output.ts) — output unchanged; re-pinned.
+      "scripts/qa-release-gate.ts": "038fe8499864128dfe59c5cd931121c69df04689bd51d8b299499674ba9ae727",
     };
     for (const [f, h] of Object.entries(PINNED)) check(`49 ${f} is unchanged`, sha(withoutPreflight(readFileSync(join(REPO_ROOT, f)))) === h);
     check("49 a feature id is never a bug, and feature task ids are unchanged", parseBreakdown("| T3 | a | android | x | T1, C2-T1 | S | y |\n")["T3"].dependsOn.join() === "T1,C2-T1" && stateFilePath("/r", "checkout").endsWith("docs/tasks/checkout-task-state.json"));

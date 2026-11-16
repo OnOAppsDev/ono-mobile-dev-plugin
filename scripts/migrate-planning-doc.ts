@@ -49,6 +49,7 @@
 import { readFileSync, writeFileSync, renameSync, unlinkSync, existsSync, statSync, openSync, fsyncSync, closeSync } from "fs";
 import { createHash } from "crypto";
 import { dirname, join } from "path";
+import { writeStdout } from "./write-output.ts";
 
 /**
  * This plugin's version, stamped into `migrated_by`. Held as a constant rather
@@ -1305,7 +1306,7 @@ function main(): void {
   const check = argv.includes("--check");
 
   const emit = (r: MigrateResult): never => {
-    console.log(JSON.stringify(r, null, 2));
+    writeStdout(JSON.stringify(r, null, 2) + "\n");
     process.exit(0);
   };
 

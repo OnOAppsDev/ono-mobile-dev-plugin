@@ -683,7 +683,9 @@ function main(): void {
 
   if (report.defects.length === 0) {
     console.log("\nNo defects.");
-    process.exit(0);
+    // exitCode, not exit(): on a pipe exit() would drop the report's queued tail (scripts/write-output.ts).
+    process.exitCode = 0;
+    return;
   }
   for (const g of ["A", "B", "C", "D"]) {
     const own = report.defects.filter((d) => d.group === g);
@@ -692,7 +694,7 @@ function main(): void {
     for (const d of own) console.log(`  ${d.file}: ${d.message}  [${d.rule}]`);
   }
   console.log(`\n${report.defects.length} defect(s).`);
-  process.exit(1);
+  process.exitCode = 1;
 }
 
 const invokedDirectly =

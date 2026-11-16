@@ -44,6 +44,7 @@ import { canonical } from "./qa-release-gate.ts";
 import { splitDocument } from "./migrate-planning-doc.ts";
 import { routeCommand } from "./next-command.ts";
 import { checkVerification, verificationPath } from "./bug-verification.ts";
+import { writeStdout } from "./write-output.ts";
 
 const sha = (s: string | Buffer): string => `sha256:${createHash("sha256").update(s).digest("hex")}`;
 const ALGORITHM = "qa-handoff/bug/v1";
@@ -547,7 +548,7 @@ function main(): void {
     }
   }
   const print = (o: unknown): never => {
-    console.log(JSON.stringify(o, null, 2));
+    writeStdout(JSON.stringify(o, null, 2) + "\n");
     process.exit(0);
   };
   const [cmd, work] = positional;
