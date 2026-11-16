@@ -14,8 +14,17 @@ set -euo pipefail
 
 payload="$(cat)"
 
-tool_name="$(jq -r '.tool_name // empty' <<<"$payload")"
-file_path="$(jq -r '.tool_input.file_path // empty' <<<"$payload")"
+# When the call cannot be read — no jq, or a payload jq cannot parse — which file is being
+# written is unknown, so ask, exactly as for a code file. Exiting non-zero here would be a
+# non-blocking hook error and let the write through unasked. The JSON is static: no jq needed.
+unreadable() {
+  printf '%s\n' "{\"hookSpecificOutput\": {\"hookEventName\": \"PreToolUse\", \"permissionDecision\": \"ask\", \"permissionDecisionReason\": \"$1 (org policy: require-approval-before-code).\"}}"
+  exit 0
+}
+command -v jq >/dev/null 2>&1 || unreadable "jq is not installed, so this hook cannot tell which file is being changed; explicit approval is required. Install jq"
+
+tool_name="$(jq -r '.tool_name // empty' <<<"$payload" 2>/dev/null)" || unreadable "The tool call could not be read, so explicit approval is required"
+file_path="$(jq -r '.tool_input.file_path // empty' <<<"$payload" 2>/dev/null)" || unreadable "The tool call could not be read, so explicit approval is required"
 
 case "$tool_name" in
   Write|Edit|MultiEdit) ;;

@@ -327,5 +327,58 @@ const allows = (r: HookRun): boolean => r.code === 0;
     blocks(runHook(SECRETS, w(`apiKey: ${Q}YOUR-API-KEY-HERE${Q}`))));
 }
 
+/* ── 5. approval and secrets hooks never fail open (0.7.6) ───────────── */
+// A hook that exits with anything but 0 or 2 is a non-blocking error: Claude Code runs the
+// tool anyway. Without jq, or on a payload jq cannot parse, both hooks used to exit 127 / 4 —
+// silently letting an unapproved code change or an unscanned secret through.
+{
+  const AWS = `AKIA${"IOSFODNN7EXAMPLE"}`;
+  const bash = spawnSync("bash", ["-c", "command -v bash"], { encoding: "utf-8" }).stdout.trim();
+  const noJq = mkdtempSync(join(tmpdir(), "hooks-nojq5-"));
+  for (const c of ["cat", "dirname", "git"]) {
+    const at = spawnSync("bash", ["-c", `command -v ${c}`], { encoding: "utf-8" }).stdout.trim();
+    if (at) symlinkSync(at, join(noJq, c));
+  }
+  const raw = (script: string, input: string, path?: string): HookRun => {
+    const p = spawnSync(bash, [script], { input, encoding: "utf-8", env: { ...process.env, CLAUDE_PLUGIN_ROOT: REPO_ROOT, ...(path ? { PATH: path } : {}) } });
+    return { code: p.status ?? -1, stdout: p.stdout ?? "", stderr: p.stderr ?? "" };
+  };
+  const json = (payload: unknown) => JSON.stringify(payload);
+  const codeWrite = json({ tool_name: "Write", tool_input: { file_path: "/repo/src/App.tsx", content: "x" } });
+  const docWrite = json({ tool_name: "Write", tool_input: { file_path: "/repo/docs/a.md", content: "x" } });
+  check("5 the no-jq PATH really has no jq", spawnSync(bash, ["-c", "command -v jq"], { encoding: "utf-8", env: { ...process.env, PATH: noJq } }).status !== 0);
+
+  // require-approval-before-code: when it cannot read the call, it asks.
+  const aNoJq = raw(APPROVAL, codeWrite, noJq);
+  check("5 approval without jq: a code write asks (never a non-blocking error)", asks(aNoJq), `${aNoJq.code} ${aNoJq.stdout}${aNoJq.stderr}`);
+  check("5 approval without jq: the ask says jq is missing", /jq is not installed/.test(aNoJq.stdout));
+  check("5 approval without jq: any write asks, since the file cannot be told", asks(raw(APPROVAL, docWrite, noJq)));
+  const aBad = raw(APPROVAL, "not json");
+  check("5 approval on an unreadable payload: asks", asks(aBad), `${aBad.code} ${aBad.stdout}${aBad.stderr}`);
+  check("5 approval with jq: a doc write still passes through", passesThrough(raw(APPROVAL, docWrite)));
+  check("5 approval with jq: a code write still asks", asks(raw(APPROVAL, codeWrite)));
+  check("5 approval: a notebook is not a code file (NotebookEdit can only edit .ipynb), so the matcher is unchanged",
+    JSON.parse(readFileSync(join(HOOKS, "require-approval-before-code.json"), "utf-8")).hooks.PreToolUse[0].matcher === "Write|Edit|MultiEdit" &&
+    passesThrough(raw(APPROVAL, json({ tool_name: "Write", tool_input: { file_path: "/repo/analysis.ipynb", content: "{}" } }))));
+
+  // scan-for-secrets: when it cannot read the call, it blocks; NotebookEdit is scanned.
+  const sNoJq = raw(SECRETS, codeWrite, noJq);
+  check("5 secrets without jq: the write is blocked (fail closed)", blocks(sNoJq), `${sNoJq.code} ${sNoJq.stderr}`);
+  check("5 secrets without jq: the block says jq is missing", /jq is not installed/.test(sNoJq.stderr));
+  const sBad = raw(SECRETS, "not json");
+  check("5 secrets on an unreadable payload: blocked", blocks(sBad), `${sBad.code} ${sBad.stderr}`);
+  const nb = (new_source: string, extra: Record<string, unknown> = {}) => json({ tool_name: "NotebookEdit", tool_input: { notebook_path: "/repo/analysis.ipynb", new_source, ...extra } });
+  const sNb = raw(SECRETS, nb(`key = "${AWS}"`));
+  check("5 secrets: a hardcoded secret written through NotebookEdit is blocked", blocks(sNb) && /analysis\.ipynb/.test(sNb.stderr), `${sNb.code} ${sNb.stderr}`);
+  check("5 secrets: a clean NotebookEdit cell is allowed", allows(raw(SECRETS, nb("total = 1"))));
+  check("5 secrets: a NotebookEdit cell deletion is allowed", allows(raw(SECRETS, nb("", { edit_mode: "delete", cell_id: "c1" }))));
+  const sm = String(JSON.parse(readFileSync(join(HOOKS, "protect-secrets.json"), "utf-8")).hooks.PreToolUse[0].matcher);
+  check("5 secrets: the matcher covers Write, Edit, MultiEdit and NotebookEdit", ["Write", "Edit", "MultiEdit", "NotebookEdit"].every((t) => new RegExp(`^(${sm})$`).test(t)), sm);
+  check("5 secrets with jq: a clean write is still allowed", allows(raw(SECRETS, codeWrite)));
+  check("5 secrets with jq: a secret in a Write is still blocked", blocks(raw(SECRETS, json({ tool_name: "Write", tool_input: { file_path: "/repo/src/config.ts", content: `k = "${AWS}"` } }))));
+  check("5 secrets: a non-write tool still passes", allows(raw(SECRETS, json({ tool_name: "Read", tool_input: { file_path: "/repo/a.ts" } }))));
+  rmSync(noJq, { recursive: true, force: true });
+}
+
 console.log(failures === 0 ? "\nALL TESTS PASSED" : `\n${failures} TEST(S) FAILED`);
 process.exit(failures > 0 ? 1 : 0);

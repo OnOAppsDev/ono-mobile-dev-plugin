@@ -6,8 +6,17 @@ set -euo pipefail
 
 payload="$(cat)"
 
-tool_name="$(jq -r '.tool_name // empty' <<<"$payload")"
-file_path="$(jq -r '.tool_input.file_path // empty' <<<"$payload")"
+# When the call cannot be read — no jq, or a payload jq cannot parse — the content cannot be
+# scanned, so block (fail closed). Exiting with any other non-zero code would be a non-blocking
+# hook error and let an unscanned write through.
+unscannable() {
+  echo "Blocked: $1, so this write cannot be scanned for hardcoded secrets (org policy: protect-secrets)." >&2
+  exit 2
+}
+command -v jq >/dev/null 2>&1 || unscannable "jq is not installed (install jq)"
+
+tool_name="$(jq -r '.tool_name // empty' <<<"$payload" 2>/dev/null)" || unscannable "the tool call could not be read"
+file_path="$(jq -r '.tool_input.file_path // .tool_input.notebook_path // empty' <<<"$payload" 2>/dev/null)" || unscannable "the tool call could not be read"
 
 case "$tool_name" in
   Write)
@@ -18,6 +27,9 @@ case "$tool_name" in
     ;;
   MultiEdit)
     content="$(jq -r '[.tool_input.edits[]?.new_string] | join("\n")' <<<"$payload")"
+    ;;
+  NotebookEdit)
+    content="$(jq -r '.tool_input.new_source // empty' <<<"$payload")"
     ;;
   *)
     exit 0
