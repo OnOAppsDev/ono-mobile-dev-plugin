@@ -35,7 +35,7 @@
  */
 
 import { spawnSync } from "child_process";
-import { mkdtempSync, writeFileSync, readFileSync, rmSync, existsSync } from "fs";
+import { mkdtempSync, writeFileSync, readFileSync, rmSync, existsSync, symlinkSync, realpathSync } from "fs";
 import { join, dirname } from "path";
 import { tmpdir } from "os";
 
@@ -158,7 +158,7 @@ const allows = (r: HookRun): boolean => r.code === 0;
   if (!haveGit) {
     console.log("SKIP  3 block-main-branch-changes (git not installed)");
   } else {
-    const repo = mkdtempSync(join(tmpdir(), "hooks-branch-"));
+    const repo = realpathSync(mkdtempSync(join(tmpdir(), "hooks-branch-")));
     const git = (...args: string[]) => spawnSync("git", ["-C", repo, ...args], { encoding: "utf-8" });
     git("init", "-q");
     git("config", "user.email", "t@t");
@@ -194,8 +194,57 @@ const allows = (r: HookRun): boolean => r.code === 0;
     check("3 fails open outside a git repository",
       allows(runHook(MAIN_BRANCH, write, { CLAUDE_PROJECT_DIR: nonGit })));
 
+    // ── 0.7.6: scope, fail-closed reading, NotebookEdit ──
+    const env = { CLAUDE_PROJECT_DIR: repo };
+    const W = (file_path: string, tool = "Write") => ({ tool_name: tool, tool_input: { file_path } });
+    const outside = mkdtempSync(join(tmpdir(), "hooks-outside-"));
+    check("3 on main: a file outside any repository is not blocked", allows(runHook(MAIN_BRANCH, W(join(outside, "notes.md")), env)));
+    check("3 on main: a new file in new directories outside the repository is not blocked", allows(runHook(MAIN_BRANCH, W(join(outside, "a", "b", "c.md")), env)));
+    check("3 on main: a new file in a new directory inside the repository is blocked", blocks(runHook(MAIN_BRANCH, W(join(repo, "src", "new", "x.ts")), env)));
+    check("3 on main: a path that climbs back into the repository is blocked", blocks(runHook(MAIN_BRANCH, W(`${outside}/../${repo.split("/").pop()}/a.txt`), env)));
+    check("3 on main: a relative path resolves against the session directory", blocks(runHook(MAIN_BRANCH, { ...W("src/x.ts"), cwd: repo }, env)));
+    symlinkSync(repo, join(outside, "dirlink"));
+    check("3 on main: a symlinked directory into the repository is blocked", blocks(runHook(MAIN_BRANCH, W(join(outside, "dirlink", "a.txt")), env)));
+    symlinkSync(join(repo, "a.txt"), join(outside, "filelink.txt"));
+    check("3 on main: a symlinked file is blocked (fail closed)", blocks(runHook(MAIN_BRANCH, W(join(outside, "filelink.txt")), env)));
+    symlinkSync(join(repo, "not-there"), join(outside, "dangling"));
+    check("3 on main: a dangling symlinked directory is blocked (fail closed)", blocks(runHook(MAIN_BRANCH, W(join(outside, "dangling", "a.txt")), env)));
+    check("3 on main: a tool call with no file path is blocked (fail closed)", blocks(runHook(MAIN_BRANCH, { tool_name: "Write", tool_input: {} }, env)));
+    const garbage = spawnSync("bash", [MAIN_BRANCH], { input: "not json", encoding: "utf-8", env: { ...process.env, ...env } });
+    check("3 on main: an unreadable payload is blocked (fail closed)", garbage.status === 2 && garbage.stderr.trim() !== "");
+    for (const tool of ["Edit", "MultiEdit"]) check(`3 on main: ${tool} in the repository is blocked`, blocks(runHook(MAIN_BRANCH, W(join(repo, "a.txt"), tool), env)));
+    const nb = (notebook_path: string) => ({ tool_name: "NotebookEdit", tool_input: { notebook_path, new_source: "x" } });
+    check("3 on main: NotebookEdit in the repository is blocked", blocks(runHook(MAIN_BRANCH, nb(join(repo, "analysis.ipynb")), env)));
+    check("3 on main: NotebookEdit outside the repository is not blocked", allows(runHook(MAIN_BRANCH, nb(join(outside, "scratch.ipynb")), env)));
+    const cfg = JSON.parse(readFileSync(join(HOOKS, "block-main-branch-changes.json"), "utf-8"));
+    const matcher = String(cfg.hooks?.PreToolUse?.[0]?.matcher ?? "");
+    check("3 the matcher covers every file-editing tool: Write, Edit, MultiEdit, NotebookEdit",
+      ["Write", "Edit", "MultiEdit", "NotebookEdit"].every((t) => new RegExp(`^(${matcher})$`).test(t)), matcher);
+
+    // Missing jq: the hook cannot read the payload, so on main/master it blocks (it used to allow).
+    const noJq = mkdtempSync(join(tmpdir(), "hooks-nojq-"));
+    for (const c of ["git", "cat", "dirname"]) {
+      const at = spawnSync("bash", ["-c", `command -v ${c}`], { encoding: "utf-8" }).stdout.trim();
+      if (at) symlinkSync(at, join(noJq, c));
+    }
+    const bash = spawnSync("bash", ["-c", "command -v bash"], { encoding: "utf-8" }).stdout.trim();
+    const runNoJq = (payload: unknown) => {
+      const p = spawnSync(bash, [MAIN_BRANCH], { input: JSON.stringify(payload), encoding: "utf-8", env: { ...process.env, ...env, PATH: noJq } });
+      return { code: p.status ?? -1, stdout: p.stdout ?? "", stderr: p.stderr ?? "" };
+    };
+    check("3 the no-jq PATH really has no jq", spawnSync(bash, ["-c", "command -v jq"], { encoding: "utf-8", env: { ...process.env, PATH: noJq } }).status !== 0);
+    const nj = runNoJq(W(join(repo, "a.txt")));
+    check("3 on main without jq: a write is blocked (fail closed), never silently allowed", blocks(nj), `${nj.code} ${nj.stderr}`);
+    check("3 on main without jq: the block says jq is missing", /jq is not installed/.test(nj.stderr), nj.stderr);
+    git("checkout", "-qb", "feat/no-jq");
+    check("3 on a feature branch without jq: still allowed", allows(runNoJq(W(join(repo, "a.txt")))));
+    check("3 on a feature branch: NotebookEdit is allowed", allows(runHook(MAIN_BRANCH, nb(join(repo, "analysis.ipynb")), env)));
+    git("checkout", "-q", "main");
+
     rmSync(repo, { recursive: true, force: true });
     rmSync(nonGit, { recursive: true, force: true });
+    rmSync(outside, { recursive: true, force: true });
+    rmSync(noJq, { recursive: true, force: true });
   }
 }
 

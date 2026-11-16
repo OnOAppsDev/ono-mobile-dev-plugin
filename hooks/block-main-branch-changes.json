@@ -1,9 +1,9 @@
 {
-  "description": "Blocks writes/edits while on the main or master branch — forces a feature branch.",
+  "description": "Blocks writes/edits to the project repository while it is on the main or master branch — forces a feature branch.",
   "hooks": {
     "PreToolUse": [
       {
-        "matcher": "Write|Edit|MultiEdit",
+        "matcher": "Write|Edit|MultiEdit|NotebookEdit",
         "hooks": [
           {
             "type": "command",
