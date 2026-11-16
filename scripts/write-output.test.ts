@@ -129,6 +129,10 @@ try {
     check("2 multi-byte text arrives intact", multi.stdout === "é€😀".repeat(200000) && multi.status === 0);
     const gone = spawnSync("bash", ["-c", `"${NODE}" --no-warnings --input-type=module -e 'import { writeStdout } from ${helper}; writeStdout("z".repeat(${BIG})); process.exit(0);' | head -c 10 > /dev/null; echo "\${PIPESTATUS[0]}"`], { encoding: "utf-8" });
     check("2 a reader that goes away early is not a crash — the exit code stands", gone.stdout.trim() === "0", `${gone.stdout} ${gone.stderr}`);
+    // Once anything touches process.stdout, libuv makes the pipe non-blocking: a full pipe then
+    // throws EAGAIN from writeSync. A slow reader forces exactly that; every byte must still arrive.
+    const slow = spawnSync("bash", ["-c", `"${NODE}" --no-warnings --input-type=module -e 'import { writeStdout } from ${helper}; void process.stdout; writeStdout("w".repeat(${BIG})); process.exit(4);' | (sleep 1; wc -c | tr -d " "); echo "exit=\${PIPESTATUS[0]}"`], { encoding: "utf-8" });
+    check("2 a non-blocking pipe and a slow reader: every byte arrives, the exit code stands", slow.stdout.trim() === `${BIG}\nexit=4`, JSON.stringify(slow.stdout) + slow.stderr);
   }
 
   /* ── 3. every converted CLI: exit codes, streams, format ─────────────────── */
