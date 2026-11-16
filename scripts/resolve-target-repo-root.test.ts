@@ -143,6 +143,123 @@ try {
     check("4c unsafe-worktree: ok false", r.json?.ok === false);
     check("4c unsafe-worktree: warning present", typeof r.json?.warning === "string" && (r.json?.warning as string).length > 0);
   }
+
+  // --- Scenarios 5–9 (0.7.5): knowledgeRoot, resolved apart from targetRoot ---
+  const M = ".ono/repo-knowledge.json";
+  const manifestAt = (dir: string): void => {
+    mkdirSync(join(dir, ".ono"), { recursive: true });
+    writeFileSync(join(dir, M), "{}\n");
+  };
+  const runArgs = (...args: string[]): CliRun => {
+    try {
+      const stdout = execFileSync(RUNTIME, [HELPER, ...args], { encoding: "utf-8", stdio: ["ignore", "pipe", "pipe"] });
+      return { code: 0, json: safeParse(stdout), stdout, stderr: "" };
+    } catch (err: any) {
+      const stdout = err.stdout?.toString() ?? "";
+      return { code: typeof err.status === "number" ? err.status : 1, json: safeParse(stdout), stdout, stderr: err.stderr?.toString() ?? "" };
+    }
+  };
+
+  // --- Scenario 5: root-level project — exactly the pre-0.7.5 answer ---
+  {
+    const repo = join(root, "root-level");
+    initRepo(repo);
+    const real = realpathSync(repo);
+    const none = runHelper(repo);
+    check("5 no manifest anywhere: knowledgeRoot is the Git root", none.json?.knowledgeRoot === real && none.json?.projectPath === "" && none.json?.knowledgeSource === "git-root" && none.json?.knowledgeDecision === null, none.stdout);
+    manifestAt(repo);
+    mkdirSync(join(repo, "src", "deep"), { recursive: true });
+    const deep = runHelper(join(repo, "src", "deep"));
+    check("5 root manifest: found from a subdirectory", deep.json?.knowledgeRoot === real && deep.json?.knowledgeSource === "git-root", deep.stdout);
+    check("5 root manifest: targetRoot unchanged", deep.json?.targetRoot === real && deep.code === 0);
+  }
+
+  // --- Scenario 6: one nested project (yestvos/YesTVOS) ---
+  {
+    const repo = join(root, "yestvos");
+    initRepo(repo);
+    const project = join(repo, "YesTVOS");
+    mkdirSync(join(project, "src", "player"), { recursive: true });
+    manifestAt(project);
+    mkdirSync(join(repo, "Other", "src"), { recursive: true });
+    const real = realpathSync(repo);
+    const realProject = realpathSync(project);
+
+    const inside = runHelper(join(project, "src", "player"));
+    check("6 from inside the project: targetRoot stays the Git root", inside.json?.targetRoot === real, String(inside.json?.targetRoot));
+    check("6 from inside the project: knowledgeRoot is the nearest manifest", inside.json?.knowledgeRoot === realProject && inside.json?.projectPath === "YesTVOS" && inside.json?.knowledgeSource === "nearest", inside.stdout);
+    check("6 from inside the project: exit 0, ok", inside.code === 0 && inside.json?.ok === true);
+
+    const atRoot = runHelper(repo);
+    check("6 from the Git root: the developer must choose", atRoot.json?.knowledgeDecision === "select-project" && atRoot.json?.knowledgeRoot === null && atRoot.json?.projectPath === null, atRoot.stdout);
+    check("6 from the Git root: even a single candidate is never auto-selected", JSON.stringify(atRoot.json?.knowledgeCandidates) === JSON.stringify(["YesTVOS"]), atRoot.stdout);
+    check("6 from the Git root: the decision does not fail the root", atRoot.code === 0 && atRoot.json?.ok === true && atRoot.json?.targetRoot === real);
+
+    const sibling = runHelper(join(repo, "Other", "src"));
+    check("6 from a sibling directory: no other project's knowledge, Git root as before", sibling.json?.knowledgeRoot === real && sibling.json?.knowledgeSource === "git-root" && sibling.json?.knowledgeDecision === null, sibling.stdout);
+
+    const explicit = runArgs(repo, "--project", project);
+    check("6 --project names the project explicitly", explicit.code === 0 && explicit.json?.knowledgeRoot === realProject && explicit.json?.knowledgeSource === "explicit" && explicit.json?.targetRoot === real, explicit.stdout);
+    const explicitRoot = runArgs(repo, "--project", repo);
+    check("6 --project at the Git root is the Git root", explicitRoot.json?.knowledgeRoot === real && explicitRoot.json?.knowledgeSource === "git-root", explicitRoot.stdout);
+  }
+
+  // --- Scenario 7: several projects in one repository ---
+  {
+    const repo = join(root, "multi");
+    initRepo(repo);
+    for (const p of ["TVApp", "MobileApp"]) manifestAt(join(repo, p));
+    manifestAt(join(repo, "node_modules", "pkg"));
+    manifestAt(join(repo, ".hidden"));
+    manifestAt(join(repo, "apps", "Deep"));
+    const r = runHelper(repo);
+    check("7 several projects: the developer chooses", r.json?.knowledgeDecision === "select-project" && r.json?.knowledgeRoot === null, r.stdout);
+    check("7 several projects: only immediate children, sorted; node_modules, hidden and deeper directories never offered",
+      JSON.stringify(r.json?.knowledgeCandidates) === JSON.stringify(["MobileApp", "TVApp"]), JSON.stringify(r.json?.knowledgeCandidates));
+    const tv = runHelper(join(repo, "TVApp"));
+    check("7 from inside one project: that project, no question", tv.json?.knowledgeRoot === realpathSync(join(repo, "TVApp")) && tv.json?.knowledgeDecision === null, tv.stdout);
+
+    const both = join(root, "root-and-child");
+    initRepo(both);
+    manifestAt(both);
+    manifestAt(join(both, "TVApp"));
+    const rb = runHelper(both);
+    check("7 a Git root with its own manifest keeps it (no question)", rb.json?.knowledgeRoot === realpathSync(both) && rb.json?.knowledgeDecision === null, rb.stdout);
+
+    const deepOnly = join(root, "deep-only");
+    initRepo(deepOnly);
+    manifestAt(join(deepOnly, "apps", "Deep"));
+    const rd = runHelper(deepOnly);
+    check("7 a manifest two levels down is never searched for", rd.json?.knowledgeRoot === realpathSync(deepOnly) && rd.json?.knowledgeDecision === null, rd.stdout);
+  }
+
+  // --- Scenario 8: an explicit project that is not usable stops loudly ---
+  {
+    const repo = join(root, "bad-project");
+    initRepo(repo);
+    const outside = join(root, "elsewhere");
+    mkdirSync(outside, { recursive: true });
+    const out = runArgs(repo, "--project", outside);
+    check("8 --project outside the repository: exit 3, ok false", out.code === 3 && out.json?.ok === false && /outside the repository/.test(String(out.json?.warning)), out.stdout);
+    const missing = runArgs(repo, "--project", join(repo, "nope"));
+    check("8 --project that does not exist: exit 3, ok false", missing.code === 3 && missing.json?.ok === false, missing.stdout);
+  }
+
+  // --- Scenario 9: a worktree keeps the selected project when it is unwrapped ---
+  {
+    const repo = join(root, "wt-nested");
+    initRepo(repo);
+    mkdirSync(join(repo, "YesTVOS"), { recursive: true });
+    writeFileSync(join(repo, "YesTVOS", "README.md"), "# app\n");
+    git(repo, "add", "-A");
+    git(repo, "commit", "-qm", "project");
+    manifestAt(join(repo, "YesTVOS"));
+    const wt = join(repo, ".claude", "worktrees", "agent-1");
+    git(repo, "worktree", "add", "-q", wt);
+    const r = runHelper(join(wt, "YesTVOS"));
+    check("9 worktree: targetRoot is the main tree", r.json?.targetRoot === realpathSync(repo) && r.json?.unwrapped === true, r.stdout);
+    check("9 worktree: the nested project is kept, in the main tree", r.json?.knowledgeRoot === realpathSync(join(repo, "YesTVOS")) && r.json?.projectPath === "YesTVOS", r.stdout);
+  }
 } finally {
   rmSync(root, { recursive: true, force: true });
 }
