@@ -45,7 +45,7 @@
  */
 
 import { execFileSync } from "child_process";
-import { existsSync, readFileSync, readdirSync, realpathSync, renameSync, statSync, unlinkSync, writeFileSync } from "fs";
+import { existsSync, mkdirSync, readFileSync, readdirSync, realpathSync, renameSync, statSync, unlinkSync, writeFileSync } from "fs";
 import { basename, dirname, extname, isAbsolute, join, relative, resolve, sep } from "path";
 import { createHash } from "crypto";
 import { validateBugWorkPlan, bugWorkPlanPath } from "./bug-work-plan.ts";
@@ -229,6 +229,10 @@ function writeRecord(root: string, key: string, r: Record_) {
   const abs = join(root, recordPath(key));
   const tmp = join(dirname(abs), `.${key}.cycle-approval.tmp`);
   try {
+    // The first Bug Fix Cycle in a repository can be approved before any task state exists,
+    // so docs/tasks/bugs/ may not be there yet. Create it; the write stays atomic (temp + rename
+    // in the same directory).
+    mkdirSync(dirname(abs), { recursive: true });
     writeFileSync(tmp, JSON.stringify(seal(r), null, 2) + "\n");
     renameSync(tmp, abs);
   } catch (e) {

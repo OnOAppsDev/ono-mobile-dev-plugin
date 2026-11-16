@@ -177,7 +177,7 @@ this table, the `WriteResult.reason` union and the reasons the code emits are th
 
 | Refusal | Condition |
 |---|---|
-| `complete-without-verification` | `--state complete` without `acceptanceCriteria` (all `met: true`) and at least one `validation` entry, or with a failing Tier 1/2 check or developer test. **A terminal `complete` may only be written after section 10 verification succeeds** |
+| `complete-without-verification` | `--state complete` without `acceptanceCriteria` (all `met: true`) and at least one `validation` entry, or with a failing Tier 1/2 check or developer test. **A terminal `complete` may only be written after section 10 verification succeeds.** The summary names every condition that failed (e.g. `accessibility.checks is empty`) before restating the rule |
 | `complete-without-developer-testing` | `--state complete` without the `developerTesting` decision |
 | `complete-with-stale-validation` | `--state complete` citing a validation the run recorded whose covered files or planning basis moved after it ran, or whose recorded result differs from the one reported (ENG-003) |
 | `invalid-accessibility` | a malformed `accessibility` block or `verificationDebt` entry, in any state |

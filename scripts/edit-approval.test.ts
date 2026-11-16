@@ -148,6 +148,39 @@ try {
     check("scope: an explicit, specific directory from Fix Design is kept as a directory", (bs?.scope ?? []).some((e: any) => e.path === "app/src/main/java/com/acme/checkout/" && e.kind === "dir"));
   }
 
+  /* ── 0.7.6. the first bug in a repository ─────────────────────────────── */
+  {
+    // A repository's first Bug Fix Cycle is approved before any task state exists, so
+    // docs/tasks/bugs/ is not there yet. The approval used to fail with WRITE_FAILED/ENOENT.
+    const r = repo();
+    const dir = join(r.root, "docs/tasks/bugs");
+    check("first bug: docs/tasks/bugs/ does not exist yet", !existsSync(dir));
+    const a = APPROVE(r);
+    check("first bug: the cycle approval succeeds", a?.ok === true && a.outcome === "CYCLE_APPROVED", JSON.stringify(a));
+    const rec = join(r.root, "docs/tasks/bugs/BUG-43.cycle-approval.json");
+    check("first bug: the record is written", existsSync(rec) && JSON.parse(readFileSync(rec, "utf-8")).status === "active");
+    check("first bug: the write stayed atomic — no temp file left behind", readdirSync(dir).every((f) => !f.endsWith(".tmp")), readdirSync(dir).join(","));
+    start(r, "T1");
+    check("first bug: the approval then works as any other", allowed(CHECK(r, TEST)), show(CHECK(r, TEST)));
+    const onMain = repo({ branch: "main" });
+    const m = APPROVE(onMain);
+    check("first bug: the directory fix does not bypass BRANCH_PROTECTED", m?.ok === false && m.code === "BRANCH_PROTECTED" && !existsSync(join(onMain.root, "docs/tasks/bugs")), JSON.stringify(m));
+  }
+
+  /* ── 0.7.6. a bug task's refused completion names what is missing ─────── */
+  {
+    const r = repo();
+    start(r, "T1");
+    const w = writeTaskState(r.root, W, "T1", "complete", {
+      platform: "android", filesChanged: [TEST], standardIds: [], validation: [{ command: CMD, result: "pass" }],
+      acceptanceCriteria: [{ criterion: REPRO, met: true }, { criterion: "T1's test passes", met: true }],
+      developerTesting: { ...DT, regression: { command: CMD, failedBefore: true, passesAfter: true } }, deviations: [], blockers: [],
+      accessibility: { applicable: true, reason: null, standardIds: ["A11Y-ROLES-1"], checks: [] },
+    } as any, r.plan);
+    check("bug a11y: applicable with no checks is still refused", w.status === "refused" && w.reason === "complete-without-verification", `${w.status}/${w.reason}`);
+    check("bug a11y: the refusal names the empty accessibility.checks", /accessibility\.checks is empty/.test(w.summary ?? ""), w.summary);
+  }
+
   /* ── 1–6. one approval for the whole cycle ────────────────────────────── */
   const base = repo();
   {

@@ -1034,9 +1034,27 @@ export function developerTestingProblem(payload: WritePayload): string | null {
  * helper refuses rather than trusting the caller.
  */
 export function verificationSatisfied(payload: WritePayload, bugWork = false): boolean {
+  return verificationProblems(payload, bugWork).length === 0;
+}
+
+/**
+ * The same gate as `verificationSatisfied`, naming every condition that fails — so a refused
+ * `complete` says what is missing instead of restating the whole rule. `verificationSatisfied`
+ * is exactly "this list is empty": the rule itself lives only here.
+ */
+export function verificationProblems(payload: WritePayload, bugWork = false): string[] {
+  const problems: string[] = [];
   const ac = payload.acceptanceCriteria ?? [];
   const val = payload.validation ?? [];
-  if (!(ac.length > 0 && ac.every((c) => criterionSettled(c, bugWork)) && val.length > 0)) return false;
+  if (ac.length === 0) problems.push("no acceptance criterion is recorded (acceptanceCriteria is empty)");
+  const unsettled = ac.filter((c) => !criterionSettled(c, bugWork));
+  if (unsettled.length > 0) {
+    const label = (c: AcceptanceCriterion) => `"${String(c.criterion ?? "").trim() || "(unnamed)"}"`;
+    problems.push(
+      `${unsettled.length === 1 ? "an acceptance criterion is" : `${unsettled.length} acceptance criteria are`} not ${bugWork ? "met or deferred to the fix cycle's verification" : "met"}: ${unsettled.map(label).join(", ")}`,
+    );
+  }
+  if (val.length === 0) problems.push("no validation entry is recorded (validation is empty)");
 
   // SHARED-014. Accessibility gates completion only where it applies, and only on the
   // evidence the plugin actually produced: a failing Tier 1/2 check is a proven defect
@@ -1044,14 +1062,17 @@ export function verificationSatisfied(payload: WritePayload, bugWork = false): b
   // either way, and blocking would make completion depend on device availability.
   const a = payload.accessibility;
   if (a !== undefined && a.applicable === true) {
-    if (a.standardIds.length === 0 || a.checks.length === 0) return false;
-    if (a.checks.some((c) => c.result === "fail")) return false;
+    if (a.standardIds.length === 0) problems.push("accessibility applies (accessibility.applicable is true) but no standard ID is cited (accessibility.standardIds is empty)");
+    if (a.checks.length === 0) problems.push("accessibility applies (accessibility.applicable is true) but no accessibility check is recorded (accessibility.checks is empty) — record at least one Tier 1 or Tier 2 check that was run");
+    const failing = a.checks.filter((c) => c.result === "fail");
+    if (failing.length > 0) problems.push(`accessibility check${failing.length === 1 ? "" : "s"} failed: ${failing.map((c) => `"${c.ruleId}"`).join(", ")}`);
   }
 
   // Stage 3. A failing developer test is a proven defect and blocks, exactly like a
   // failing Tier 1 check. Developer-testing debt, like all debt, does not.
-  if (payload.developerTesting?.runs?.some((r) => r.result === "fail")) return false;
-  return true;
+  const failedRuns = (payload.developerTesting?.runs ?? []).filter((r) => r.result === "fail");
+  if (failedRuns.length > 0) problems.push(`developer test${failedRuns.length === 1 ? "" : "s"} failed: ${failedRuns.map((r) => `\`${r.command}\``).join(", ")}`);
+  return problems;
 }
 
 /**
@@ -1156,14 +1177,16 @@ export function writeTaskState(
     };
   }
 
-  if (nextState === "complete" && !verificationSatisfied(payload, isBugWork(feature))) {
+  const verification = nextState === "complete" ? verificationProblems(payload, isBugWork(feature)) : [];
+  if (verification.length > 0) {
     return {
       status: "refused",
       path,
       taskId,
       reason: "complete-without-verification",
       summary:
-        "Refused: a terminal `complete` requires every acceptance criterion recorded and met, plus at least one validation entry; and where accessibility applies, cited standard IDs, at least one recorded check, and no failing Tier 1/2 check or developer test. Record `failed` or `blocked` instead.",
+        `Refused: a terminal \`complete\` is not verified — ${verification.join("; ")}. ` +
+        "A `complete` requires every acceptance criterion recorded and met, plus at least one validation entry; and where accessibility applies, cited standard IDs, at least one recorded check, and no failing Tier 1/2 check or developer test. Record `failed` or `blocked` instead.",
     };
   }
 

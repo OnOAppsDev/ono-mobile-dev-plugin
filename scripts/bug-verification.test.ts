@@ -413,7 +413,8 @@ try {
     check("the helper reads no clock", !/\bnew Date\b|\bDate\.now\b|\bMath\.random\b/.test(src));
     const PINS: Record<string, string> = {
       "hooks/require-approval-before-code.sh": "f518c0e554ef7c660b16504cd44eb4e5065b1520b4f519c4e34169a743b77bd2",
-      "scripts/edit-approval.ts": "f43451852dc4f4639a659fff6250765c23c1474e089d5cec049859d50ff7382b",
+      // 0.7.6: writeRecord creates docs/tasks/bugs/ for a repository's first cycle — on purpose; re-pinned.
+      "scripts/edit-approval.ts": "e6d2e24a8167506e70be5c81c323fdf41aa0ffe03e81f2823cc120e66dd39bab",
       "agents/feature-implementer.md": "052fec8ac10f83b1b78a94eca52a0260be977fcd4c92c629db91fd66d7b49991",
     };
     for (const [f, h] of Object.entries(PINS)) check(`41 ${f} is unchanged (P0.3 and the shared implementer)`, sha(readFileSync(join(REPO_ROOT, f))) === h);
