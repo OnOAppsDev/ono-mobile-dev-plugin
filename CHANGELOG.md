@@ -11,7 +11,7 @@ version below is the plugin's own `version` in
 
 ## [0.7.7] - 2026-11-16
 
-A patch release for Node.js compatibility (`86cb397`) and complete script output (`0a9be36`, `1644faf`).
+A patch release for Node.js compatibility and complete script output.
 This release sets `plugin.json` to `0.7.7` in the same commit as this heading.
 No approval, authorization or branch policy changes: an unsupported Node.js is never allowed
 anything, `main` / `master` stay protected, and the secrets hook is unchanged.
