@@ -3,6 +3,8 @@ description: Turn an approved feature analysis into a Detailed Design (DD) docum
 argument-hint: [feature-name]
 ---
 
+**Node.js preflight — first, before any plugin script.** Run `node "${CLAUDE_PLUGIN_ROOT}/scripts/node-preflight.mjs"`. If it exits non-zero, stop: show the developer its `message` verbatim and run nothing else — this command's helper scripts cannot run on that Node.js (README § Requirements).
+
 Turn an approved feature analysis into a Detailed Design (DD).
 
 1. Take `$ARGUMENTS` as the feature name and locate its `templates/feature-analysis-template.md` from a prior `/analyze-feature` run.

@@ -43,6 +43,7 @@ import { readFileSync, existsSync, readdirSync, realpathSync } from "fs";
 import { join, resolve } from "path";
 import { createHash } from "crypto";
 import { canonical, parseBugItem } from "./qa-release-gate.ts";
+import { writeStdout } from "./write-output.ts";
 
 const sha = (s: string | Buffer): string => `sha256:${createHash("sha256").update(s).digest("hex")}`;
 
@@ -749,7 +750,7 @@ function main(): void {
   const values = (name: string): string[] => args.flatMap((a, i) => (a === `--${name}` && args[i + 1] !== undefined ? [args[i + 1]] : []));
   const value = (name: string): string | undefined => values(name)[0];
   const print = (v: unknown): never => {
-    console.log(JSON.stringify(v, null, 2));
+    writeStdout(JSON.stringify(v, null, 2) + "\n");
     process.exit(0);
   };
   const cmd = args[0];

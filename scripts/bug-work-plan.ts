@@ -28,6 +28,7 @@ import { CURRENT_SCHEMA_VERSION, fingerprintBody, readFrontmatter, splitDocument
 import { sectionFingerprints, slugify } from "./task-resume.ts";
 import { fingerprintRow } from "./task-state.ts";
 import { DEV_ORIGINS, isSafeKey } from "./bug-intake.ts";
+import { writeStdout } from "./write-output.ts";
 
 export const BUG_WORK_PLAN_KIND = "bug-work-plan";
 export const BUG_WORK_PLAN_VERSION = CURRENT_SCHEMA_VERSION[BUG_WORK_PLAN_KIND];
@@ -426,7 +427,7 @@ export function validateBugWorkPlan(buf: Buffer): Record<string, any> {
 function main(): void {
   const [cmd, path] = process.argv.slice(2);
   const print = (o: unknown): never => {
-    console.log(JSON.stringify(o, null, 2));
+    writeStdout(JSON.stringify(o, null, 2) + "\n");
     process.exit(0);
   };
   const refuse = (code: string, message: string) => print({ ok: false, kind: BUG_WORK_PLAN_KIND, version: BUG_WORK_PLAN_VERSION, errors: [{ code, message }] });

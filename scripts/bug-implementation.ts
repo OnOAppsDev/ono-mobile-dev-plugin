@@ -41,6 +41,7 @@ import { splitDocument } from "./migrate-planning-doc.ts";
 import { nextCommand, subagentType } from "./next-command.ts";
 import { afterCycle } from "./bug-verification.ts";
 import { intakeFromSnapshot, snapshotPath } from "./bug-evidence.ts";
+import { writeStdout } from "./write-output.ts";
 
 /** What bug work adds to the existing developer-testing lifecycle, stated to the lane. */
 export const BUG_EXPECTATIONS = [
@@ -305,7 +306,7 @@ function main(): void {
     else flags[m[1]] = args[++i] ?? "";
   }
   const print = (o: unknown): never => {
-    console.log(JSON.stringify(o, null, 2));
+    writeStdout(JSON.stringify(o, null, 2) + "\n");
     process.exit(0);
   };
   const [cmd, work, task] = positional;

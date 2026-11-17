@@ -61,6 +61,8 @@ const PHASES: Phase[] = [
     name: "Helpers",
     why: "the deterministic code the workflow calls",
     suites: [
+      "node-preflight",
+      "write-output",
       "resolve-target-repo-root",
       "read-repo-knowledge",
       "migrate-planning-doc",
@@ -277,7 +279,8 @@ function main(): void {
   console.log("review or `claude plugin eval`, never here:");
   for (const item of NOT_PROVEN) console.log(`  ${item}`);
 
-  process.exit(failed ? 1 : 0);
+  // exitCode, not exit(): on a pipe exit() would drop the report's queued tail (scripts/write-output.ts).
+  process.exitCode = failed ? 1 : 0;
 }
 
 main();

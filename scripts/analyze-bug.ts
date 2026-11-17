@@ -51,6 +51,7 @@ import { rewriteFrontmatterValues, verifyApproval } from "./work-approval.ts";
 import { readFrontmatter, splitDocument } from "./migrate-planning-doc.ts";
 import { rowCells, sectionFingerprints } from "./task-resume.ts";
 import { readTaskState, stateFilePath, BUG_REPRO_CRITERION } from "./task-state.ts";
+import { writeStdout } from "./write-output.ts";
 
 const PLUGIN_ROOT = dirname(import.meta.dirname ?? __dirname);
 const TEMPLATE = join(PLUGIN_ROOT, "templates/bug-work-plan-template.md");
@@ -837,7 +838,7 @@ function main(): void {
     else flags[m[1]] = args[++i] ?? "";
   }
   const print = (o: unknown): never => {
-    console.log(JSON.stringify(o, null, 2));
+    writeStdout(JSON.stringify(o, null, 2) + "\n");
     process.exit(0);
   };
   const [cmd, ref] = positional;

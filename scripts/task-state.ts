@@ -104,6 +104,7 @@ import {
   type PlanStep,
   type ResumeVerdict,
 } from "./task-resume.ts";
+import { writeStdout } from "./write-output.ts";
 
 /** Highest schema version this helper understands. Pinned by docs/task-state-contract.md. */
 export const CURRENT_SCHEMA_VERSION = 1;
@@ -115,7 +116,7 @@ export const CURRENT_SCHEMA_VERSION = 1;
  * so the two cannot drift. It records the version that actually wrote a record, never a
  * planned future release — a release bump is separate work.
  */
-export const PLUGIN_VERSION = "0.7.6";
+export const PLUGIN_VERSION = "0.7.7";
 
 export const WRITABLE_STATES = ["in-progress", "complete", "blocked", "failed"] as const;
 export type TaskState = (typeof WRITABLE_STATES)[number];
@@ -1713,7 +1714,7 @@ function main(): void {
   const feature = flag("feature") ?? "";
   const breakdown = flag("breakdown");
   if (isBugWork(feature) && bugKeyOf(feature) === null) {
-    process.stdout.write(`${JSON.stringify({ status: "invalid", detail: `"${feature}" is not a bug work id (bug:<bug_key>, a path-safe key)` }, null, 2)}\n`);
+    writeStdout(`${JSON.stringify({ status: "invalid", detail: `"${feature}" is not a bug work id (bug:<bug_key>, a path-safe key)` }, null, 2)}\n`);
     process.exit(0);
   }
 
@@ -1723,17 +1724,17 @@ function main(): void {
   if (mode === "fingerprint") {
     const file = flag("file");
     if (file === undefined) {
-      process.stdout.write(`${JSON.stringify({ status: "invalid", detail: "--file is required" }, null, 2)}\n`);
+      writeStdout(`${JSON.stringify({ status: "invalid", detail: "--file is required" }, null, 2)}\n`);
       process.exit(0);
     }
     if (!existsSync(file)) {
-      process.stdout.write(`${JSON.stringify({ status: "absent", path: file, fingerprint: null }, null, 2)}\n`);
+      writeStdout(`${JSON.stringify({ status: "absent", path: file, fingerprint: null }, null, 2)}\n`);
       process.exit(0);
     }
     // ENG-003: --raw hashes the file's bytes, for an upstream input that is not a planning
     // document (a source specification). Planning documents keep the body-only fingerprint.
     const fp = process.argv.includes("--raw") ? fingerprintFile(file) : fingerprintBody(readFileSync(file));
-    process.stdout.write(
+    writeStdout(
       `${JSON.stringify(
         fp === null
           ? { status: "unparseable", path: file, fingerprint: null, detail: "no recognizable frontmatter block" }
@@ -1746,7 +1747,7 @@ function main(): void {
   }
 
   if (mode === "read") {
-    process.stdout.write(`${JSON.stringify(readTaskState(root, feature, breakdown), null, 2)}\n`);
+    writeStdout(`${JSON.stringify(readTaskState(root, feature, breakdown), null, 2)}\n`);
     process.exit(0);
   }
 
@@ -1758,7 +1759,7 @@ function main(): void {
   };
 
   const print = (v: unknown): never => {
-    process.stdout.write(`${JSON.stringify(v, null, 2)}\n`);
+    writeStdout(`${JSON.stringify(v, null, 2)}\n`);
     process.exit(0);
   };
   const requireBreakdown = (): string => {
@@ -1823,7 +1824,7 @@ function main(): void {
       try {
         payload = JSON.parse(rawPayload) as WritePayload;
       } catch (e) {
-        process.stdout.write(
+        writeStdout(
           `${JSON.stringify(
             {
               status: "refused",
@@ -1842,13 +1843,13 @@ function main(): void {
     }
     const head = flag("head");
     if (head !== undefined) payload.head = head;
-    process.stdout.write(
+    writeStdout(
       `${JSON.stringify(writeTaskState(root, feature, taskId, state, payload, breakdown, { mode: (flag("mode") ?? "start") as WriteOptions["mode"], external }), null, 2)}\n`,
     );
     process.exit(0);
   }
 
-  process.stdout.write(
+  writeStdout(
     `${JSON.stringify(
       {
         status: "refused",

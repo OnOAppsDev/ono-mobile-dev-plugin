@@ -21,7 +21,7 @@
  * lets a dry run execute the exact same code path as a real run, minus the
  * write.
  *
- * Runtime: Node >= 23.6 or Bun. No external deps, no filesystem access, no
+ * Runtime: Node 22.18+ or 24+ (see scripts/node-preflight.mjs) or Bun. No external deps, no filesystem access, no
  * network access, no clock, no randomness — the same input always produces
  * the same output.
  *

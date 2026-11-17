@@ -3,6 +3,8 @@ description: Review the current changes against the org's shared and platform-sp
 argument-hint: [scope] [--bug <bug_key>]
 ---
 
+**Node.js preflight — first, before any plugin script.** Run `node "${CLAUDE_PLUGIN_ROOT}/scripts/node-preflight.mjs"`. If it exits non-zero, stop: show the developer its `message` verbatim and run nothing else — this command's helper scripts cannot run on that Node.js (README § Requirements).
+
 Review the current changes for correctness, style, standards-adherence, and performance.
 
 1. Resolve the review scope: if `$ARGUMENTS` is given, treat it as a path, branch, or PR reference to diff against; otherwise default to the current diff against the repo's base branch.

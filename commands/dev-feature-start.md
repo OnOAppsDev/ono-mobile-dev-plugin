@@ -3,6 +3,8 @@ description: Break an approved Detailed Design (DD) into a development task brea
 argument-hint: [feature-name]
 ---
 
+**Node.js preflight — first, before any plugin script.** Run `node "${CLAUDE_PLUGIN_ROOT}/scripts/node-preflight.mjs"`. If it exits non-zero, stop: show the developer its `message` verbatim and run nothing else — this command's helper scripts cannot run on that Node.js (README § Requirements).
+
 Break an approved Detailed Design (DD) into a development task breakdown and a thin feature plan.
 
 1. Take `$ARGUMENTS` as the feature name and locate its `templates/dd-template.md` from a prior `/dev-design-start` run.

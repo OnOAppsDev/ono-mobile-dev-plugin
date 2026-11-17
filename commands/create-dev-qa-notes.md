@@ -3,6 +3,8 @@ description: Write QA handoff notes for a completed feature — or, with bug:<bu
 argument-hint: [feature-name | bug:<bug_key> [--qa-repo=<path> | --report=<path>]]
 ---
 
+**Node.js preflight — first, before any plugin script.** Run `node "${CLAUDE_PLUGIN_ROOT}/scripts/node-preflight.mjs"`. If it exits non-zero, stop: show the developer its `message` verbatim and run nothing else — this command's helper scripts cannot run on that Node.js (README § Requirements).
+
 Write QA handoff notes for the completed feature named in `$ARGUMENTS`, and write them to disk under the target repository.
 
 ## 1. Resolve the feature identity from `$ARGUMENTS`

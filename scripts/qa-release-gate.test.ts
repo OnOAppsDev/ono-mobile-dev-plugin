@@ -23,7 +23,7 @@
  *   node scripts/check.ts --only qa-release-gate
  */
 
-import { readFileSync, writeFileSync, mkdtempSync, existsSync, cpSync, appendFileSync } from "fs";
+import { copyFileSync, readFileSync, writeFileSync, mkdtempSync, existsSync, cpSync, appendFileSync } from "fs";
 import { createHash } from "crypto";
 import { tmpdir } from "os";
 import { join, dirname } from "path";
@@ -473,6 +473,8 @@ gateSuite(gate);
     ["only the integrity line is excluded", "${rest.join(", "${lines.join("],
   ];
   const dir = mkdtempSync(join(tmpdir(), "qa-release-gate-mutant-"));
+  // Mutants import their siblings as the real script does; give them the one it has.
+  copyFileSync(join(HERE, "write-output.ts"), join(dir, "write-output.ts"));
   for (const [name, target, replacement] of MUTANTS) {
     const hits = src.split(target).length - 1;
     if (hits !== 1) {

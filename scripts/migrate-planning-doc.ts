@@ -34,7 +34,7 @@
  * unlike resolve-target-repo-root.ts, because a caller here must distinguish
  * nine outcomes.
  *
- * Runtime: Node >= 23.6 (`node scripts/migrate-planning-doc.ts`) or Bun. No
+ * Runtime: Node 22.18+ or 24+ (`node scripts/migrate-planning-doc.ts`; see scripts/node-preflight.mjs) or Bun. No
  * external deps, and it does NOT rely on CLAUDE_PLUGIN_ROOT or
  * CLAUDE_PROJECT_DIR.
  *
@@ -49,6 +49,7 @@
 import { readFileSync, writeFileSync, renameSync, unlinkSync, existsSync, statSync, openSync, fsyncSync, closeSync } from "fs";
 import { createHash } from "crypto";
 import { dirname, join } from "path";
+import { writeStdout } from "./write-output.ts";
 
 /**
  * This plugin's version, stamped into `migrated_by`. Held as a constant rather
@@ -56,7 +57,7 @@ import { dirname, join } from "path";
  * itself; `scripts/migrate-planning-doc.test.ts` asserts it matches
  * .claude-plugin/plugin.json so the two cannot drift.
  */
-export const PLUGIN_VERSION = "0.7.6";
+export const PLUGIN_VERSION = "0.7.7";
 
 export type DocKind = "feature-analysis" | "dd" | "dev-plan" | "task-breakdown" | "bug-work-plan";
 
@@ -1305,7 +1306,7 @@ function main(): void {
   const check = argv.includes("--check");
 
   const emit = (r: MigrateResult): never => {
-    console.log(JSON.stringify(r, null, 2));
+    writeStdout(JSON.stringify(r, null, 2) + "\n");
     process.exit(0);
   };
 

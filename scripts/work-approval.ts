@@ -37,6 +37,7 @@ import { basename, dirname, join } from "path";
 import { fingerprintBody, splitDocument, splitValueAndComment } from "./migrate-planning-doc.ts";
 import { canonical } from "./qa-release-gate.ts";
 import { validateBugWorkPlan } from "./bug-work-plan.ts";
+import { writeStdout } from "./write-output.ts";
 
 const sha = (b: string | Buffer): string => `sha256:${createHash("sha256").update(b).digest("hex")}`;
 
@@ -284,7 +285,7 @@ function main(): void {
     return i !== -1 ? args[i + 1] : undefined;
   };
   const print = (o: unknown): never => {
-    console.log(JSON.stringify(o, null, 2));
+    writeStdout(JSON.stringify(o, null, 2) + "\n");
     process.exit(0);
   };
   const [cmd, path] = args;

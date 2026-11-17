@@ -9,6 +9,29 @@ version below is the plugin's own `version` in
 
 ## [Unreleased]
 
+## [0.7.7] - 2026-11-16
+
+A patch release for Node.js compatibility and complete script output.
+This release sets `plugin.json` to `0.7.7` in the same commit as this heading.
+No approval, authorization or branch policy changes: an unsupported Node.js is never allowed
+anything, `main` / `master` stay protected, and the secrets hook is unchanged.
+
+### Fixed
+
+- **An unsupported Node.js is now named, not silently re-asked.** The plugin's scripts are TypeScript run directly by `node`, which needs Node.js 22.18+ on Node 22, or 24+. On an older Node — Node 20 in the report — the code-approval hook's helper could not start, so every code edit asked again, even inside an approved Bug Fix Cycle, with no reason given. The hook still asks — nothing is ever allowed on an unsupported Node — but the ask now names the Node.js version found, where it is, and what is required.
+- **Every command checks Node.js first.** All twelve commands run plugin scripts (directly, or through the skills and agents they use), and each now starts with `scripts/node-preflight.mjs`: a dependency-free JavaScript check that runs on any Node and stops the command with a clear message instead of a TypeScript loading error. A Bug Fix Cycle can no longer be approved on a Node that cannot later honour it.
+- **The approval-hook tests no longer depend on the developer's `PATH`.** They run the hook with the Node.js running the suite, so an older `node` first on `PATH` cannot fail them.
+- **Large script output is no longer cut off.** The runtime scripts print one JSON result and then call `process.exit()`. On a pipe — how Claude Code and the hooks read them — Node writes stdout asynchronously, and `process.exit()` dropped whatever was still queued: past 64 KiB a result arrived truncated and was no longer JSON. A large `.ono/repo-knowledge.json` read through `read-repo-knowledge.ts` failed this way every time. All 13 runtime scripts that exit early now write their output through `scripts/write-output.ts`, which writes it completely before the exit. Exit codes, JSON shapes and formatting, and the stdout/stderr split are unchanged. `check.ts` and `reference-integrity.ts` set `process.exitCode` instead of exiting.
+
+### Documentation
+
+- README **Requirements**: Node.js 22.18.0+ on Node 22 or 24+ (Node 20, earlier Node 22 and all Node 23 releases are unsupported), `jq` and `git` — and that the Node.js Claude Code runs can differ from the one in a terminal (`! node -v` checks it).
+- Script headers that claimed "Node >= 23.6" now state the supported versions; 23.6.0 fails the plugin's own checks.
+
+### Known limitations
+
+- Skills and agents invoked on their own, outside the commands, are not preflighted; on an unsupported Node their scripts still fail with Node's own error.
+
 ## [0.7.6] - 2026-11-16
 
 A patch release for Bug Flow and hook fixes (`9def364`, `dd4a53c`, `de7ba7f`). This release

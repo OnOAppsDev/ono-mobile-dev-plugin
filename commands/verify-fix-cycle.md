@@ -3,6 +3,8 @@ description: Verify a bug's current fix cycle once, as a whole — one consolida
 argument-hint: bug:<bug_key>
 ---
 
+**Node.js preflight — first, before any plugin script.** Run `node "${CLAUDE_PLUGIN_ROOT}/scripts/node-preflight.mjs"`. If it exits non-zero, stop: show the developer its `message` verbatim and run nothing else — this command's helper scripts cannot run on that Node.js (README § Requirements).
+
 Verify the **current fix cycle** of the bug named in `$ARGUMENTS` (`bug:<bug_key>`) in one session. Every task already ran its automated checks; what remains is the manual verification of the resulting behaviour — the whole cycle at once, never task by task. The checklist, its results and its freshness come from `scripts/bug-verification.ts` (`docs/bug-work-plan-contract.md` § *Consolidated verification*); never re-derive them in prose. Its commands always exit 0 and print one JSON object.
 
 This command verifies; it never changes code, task state or the plan, never creates a new QA fix cycle — one comes only from a verified QA reopen through `/analyze-bug` — and never creates a git commit.
