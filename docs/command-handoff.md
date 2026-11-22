@@ -19,8 +19,20 @@ Which helper returns it:
 | `bug-review.ts context` → `BUG_TASK_STATE_MISSING` | `next_command` | `implement-task bug:<key> <first task of the cycle>` |
 | `bug-review.ts context` → `BUG_VERIFICATION_REQUIRED` | `next_command` | `verify-fix-cycle bug:<key>` |
 | `bug-verification.ts check` | `next_command` | `review-code --bug <key>` once passed; `verify-fix-cycle bug:<key>` while missing, stale or incomplete; the failed task when an item failed in implementation |
-| `bug-review.ts record` → `BUG_REVIEW_RECORDED` | `next_command` | `create-dev-qa-notes bug:<key>` |
+| `bug-review.ts record` → `BUG_REVIEW_RECORDED` | `next_command` | `pre-pr bug:<key>` (0.8.0 — the Pre-PR regression checklist; its record then offers `create-dev-qa-notes bug:<key>`) |
 | `qa-handoff-gate.ts check` → `HANDOFF_BLOCKED` | `next_command` | the first blocker's route, when it needs no placeholder filled |
+
+Feature Flow (0.8.0) and the steps both flows now share:
+
+| Helper | Field | Next command |
+|---|---|---|
+| `feature-flow.ts status` | `next_command` | `dev-design-start <feature>` · `dev-feature-start <feature>` · `implement-task <feature> <next unfinished task>` · `review-code --feature <feature>` · `fix-review-comments <record>` · `pre-pr feature:<feature>` — or none, with `waiting_on` naming the human approval (`<path>:<line>` of `status:`) and `after_approval` the command that follows it |
+| `feature-review.ts record` → `FEATURE_REVIEW_RECORDED` | `next_command` | `pre-pr feature:<feature>`; `fix-review-comments <record>` when a Blocking finding was recorded |
+| `feature-review.ts context` → `FEATURE_TESTING_REQUIRED` | `next_command` | `implement-task <feature> <first unfinished task>` |
+| `pre-pr.ts gate` → a blocker | `next_command` | `review-code --bug <key>` / `--feature <feature>`, `verify-fix-cycle bug:<key>`, or `fix-review-comments <record>` |
+| `pre-pr.ts record` → `PRE_PR_RECORDED` | `next_command` | `create-dev-qa-notes bug:<key>` for bug work; none for a feature — the work is ready for a pull request, which the Platform Guardian opens |
+
+A feature stage waiting on a human approval has no `next_command`: the message names where to approve and what follows, and the developer's yes after approving chains to `after_approval`, whose own gate re-reads the approval.
 
 A route that still has a placeholder (`/analyze-bug <bug-ref>`) is never turned into a next command: the developer supplies it.
 

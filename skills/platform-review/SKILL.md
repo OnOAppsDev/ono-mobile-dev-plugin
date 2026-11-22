@@ -209,3 +209,16 @@ Platform-independent stop conditions; the lane adds its own.
 | `regression-risk` | `BUG-CHECK-REGRESSION-RISK` | What can the change break, judged only from the plan's Blast Radius and its first-degree capability context? Never expand the Project Knowledge graph. |
 
 Each check's status is `pass`, `concern` or `not-verifiable`, with a one-line note. A status is `concern` exactly when a finding citing its rule was filed.
+
+## Feature review
+
+`/review-code --feature <feature>` runs this methodology unchanged, against the same lanes, over the code of the pull request the feature's branch would open, and adds four shared checks (`commands/review-code.md` § *Feature review*). The feature's approved specification is the context they judge against — the Feature Analysis, the Detailed Design, the Task Breakdown's rows and acceptance criteria, the Dev Plan — and the design reference, read from its source. These checks are review questions, not a platform standard. A concern is filed as an ordinary finding with the usual severity, `file:line` and remediation, citing the check's `FEATURE-CHECK-*` rule in the standard-ID slot.
+
+| Check | Rule a concern cites | The question |
+|---|---|---|
+| `acceptance-criteria` | `FEATURE-CHECK-ACCEPTANCE` | Does the code in the pull request meet each acceptance criterion of the tasks it belongs to (the Task Breakdown rows and the DD's acceptance criteria mapping)? A criterion the code visibly does not meet is a finding; one the code cannot show either way is `not-verifiable`. |
+| `design-conformance` | `FEATURE-CHECK-DESIGN` | Does the implementation follow the approved Detailed Design — its technical approach, impacted modules and non-goals? A change outside them, or an approach the DD rejected, is a finding. |
+| `ui-reference` | `FEATURE-CHECK-UI-REFERENCE` | Does the implemented UI match the design as it was actually read — through the Figma MCP (`get_design_context`, `get_screenshot`) for a Figma reference, or the recorded reference otherwise? **Figma is the source of truth.** `pass` only after a successful read that was compared; when the design could not be read, `not-verifiable`, the limitation stated and no design detail invented; `not-applicable` only when the feature records no user-facing UI change (`design_reference_status: not_required`). |
+| `developer-testing` | `FEATURE-CHECK-TESTS` | Does each scoped task's recorded developer-testing evidence cover the behaviour it changed? Missing tests for changed behaviour are a finding; a task without a recorded decision is never `pass`. |
+
+Each check's status is `pass`, `concern`, `not-verifiable` (or, for `ui-reference` only, `not-applicable`), with a one-line note. A status is `concern` exactly when a finding citing its rule was filed. The whole specification is context; every finding is about code in the pull request.

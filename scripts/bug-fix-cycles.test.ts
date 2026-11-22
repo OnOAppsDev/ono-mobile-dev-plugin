@@ -400,9 +400,10 @@ try {
       check(`46/47/48 ${f}: no QA writes, no Inspector, no process, no commit`, !/qa-ledger\.mjs|ono-plugin-qa|project-inspector|child_process|execFile|spawn/.test(src));
     }
     const PINNED: Record<string, string> = {
-      "commands/analyze-feature.md": "37dc84922229db1eb7d6eca507a8cd917dc3ddde7edc8d8e1185d8482cf7fa8e",
-      "commands/dev-design-start.md": "f62963b1d156f4d9b22cd1d92678d4de25f0d66d7120801d62075d14ec8b9ca8",
-      "commands/dev-feature-start.md": "0713797d25d66df5064424ffd0dcf4269fead926512c2c40dd2eb9350abce175",
+      // 0.8.0 Feature Flow continuity: the feature planning commands end with the Continue step (feature-flow.test.ts pins it) — re-pinned on purpose.
+      "commands/analyze-feature.md": "ca20531ae3af3f4a71060b3cbe437036e17fd24b5df1344ac1d1f853b3c60767",
+      "commands/dev-design-start.md": "c622eb62919d4ed9ae6d3ab725cbb411ead112df8d9f1dbd31d4799e1cca9982",
+      "commands/dev-feature-start.md": "5d896e065dabc243120b58dac21466fce130f99f98b29c8d012021b0d922c5d9",
       "commands/prepare-mobile-release.md": "7f7d431309a77e4af4f7485b236cf2205616f2afed3b06de94cf2a0acbf327e4",
       "templates/qa-handoff-template.md": "3203b0e0ffd0a3e0c67044cc18dcdaf752047a2c61f1e5cd7538cf1b16cfb564",
       // stdout reliability: the result is written completely before process.exit() (scripts/write-output.ts) — output unchanged; re-pinned.

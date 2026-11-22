@@ -10,6 +10,10 @@
 # this script never reads a plan, task state or an approval itself. Anything
 # but the helper's exact "allow" (no helper, no node, an error, any other
 # outcome) asks, exactly as before. Feature work never has a cycle approval.
+# When no cycle approval applies, the helper's note names the Ono command that
+# starts or continues the work (shown with the ask; the decision is unchanged).
+# The extension list below is kept equal to CODE_EXTENSIONS in
+# scripts/edit-approval.ts by scripts/edit-approval.test.ts.
 # When the helper cannot run because Node.js is too old for the plugin, the
 # ask names the version found and the version required (scripts/node-preflight.mjs).
 set -euo pipefail
@@ -45,7 +49,7 @@ case "$file_path" in
   *.cycle-approval.json)
     ask "${file_path} is a Bug Fix Cycle approval record; it is written only by scripts/edit-approval.ts after a developer approves (org policy: require-approval-before-code)."
     ;;
-  *.ts|*.tsx|*.js|*.jsx|*.swift|*.kt|*.kts|*.java|*.m|*.mm|*.cpp|*.h)
+  *.ts|*.tsx|*.js|*.jsx|*.swift|*.kt|*.kts|*.java|*.m|*.mm|*.cpp|*.h|*.c|*.cc|*.cxx|*.hpp|*.hh|*.mjs|*.cjs|*.mts|*.cts|*.gradle|*.groovy|*.css|*.scss|*.sass|*.less)
     reason="Code file change to ${file_path} requires explicit approval before writing (org policy: require-approval-before-code)."
     plugin_root="${CLAUDE_PLUGIN_ROOT:-$(cd "$(dirname "$0")/.." && pwd)}"
     cwd="$(jq -r '.cwd // empty' <<<"$payload")"

@@ -49,7 +49,7 @@ const sha = (s: string | Buffer): string => `sha256:${createHash("sha256").updat
 
 export const REVIEW_SCHEMA = 1;
 export const SEVERITIES = ["blocking", "major", "minor", "nit"] as const;
-const PLATFORMS = ["react-native", "ios", "android", "react"];
+export const PLATFORMS = ["react-native", "ios", "android", "react"];
 /** The four shared bug checks, and the rule id a finding raised by each one cites. */
 export const BUG_CHECKS: Record<string, string> = {
   "root-cause": "BUG-CHECK-ROOT-CAUSE",
@@ -57,7 +57,7 @@ export const BUG_CHECKS: Record<string, string> = {
   "plan-conformance": "BUG-CHECK-SCOPE",
   "regression-risk": "BUG-CHECK-REGRESSION-RISK",
 };
-const CHECK_STATUSES = ["pass", "concern", "not-verifiable"];
+export const CHECK_STATUSES = ["pass", "concern", "not-verifiable"];
 const RECORD_FIELDS = [
   "review_schema", "work_type", "bug_key", "fix_cycle", "reviewed_head", "reviewed_tree_fingerprint", "bug_work_plan_fingerprint",
   "task_state_fingerprint", "findings_fingerprint", "blocking_count", "major_count", "minor_count", "nit_count", "reviewed_by", "generated_at",
@@ -88,10 +88,10 @@ export interface Check {
 
 /* ---------------------------------------------------------- findings model */
 
-const oneLine = (v: unknown) => String(v ?? "").replace(/\s+/g, " ").trim();
+export const oneLine = (v: unknown) => String(v ?? "").replace(/\s+/g, " ").trim();
 const nullable = (v: unknown) => (v === null || v === undefined || oneLine(v) === "" ? null : oneLine(v));
 
-function normalizeFinding(f: Record<string, unknown>): Finding {
+export function normalizeFinding(f: Record<string, unknown>): Finding {
   return {
     severity: oneLine(f.severity).toLowerCase() as Finding["severity"],
     platform: nullable(f.platform),
@@ -102,10 +102,10 @@ function normalizeFinding(f: Record<string, unknown>): Finding {
     remediation: oneLine(f.remediation),
   };
 }
-const normalizeCheck = (c: Record<string, unknown>): Check => ({ id: oneLine(c.id), status: oneLine(c.status), note: oneLine(c.note) });
+export const normalizeCheck = (c: Record<string, unknown>): Check => ({ id: oneLine(c.id), status: oneLine(c.status), note: oneLine(c.note) });
 
 /** Canonical order: severity, then location, then rule — so the same findings in any order are the same record. */
-function compareFindings(a: Finding, b: Finding): number {
+export function compareFindings(a: Finding, b: Finding): number {
   const key = (f: Finding) => [SEVERITIES.indexOf(f.severity), f.path ?? "", f.line ?? 0, f.rule, f.platform ?? "", f.description, f.remediation] as const;
   const ka = key(a), kb = key(b);
   for (let i = 0; i < ka.length; i++) if (ka[i] !== kb[i]) return ka[i] < kb[i] ? -1 : 1;
@@ -124,11 +124,11 @@ export function findingsFingerprint(findings: Array<Record<string, unknown>>, ch
 }
 
 /** One finding in the review template's form: `[platform] file:line` — [standard ID] description — remediation. */
-function renderFinding(f: Finding): string {
+export function renderFinding(f: Finding): string {
   const where = f.path === null ? "—" : `${f.platform ? `[${f.platform}] ` : ""}${f.path}${f.line !== null ? `:${f.line}` : ""}`;
   return `- \`${f.platform && f.path === null ? `[${f.platform}] —` : where}\` — [${f.rule}] ${f.description} — ${f.remediation}`;
 }
-function parseFinding(line: string, severity: Finding["severity"]): Finding | null {
+export function parseFinding(line: string, severity: Finding["severity"]): Finding | null {
   const m = /^- `(?:\[([a-z-]+)\] )?(.+?)` — \[([^\]]+)\] (.+?) — (.+)$/.exec(line);
   if (m === null) return null;
   const loc = /^(.*?)(?::(\d+))?$/.exec(m[2]) as RegExpExecArray;
@@ -136,7 +136,7 @@ function parseFinding(line: string, severity: Finding["severity"]): Finding | nu
   return { severity, platform: m[1] ?? null, path, line: m[2] === "—" || loc[2] === undefined ? null : Number(loc[2]), rule: m[3], description: m[4], remediation: m[5] };
 }
 
-function findingProblem(f: Finding): string | null {
+export function findingProblem(f: Finding): string | null {
   if (!(SEVERITIES as readonly string[]).includes(f.severity)) return `severity "${f.severity}" is not one of ${SEVERITIES.join(", ")}`;
   if (f.platform !== null && !PLATFORMS.includes(f.platform)) return `platform "${f.platform}" is not one of ${PLATFORMS.join(", ")}`;
   if (!/^[A-Za-z0-9][A-Za-z0-9._-]*$/.test(f.rule)) return "every finding cites its standard ID (or a BUG-CHECK-* rule)";
@@ -439,7 +439,8 @@ export function writeReviewRecord(req: { root: string; work: string; review: str
     findings_fingerprint: fp,
     counts: { blocking: count("blocking"), major: count("major"), minor: count("minor"), nit: count("nit") },
     binding: ctx.binding,
-    next_command: nextCommand("create-dev-qa-notes", ctx.work_id),
+    // 0.8.0: the Pre-PR regression checklist comes between the review and the QA handoff; /pre-pr then offers the handoff.
+    next_command: nextCommand("pre-pr", ctx.work_id),
   };
 }
 

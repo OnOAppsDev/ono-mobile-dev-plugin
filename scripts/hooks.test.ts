@@ -104,10 +104,11 @@ const allows = (r: HookRun): boolean => r.code === 0;
     check(`1 hook exists: ${name}`, existsSync(p));
   }
   const manifest = JSON.parse(readFileSync(join(REPO_ROOT, ".claude-plugin", "plugin.json"), "utf-8"));
-  check("1 plugin.json registers three hook configs",
-    Array.isArray(manifest.hooks) && manifest.hooks.length === 3, JSON.stringify(manifest.hooks));
+  // 0.8.0: review-pr-guard (the read-only /review-pr agent) is the fourth; bitbucket-pr.test.ts pins its behaviour.
+  check("1 plugin.json registers four hook configs",
+    Array.isArray(manifest.hooks) && manifest.hooks.length === 4, JSON.stringify(manifest.hooks));
 
-  for (const cfg of ["protect-secrets", "require-approval-before-code", "block-main-branch-changes"]) {
+  for (const cfg of ["protect-secrets", "require-approval-before-code", "block-main-branch-changes", "review-pr-guard"]) {
     const p = join(HOOKS, `${cfg}.json`);
     check(`1 hook config exists: ${cfg}.json`, existsSync(p));
     if (!existsSync(p)) continue;

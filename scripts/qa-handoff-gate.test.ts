@@ -369,8 +369,9 @@ try {
   {
     const cmd = withoutPreflight(read("commands/create-dev-qa-notes.md"));
     const body = cmd.slice(cmd.indexOf("\n---\n") + 5);
-    check("1 the feature command body is byte-identical, first", sha(body.slice(0, 11007)) === "5f8b01d64ea60e069243ad27a0a16208e3296e6018c02ddd5bc9b10c5090a33d");
-    const bug = body.slice(11007);
+    // 0.8.0 audit m7: the feature path gains §2a, its internal review gate (feature-review.ts verify) before anything is written — re-pinned on purpose; the bug section below is unchanged.
+    check("1 the feature command body is byte-identical, first", sha(body.slice(0, 12247)) === "fac2399b05ac9a83b64d672bbcc2811c007d788f5abbe1a71f3e46a5b35e42a8");
+    const bug = body.slice(12247);
     check("1 the bug section applies only to bug:<bug_key>", /^\n## Bug handoff \(`bug:<bug_key>`\)\n/.test(bug) && /Without a `bug:` prefix, nothing in this section applies/.test(bug));
     check("argument-hint documents the bug form", /^argument-hint: .*bug:<bug_key>/m.test(cmd));
     for (const s of ['scripts/qa-handoff-gate.ts" check bug:<bug_key>', 'scripts/qa-handoff-gate.ts" generate bug:<bug_key>', 'scripts/qa-handoff-gate.ts" approve bug:<bug_key>']) check(`the bug section runs ${s.split('" ')[1].split(" ")[0]}`, bug.includes(s));

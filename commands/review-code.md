@@ -1,6 +1,6 @@
 ---
-description: Review the current changes against the org's shared and platform-specific mobile/web standards — with --bug, also persist the bug's review record for its fix cycle.
-argument-hint: [scope] [--bug <bug_key>]
+description: Review the current changes against the org's shared and platform-specific mobile/web standards — with --bug or --feature, also persist the work's internal review record.
+argument-hint: [scope] [--bug <bug_key> | --feature <feature>]
 ---
 
 **Node.js preflight — first, before any plugin script.** Run `node "${CLAUDE_PLUGIN_ROOT}/scripts/node-preflight.mjs"`. If it exits non-zero, stop: show the developer its `message` verbatim and run nothing else — this command's helper scripts cannot run on that Node.js (README § Requirements).
@@ -84,4 +84,54 @@ Without `--bug`, nothing in this section applies: the review above is the whole 
 
 The record is evidence of the latest review for the cycle. It does not approve a QA handoff: what its findings mean for a handoff is decided in a later step of the Bug Development Flow. This command never writes task state and never creates a git commit.
 
-**Continue.** Once `record` reports `BUG_REVIEW_RECORDED`, offer its `next_command` — the QA handoff — in one short message: `✓ Review recorded (<counts>). Next: prepare the QA handoff. Continue?` Chain only on an explicit yes. Then invoke the Skill tool with `skill` set to `next_command.skill` and `args` set to `next_command.args`, verbatim; never a bare command name, and the developer never retypes it. If that invocation is unavailable or fails, show `next_command.display` as the command to run, and never guess another. On `BUG_TASK_STATE_MISSING`, the same applies to the context's `next_command`. The next command re-runs every one of its own gates, so chaining never replaces an approval: the QA handoff still asks its own approval (`docs/command-handoff.md`).
+**Continue.** Once `record` reports `BUG_REVIEW_RECORDED`, offer its `next_command` — the Pre-PR regression checklist, `/pre-pr bug:<bug_key>`, which then offers the QA handoff — in one short message: `✓ Review recorded (<counts>). Next: Pre-PR regression checklist. Continue?` Chain only on an explicit yes. Then invoke the Skill tool with `skill` set to `next_command.skill` and `args` set to `next_command.args`, verbatim; never a bare command name, and the developer never retypes it. If that invocation is unavailable or fails, show `next_command.display` as the command to run, and never guess another. On `BUG_TASK_STATE_MISSING`, the same applies to the context's `next_command`. The next command re-runs every one of its own gates, so chaining never replaces an approval: the QA handoff still asks its own approval (`docs/command-handoff.md`).
+
+## Feature review (`--feature <feature>`)
+
+Without `--feature`, nothing in this section applies. With it, the same review runs over the code of the pull request the feature's branch would open, against the feature's approved specification, and its result is persisted as the feature's internal review record, `docs/reviews/<feature>/review.md`. There is no separate feature review engine: the agents, `platform-review`, the lanes, the standards and the severity model are the ones above, and the record uses the bug record's findings model. The internal review is **mandatory** before `/pre-pr` and before a pull request.
+
+1. **Resolve `TARGET_ROOT`** exactly as `/implement-task` §2 does. Remove `--feature <feature>` from `$ARGUMENTS`; the scope is not the step 1 default, it is the pull request's.
+2. **Read the review context:**
+
+   ```
+   node --no-warnings "${CLAUDE_PLUGIN_ROOT}/scripts/feature-review.ts" context --root "<TARGET_ROOT>" --feature "<feature>" [--base "<target branch>"]
+   ```
+
+   It always exits 0 and prints one JSON object. Act on `outcome`:
+
+   | `outcome` | Do |
+   |---|---|
+   | `FEATURE_REVIEW_READY` | Continue. Show `scope.unattributed` in one line when it is not empty — those files are reviewed and reported, never dropped. |
+   | `FEATURE_PLAN_MISSING` · `FEATURE_PLAN_NOT_APPROVED` | **Stop.** Name the document and its `status:` line (`waiting_on`); approval is a human step and is never set here. |
+   | `FEATURE_UPSTREAM_STALE` | **Stop** and offer `next_command`, the earliest stale stage. |
+   | `FEATURE_TESTING_REQUIRED` · `FEATURE_TASK_STATE_MISSING` | **Stop.** Implementation and developer testing come first; offer `next_command`. |
+   | `FEATURE_NOTHING_TO_REVIEW` | **Stop**: the branch has no code change against its target. |
+   | `FEATURE_DOCS_AMBIGUOUS` | **Stop**, list `candidates` and ask which document is meant; pass it back as `--doc`. |
+   | any other | **Stop** and report `reason`. |
+
+3. **Steps 1–6 run as written**, over exactly `scope.code_files` (the pull request's code: committed on the branch since the merge base with `scope.base.branch`, plus staged, unstaged and untracked changes), with the same agents, one lane per touched platform. Each platform's pair also receives, as context:
+   - the specification — the Feature Analysis (and its `source_link`), the Detailed Design (approach §19, impacted modules §20, acceptance criteria mapping §25, non-goals), the Task Breakdown and the Dev Plan — from `documents`;
+   - each scoped task's row, acceptance criteria and recorded developer-testing evidence (`tasks`);
+   - the design reference (`design`).
+
+   The whole specification is context; the findings are about the pull request's code.
+4. **Read the design from its source of truth.** When `design.figma` is set, read **exactly** that node through the Figma MCP — `get_design_context`, `get_metadata` and `get_screenshot` with `design.figma.file_key` and `design.figma.node_id` (another node of the same file is not the design) — and compare the implemented UI with what came back. For another reference type, read the recorded `design_reference`. **Keep the read as evidence** (ENG-003, exactly as `/analyze-feature` step 6 does): one JSON file outside `TARGET_ROOT`, shaped as `design.evidence_format` says — `{ "source": "<the Figma URL>", "parts": [{ "name": "get_design_context", "content": "<raw output>" }, { "name": "get_metadata", "content": "<raw output>" }] }`; the screenshot is for comparison only. When the MCP returns an error, save `{ "error": "<the message>" }` instead. Never copy a Figma file, screenshot or exported asset into the repository. Record every read attempt for step 6 (`design_access`). **When the read fails or access is denied, say so, record it, and never claim UI conformance:** the `ui-reference` check is then `not-verifiable`, and no design detail is invented.
+5. **The four feature-specific checks** run once over the merged review, as `skills/platform-review/SKILL.md` § *Feature review* defines them: `acceptance-criteria`, `design-conformance`, `ui-reference` and `developer-testing`. A concern is filed as an ordinary finding citing its `FEATURE-CHECK-*` rule.
+6. **Persist the record.** Write the merged result as JSON outside `TARGET_ROOT` (the session's scratch directory): `binding` exactly as step 2 returned it; `reviewed_by`; `generated_at` (UTC); `findings` (as for `--bug`); `checks` (`{ id, status, note }` for each of the four; `ui-reference` is `not-applicable` only when `design.design_reference_status` is `not_required`); `design_access` — one `{ reference, node_id, status: retrieved | unavailable | denied | not-attempted, note }` per design read. Then run:
+
+   ```
+   node --no-warnings "${CLAUDE_PLUGIN_ROOT}/scripts/feature-review.ts" record --root "<TARGET_ROOT>" --feature "<feature>" --review "<review json>" [--design-evidence "<evidence file from step 4>"] [--base "<target branch>"]
+   ```
+
+   It writes `docs/reviews/<feature>/review.md` atomically. It refuses, and writes nothing, when the reviewed state moved since step 2 (`REVIEW_STATE_MOVED` — review again), when a check or finding is malformed, or when `ui-reference` passes without proof of the read: the evidence is verified by `scripts/task-resume.ts` (`evidenceFingerprint`) against the exact Figma file and node, and checked against the design the Feature Analysis recorded. A reported `retrieved` status is never proof. The record's `design_verification` says which it was — `verified`, `local-reference`, `stale` (the design drifted from the analysis), `wrong-node`, `wrong-file`, `invalid-evidence`, `failed`, `missing-evidence`, `not-performed`, `missing-reference` or `not-applicable`. Report a refusal verbatim.
+7. **Report** the record path, its counts and `ui_conformance` (`verified`, `not-verified`, `concern` or `not-applicable` — never "verified" without the design read). `verify` says later whether the record still describes the pull request:
+
+   ```
+   node --no-warnings "${CLAUDE_PLUGIN_ROOT}/scripts/feature-review.ts" verify --root "<TARGET_ROOT>" --feature "<feature>" [--base "<target branch>"]
+   ```
+
+   It is `stale` when a reviewed file changed, a file was added to or removed from the pull request, the target's merge base moved, a planning document's body or approval changed, the design reference changed, or a scoped task's state changed. A commit of exactly the reviewed content keeps it `fresh`, and writing the record or any other Ono document never makes it stale.
+
+**Findings and what they stop.** Blocking findings stop the flow: `/pre-pr` and the PR-readiness contract refuse them until they are fixed (`/fix-review-comments <record>`) and the feature is reviewed again. Major findings are reported in the record, the Pre-PR summary and the pull request description; there is no separate Major approval for a feature. Minor and Nit findings never block. The record approves nothing, and this command never writes task state and never creates a git commit.
+
+**Continue.** Once `record` reports `FEATURE_REVIEW_RECORDED`, offer its `next_command` — the Pre-PR regression checklist (`/pre-pr feature:<feature>`), or `/fix-review-comments` when a Blocking finding was recorded — in one short message: `✓ Review recorded (<counts>, UI <ui_conformance>). Next: Pre-PR regression checklist. Continue?` Chain only on an explicit yes, invoking the Skill tool with `next_command.skill` and `next_command.args` verbatim, or show `next_command.display` (`docs/command-handoff.md`).

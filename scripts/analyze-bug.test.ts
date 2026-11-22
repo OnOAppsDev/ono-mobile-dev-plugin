@@ -475,9 +475,10 @@ try {
     // Step 5 changed /implement-task, task-state.ts and task-resume.ts on purpose; bug-implementation.test.ts
     // pins every feature section of /implement-task, and the task-state suites pin the store's behaviour.
     const PINNED: Record<string, string> = {
-      "commands/analyze-feature.md": "37dc84922229db1eb7d6eca507a8cd917dc3ddde7edc8d8e1185d8482cf7fa8e",
-      "commands/dev-design-start.md": "f62963b1d156f4d9b22cd1d92678d4de25f0d66d7120801d62075d14ec8b9ca8",
-      "commands/dev-feature-start.md": "0713797d25d66df5064424ffd0dcf4269fead926512c2c40dd2eb9350abce175",
+      // 0.8.0 Feature Flow continuity: the feature planning commands end with the Continue step (feature-flow.test.ts pins it) — re-pinned on purpose.
+      "commands/analyze-feature.md": "ca20531ae3af3f4a71060b3cbe437036e17fd24b5df1344ac1d1f853b3c60767",
+      "commands/dev-design-start.md": "c622eb62919d4ed9ae6d3ab725cbb411ead112df8d9f1dbd31d4799e1cca9982",
+      "commands/dev-feature-start.md": "5d896e065dabc243120b58dac21466fce130f99f98b29c8d012021b0d922c5d9",
       // Step 7 extended /create-dev-qa-notes with bug:<key>; qa-handoff-gate.test.ts pins its feature body verbatim.
       "commands/prepare-mobile-release.md": "7f7d431309a77e4af4f7485b236cf2205616f2afed3b06de94cf2a0acbf327e4",
       "commands/fix-review-comments.md": "5b6d7698b9c940ea8bb783669ee37fe8b71f5a39ca4428bce9e6882c459c7a3d",

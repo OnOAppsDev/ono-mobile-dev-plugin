@@ -82,6 +82,12 @@ const PHASES: Phase[] = [
       "edit-approval",
       "bug-verification",
       "bug-evidence",
+      "pr-scope",
+      "feature-flow",
+      "feature-review",
+      "pre-pr",
+      "pr-readiness",
+      "bitbucket-pr",
     ],
   },
   {

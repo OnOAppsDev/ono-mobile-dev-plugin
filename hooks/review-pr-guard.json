@@ -1,0 +1,16 @@
+{
+  "description": "Enforces /review-pr's read-only guarantee: inside the pr-reviewer agent, only reads, the GET-only Bitbucket helper and Figma/Atlassian read tools are allowed; every other call there is denied. Calls outside that agent pass through untouched.",
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "*",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "\"${CLAUDE_PLUGIN_ROOT}/hooks/review-pr-guard.sh\""
+          }
+        ]
+      }
+    ]
+  }
+}

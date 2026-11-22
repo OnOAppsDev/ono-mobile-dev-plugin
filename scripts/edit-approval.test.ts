@@ -358,7 +358,9 @@ try {
     git(f, "init", "-q", "-b", "feat/checkout");
     writeFileSync(join(f, "docs/tasks/checkout-task-state.json"), JSON.stringify({ schemaVersion: 1, feature: "checkout", tasks: { T1: { state: "in-progress" } } }));
     const fh = hook(HOOK, { tool_name: "Edit", tool_input: { file_path: join(f, "src/app.ts") }, cwd: f });
-    check("19 feature work: every code edit still asks, with the original reason", fh.code === 0 && fh.decision === "ask" && fh.reason === ORIGINAL_ASK(join(f, "src/app.ts")), fh.reason);
+    // 0.8.0: the ask keeps its original reason and appends the guidance naming the Ono command (re-pinned on purpose; the decision is unchanged).
+    check("19 feature work: every code edit still asks, with the original reason", fh.code === 0 && fh.decision === "ask" && fh.reason.startsWith(ORIGINAL_ASK(join(f, "src/app.ts"))), fh.reason);
+    check("19 feature work: the ask names the in-progress feature task and its command", /Feature task in progress: checkout T1 \(\/ono-mobile-dev-plugin:implement-task\)/.test(fh.reason), fh.reason);
     check("19 feature work on an unsupported Node.js still asks", hook(HOOK, { tool_name: "Edit", tool_input: { file_path: join(f, "src/app.ts") }, cwd: f }, node20).decision === "ask");
     check("19 feature work: the helper never allows it", asked(api.checkEdit?.({ file: join(f, "src/app.ts"), cwd: f })));
     // A feature task in progress beside an approved bug cycle: the relaxation applies to bug work only.
@@ -406,6 +408,36 @@ try {
     const ab = read("commands/analyze-bug.md");
     check("UX: /analyze-bug's continue offer is the cycle approval", /Implement Fix Cycle <n>\?/.test(ab) && /Planned implementation scope/.test(ab) && /scripts\/edit-approval\.ts" approve/.test(ab));
     check("the suite is registered", read("scripts/check.ts").includes('"edit-approval"'));
+  }
+
+  /* ── 0.8.0: Tier A coverage, list synchronisation, workflow guidance ───── */
+  {
+    const hookText = read("hooks/require-approval-before-code.sh");
+    const m = /\n  (\*\.ts\|[^)]*)\)\n/.exec(hookText);
+    const hookExts = m ? m[1].split("|").map((x) => x.replace(/^\*/, "")) : [];
+    check("sync: the hook's code-file pattern equals CODE_EXTENSIONS, in order", JSON.stringify(hookExts) === JSON.stringify(EA.CODE_EXTENSIONS), JSON.stringify(hookExts));
+    check("sync: no extension is listed twice", new Set(EA.CODE_EXTENSIONS).size === EA.CODE_EXTENSIONS.length);
+    const TIER_A = [".c", ".cc", ".cxx", ".hpp", ".hh", ".mjs", ".cjs", ".mts", ".cts", ".gradle", ".groovy", ".css", ".scss", ".sass", ".less"];
+    check("Tier A: every Tier A extension is a code extension", TIER_A.every((e) => EA.CODE_EXTENSIONS.includes(e)));
+    const plain = join(TMP, "tier-a");
+    mkdirSync(plain, { recursive: true });
+    git(plain, "init", "-q", "-b", "feature/x");
+    for (const ext of TIER_A) {
+      const h = hook(HOOK, { tool_name: "Write", tool_input: { file_path: join(plain, `src/file${ext}`), content: "x" }, cwd: plain });
+      check(`Tier A: a ${ext} write asks`, h.code === 0 && h.decision === "ask", JSON.stringify(h));
+    }
+    for (const f of ["README.md", "config.json", "build.yaml", "docs/notes.txt", "Podfile", ".env.example"]) {
+      const h = hook(HOOK, { tool_name: "Write", tool_input: { file_path: join(plain, f), content: "x" }, cwd: plain });
+      check(`Tier B and docs are unchanged: ${f} passes through`, h.code === 0 && h.stdout === "", JSON.stringify(h));
+    }
+    const none = hook(HOOK, { tool_name: "Write", tool_input: { file_path: join(plain, "src/a.ts"), content: "x" }, cwd: plain });
+    check("guidance: with no Ono work, the ask names the entry commands", none.decision === "ask" && /No Ono workflow is active/.test(none.reason) &&
+      ["/ono-mobile-dev-plugin:analyze-bug", "/ono-mobile-dev-plugin:analyze-feature", "/ono-mobile-dev-plugin:implement-task"].every((c) => none.reason.includes(c)), none.reason);
+    check("guidance: the ask keeps the original reason first", none.reason.startsWith(ORIGINAL_ASK(join(plain, "src/a.ts"))));
+    check("guidance: the helper never turns guidance into an allow", api.checkEdit({ file: join(plain, "src/a.ts"), cwd: plain }).decision === "ask");
+    check("guidance: bug work in progress without a cycle approval names implement-task bug:", /Bug work is in progress \(bug:BUG-9\)/.test(EA.workflowGuidance([], ["bug:BUG-9"])));
+    const src = read("scripts/edit-approval.ts");
+    check("guidance: the helper does no intent routing (no prompt or keyword matching)", !/prompt|intent|keyword/i.test(src.slice(src.indexOf("export function workflowGuidance"), src.indexOf("/** In-progress feature tasks"))));
   }
 } finally {
   rmSync(TMP, { recursive: true, force: true });

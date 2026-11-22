@@ -570,6 +570,14 @@ The recorded `filesChanged`, `standardIds`, `validation`, `acceptanceCriteria`, 
 
 Do not report success if any acceptance criterion failed, required validation failed, a dependency is unproven, a blocker remains, the implementation deviates from the DD without approval, or changes exist only inside a worktree. **Approval is unaffected: recording lifecycle state neither confers nor revokes any document's `status`.**
 
+**Next step (feature work).** After recording the outcome, ask where the feature stands:
+
+```
+node --no-warnings "${CLAUDE_PLUGIN_ROOT}/scripts/feature-flow.ts" status --root "<TARGET_ROOT>" --feature "<feature>" --doc "<absolute Task Breakdown path>" --data "${CLAUDE_PLUGIN_DATA}"
+```
+
+It is read-only and always exits 0. The final report's next action is its `next_command`: the next unfinished task whose dependencies are complete (an interrupted or failed one is offered again), then — once every task is complete — the internal review, `/review-code --feature <feature>`, then the Pre-PR regression checklist, `/pre-pr feature:<feature>`. Offer it in one short message — such as `✓ T1 complete. Next: T2. Continue?` — and chain only on an explicit yes, invoking the Skill tool with `next_command.skill` and `next_command.args` verbatim, or showing `next_command.display` when that is unavailable (`docs/command-handoff.md`). Every feature task asks again: there is no feature-wide approval, and continuing is never one. The next command re-runs every one of its own gates.
+
 ## Responsibility boundary
 
 This command orchestrates (task-id resolution, repo-root resolution via the helper, document-path resolution, approval/dependency/blocker checks, upstream-chain reconciliation, the resume verdict, platform routing, hook gating, invoking the correct agent+skill, passing resolved context, and recording lifecycle state through `scripts/task-state.ts` — it is the only lifecycle writer: start, resume, restart, abandon, complete, failed, blocked). The shared implementation methodology may only append checkpoints to the run this command started. It does **not** contain Android/iOS/RN/React coding methodology, architecture guidance, review methodology, or the implementation logic itself — those live in the platform feature-implementation skills.

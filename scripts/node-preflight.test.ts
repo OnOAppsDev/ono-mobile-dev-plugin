@@ -135,8 +135,8 @@ function check(name: string, cond: boolean, detail = ""): void {
     const first = RUNTIME.map((s) => t.indexOf(`scripts/${s}.ts`)).filter((i) => i >= 0);
     check(`5 commands/${f}: the preflight comes before any plugin script`, first.length === 0 || t.indexOf(COMMAND_STEP) < Math.min(...first));
   }
-  // Pinned, so a change in what the detection finds is seen, not silently absorbed.
-  const EXPECTED = ["analyze-bug.md", "analyze-feature.md", "create-dev-qa-notes.md", "dev-design-start.md", "dev-feature-start.md", "fix-review-comments.md", "implement-task.md", "prepare-mobile-release.md", "review-code.md", "review-security.md", "rn-sync-figma-theme.md", "verify-fix-cycle.md"];
+  // Pinned, so a change in what the detection finds is seen, not silently absorbed. 0.8.0 adds /pre-pr and /review-pr.
+  const EXPECTED = ["analyze-bug.md", "analyze-feature.md", "create-dev-qa-notes.md", "dev-design-start.md", "dev-feature-start.md", "fix-review-comments.md", "implement-task.md", "pre-pr.md", "prepare-mobile-release.md", "review-code.md", "review-pr.md", "review-security.md", "rn-sync-figma-theme.md", "verify-fix-cycle.md"];
   check("5 the commands that run plugin scripts are exactly the expected set", JSON.stringify(running) === JSON.stringify(EXPECTED), running.join(","));
   for (const f of commands.filter((c) => !running.includes(c))) check(`5 commands/${f} runs no plugin script and carries no preflight`, !read(`commands/${f}`).includes(COMMAND_STEP));
   check("5 the step names the script it runs, at its real path", COMMAND_STEP.includes('`node "${CLAUDE_PLUGIN_ROOT}/scripts/node-preflight.mjs"`') && existsSync(SCRIPT));

@@ -121,3 +121,15 @@ Analyze the feature described in `$ARGUMENTS` (a feature description, product re
    **The plugin never edits the requirements itself and never confers or revokes approval.** A human amends the analysis and re-approves it; this command only writes the document it is asked to write and leaves `status: proposed`. When downstream artifacts already exist, say so plainly: a regenerated analysis makes the DD's `source_fingerprint` mismatch, which is what sends the next stage back through `/dev-design-start`. Re-stamp `source_fingerprint` and `design_reference_fingerprint` on every regeneration — if the regenerated body is byte-identical, the DD still matches and nothing downstream is rerun.
 
 8. This is a proposal, not a design. A human reviews the populated feature analysis and flips its status to `approved` before `/dev-design-start` turns it into a Detailed Design (DD).
+
+**Continue — offer the next step; never approve.** Once the feature analysis is written, ask where the feature stands now:
+
+```
+node --no-warnings "${CLAUDE_PLUGIN_ROOT}/scripts/feature-flow.ts" status --root "<TARGET_ROOT>" --feature "<feature>" --doc "<the feature analysis just written>"
+```
+
+It is read-only, always exits 0 and prints one JSON object. Act on `stage`:
+
+- `awaiting-approval` → one short message: what was written, the developer's approval step from `waiting_on` (`where` is `<path>:<line>` of the `status:` field a human sets to `approved`), and the next step from `after_approval` — for example `Feature analysis written. Your step: review it, then change `status` to `approved` at <where>. Next: /dev-design-start <feature>. Continue once approved?` Chain only on an explicit yes given after that approval; the next command re-reads `status` and stops if it is still not approved. Never set, flip or suggest setting `status` yourself: continuing is never an approval, and no approval is ever asked twice.
+- any other stage with a `next_command` → offer it in one short message ending `Continue?`, under the same rule (`docs/command-handoff.md` § Continuing): chain only on an explicit yes, invoke the Skill tool with `next_command.skill` and `next_command.args` verbatim, and fall back to `next_command.display`.
+- `AMBIGUOUS` (more than one document of a stage names this feature) → list `candidates` and ask which one is meant; never pick one.
