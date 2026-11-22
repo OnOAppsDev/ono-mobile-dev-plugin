@@ -32,6 +32,12 @@
  * and only to the API host. (A read:pullrequest scope also allows commenting — which is why the
  * read-only guarantee is this helper's, not the token's.)
  *
+ * Revision snapshot: the pull request's source and destination commits are read before and
+ * after the file list, commits and diff; when either moved in between (the author pushed, or the
+ * target branch moved), `fetch` stops with BB_PR_MOVED rather than stage a diff of one revision
+ * next to metadata of another. `/review-pr` reads it through scripts/pr-source.ts, which pins
+ * every later file read to the snapshot's commits.
+ *
  * Pagination follows `next` (page sizes are not part of the API). Rate limiting (429) stops at
  * once and reports the X-RateLimit-* headers — no retry loop. A 5xx is retried once. A diff
  * beyond the cap is cut at a file boundary; the files after it are reported as not retrieved.
@@ -195,7 +201,10 @@ export function onoReferences(description: string): { found: boolean; links: Arr
     const url = m[2] ?? m[3];
     const fig = figmaTarget(url);
     const src = /^https:\/\/bitbucket\.org\/[^/]+\/[^/]+\/src\/([0-9a-f]{7,40})\/(.+)$/.exec(url);
-    links.push({ label: m[1] ?? null, url, kind: fig ? "figma" : src ? "bitbucket-src" : "external", ...(fig ? { figma: { file_key: fig.file_key, node_id: fig.node_id } } : {}), ...(src ? { src: { commit: src[1], path: decodeURIComponent(src[2]) } } : {}) });
+    // The same repository document on GitHub (pr-metadata.ts links it at the commit that carries it).
+    const gh = src ? null : /^https:\/\/github\.com\/[^/]+\/[^/]+\/blob\/([0-9a-f]{7,40})\/([^?#]+)/.exec(url);
+    const at = src ?? gh;
+    links.push({ label: m[1] ?? null, url, kind: fig ? "figma" : src ? "bitbucket-src" : gh ? "github-src" : "external", ...(fig ? { figma: { file_key: fig.file_key, node_id: fig.node_id } } : {}), ...(at ? { src: { commit: at[1], path: decodeURIComponent(at[2]) } } : {}) });
   }
   return { found: sec !== null, links };
 }
@@ -245,6 +254,11 @@ function pruneStaleStaging(tmp: string): void {
   }
 }
 
+/** A new staging directory for one review — shared by every provider (scripts/pr-source.ts). */
+export function createStaging(env: NodeJS.ProcessEnv = process.env): string | Fail {
+  return staging(env);
+}
+
 function staging(env: NodeJS.ProcessEnv): string | Fail {
   let dir: string;
   try {
@@ -291,6 +305,15 @@ export async function fetchPr(url: string, opts: { maxDiffBytes?: number; env?: 
   const cap = opts.maxDiffBytes ?? DEFAULT_MAX_DIFF_BYTES;
   const diff = await get(`${prUrl}/diff`, a, cap, base, counter);
   if (isFail(diff)) return done(diff);
+  // The snapshot: the same source and destination commits after everything was read.
+  const after = await getJson(prUrl, a, base, counter);
+  if (isFail(after)) return done(after);
+  const before = { source: meta.source?.commit?.hash ?? null, destination: meta.destination?.commit?.hash ?? null };
+  const now = { source: after.source?.commit?.hash ?? null, destination: after.destination?.commit?.hash ?? null };
+  if (!before.source || !before.destination) return done({ ok: false, outcome: "BB_UNEXPECTED", reason: "the pull request names no source or destination commit — the review cannot be pinned to a revision" });
+  if (!sameCommit(before.source, now.source) || !sameCommit(before.destination, now.destination)) {
+    return done({ ok: false, outcome: "BB_PR_MOVED", reason: "the pull request changed while it was being read (a new push, or the target branch moved) — run the review again", before, after: now });
+  }
 
   const dir = staging(env);
   if (isFail(dir)) return done(dir);
@@ -357,6 +380,28 @@ export async function fetchFile(url: string, path: string, opts: { side?: string
   const g = await get(`${repoUrl}/src/${commit}/${path.split("/").map(encodeURIComponent).join("/")}`, a, MAX_FILE_BYTES, base, counter);
   if (isFail(g)) return done({ ...g, path, commit });
   return done({ ok: true, outcome: "BB_FILE", path, commit, side: opts.commit ? "commit" : opts.side === "destination" ? "destination" : "source", truncated: g.truncated, content: g.body.toString("utf-8") });
+}
+
+/** Two commit hashes name the same commit — Bitbucket abbreviates to 12 characters in places. */
+export function sameCommit(a: string | null | undefined, b: string | null | undefined): boolean {
+  if (!a || !b) return false;
+  const x = a.toLowerCase(), y = b.toLowerCase();
+  return x.length >= 7 && y.length >= 7 && (x.startsWith(y) || y.startsWith(x));
+}
+
+/** The pull request's current source and destination commits — for the end-of-review check. */
+export async function prHead(url: string, opts: { env?: NodeJS.ProcessEnv } = {}): Promise<Record<string, any>> {
+  const env = opts.env ?? process.env;
+  const pr = parsePrUrl(url);
+  if (pr === null) return { ok: false, outcome: "BB_URL_INVALID", reason: "expected a Bitbucket Cloud pull request URL" };
+  const a = auth(env);
+  if (a === null) return { ok: false, outcome: "BB_AUTH_MISSING", reason: "set BITBUCKET_API_TOKEN in your environment before starting Claude Code; never paste a token into the chat" };
+  const base = apiBase(env);
+  const counter = { n: 0 };
+  const meta = await getJson(`${base}/repositories/${encodeURIComponent(pr.workspace)}/${encodeURIComponent(pr.repo)}/pullrequests/${pr.id}`, a, base, counter);
+  const done = (o: Record<string, any>) => JSON.parse(redact(JSON.stringify({ ...o, requests: counter.n }), a));
+  if (isFail(meta)) return done(meta);
+  return done({ ok: true, outcome: "BB_PR_HEAD", state: meta.state ?? null, source: meta.source?.commit?.hash ?? null, destination: meta.destination?.commit?.hash ?? null });
 }
 
 /* --------------------------------------------------------------------- CLI */

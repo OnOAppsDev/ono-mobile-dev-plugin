@@ -349,7 +349,9 @@ try {
     check("hook: other non-code files still pass through untouched", hook(HOOK, edit(r, "docs/notes.md")).stdout.trim() === "");
     const src = read("hooks/require-approval-before-code.sh");
     check("25 hook: the decision comes from the helper's output, not from shell logic", /scripts\/edit-approval\.ts" check/.test(src) && !/bug-work-plan|task-state|fix_cycle|approved_scope/.test(src));
-    check("25 hook: it allows only on the helper's exact allow decision", /= "allow"/.test(src) && (src.match(/permissionDecision: "allow"/g) ?? []).length === 1);
+    // 2026-11-22, 0.8.0 integration remediation (A1): decisions are written by hook_decision (hooks/lib/hook-json.sh)
+    // instead of jq — still exactly one allow, and only on the helper's exact "allow".
+    check("25 hook: it allows only on the helper's exact allow decision", /\[ "\$decision" = "allow" \]/.test(src) && (src.match(/hook_decision allow/g) ?? []).length === 1 && !/permissionDecision[\\"]*: *[\\"]*allow/.test(src));
 
     /* ── 19. feature work: unchanged ─────────────────────────────────── */
     const f = join(TMP, `feature-${++n}`);
@@ -390,11 +392,13 @@ try {
       // 0.7.6: the branch hook fails closed without jq, covers NotebookEdit and no longer blocks files outside the project repository — on purpose; re-pinned.
       "hooks/block-main-branch-changes.json": "5be63f8a2207df6847c54ee1422c98fbe113a26290696d927c7da4d5a67ed92f",
       // 0.7.6: the branch hook fails closed without jq, covers NotebookEdit and no longer blocks files outside the project repository — on purpose; re-pinned.
-      "hooks/block-main-branch-changes.sh": "cc73c15a57a65400af30f814c4d536eab9fb87624f141883457b82106d1a6a6c",
+      // 2026-11-22, 0.8.0 integration remediation — re-pinned on purpose. hooks: A1 — the payload is read through hooks/lib/hook-json.sh (jq, else Node.js, else fail closed). Decisions unchanged.
+      "hooks/block-main-branch-changes.sh": "08834255cd3a3e0226380a0b336214b88dda8baf9f30232676261070dab7e90e",
       // 0.7.6: protect-secrets fails closed without jq or on an unreadable call, and scans NotebookEdit — on purpose; re-pinned.
       "hooks/protect-secrets.json": "b4b4350722c03853c22a91f53d0b25d6bc0898b8d9e51ec821a73e62242d003c",
       // 0.7.6: protect-secrets fails closed without jq or on an unreadable call, and scans NotebookEdit — on purpose; re-pinned.
-      "hooks/scan-for-secrets.sh": "150b922d44c432db52fa1e5898acfac3b997008e7bfea88a02562112d86c4cc0",
+      // 2026-11-22, 0.8.0 integration remediation — re-pinned on purpose. hooks: A1 — the payload is read through hooks/lib/hook-json.sh (jq, else Node.js, else fail closed); grep failure blocks. Decisions unchanged.
+      "hooks/scan-for-secrets.sh": "df0e036f1a42358babdca69540f5dbe282c0740d6ec0c6ba3930ade5052e00fd",
       "agents/feature-implementer.md": "052fec8ac10f83b1b78a94eca52a0260be977fcd4c92c629db91fd66d7b49991",
     };
     for (const [f, h] of Object.entries(PINS)) check(`20/21 ${f} is byte-identical`, sha(readFileSync(join(REPO_ROOT, f))) === h);

@@ -15,7 +15,7 @@
  */
 
 import { execFileSync } from "child_process";
-import { mkdtempSync, mkdirSync, writeFileSync, realpathSync, rmSync, cpSync, renameSync, readFileSync } from "fs";
+import { mkdtempSync, mkdirSync, writeFileSync, realpathSync, rmSync, cpSync, renameSync, readFileSync, existsSync as existsSyncSafe } from "fs";
 import { createHash } from "crypto";
 import { tmpdir } from "os";
 import { join, dirname } from "path";
@@ -378,6 +378,36 @@ try {
     check("16 --path: a Git-root-relative path is scoped like the project-relative one",
       fromGitRoot?.surfaces?.length > 0 && JSON.stringify(fromGitRoot?.surfaces) === JSON.stringify(fromProject?.surfaces) && fromGitRoot?.path === "src/tv/FocusRow.tsx",
       JSON.stringify([fromGitRoot, fromProject]));
+  }
+
+  // --- Row 17 (A2): an inspection that predates the manifest names /inspect-sync, once ---
+  {
+    const plain = join(root, "a2-uninspected");
+    mkdirSync(plain, { recursive: true });
+    initRepo(plain);
+    const u = run(plain).json;
+    check("17 A2: an uninspected repository is absent, not flagged — no /inspect-sync hint", u?.reason === "absent" && u?.inspectionWithoutManifest === false && !/inspect-sync/.test(u?.summary ?? ""), JSON.stringify(u?.summary));
+
+    const old = join(root, "a2-pre-manifest");
+    mkdirSync(old, { recursive: true });
+    initRepo(old);
+    write(old, "AUDIT.md", "# Audit\n");
+    write(old, ".ono/state.json", JSON.stringify({ pluginVersion: "0.9.0" }));
+    const before = readFileSync(join(old, "AUDIT.md"), "utf-8");
+    const o = run(old).json;
+    check("17 A2: an inspection without the manifest is flagged", o?.available === false && o?.reason === "absent" && o?.inspectionWithoutManifest === true, JSON.stringify(o));
+    check("17 A2: the summary names /ono-project-inspector:inspect-sync once", (o?.summary.match(/\/ono-project-inspector:inspect-sync/g) ?? []).length === 1 && !/running \/inspect /i.test(o?.summary), o?.summary);
+    check("17 A2: knowledge is still derived live — never a blocker", (o?.deriveLive ?? []).length === 7 && (o?.trustedCategories ?? []).length === 0);
+    check("17 A2: the reader writes nothing — no manifest, AUDIT.md unchanged", !existsSyncSafe(join(old, ".ono", "repo-knowledge.json")) && readFileSync(join(old, "AUDIT.md"), "utf-8") === before);
+
+    const half = join(root, "a2-audit-only");
+    mkdirSync(half, { recursive: true });
+    initRepo(half);
+    write(half, "AUDIT.md", "# Audit\n");
+    check("17 A2: AUDIT.md alone (no inspector state) is not an inspection", run(half).json?.inspectionWithoutManifest === false);
+
+    const skill = readFileSync(join(dirname(HELPER), "..", "skills", "repo-knowledge-consumer", "SKILL.md"), "utf-8");
+    check("17 A2: the consumer shows it once per command run and never runs inspect-sync itself", /inspectionWithoutManifest: true/.test(skill) && /once per command run/.test(skill) && /never run `\/inspect-sync` on the developer's behalf/.test(skill));
   }
 } finally {
   rmSync(root, { recursive: true, force: true });

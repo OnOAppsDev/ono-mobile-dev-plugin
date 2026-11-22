@@ -170,6 +170,8 @@ Running /inspect with the Ono Project Inspector would let this plugin reuse appr
 repository knowledge instead of re-deriving it each time.
 ```
 
+**An inspection that predates the manifest** (`inspectionWithoutManifest: true` — the repository has an approved inspection, `AUDIT.md` and `.ono/state.json`, but no `.ono/repo-knowledge.json`): show the helper's `summary` instead of the lines above — it recommends `/ono-project-inspector:inspect-sync` once, not `/inspect`. Show it **once per command run** (the first time this skill resolves knowledge in that command), never again for the other files or steps of the same run. It is a hint, not a blocker and not a question: never run `/inspect-sync` on the developer's behalf, never write the manifest, and continue with the live derivation. An uninspected repository (`inspectionWithoutManifest: false`) is not broken — it gets the ordinary line above.
+
 Never stop, never ask permission to continue, and never treat this as a warning that needs resolving.
 
 ## Step 6 — The Repo Knowledge Reference block

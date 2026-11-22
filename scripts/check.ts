@@ -88,12 +88,13 @@ const PHASES: Phase[] = [
       "pre-pr",
       "pr-readiness",
       "bitbucket-pr",
+      "pr-source",
     ],
   },
   {
     name: "Hooks",
     why: "the safety layer that gates every write",
-    suites: ["hooks"],
+    suites: ["hooks", "hook-json"],
   },
   {
     name: "Repository",

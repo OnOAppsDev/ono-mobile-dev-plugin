@@ -21,7 +21,7 @@ Nothing this command produces is ever inside the repository: the checklist and i
    | `outcome` | Do |
    |---|---|
    | `PRE_PR_READY` | Continue with step 3. With several Task Breakdowns for the feature, pass the one meant as `--doc <path>` to every helper call here (the internal review's breakdown is used when it still matches).  When `stale_reasons` is not empty, say in one line why the earlier Pre-PR no longer holds. |
-   | `PRE_PR_FRESH` | **Stop — nothing to rerun.** An unchanged Pre-PR is already recorded for exactly this code and review. Show its `pdf_path` and `counts`, and go to step 5. |
+   | `PRE_PR_FRESH` | **Stop — nothing to rerun.** An unchanged Pre-PR is already recorded for exactly this code and review. Show its `pdf_path` and `counts`, and go to step 5 (which ends with its `pre_pr_line`). |
    | `PRE_PR_PDF_MISSING` | The recorded checklist is still valid; only its PDF is gone. **Do not analyse again:** run `regenerate.command`, then `regenerate.then`, and report the PDF path. If the rebuild fails, say why (step 3's dependency rule). |
    | `PRE_PR_TESTING_REQUIRED` · `PRE_PR_REVIEW_MISSING` · `PRE_PR_REVIEW_STALE` · `PRE_PR_BLOCKING_FINDINGS` | **Stop** and say why in one line. Pre-PR runs only after development, developer testing and a fresh internal review with no unresolved Blocking finding. Offer `next_command` under the Continue rule. |
    | `PRE_PR_DEPENDENCY_MISSING` | **Stop.** The PDF is mandatory. Explain each entry of `missing` and how to provide it (Python 3; Chrome, Edge, Brave or Chromium — or `PRE_PR_BROWSER` pointing at one). Do not produce a Markdown-only checklist and do not mark Pre-PR complete. |
@@ -52,6 +52,7 @@ Nothing this command produces is ever inside the repository: the checklist and i
 
      Print its `description_markdown` verbatim and list its `warnings` (missing or inaccessible references, planning documents not yet in the pull request). Then: `Ready for PR. Commit, push and the pull request are done by the Platform Guardian's session closer — say "close the session".`
    - Either way, add one line while the Platform Guardian still carries its own pre-PR step: `If the session closer offers its own pre-PR check, answer "skip" — this Pre-PR is done.`
+   - **Always end with the result line**, verbatim and alone on the last line: the `pre_pr_line` that `record` (or the gate's `PRE_PR_FRESH`) returned — `PRE_PR {"contract":1,"work":…,"head":…,"must":…,"should":…,"watch":…,"topRisk":…,"pdf":…}`. It is derived from the recorded Pre-PR, for a consumer that reads command output; the authoritative, machine-readable answer stays the readiness contract (`pr-readiness.ts check --contract 1`, its `pre_pr`). Never print it for a Pre-PR that was not recorded.
 
    Chain only on an explicit yes, invoking the Skill tool with `next_command.skill` and `next_command.args` verbatim, or showing `next_command.display` when that is unavailable (`docs/command-handoff.md`). Continuing is never an approval.
 

@@ -227,6 +227,36 @@ export function parseChecklist(md: string): { ok: true; must: number; should: nu
   return { ok: true, must, should, watch, critical, title: title.slice(2).trim() };
 }
 
+/** The first 🔴 Must-test item's text — the checklist's top risk — or null. */
+export function topRisk(md: string): string | null {
+  let inMust = false;
+  for (const l of md.split(/\r?\n/)) {
+    const h = /^## (.+)$/.exec(l);
+    if (h) {
+      inMust = /Must test/.test(h[1]);
+      continue;
+    }
+    const m = inMust ? /^\s*- \[[ xX]\]\s*(.+)$/.exec(l) : null;
+    if (m) return m[1].replace(/\*\*/g, "").trim().slice(0, 160);
+  }
+  return null;
+}
+
+/**
+ * A3: the one-line, machine-readable form of a recorded Pre-PR, for a consumer that reads command
+ * output (Tom's `PRE_PR {…}`). Derived from the canonical record — never stored, never a second
+ * state. The authoritative interface stays `pr-readiness.ts check --contract 1` (its `pre_pr`).
+ */
+export function prePrLine(i: { work: string; head: string | null; counts: { must: number; should: number; watch?: number }; pdf: string; checklist?: string | null }): string {
+  let risk: string | null = null;
+  try {
+    if (i.checklist) risk = topRisk(readFileSync(i.checklist, "utf-8"));
+  } catch {
+    risk = null;
+  }
+  return `PRE_PR ${JSON.stringify({ contract: PRE_PR_CONTRACT, work: i.work, head: i.head, must: i.counts.must, should: i.counts.should, watch: i.counts.watch ?? 0, topRisk: risk, pdf: i.pdf })}`;
+}
+
 /** The vendored skill's identity: its SKILL.md and PDF script, hashed together. */
 export function skillFingerprint(): string {
   return sha(canonical({ skill: sha(readFileSync(join(SKILL_DIR, "SKILL.md"))), script: sha(readFileSync(PDF_SCRIPT)) }));
@@ -386,7 +416,7 @@ export function prePrGate(req: { root: string; work: string; data?: string | nul
   if (inside(resolve(data.dir), w.root) || gitTopOf(data.dir) !== null) return { ok: false, outcome: "PRE_PR_DATA_DIR_IN_REPOSITORY", reason: `${data.dir} is inside a git repository — the checklist and PDF must stay outside every repository` };
 
   const existing = verifyPrePr(req, w);
-  if (existing.status === "fresh") return { ok: true, outcome: "PRE_PR_FRESH", reason: "an unchanged Pre-PR is already recorded for exactly this code and review — nothing to rerun", pdf_path: existing.pdf_path, checklist_path: existing.checklist_path, counts: existing.counts, next: readyNext(w) };
+  if (existing.status === "fresh") return { ok: true, outcome: "PRE_PR_FRESH", reason: "an unchanged Pre-PR is already recorded for exactly this code and review — nothing to rerun", pdf_path: existing.pdf_path, checklist_path: existing.checklist_path, counts: existing.counts, next: readyNext(w), pre_pr_line: prePrLine({ work: w.work, head: w.scope.head, counts: existing.counts, pdf: existing.pdf_path, checklist: existing.checklist_path }) };
   if (existing.status === "pdf-missing") return { ok: true, outcome: "PRE_PR_PDF_MISSING", reason: existing.reasons[0].message, regenerate: existing.regenerate, checklist_path: existing.checklist_path, pdf_path: existing.pdf_path };
 
   const python = probes.python();
@@ -494,6 +524,7 @@ export function recordPrePr(req: { root: string; work: string; data?: string | n
     checklist_path: record.checklist_path,
     counts: record.counts,
     next_command: readyNext(w),
+    pre_pr_line: prePrLine({ work: w.work, head: w.scope.head, counts: record.counts, pdf: record.pdf_path, checklist: record.checklist_path }),
   };
 }
 

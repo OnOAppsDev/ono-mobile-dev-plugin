@@ -13,7 +13,7 @@
  */
 
 import { spawnSync } from "child_process";
-import { chmodSync, existsSync, mkdirSync, readFileSync, rmSync, unlinkSync, writeFileSync } from "fs";
+import { chmodSync, existsSync, mkdirSync, readFileSync, readdirSync, rmSync, unlinkSync, writeFileSync } from "fs";
 import { createHash } from "crypto";
 import { join, dirname } from "path";
 import * as P from "./pre-pr.ts";
@@ -160,6 +160,16 @@ try {
     check("verify: fresh", ver(r.root).status === "fresh", show(ver(r.root)));
     const again = gate(r.root);
     check("rerun: an unchanged Pre-PR is not run again", again.outcome === "PRE_PR_FRESH" && again.pdf_path === w.pdf_path, show(again));
+    // A3: the PRE_PR line — one line, derived from the canonical record, never a second state.
+    const line = String(w.pre_pr_line ?? "");
+    const lj = (() => { try { return JSON.parse(line.replace(/^PRE_PR /, "")); } catch { return null; } })();
+    check("A3: record prints one machine-readable PRE_PR line", /^PRE_PR \{.*\}$/.test(line) && !line.includes("\n"), line);
+    check("A3: the line carries work, HEAD, counts, the top risk and the PDF", lj?.contract === 1 && lj.work === W && lj.head === g.scope.head && lj.must === 3 && lj.should === 0 && lj.pdf === w.pdf_path && typeof lj.topRisk === "string" && lj.topRisk.length > 0, line);
+    check("A3: a fresh rerun prints the same line (derived, not stored separately)", again.pre_pr_line === w.pre_pr_line, `${again.pre_pr_line} / ${w.pre_pr_line}`);
+    const store = readdirSync(dirname(w.pdf_path)).sort().join();
+    check("A3: no second Pre-PR state — the store holds only the record, the checklist and the PDF", store === ["record.json", "regression-checklist.md", "regression-checklist.pdf"].sort().join(), store);
+    const grep = spawnSync("git", ["-C", r.root, "grep", "-I", "-l", "--untracked", "-e", "PRE_PR", "-e", "prePr", "-e", "regression-checklist"], { encoding: "utf-8" });
+    check("A3: nothing about the Pre-PR is written into the repository's task state or plans", grep.status === 1 && grep.stdout === "", grep.stdout);
     const st = featureStatus({ root: r.root, feature: FEATURE, data: DATA });
     check("flow: review and Pre-PR fresh → ready for PR, handed to the Guardian", st.stage === "ready-for-pr" && st.next_command === null && /Platform Guardian/.test(st.message), st.stage);
 
@@ -270,6 +280,13 @@ try {
     check("boundary: never reads the CLAUDE_PLUGIN_DATA environment variable (another plugin's value in its hooks)", !/process\.env\.CLAUDE_PLUGIN_DATA/.test(src));
     check("boundary: reads no clock", !/\bnew Date\b|\bDate\.now\b|\bMath\.random\b/.test(src));
     check("the suite is registered", read("scripts/check.ts").includes('"pre-pr"'));
+    // A3 integration (Guardian consumes, the Dev Plugin owns).
+    const fm = cmd.slice(0, cmd.indexOf("\n---", 4));
+    check("A3: /pre-pr is model-invocable (Guardian's closer can start it)", !/disable-model-invocation:\s*true/.test(fm) && /^description: /m.test(fm));
+    check("A3: the command ends with the PRE_PR line, from the record", /Always end with the result line/.test(cmd) && cmd.includes("`pre_pr_line`") && /authoritative, machine-readable answer stays the readiness contract/.test(cmd));
+    check("A3: one Pre-PR implementation — the vendored skill, no copy under another name", readdirSync(join(REPO_ROOT, "skills")).filter((d) => /pre-?pr|regression/i.test(d)).join() === "regression-checklist");
+    const bugReview = read("scripts/bug-review.ts"), featureReview = read("scripts/feature-review.ts");
+    check("A3: position — after the internal review (bug and feature), before the QA handoff (bug)", /next_command: nextCommand\("pre-pr", ctx\.work_id\)/.test(bugReview) && /nextCommand\("pre-pr", `feature:\$\{req\.feature\}`\)/.test(featureReview) && /nextCommand\("create-dev-qa-notes", w\.work\)/.test(read("scripts/pre-pr.ts")));
   }
 } finally {
   rmSync(TMP, { recursive: true, force: true });

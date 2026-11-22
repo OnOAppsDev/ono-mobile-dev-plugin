@@ -7,7 +7,14 @@ argument-hint: [scope] [--bug <bug_key> | --feature <feature>]
 
 Review the current changes for correctness, style, standards-adherence, and performance.
 
-1. Resolve the review scope: if `$ARGUMENTS` is given, treat it as a path, branch, or PR reference to diff against; otherwise default to the current diff against the repo's base branch.
+0. **A pull request URL is not a review scope here.** If the scope argument (what is left of `$ARGUMENTS` after `--bug` / `--feature`) is a URL, classify it first:
+
+   ```
+   node --no-warnings "${CLAUDE_PLUGIN_ROOT}/scripts/pr-source.ts" parse "<the URL>"
+   ```
+
+   On `PR_URL_PARSED` (a GitHub or Bitbucket pull request), **stop — review nothing**, and say in one message: *`/review-code` is the internal review of your own changes in this checkout. Reviewing someone else's pull request — its own changes, without checkout — is `/review-pr`:* `/ono-mobile-dev-plugin:review-pr <the URL>`. *Run it?* Run `/review-pr` only on an explicit yes, with the URL unchanged; never use the URL as a diff baseline. On any other outcome (an unsupported host, not a pull request), stop and say the scope is a path, a branch or a revision, not a URL.
+1. Resolve the review scope: if `$ARGUMENTS` is given, treat it as a path, a branch, or a git revision (range) in this checkout to diff against; otherwise default to the current diff against the repo's base branch.
 2. Invoke `repo-analyst` to establish the base repo classification (including the RN-native-shell linkage check) if not already known this session, then attribute each changed file to a platform using the file-attribution rule (iOS: under an iOS project tree or `.swift`/`.m`/`.mm`/`.h`; Android: under `android/` or `.kt`/`.java`; React: in a React-web workspace; otherwise react-native). Do not reimplement platform classification from scratch in this command.
 2a. **Resolve Project Knowledge for the changed files, once.** Apply the `repo-knowledge-consumer` skill with the changed paths (its Step 3d): it reports which surfaces, shared code and capabilities each changed file falls under. For each surface the change touches, resolve its convention overrides (Step 3b); for each capability it touches, its direct relationships (Step 3c). Hand each platform's agents only the context for the files attributed to that platform: the relevant surface conventions, the project architecture conventions (`docs/project/patterns.md`), and the capability relationships the change sits on. The diff and the current code are judged first — Project Knowledge tells the reviewer what the repository's established convention is and which adjacent capabilities a change can reach; it never outranks what the code shows, and a relationship is never by itself a finding. When knowledge is unavailable or a category is derive-live, the review establishes convention from the surrounding code exactly as before.
 3. **Always** load the shared standards: `standards/shared/accessibility.md` and `standards/shared/i18n-rtl.md`.

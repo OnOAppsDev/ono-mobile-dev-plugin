@@ -290,7 +290,8 @@ try {
       // 0.7.6: require-approval-before-code asks when it cannot read the call (no jq, unreadable payload) — on purpose; re-pinned.
       // Node.js preflight: on an unsupported Node.js the ask names the version required — the decision is unchanged; re-pinned.
       // 0.8.0: Tier A code extensions; the no-approval ask carries the helper's workflow guidance — the decision is unchanged; re-pinned.
-      "hooks/require-approval-before-code.sh": "e35d457f393c31cef0ac2b49e2255fd6d1d674eb14dbaed8422f36dc0aac9e5b",
+      // 2026-11-22, 0.8.0 integration remediation — re-pinned on purpose. hooks: A1 — the payload is read and the decision written through hooks/lib/hook-json.sh (jq, else Node.js, else ask). Decisions unchanged.
+      "hooks/require-approval-before-code.sh": "9f765d3d26c3d51006f4174664fa7683bc5f7624679ec816661f90f710421cd9",
       // 0.7.6: writeRecord creates docs/tasks/bugs/ for a repository's first cycle — on purpose; re-pinned.
       // 0.8.0: Tier A CODE_EXTENSIONS and workflowGuidance() for the no-approval ask — on purpose; re-pinned.
       "scripts/edit-approval.ts": "0531cdefd7297524aa469fcd19b0db494e65122cfe41f85c7a7392fc9c3eeabf",

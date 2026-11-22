@@ -6,30 +6,41 @@ set -euo pipefail
 
 payload="$(cat)"
 
-# When the call cannot be read — no jq, or a payload jq cannot parse — the content cannot be
-# scanned, so block (fail closed). Exiting with any other non-zero code would be a non-blocking
-# hook error and let an unscanned write through.
+# When the call cannot be read — no jq and no Node.js to read it, or a payload that cannot be
+# parsed — the content cannot be scanned, so block (fail closed). Exiting with any other non-zero
+# code would be a non-blocking hook error and let an unscanned write through.
 unscannable() {
   echo "Blocked: $1, so this write cannot be scanned for hardcoded secrets (org policy: protect-secrets)." >&2
   exit 2
 }
-command -v jq >/dev/null 2>&1 || unscannable "jq is not installed (install jq)"
+case "${BASH_SOURCE[0]}" in */*) hook_dir="${BASH_SOURCE[0]%/*}" ;; *) hook_dir="." ;; esac
+# shellcheck source=lib/hook-json.sh
+. "${hook_dir}/lib/hook-json.sh" 2>/dev/null || unscannable "the plugin's hook library (hooks/lib/hook-json.sh) is missing"
 
-tool_name="$(jq -r '.tool_name // empty' <<<"$payload" 2>/dev/null)" || unscannable "the tool call could not be read"
-file_path="$(jq -r '.tool_input.file_path // .tool_input.notebook_path // empty' <<<"$payload" 2>/dev/null)" || unscannable "the tool call could not be read"
+# field <spec>: the value in REPLY, or block — 3 is "no runtime", anything else "unreadable".
+field() {
+  local rc=0
+  REPLY="$(json_get "$payload" "$1")" || rc=$?
+  [ "$rc" = 3 ] && unscannable "jq is not installed and Node.js is not available to read the tool call. ${HOOK_JSON_INSTALL_HINT}"
+  [ "$rc" = 0 ] || unscannable "the tool call could not be read"
+  return 0
+}
+
+field '.tool_name'; tool_name="$REPLY"
+field '.tool_input.file_path // .tool_input.notebook_path'; file_path="$REPLY"
 
 case "$tool_name" in
   Write)
-    content="$(jq -r '.tool_input.content // empty' <<<"$payload")"
+    field '.tool_input.content'; content="$REPLY"
     ;;
   Edit)
-    content="$(jq -r '.tool_input.new_string // empty' <<<"$payload")"
+    field '.tool_input.new_string'; content="$REPLY"
     ;;
   MultiEdit)
-    content="$(jq -r '[.tool_input.edits[]?.new_string] | join("\n")' <<<"$payload")"
+    field '@edits'; content="$REPLY"
     ;;
   NotebookEdit)
-    content="$(jq -r '.tool_input.new_source // empty' <<<"$payload")"
+    field '.tool_input.new_source'; content="$REPLY"
     ;;
   *)
     exit 0
@@ -52,10 +63,15 @@ patterns=(
 for entry in "${patterns[@]}"; do
   name="${entry%%:*}"
   regex="${entry#*:}"
-  if grep -qEi -- "$regex" <<<"$content"; then
+  # grep: 0 = a match, 1 = no match, anything else (missing, broken) = the content was not
+  # scanned — block, never treat it as "no match".
+  rc=0
+  grep -qEi -- "$regex" <<<"$content" || rc=$?
+  if [ "$rc" = 0 ]; then
     echo "Blocked: possible hardcoded secret (${name}) in ${file_path:-<unknown file>}. Remove the credential and use secure storage/env injection instead (see standards/shared/mobile-security.md, SEC-SECRETS-*)." >&2
     exit 2
   fi
+  [ "$rc" = 1 ] || unscannable "grep could not run (status ${rc})"
 done
 
 # .env* files: flag any KEY=value line with a non-placeholder-looking value.

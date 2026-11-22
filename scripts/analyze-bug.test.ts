@@ -486,7 +486,8 @@ try {
       "skills/platform-planning/SKILL.md": "4375411ab8091ac6cd4f8433ba75e8df53d7b4ab79be95a3eeb78aa01cf3f86c",
       "skills/mobile-debugging/SKILL.md": "0b6bc7a1384ca2dc1f762dcd2946ccd8320dfe35fc0471f79e027d4f580c081e",
       // 0.7.5: KNOWLEDGE_ROOT for nested Inspector projects, changed on purpose; project-knowledge-consumption.test.ts pins the new rules.
-      "skills/repo-knowledge-consumer/SKILL.md": "99420131b93774c1715b4f83f96cdc6e44b2e7e43bbcf436d57293a5f43cd319",
+      // 2026-11-22, 0.8.0 integration remediation — re-pinned on purpose. skill: A2 — an inspection without the manifest names /inspect-sync once per command run; nothing else changed.
+      "skills/repo-knowledge-consumer/SKILL.md": "9f2fde0425608b0abf8303cdc38ce8fd80539e1ea4ed92205e08577feb0c70b9",
     };
     for (const [f, h] of Object.entries(PINNED)) check(`33/36 ${f} is unchanged`, sha(withoutPreflight(readFileSync(join(REPO_ROOT, f)))) === h);
     const src = read("scripts/analyze-bug.ts").replace(/\/\*\*[\s\S]*?\*\//g, "").replace(/^\s*\/\/.*$/gm, "");

@@ -336,8 +336,10 @@ try {
   {
     const cmd = withoutPreflight(read("commands/review-code.md"));
     const body = cmd.slice(cmd.indexOf("\n---\n") + 5);
-    check("1 /review-code without --bug is byte-identical: the original body is kept verbatim, first", sha(body.slice(0, 6053)) === "fa922cd35137f74ae2577e82965c6a7d36e383d591e696d1bb9515b139f4a5d7");
-    const bug = body.slice(6053);
+    // 2026-11-22, 0.8.0 integration remediation — re-pinned on purpose: step 0 (a pull request URL is redirected to
+    // /review-pr, never used as a diff baseline) and step 1's scope wording; every other byte of the body is unchanged.
+    check("1 /review-code without --bug is byte-identical: the original body is kept verbatim, first", sha(body.slice(0, 6922)) === "6e410df0fdff28fc7be6a0fcdb9c459fc3a7d99d72a3747ed6011a9b44bbefc9");
+    const bug = body.slice(6922);
     check("1 the bug section applies only with --bug", /^\n## Bug review \(`--bug <bug_key>`\)\n/.test(bug) && /Without `--bug`, nothing in this section applies/.test(bug));
     check("argument-hint documents --bug", /^argument-hint: .*--bug <bug_key>/m.test(cmd));
     check("2 the bug section gathers context through the helper", bug.includes('scripts/bug-review.ts" context bug:<bug_key>') && bug.includes('scripts/bug-review.ts" record bug:<bug_key>'));
