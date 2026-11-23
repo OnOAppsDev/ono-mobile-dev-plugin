@@ -26,6 +26,25 @@ node "${CLAUDE_PLUGIN_ROOT}/scripts/resolve-target-repo-root.ts" "<candidate>"
 
 Do not trust ambient CWD as the root on its own — the helper's `targetRoot` is authoritative.
 
+## 2a. Internal review gate (feature handoff)
+
+Before anything is gathered or written, the feature's internal review must be fresh and free of Blocking findings — the same verification `/pre-pr` and the PR-readiness contract use:
+
+```
+node --no-warnings "${CLAUDE_PLUGIN_ROOT}/scripts/feature-review.ts" verify --root "<TARGET_ROOT>" --feature "<feature>" [--doc "<Task Breakdown path>"]
+```
+
+It is read-only and always exits 0. Act on it before step 3:
+
+| Result | Do |
+|---|---|
+| `status: missing` or `stale` | **Stop.** Name the `reasons`, and offer `/review-code --feature <feature>` under the Continue rule (`docs/command-handoff.md`). |
+| `status: invalid` | **Stop** and report `reasons` — with several Task Breakdowns, pass the one meant as `--doc`. |
+| `status: fresh`, `counts.blocking` above 0 | **Stop.** Blocking findings are resolved first (`/fix-review-comments <record_path>`), then the feature is reviewed again. |
+| `status: fresh`, no Blocking finding | Continue. List the record's Major findings (`majors`) in the handoff's known limitations, unchanged — they need no separate approval. |
+
+This gate adds nothing to bug work: the Bug handoff below keeps its own review checks (R5–R7) and approval exactly as they are.
+
 ## 3. Locate the Task Breakdown and read its frontmatter
 
 Locate this feature's **Task Breakdown** under `TARGET_ROOT` (where the repo keeps design docs — check `docs/` conventions and the repo root; the breakdown is the generated feature artifact, never `templates/task-breakdown-template.md`). If you cannot locate exactly one Task Breakdown for the feature, **stop and ask the user for its path** — do not guess filenames.

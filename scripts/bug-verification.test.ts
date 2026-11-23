@@ -414,9 +414,12 @@ try {
     const PINS: Record<string, string> = {
       // 0.7.6: require-approval-before-code asks when it cannot read the call (no jq, unreadable payload) — on purpose; re-pinned.
       // Node.js preflight: on an unsupported Node.js the ask names the version required — the decision is unchanged; re-pinned.
-      "hooks/require-approval-before-code.sh": "019e286ae41cab56ac645d31db2b3778f742324f007531f184080bc5d36b4dff",
+      // 0.8.0: Tier A code extensions; the no-approval ask carries the helper's workflow guidance — the decision is unchanged; re-pinned.
+      // 2026-11-22, 0.8.0 integration remediation — re-pinned on purpose. hooks: A1 — the payload is read and the decision written through hooks/lib/hook-json.sh (jq, else Node.js, else ask). Decisions unchanged.
+      "hooks/require-approval-before-code.sh": "9f765d3d26c3d51006f4174664fa7683bc5f7624679ec816661f90f710421cd9",
       // 0.7.6: writeRecord creates docs/tasks/bugs/ for a repository's first cycle — on purpose; re-pinned.
-      "scripts/edit-approval.ts": "e6d2e24a8167506e70be5c81c323fdf41aa0ffe03e81f2823cc120e66dd39bab",
+      // 0.8.0: Tier A CODE_EXTENSIONS and workflowGuidance() for the no-approval ask — on purpose; re-pinned.
+      "scripts/edit-approval.ts": "0531cdefd7297524aa469fcd19b0db494e65122cfe41f85c7a7392fc9c3eeabf",
       "agents/feature-implementer.md": "052fec8ac10f83b1b78a94eca52a0260be977fcd4c92c629db91fd66d7b49991",
     };
     for (const [f, h] of Object.entries(PINS)) check(`41 ${f} is unchanged (P0.3 and the shared implementer)`, sha(readFileSync(join(REPO_ROOT, f))) === h);

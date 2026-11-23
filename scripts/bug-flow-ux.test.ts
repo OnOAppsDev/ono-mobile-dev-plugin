@@ -175,7 +175,8 @@ try {
       { id: "root-cause", status: "pass", note: "ok" }, { id: "reproduction-path", status: "pass", note: "ok" }, { id: "plan-conformance", status: "pass", note: "ok" }, { id: "regression-risk", status: "pass", note: "ok" },
     ] }));
     const w = writeReviewRecord({ root: done.root, work: W, review: f });
-    check("2 a recorded review hands on to the QA handoff", w.ok === true && JSON.stringify(w.next_command) === NCMD(`${PLUGIN}:create-dev-qa-notes`, "bug:BUG-43", "/create-dev-qa-notes bug:BUG-43"), JSON.stringify(w.next_command));
+    // 0.8.0: a recorded review hands on to the Pre-PR regression checklist, whose record then offers the QA handoff (pre-pr.test.ts).
+    check("2 a recorded review hands on to the Pre-PR checklist", w.ok === true && JSON.stringify(w.next_command) === NCMD(`${PLUGIN}:pre-pr`, "bug:BUG-43", "/pre-pr bug:BUG-43"), JSON.stringify(w.next_command));
     const noState = reviewContext({ root: fresh.root, work: W });
     check("2 a review with nothing implemented points at the cycle's first task", noState.outcome === "BUG_TASK_STATE_MISSING" && noState.next_command?.skill === `${PLUGIN}:implement-task` && noState.next_command.args === "bug:BUG-43 T1");
 
@@ -262,24 +263,29 @@ try {
       // 0.7.6: the branch hook fails closed without jq, covers NotebookEdit and no longer blocks files outside the project repository — on purpose; re-pinned.
       "hooks/block-main-branch-changes.json": "5be63f8a2207df6847c54ee1422c98fbe113a26290696d927c7da4d5a67ed92f",
       // 0.7.6: the branch hook fails closed without jq, covers NotebookEdit and no longer blocks files outside the project repository — on purpose; re-pinned.
-      "hooks/block-main-branch-changes.sh": "cc73c15a57a65400af30f814c4d536eab9fb87624f141883457b82106d1a6a6c",
+      // 2026-11-22, 0.8.0 integration remediation — re-pinned on purpose. hooks: A1 — the payload is read through hooks/lib/hook-json.sh (jq, else Node.js, else fail closed). Decisions unchanged.
+      "hooks/block-main-branch-changes.sh": "08834255cd3a3e0226380a0b336214b88dda8baf9f30232676261070dab7e90e",
       // 0.7.6: protect-secrets fails closed without jq or on an unreadable call, and scans NotebookEdit — on purpose; re-pinned.
       "hooks/protect-secrets.json": "b4b4350722c03853c22a91f53d0b25d6bc0898b8d9e51ec821a73e62242d003c",
       // 0.7.6: protect-secrets fails closed without jq or on an unreadable call, and scans NotebookEdit — on purpose; re-pinned.
-      "hooks/scan-for-secrets.sh": "150b922d44c432db52fa1e5898acfac3b997008e7bfea88a02562112d86c4cc0",
+      // 2026-11-22, 0.8.0 integration remediation — re-pinned on purpose. hooks: A1 — the payload is read through hooks/lib/hook-json.sh (jq, else Node.js, else fail closed); grep failure blocks. Decisions unchanged.
+      "hooks/scan-for-secrets.sh": "df0e036f1a42358babdca69540f5dbe282c0740d6ec0c6ba3930ade5052e00fd",
     };
     for (const [f, h] of Object.entries(HOOKS)) check(`14 ${f} is byte-identical`, sha(readFileSync(join(REPO_ROOT, f))) === h);
     const FEATURE: Record<string, string> = {
       "agents/feature-implementer.md": "052fec8ac10f83b1b78a94eca52a0260be977fcd4c92c629db91fd66d7b49991",
       "agents/feature-architect.md": "c715811b78c1804368766551cf42f46beec568d78a91397a4ea5f57d96bca582",
-      "commands/analyze-feature.md": "37dc84922229db1eb7d6eca507a8cd917dc3ddde7edc8d8e1185d8482cf7fa8e",
-      "commands/dev-design-start.md": "f62963b1d156f4d9b22cd1d92678d4de25f0d66d7120801d62075d14ec8b9ca8",
-      "commands/dev-feature-start.md": "0713797d25d66df5064424ffd0dcf4269fead926512c2c40dd2eb9350abce175",
+      // 0.8.0 Feature Flow continuity: the feature planning commands end with the Continue step (feature-flow.test.ts pins it) — re-pinned on purpose.
+      "commands/analyze-feature.md": "ca20531ae3af3f4a71060b3cbe437036e17fd24b5df1344ac1d1f853b3c60767",
+      "commands/dev-design-start.md": "c622eb62919d4ed9ae6d3ab725cbb411ead112df8d9f1dbd31d4799e1cca9982",
+      "commands/dev-feature-start.md": "5d896e065dabc243120b58dac21466fce130f99f98b29c8d012021b0d922c5d9",
     };
     for (const [f, h] of Object.entries(FEATURE)) check(`15 ${f} is unchanged`, sha(withoutPreflight(readFileSync(join(REPO_ROOT, f)))) === h);
     const it = read("commands/implement-task.md");
     const featurePart = it.slice(it.indexOf("\n## 2. "));
-    check("15 /implement-task's feature sections carry no bug output policy or chaining", !/next_command|Output policy/.test(featurePart));
+    // 0.8.0: the feature path chains too — only through feature-flow.ts, in its own "Next step (feature work)" paragraph.
+    const featureNext = /\n\*\*Next step \(feature work\)\.\*\*[\s\S]*?\n(?=\n## |\n\*\*[A-Z])/.exec(featurePart)?.[0] ?? "";
+    check("15 /implement-task's feature sections carry no bug output policy or chaining", featureNext !== "" && /feature-flow\.ts" status/.test(featureNext) && !/next_command|Output policy/.test(featurePart.replace(featureNext, "")));
     check("the suite is registered", read("scripts/check.ts").includes('"bug-flow-ux"'));
   }
 } finally {

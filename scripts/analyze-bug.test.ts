@@ -475,9 +475,10 @@ try {
     // Step 5 changed /implement-task, task-state.ts and task-resume.ts on purpose; bug-implementation.test.ts
     // pins every feature section of /implement-task, and the task-state suites pin the store's behaviour.
     const PINNED: Record<string, string> = {
-      "commands/analyze-feature.md": "37dc84922229db1eb7d6eca507a8cd917dc3ddde7edc8d8e1185d8482cf7fa8e",
-      "commands/dev-design-start.md": "f62963b1d156f4d9b22cd1d92678d4de25f0d66d7120801d62075d14ec8b9ca8",
-      "commands/dev-feature-start.md": "0713797d25d66df5064424ffd0dcf4269fead926512c2c40dd2eb9350abce175",
+      // 0.8.0 Feature Flow continuity: the feature planning commands end with the Continue step (feature-flow.test.ts pins it) — re-pinned on purpose.
+      "commands/analyze-feature.md": "ca20531ae3af3f4a71060b3cbe437036e17fd24b5df1344ac1d1f853b3c60767",
+      "commands/dev-design-start.md": "c622eb62919d4ed9ae6d3ab725cbb411ead112df8d9f1dbd31d4799e1cca9982",
+      "commands/dev-feature-start.md": "5d896e065dabc243120b58dac21466fce130f99f98b29c8d012021b0d922c5d9",
       // Step 7 extended /create-dev-qa-notes with bug:<key>; qa-handoff-gate.test.ts pins its feature body verbatim.
       "commands/prepare-mobile-release.md": "7f7d431309a77e4af4f7485b236cf2205616f2afed3b06de94cf2a0acbf327e4",
       "commands/fix-review-comments.md": "5b6d7698b9c940ea8bb783669ee37fe8b71f5a39ca4428bce9e6882c459c7a3d",
@@ -485,7 +486,8 @@ try {
       "skills/platform-planning/SKILL.md": "4375411ab8091ac6cd4f8433ba75e8df53d7b4ab79be95a3eeb78aa01cf3f86c",
       "skills/mobile-debugging/SKILL.md": "0b6bc7a1384ca2dc1f762dcd2946ccd8320dfe35fc0471f79e027d4f580c081e",
       // 0.7.5: KNOWLEDGE_ROOT for nested Inspector projects, changed on purpose; project-knowledge-consumption.test.ts pins the new rules.
-      "skills/repo-knowledge-consumer/SKILL.md": "99420131b93774c1715b4f83f96cdc6e44b2e7e43bbcf436d57293a5f43cd319",
+      // 2026-11-22, 0.8.0 integration remediation — re-pinned on purpose. skill: A2 — an inspection without the manifest names /inspect-sync once per command run; nothing else changed.
+      "skills/repo-knowledge-consumer/SKILL.md": "9f2fde0425608b0abf8303cdc38ce8fd80539e1ea4ed92205e08577feb0c70b9",
     };
     for (const [f, h] of Object.entries(PINNED)) check(`33/36 ${f} is unchanged`, sha(withoutPreflight(readFileSync(join(REPO_ROOT, f)))) === h);
     const src = read("scripts/analyze-bug.ts").replace(/\/\*\*[\s\S]*?\*\//g, "").replace(/^\s*\/\/.*$/gm, "");

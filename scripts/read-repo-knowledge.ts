@@ -215,6 +215,13 @@ export interface KnowledgeResult {
    * this result carry is relative to the target root, not the Git root.
    */
   projectPrefix: string | null;
+  /**
+   * A2 (0.8.0). True only when the manifest is `absent` but the repository was inspected — its
+   * AUDIT.md and .ono/state.json exist: an inspection that predates the manifest (inspector
+   * < 0.10.0). `summary` then names the one-time fix, `/ono-project-inspector:inspect-sync`.
+   * False for an uninspected repository, which is not broken and needs nothing.
+   */
+  inspectionWithoutManifest: boolean;
   /** One line for a command to show the developer. */
   summary: string;
 }
@@ -310,6 +317,7 @@ function unavailable(reason: Unavailable, summary: string, schemaVersion: number
     invalidRelationships: [],
     surfacesAreAdvisory: true,
     projectPrefix: null,
+    inspectionWithoutManifest: false,
     summary,
   };
 }
@@ -672,6 +680,17 @@ function readAt(targetRootInput: string): KnowledgeResult {
   const manifestRel = join(".ono", "repo-knowledge.json");
   const manifestPath = join(targetRoot, manifestRel);
   if (!existsSync(manifestPath)) {
+    // An inspection that predates the manifest: one /inspect-sync (by anyone with Bun, then a PR)
+    // writes it from the already-approved artifacts. Nothing here writes or regenerates it.
+    if (existsSync(join(targetRoot, "AUDIT.md")) && existsSync(join(targetRoot, ".ono", "state.json"))) {
+      return {
+        ...unavailable(
+          "absent",
+          "No repo-knowledge manifest. This inspection predates it. One `/ono-project-inspector:inspect-sync` by anyone with Bun (then a PR) makes every analysis faster for the whole team. Deriving repository context live for now."
+        ),
+        inspectionWithoutManifest: true,
+      };
+    }
     return unavailable(
       "absent",
       "Repository knowledge is not available (no .ono/repo-knowledge.json). Deriving all repository knowledge live — running /inspect with the Ono Project Inspector would let this plugin reuse approved knowledge instead."
@@ -795,6 +814,7 @@ function readAt(targetRootInput: string): KnowledgeResult {
     invalidRelationships: capabilitiesCategory.status === "deriveLive" ? [] : extracted.invalid,
     surfacesAreAdvisory: true,
     projectPrefix: null,
+    inspectionWithoutManifest: false,
     summary,
   };
 }

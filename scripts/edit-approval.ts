@@ -53,10 +53,15 @@ import { plainIdentityProblem, verifyApproval } from "./work-approval.ts";
 import { bugKeyOf, readTaskState } from "./task-state.ts";
 import { filesFromCell, rowCells } from "./task-resume.ts";
 import { canonical } from "./qa-release-gate.ts";
+import { PLUGIN_NAME } from "./next-command.ts";
 
 export const RECORD_SCHEMA = 1;
 /** The code files the require-approval-before-code hook asks about — the same list as the hook. */
-export const CODE_EXTENSIONS = [".ts", ".tsx", ".js", ".jsx", ".swift", ".kt", ".kts", ".java", ".m", ".mm", ".cpp", ".h"];
+export const CODE_EXTENSIONS = [
+  ".ts", ".tsx", ".js", ".jsx", ".swift", ".kt", ".kts", ".java", ".m", ".mm", ".cpp", ".h",
+  // 0.8.0 Tier A: C/C++ sources and headers, ES/TS module variants, Gradle/Groovy build scripts, stylesheets.
+  ".c", ".cc", ".cxx", ".hpp", ".hh", ".mjs", ".cjs", ".mts", ".cts", ".gradle", ".groovy", ".css", ".scss", ".sass", ".less",
+];
 const PROTECTED_BRANCHES = new Set(["main", "master"]);
 /** A directory is approvable only this deep; anything shallower is too broad to approve as one scope. */
 const MIN_DIR_SEGMENTS = 3;
@@ -198,6 +203,22 @@ function relativeTo(root: string, file: string): string | null {
   return rel.split(sep).join("/");
 }
 
+/**
+ * The guidance shown with the ask when no Bug Fix Cycle approval applies: which Ono command
+ * starts or continues this work. Guidance only — the decision stays `ask`, and which workflow
+ * the developer intends is never inferred (that routing belongs to the Platform Guardian).
+ */
+export function workflowGuidance(featureTasks: string[], bugsInProgress: string[]): string {
+  const cmd = (c: string) => `/${PLUGIN_NAME}:${c}`;
+  if (featureTasks.length > 0) {
+    return `Feature task in progress: ${featureTasks.join(", ")} (${cmd("implement-task")}). Approve this edit only if it belongs to that task.`;
+  }
+  if (bugsInProgress.length > 0) {
+    return `Bug work is in progress (${bugsInProgress.join(", ")}) but no fix cycle approval covers this edit — continue it with ${cmd("implement-task")} bug:<bug_key> <task-id>.`;
+  }
+  return `No Ono workflow is active for this change. Start one: ${cmd("analyze-bug")} <bug-ref> for a bug fix, ${cmd("analyze-feature")} <request> for new development, or ${cmd("implement-task")} <feature> <task-id> to continue an approved task.`;
+}
+
 /** In-progress feature tasks under `root` (docs/tasks/<feature>-task-state.json), read raw. */
 function featureWorkInProgress(root: string): string[] {
   const dir = join(root, "docs/tasks");
@@ -317,7 +338,9 @@ export function checkEdit(req: { file: string; cwd?: string }): Record<string, a
   // Every directory from the file up to the repository root may be a TARGET_ROOT with bug approvals.
   const verdicts: Array<{ root: string; verdict: Verdict }> = [];
   const activeBugs: string[] = [];
+  const featureTasks: string[] = [];
   for (let dir = dirname(join(gitRoot, relToTop)); ; dir = dirname(dir)) {
+    featureTasks.push(...featureWorkInProgress(dir));
     const bugs = join(dir, "docs/tasks/bugs");
     if (existsSync(bugs) && statSync(bugs).isDirectory()) {
       const entries = readdirSync(bugs).sort();
@@ -337,7 +360,10 @@ export function checkEdit(req: { file: string; cwd?: string }): Record<string, a
     }
     if (dir === gitRoot || dirname(dir) === dir) break;
   }
-  if (verdicts.length === 0) return ask("NO_ACTIVE_APPROVAL", "no bug fix cycle is approved here");
+  if (verdicts.length === 0) {
+    const bugs = activeBugs.map((f) => `bug:${f.slice(0, -".task-state.json".length)}`);
+    return ask("NO_ACTIVE_APPROVAL", "no bug fix cycle is approved here", { hook_note: workflowGuidance(featureTasks, bugs) });
+  }
   const note = (vd: Verdict) => `[${vd.work_id}: ${vd.outcome}] ${vd.reason}.`;
   if (activeBugs.length > 1) {
     return ask("MULTIPLE_ACTIVE_WORK", `more than one bug has a task in progress (${activeBugs.join(", ")}) — which one this edit belongs to is ambiguous`, { hook_note: "More than one bug has a task in progress, so no cycle approval applies." });

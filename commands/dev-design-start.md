@@ -64,3 +64,15 @@ Turn an approved feature analysis into a Detailed Design (DD).
    - the six `repo_knowledge_*` values from **this run's** resolution in step 2 — never copied from the feature analysis.
 6. **The skill's Step 7 contraction pass must have run before the DD is handed over — it is mandatory, not optional.** Step 7 owns what it removes and the one-line report it produces; this command's only obligation is not to accept a DD that skipped it.
 7. Leave `status: draft` in the DD's frontmatter — do not mark it `approved`. This is a design, not a task list. A human reviews and flips that status before `/dev-feature-start` turns the DD into a task breakdown.
+
+**Continue — offer the next step; never approve.** Once the DD is written, ask where the feature stands now:
+
+```
+node --no-warnings "${CLAUDE_PLUGIN_ROOT}/scripts/feature-flow.ts" status --root "<TARGET_ROOT>" --feature "<feature>" --doc "<the DD just written>"
+```
+
+It is read-only, always exits 0 and prints one JSON object. Act on `stage`:
+
+- `awaiting-approval` → one short message: what was written, the developer's approval step from `waiting_on` (`where` is `<path>:<line>` of the `status:` field a human sets to `approved`), and the next step from `after_approval` — for example `DD written. Your step: review it, then change `status` to `approved` at <where>. Next: /dev-feature-start <feature>. Continue once approved?` Chain only on an explicit yes given after that approval; the next command re-reads `status` and stops if it is still not approved. Never set, flip or suggest setting `status` yourself: continuing is never an approval, and no approval is ever asked twice.
+- any other stage with a `next_command` → offer it in one short message ending `Continue?`, under the same rule (`docs/command-handoff.md` § Continuing): chain only on an explicit yes, invoke the Skill tool with `next_command.skill` and `next_command.args` verbatim, and fall back to `next_command.display`.
+- `AMBIGUOUS` (more than one document of a stage names this feature) → list `candidates` and ask which one is meant; never pick one.

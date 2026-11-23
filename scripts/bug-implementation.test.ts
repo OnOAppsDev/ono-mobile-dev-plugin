@@ -350,7 +350,8 @@ try {
       "7a. Record `in-progress` before handing off": "19a0d225de80e2ae64a8ed2107dbd9d42ae654e4ad62ec1da48467fa2fb09018",
       "8. Pass explicit resolved context to the selected agent + skill": "ecdb4eddd01892576f0a9f191cf3e2845050b14f611059da23469bed1e5bd470",
       "9. Scope: exactly one task": "ca5739ca52f37ea85acdef8b7f742eed9cf8baedca10adebdef0981ac764e1e6",
-      "10. Completion handling (report; do not mutate status)": "1f5a367caf3581e7d42f9e1dbd0ddb4e379588a5601d7828b1f4a1ea22e0392a",
+      // 0.8.0 Feature Flow continuity: §10 ends with the feature next step from feature-flow.ts — re-pinned on purpose.
+      "10. Completion handling (report; do not mutate status)": "7822e6fbe9efc23620fc8e9834a0414da80eda4ae18359777044fe1d3f0707ff",
       "Responsibility boundary": "acd92a7f289e84c437f4ba73a9eb2f63f0410779652b8974da4c69e114ec284f",
     };
     const sections = new Map(cmd.split("\n## ").slice(1).map((p) => [p.split("\n")[0], p]));
@@ -382,21 +383,24 @@ try {
       // 0.7.6: the branch hook fails closed without jq, covers NotebookEdit and no longer blocks files outside the project repository — on purpose; re-pinned.
       "hooks/block-main-branch-changes.json": "5be63f8a2207df6847c54ee1422c98fbe113a26290696d927c7da4d5a67ed92f",
       // 0.7.6: the branch hook fails closed without jq, covers NotebookEdit and no longer blocks files outside the project repository — on purpose; re-pinned.
-      "hooks/block-main-branch-changes.sh": "cc73c15a57a65400af30f814c4d536eab9fb87624f141883457b82106d1a6a6c",
+      // 2026-11-22, 0.8.0 integration remediation — re-pinned on purpose. hooks: A1 — the payload is read through hooks/lib/hook-json.sh (jq, else Node.js, else fail closed). Decisions unchanged.
+      "hooks/block-main-branch-changes.sh": "08834255cd3a3e0226380a0b336214b88dda8baf9f30232676261070dab7e90e",
       // 0.7.6: protect-secrets fails closed without jq or on an unreadable call, and scans NotebookEdit — on purpose; re-pinned.
       "hooks/protect-secrets.json": "b4b4350722c03853c22a91f53d0b25d6bc0898b8d9e51ec821a73e62242d003c",
       "hooks/require-approval-before-code.json": "37f5f2e5dbe97ccac0f432a7b3eacc6f8595b0d2a60ade3674df0f6ec69db043",
       // hooks/require-approval-before-code.sh: Bug Flow UX P0.3 changed it on purpose (one approval per Bug Fix Cycle); pinned by edit-approval.test.ts and hooks.test.ts.
       // 0.7.6: protect-secrets fails closed without jq or on an unreadable call, and scans NotebookEdit — on purpose; re-pinned.
-      "hooks/scan-for-secrets.sh": "150b922d44c432db52fa1e5898acfac3b997008e7bfea88a02562112d86c4cc0",
+      // 2026-11-22, 0.8.0 integration remediation — re-pinned on purpose. hooks: A1 — the payload is read through hooks/lib/hook-json.sh (jq, else Node.js, else fail closed); grep failure blocks. Decisions unchanged.
+      "hooks/scan-for-secrets.sh": "df0e036f1a42358babdca69540f5dbe282c0740d6ec0c6ba3930ade5052e00fd",
       // Step 6 extended /review-code with --bug; bug-review.test.ts pins its original body verbatim.
       // Step 7 extended /create-dev-qa-notes with bug:<key>; qa-handoff-gate.test.ts pins its feature body verbatim.
       "templates/qa-handoff-template.md": "3203b0e0ffd0a3e0c67044cc18dcdaf752047a2c61f1e5cd7538cf1b16cfb564",
       // RN AI coding guidelines (#52) changed the code-comment constraint on purpose; re-pinned.
       "agents/feature-implementer.md": "052fec8ac10f83b1b78a94eca52a0260be977fcd4c92c629db91fd66d7b49991",
-      "commands/analyze-feature.md": "37dc84922229db1eb7d6eca507a8cd917dc3ddde7edc8d8e1185d8482cf7fa8e",
-      "commands/dev-design-start.md": "f62963b1d156f4d9b22cd1d92678d4de25f0d66d7120801d62075d14ec8b9ca8",
-      "commands/dev-feature-start.md": "0713797d25d66df5064424ffd0dcf4269fead926512c2c40dd2eb9350abce175",
+      // 0.8.0 Feature Flow continuity: the feature planning commands end with the Continue step (feature-flow.test.ts pins it) — re-pinned on purpose.
+      "commands/analyze-feature.md": "ca20531ae3af3f4a71060b3cbe437036e17fd24b5df1344ac1d1f853b3c60767",
+      "commands/dev-design-start.md": "c622eb62919d4ed9ae6d3ab725cbb411ead112df8d9f1dbd31d4799e1cca9982",
+      "commands/dev-feature-start.md": "5d896e065dabc243120b58dac21466fce130f99f98b29c8d012021b0d922c5d9",
       "commands/prepare-mobile-release.md": "7f7d431309a77e4af4f7485b236cf2205616f2afed3b06de94cf2a0acbf327e4",
     };
     for (const [f, h] of Object.entries(PINNED)) check(`14A/32/33 ${f} is unchanged`, sha(withoutPreflight(readFileSync(join(REPO_ROOT, f)))) === h);

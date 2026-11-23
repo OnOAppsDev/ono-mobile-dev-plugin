@@ -6,7 +6,7 @@
 # Scope: the project repository — every path under its top level, symlinks resolved. A file
 # outside it (the session scratch directory, a temp file) is not a change to the project and
 # is let through. A target that cannot be placed — no path in the payload, a symlink, a
-# payload that cannot be read, or no jq to read it — is treated as a project file, so on
+# payload that cannot be read, or neither jq nor Node.js to read it — is treated as a project file, so on
 # main/master it is blocked (fail closed): this hook never allows more than it can prove.
 #
 # Not a complete barrier: a shell command can still write files. This hook covers the
@@ -28,18 +28,29 @@ block() {
   exit 2
 }
 
-# Without jq the payload cannot be read — neither the tool nor the file. The matcher only
-# sends file-editing tools here, so this is a write to an unknown file: fail closed.
-command -v jq >/dev/null 2>&1 || block " (jq is not installed, so this hook cannot tell which file is being changed; install jq.)"
+case "${BASH_SOURCE[0]}" in */*) hook_dir="${BASH_SOURCE[0]%/*}" ;; *) hook_dir="." ;; esac
+# shellcheck source=lib/hook-json.sh
+. "${hook_dir}/lib/hook-json.sh" 2>/dev/null || block " (the plugin's hook library hooks/lib/hook-json.sh is missing, so this hook cannot tell which file is being changed.)"
 
-tool_name="$(jq -r '.tool_name // empty' <<<"$payload" 2>/dev/null)" || block " (the tool call could not be read.)"
+# Without jq or Node.js the payload cannot be read — neither the tool nor the file. The matcher
+# only sends file-editing tools here, so this is a write to an unknown file: fail closed.
+# field <spec>: the value in REPLY, or block.
+field() {
+  local rc=0
+  REPLY="$(json_get "$payload" "$1")" || rc=$?
+  [ "$rc" = 3 ] && block " (jq is not installed and Node.js is not available, so this hook cannot tell which file is being changed. ${HOOK_JSON_INSTALL_HINT}.)"
+  [ "$rc" = 0 ] || block " (the tool call could not be read.)"
+  return 0
+}
+
+field '.tool_name'; tool_name="$REPLY"
 case "$tool_name" in
   Write|Edit|MultiEdit|NotebookEdit) ;;
   "") block " (the tool call could not be read.)" ;;
   *) exit 0 ;;
 esac
 
-target="$(jq -r '.tool_input.file_path // .tool_input.notebook_path // empty' <<<"$payload" 2>/dev/null)" || block
+field '.tool_input.file_path // .tool_input.notebook_path'; target="$REPLY"
 [ -n "$target" ] || block
 [ -L "$target" ] && block
 
@@ -50,7 +61,7 @@ project_top="$(cd "$project_top" && pwd -P)"
 case "$target" in
   /*) ;;
   *)
-    base="$(jq -r '.cwd // empty' <<<"$payload" 2>/dev/null)"
+    field '.cwd'; base="$REPLY"
     target="${base:-$project_dir}/$target"
     ;;
 esac
