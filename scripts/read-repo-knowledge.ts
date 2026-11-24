@@ -923,6 +923,98 @@ function baseStatus(r: KnowledgeResult, category: string): ExtendedStatus {
   return r.trustedCategories.includes(category) ? "trusted" : r.verifyOnUse.includes(category) ? "verifyOnUse" : "deriveLive";
 }
 
+/* ------------------------------------------- 0.9.0: the single-target routing exception */
+
+/** Where the manifest lives, relative to the knowledge root — named here, by its only parser. */
+export const MANIFEST_REL = ".ono/repo-knowledge.json";
+
+/**
+ * The exact surface `platform` texts that name a routing platform — compared case-insensitively
+ * after trimming surrounding whitespace, nothing else: no substring, no fuzzy match, no reading
+ * of free-form descriptions. `device` is the device type the text itself implies (null: the
+ * surface's `formFactor` decides). Any other text — "React web", "Samsung Tizen (React)",
+ * "Android (TV + phone)" — is not mappable, and the bug's routing is confirmed by the developer.
+ */
+export const SURFACE_PLATFORM_ALIASES: Readonly<Record<string, { platform: "android" | "ios" | "react-native"; device: "mobile" | "tv" | null }>> = {
+  android: { platform: "android", device: null },
+  "android tv": { platform: "android", device: "tv" },
+  "android-tv": { platform: "android", device: "tv" },
+  androidtv: { platform: "android", device: "tv" },
+  "google tv": { platform: "android", device: "tv" },
+  "google-tv": { platform: "android", device: "tv" },
+  ios: { platform: "ios", device: "mobile" },
+  ipados: { platform: "ios", device: "mobile" },
+  iphone: { platform: "ios", device: "mobile" },
+  ipad: { platform: "ios", device: "mobile" },
+  tvos: { platform: "ios", device: "tv" },
+  "apple tv": { platform: "ios", device: "tv" },
+  "apple-tv": { platform: "ios", device: "tv" },
+  appletv: { platform: "ios", device: "tv" },
+  "react native": { platform: "react-native", device: "mobile" },
+  "react-native": { platform: "react-native", device: "mobile" },
+  expo: { platform: "react-native", device: "mobile" },
+};
+
+/**
+ * `formFactor` → `device_type`, for this routing decision only. `formFactor` stays descriptive
+ * everywhere else; `desktop`, `wearable`, `other` and null map to nothing.
+ */
+export const FORM_FACTOR_DEVICE: Readonly<Record<string, "mobile" | "tv">> = { handheld: "mobile", tv: "tv" };
+
+/** The routing pairs this exception may produce — existing canonical values only. */
+export const SINGLE_TARGET_PAIRS = ["android/mobile", "android/tv", "ios/mobile", "ios/tv", "react-native/mobile"] as const;
+
+export type SingleTarget =
+  | { status: "single"; platform: string; device_type: string; surfaces: string[]; knowledgeHead: string; mapping: Array<{ surface: string; platform: string | null; formFactor: string | null }> }
+  | { status: "none"; reason: string };
+
+/**
+ * Whether validated Project Knowledge proves that the repository at this root supports exactly
+ * one routing pair — the only way Project Knowledge takes part in routing (docs/repo-knowledge-
+ * contract.md § The single-target routing exception). Deterministic: no AI, no heuristics, and
+ * anything that cannot be established is `none` — never a guess. Production and staging surfaces
+ * that map to the same pair are one candidate; surface ids are never read for meaning.
+ */
+export function singleRoutingTarget(r: KnowledgeResult): SingleTarget {
+  const none = (reason: string): SingleTarget => ({ status: "none", reason });
+  if (!r.available) return none(`Project Knowledge is unavailable (${r.reason ?? "unknown"})`);
+  if (r.projectPrefix !== "") return none(r.projectPrefix === null ? "the knowledge root is not in a git repository" : `the knowledge belongs to the nested project ${r.projectPrefix}, not to the repository root`);
+  const cat = r.extendedCategories.surfaces;
+  if (cat.status !== "trusted") return none(`the surfaces are not trusted (${cat.status}: ${cat.reason})`);
+  if (r.knowledge?.coverage?.surfaces !== "populated") return none(`coverage.surfaces is ${r.knowledge?.coverage?.surfaces ?? "absent"}, not populated — not every target is known to be declared`);
+  if (r.sourceDrift?.status !== "COMPLETE") return none(`source drift is ${r.sourceDrift?.status ?? "unknown"}, not COMPLETE`);
+  const knowledgeHead = r.sourceDrift.knowledgeHead;
+  if (!knowledgeHead) return none("no knowledge-authoring HEAD is recorded");
+  if (r.invalidRelationships.length > 0) return none(`${r.invalidRelationships.length} capability relationship(s) failed validation`);
+  const surfaces = r.surfaces ?? [];
+  if (surfaces.length === 0) return none("the repository declares no surfaces");
+
+  const mapping = surfaces.map((s) => ({ surface: s.id, platform: s.platform, formFactor: s.formFactor }));
+  const pairs = new Map<string, string[]>();
+  for (const s of surfaces) {
+    const alias = s.platform === null ? undefined : SURFACE_PLATFORM_ALIASES[s.platform.trim().toLowerCase()];
+    const device = s.formFactor === null ? undefined : FORM_FACTOR_DEVICE[s.formFactor];
+    if (alias === undefined) return none(`surface ${s.id}: platform ${JSON.stringify(s.platform)} is not a recognised routing platform`);
+    if (device === undefined) return none(`surface ${s.id}: formFactor ${JSON.stringify(s.formFactor)} maps to no device type`);
+    if (alias.device !== null && alias.device !== device) return none(`surface ${s.id}: platform ${JSON.stringify(s.platform)} contradicts formFactor ${s.formFactor}`);
+    const pair = `${alias.platform}/${device}`;
+    if (!(SINGLE_TARGET_PAIRS as readonly string[]).includes(pair)) return none(`surface ${s.id}: ${pair} is not a pair this routing exception supports`);
+    pairs.set(pair, [...(pairs.get(pair) ?? []), s.id]);
+  }
+  if (pairs.size !== 1) return none(`the surfaces map to ${pairs.size} routing pairs (${[...pairs.keys()].sort().join(", ")}) — the developer chooses`);
+  const [pair, ids] = [...pairs.entries()][0];
+  const [platform, device_type] = pair.split("/");
+
+  // React Native: its native shells must provably be the same application — every surface
+  // declares every other one as sharing its code, and one shared-code root is shared by all.
+  if (platform === "react-native" && ids.length > 1) {
+    const linked = surfaces.every((s) => ids.filter((o) => o !== s.id).every((o) => s.sharedWith.includes(o)));
+    const shared = (r.sharedCode ?? []).some((c) => ids.every((id) => c.sharedBy.includes(id)));
+    if (!linked || !shared) return none("the React Native surfaces are not proven to be one application (sharedWith and one shared-code root shared by every surface)");
+  }
+  return { status: "single", platform, device_type, surfaces: [...ids].sort(), knowledgeHead, mapping };
+}
+
 /**
  * One surface's context — to scope a feature AFTER the human confirmed its platform and
  * device type. Never an input to routing: `formFactor` is not a `device_type`.

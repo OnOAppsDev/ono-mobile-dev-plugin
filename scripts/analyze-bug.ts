@@ -52,6 +52,10 @@ import { readFrontmatter, splitDocument } from "./migrate-planning-doc.ts";
 import { rowCells, sectionFingerprints } from "./task-resume.ts";
 import { readTaskState, stateFilePath, BUG_REPRO_CRITERION } from "./task-state.ts";
 import { writeStdout } from "./write-output.ts";
+// 0.9.0 — the single-target routing exception, and nothing else: Project Knowledge is read here
+// only to prove the repository's one routing pair (routing section). It never decides whether
+// the bug exists, its capability, its fix or any approval.
+import { readRepoKnowledge, singleRoutingTarget, MANIFEST_REL } from "./read-repo-knowledge.ts";
 
 const PLUGIN_ROOT = dirname(import.meta.dirname ?? __dirname);
 const TEMPLATE = join(PLUGIN_ROOT, "templates/bug-work-plan-template.md");
@@ -144,24 +148,126 @@ function featureBreakdowns(root: string, feature: string): Array<{ path: string;
 }
 
 /**
- * Routing is never chosen here: it is carried from the existing plan, inherited from the related
- * feature's one approved Task Breakdown, or confirmed by the developer from repo-analyst's detection.
- * The tracker's affected surfaces and environment are returned as corroborating evidence for that
- * detection — they may disambiguate among the targets the repository supports, never add one.
+ * Routing, in this precedence (docs/bug-work-plan-contract.md § Routing):
+ *   1. `existing-plan` — carried from the existing plan, as recorded;
+ *   2. the related feature's one approved Task Breakdown — as a human confirmed it;
+ *   3. `repo-single-target` (0.9.0) — only for a bug with no related feature, when validated
+ *      Project Knowledge proves the repository supports exactly one routing pair and the
+ *      ticket's evidence does not contradict it (`repoSingleTarget`);
+ *   4. otherwise the developer confirms it from repo-analyst's detection.
+ * The tracker's affected surfaces and environment are corroborating evidence — they may
+ * disambiguate among the targets the repository supports, never add one.
  */
-function routing(root: string, identity: Record<string, any>, plan: Record<string, any> | null, environment: string | null = null) {
+function routing(root: string, identity: Record<string, any>, plan: Record<string, any> | null, environment: string | null = null, planBody: string | null = null) {
   const corroborating_surfaces = identity.surfaces ?? [];
   const corroborating_environment = environment;
   if (plan) {
-    return { platform: plan.platform, device_type: plan.device_type, source: "existing-plan", requires_confirmation: false, reason: "the routing confirmed for the existing plan", corroborating_surfaces, corroborating_environment };
+    const recorded = planBody === null ? null : recordedRouting(planBody);
+    return { platform: plan.platform, device_type: plan.device_type, source: "existing-plan", requires_confirmation: false, reason: "the routing confirmed for the existing plan", recorded, corroborating_surfaces, corroborating_environment };
   }
-  const ask = (reason: string) => ({ platform: null, device_type: null, source: null, requires_confirmation: true, reason, corroborating_surfaces, corroborating_environment });
-  if (!identity.related_feature) return ask("no related feature with human-confirmed routing — confirm the platform and device type once");
+  const ask = (reason: string, extra: Record<string, unknown> = {}) => ({ platform: null, device_type: null, source: null, requires_confirmation: true, reason, corroborating_surfaces, corroborating_environment, ...extra });
+  if (!identity.related_feature) {
+    const single = repoSingleTarget(root, corroborating_surfaces, environment);
+    if (single.ok) {
+      return {
+        platform: single.platform,
+        device_type: single.device_type,
+        source: "repo-single-target",
+        requires_confirmation: false,
+        reason: `the repository's single target, proven by Project Knowledge (surfaces ${single.surfaces.join(", ")}, knowledge at ${single.knowledge_head.slice(0, 12)})`,
+        evidence: { surfaces: single.surfaces, knowledge_head: single.knowledge_head, manifest: MANIFEST_REL, mapping: single.mapping },
+        corroborating_surfaces,
+        corroborating_environment,
+      };
+    }
+    return ask("no related feature with human-confirmed routing — confirm the platform and device type once", { repo_single_target: { eligible: false, reason: single.reason } });
+  }
   const found = featureBreakdowns(root, identity.related_feature);
   if (found.length !== 1) return ask(`related feature ${identity.related_feature} has ${found.length} approved Task Breakdowns — confirm the platform and device type once`);
   const [b] = found;
   if (!PLATFORMS.includes(b.platform) || !DEVICE_TYPES.includes(b.device_type)) return ask(`${b.path} does not carry a valid platform and device type — confirm them once`);
   return { platform: b.platform, device_type: b.device_type, source: b.path, requires_confirmation: false, reason: `inherited from the approved Task Breakdown of related feature ${identity.related_feature}`, corroborating_surfaces, corroborating_environment };
+}
+
+/**
+ * What a ticket's surface or environment says about routing — exact names only (trimmed,
+ * case-insensitive). Anything else is unrecognised, and unrecognised evidence is never read as
+ * agreement: the developer confirms.
+ */
+const TICKET_TARGETS: Readonly<Record<string, { platform?: string; device?: string }>> = {
+  android: { platform: "android" },
+  "android tv": { platform: "android", device: "tv" },
+  "android-tv": { platform: "android", device: "tv" },
+  androidtv: { platform: "android", device: "tv" },
+  "google tv": { platform: "android", device: "tv" },
+  "google-tv": { platform: "android", device: "tv" },
+  ios: { platform: "ios", device: "mobile" },
+  ipados: { platform: "ios", device: "mobile" },
+  iphone: { platform: "ios", device: "mobile" },
+  ipad: { platform: "ios", device: "mobile" },
+  tvos: { platform: "ios", device: "tv" },
+  "apple tv": { platform: "ios", device: "tv" },
+  "apple-tv": { platform: "ios", device: "tv" },
+  appletv: { platform: "ios", device: "tv" },
+  "react native": { platform: "react-native" },
+  "react-native": { platform: "react-native" },
+  expo: { platform: "react-native" },
+  tv: { device: "tv" },
+  mobile: { device: "mobile" },
+  phone: { device: "mobile" },
+  tablet: { device: "mobile" },
+};
+
+/**
+ * One piece of ticket evidence against the proven pair: agrees, contradicts, or is not
+ * recognised. A declared surface id agrees (it is one of the targets that proved the pair). In
+ * a React Native app the OS (`ios`, `android`) is a surface of the one platform, never another.
+ */
+export function ticketEvidence(value: string, pair: { platform: string; device_type: string }, surfaceIds: string[]): "agrees" | "contradicts" | "unrecognised" {
+  const v = value.trim().toLowerCase();
+  if (surfaceIds.some((id) => id.trim().toLowerCase() === v)) return "agrees";
+  const t = TICKET_TARGETS[v];
+  if (t === undefined) return "unrecognised";
+  if (t.device !== undefined && t.device !== pair.device_type) return "contradicts";
+  if (t.platform === undefined || t.platform === pair.platform) return "agrees";
+  if (pair.platform === "react-native" && (t.platform === "ios" || t.platform === "android")) return "agrees";
+  return "contradicts";
+}
+
+/** Rule 3: the proven single target, unless any ticket evidence contradicts it or is unrecognised. */
+function repoSingleTarget(root: string, surfaces: string[], environment: string | null): { ok: true; platform: string; device_type: string; surfaces: string[]; knowledge_head: string; mapping: unknown } | { ok: false; reason: string } {
+  let target;
+  try {
+    target = singleRoutingTarget(readRepoKnowledge(root));
+  } catch (e) {
+    return { ok: false, reason: `Project Knowledge could not be read (${(e as Error).message})` };
+  }
+  if (target.status !== "single") return { ok: false, reason: target.reason };
+  const pair = { platform: target.platform, device_type: target.device_type };
+  const evidence = [...surfaces.map((s) => ["surface", s] as const), ...(environment && environment.trim() !== "" ? [["environment", environment] as const] : [])];
+  for (const [kind, value] of evidence) {
+    const verdict = ticketEvidence(String(value), pair, target.surfaces);
+    if (verdict !== "agrees") return { ok: false, reason: `the ticket's ${kind} ${JSON.stringify(value)} ${verdict === "contradicts" ? "contradicts" : "is not recognised against"} the repository's single target ${target.platform} / ${target.device_type}` };
+  }
+  return { ok: true, platform: target.platform, device_type: target.device_type, surfaces: target.surfaces, knowledge_head: target.knowledgeHead, mapping: target.mapping };
+}
+
+/** The routing line of a plan the helper routed from Project Knowledge: the source, the surfaces and the knowledge commit. */
+export function singleTargetHow(surfaces: string[], knowledgeHead: string): string {
+  return `${SINGLE_TARGET_MARK}: the repository's single target — surfaces ${surfaces.map((x) => `\`${x}\``).join(", ")} in \`${MANIFEST_REL}\`, knowledge at \`${knowledgeHead.slice(0, 12)}\``;
+}
+
+/** The plan's recorded routing line — how its platform and device type were decided. */
+export const ROUTING_LINE = /^- \*\*Platform \/ device type:\*\* ([a-z-]+) \/ ([a-z]+) — (.+)$/m;
+/** The marker of a routing the helper selected from Project Knowledge (correctable while a draft). */
+export const SINGLE_TARGET_MARK = "resolved from Project Knowledge (`repo-single-target`)";
+
+function recordedRouting(body: string): { platform: string; device_type: string; how: string; source: "repo-single-target" | "developer" | "feature" | "other" } | null {
+  const m = ROUTING_LINE.exec(body);
+  if (!m) return null;
+  const how = m[3];
+  const source = how.startsWith(SINGLE_TARGET_MARK) ? "repo-single-target" : how.startsWith("confirmed by the developer") ? "developer" : how.startsWith("inherited from") ? "feature" : "other";
+  return { platform: m[1], device_type: m[2], how, source };
 }
 
 /**
@@ -271,7 +377,7 @@ function assess(req: BugRequest): Record<string, any> {
     // it, never ask again. Evidence drift follows the regeneration rule a valid draft follows.
     const fm = v.frontmatter;
     const { drift } = evidenceDrift(fm, it);
-    const route = routing(root, it.identity, fm, it.evidence?.environment ?? null);
+    const route = routing(root, it.identity, fm, it.evidence?.environment ?? null, buf.toString("utf-8"));
     const plan = { valid: false, errors: v.errors, drift, frontmatter: fm };
     if (drift.length) {
       return { ...common, ok: true, outcome: "BUG_PLAN_REGENERATE", proceed: "regenerate", reason: `the bug evidence changed (${drift.join(", ")}) and the plan is an unfinished draft with no task state — regenerate it in place`, plan, routing: route };
@@ -316,7 +422,7 @@ function assess(req: BugRequest): Record<string, any> {
         evidence_class: drift.length > 0 ? "changed" : "unchanged",
         drift,
         reopened: it.reopened,
-        routing: routing(root, it.identity, fm, it.evidence?.environment ?? null),
+        routing: routing(root, it.identity, fm, it.evidence?.environment ?? null, buf.toString("utf-8")),
       };
     }
     // The latest cycle already answers this reopen: report that cycle's state below.
@@ -324,7 +430,7 @@ function assess(req: BugRequest): Record<string, any> {
 
   if (drift.length) {
     if (fm.fix_cycle === 1 && approval.status === "draft" && !common.task_state_exists) {
-      return { ...withPlan, ok: true, outcome: "BUG_PLAN_REGENERATE", proceed: "regenerate", reason: `the bug evidence changed (${drift.join(", ")}) and the plan is an unapproved draft with no task state — regenerate it in place`, routing: routing(root, it.identity, fm, it.evidence?.environment ?? null) };
+      return { ...withPlan, ok: true, outcome: "BUG_PLAN_REGENERATE", proceed: "regenerate", reason: `the bug evidence changed (${drift.join(", ")}) and the plan is an unapproved draft with no task state — regenerate it in place`, routing: routing(root, it.identity, fm, it.evidence?.environment ?? null, buf.toString("utf-8")) };
     }
     return { ...withPlan, ok: false, outcome: "BUG_PLAN_STALE", proceed: null, reason: `the bug evidence changed (${drift.join(", ")}) under a plan that is ${approval.status === "draft" ? "already in implementation (task state exists)" : `${approval.status}`}${fm.fix_cycle > 1 ? `, at fix cycle ${fm.fix_cycle}` : ""} — reconciling it needs a verified reopen or a human decision; nothing is regenerated` };
   }
@@ -347,7 +453,7 @@ function assess(req: BugRequest): Record<string, any> {
     };
   }
   if (approval.status === "draft" || (approval.status === "approval_stale" && progress.recorded === 0)) {
-    return { ...withPlan, ok: true, outcome: "BUG_PLAN_AWAITING_APPROVAL", proceed: "approve", reason: approval.status === "draft" ? "the plan is a current draft — present it for approval" : `the plan changed after it was approved${fm.fix_cycle > 1 ? ` (fix cycle ${fm.fix_cycle} is new)` : ""} — present it for approval`, routing: routing(root, it.identity, fm, it.evidence?.environment ?? null) };
+    return { ...withPlan, ok: true, outcome: "BUG_PLAN_AWAITING_APPROVAL", proceed: "approve", reason: approval.status === "draft" ? "the plan is a current draft — present it for approval" : `the plan changed after it was approved${fm.fix_cycle > 1 ? ` (fix cycle ${fm.fix_cycle} is new)` : ""} — present it for approval`, routing: routing(root, it.identity, fm, it.evidence?.environment ?? null, buf.toString("utf-8")) };
   }
   if (approval.status === "approval_stale") {
     return { ...withPlan, ok: false, outcome: "BUG_PLAN_STALE", proceed: null, reason: "the plan changed after approval and this cycle's tasks have task state — reconciling it needs a human decision" };
@@ -614,7 +720,17 @@ export function scaffoldPlan(req: BugRequest): Record<string, any> {
     if ((req.platform && req.platform !== r.platform) || (req.deviceType && req.deviceType !== r.device_type)) {
       return refuse("ROUTING_CONFLICT", `the routing is ${r.platform} / ${r.device_type} (${r.reason}); a different value is not applied silently`);
     }
-    route = { platform: r.platform, device_type: r.device_type, how: r.source === "existing-plan" ? "carried from the existing plan, as confirmed" : `inherited from \`${r.source}\` (the approved Task Breakdown of related feature \`${a.intake.identity.related_feature}\`)` };
+    route = {
+      platform: r.platform,
+      device_type: r.device_type,
+      how:
+        r.source === "repo-single-target"
+          ? singleTargetHow(r.evidence.surfaces, r.evidence.knowledge_head)
+          : r.source === "existing-plan"
+            // A regenerated draft whose routing the helper selected keeps that record (and stays correctable).
+            ? r.recorded?.source === "repo-single-target" ? r.recorded.how : "carried from the existing plan, as confirmed"
+            : `inherited from \`${r.source}\` (the approved Task Breakdown of related feature \`${a.intake.identity.related_feature}\`)`,
+    };
   }
 
   // Capability: the one QA bound wins; a Project Knowledge lookup fills it only when none was bound.
@@ -653,6 +769,70 @@ export function scaffoldPlan(req: BugRequest): Record<string, any> {
 
 /** The cycle labels the analysis writes; append-cycle leaves them empty, so an unfinished cycle never validates. */
 const CYCLE_JUDGEMENT = ["Why the previous fix was insufficient", "Fix-design delta", "New risks", "Changed non-goals", "Changed affected files / areas", "Verification delta"];
+
+/**
+ * 0.9.0 — the human correction of a routing the helper selected from Project Knowledge.
+ *
+ *   reroute <ref-args> --root <TARGET_ROOT> --platform <p> --device-type <d>
+ *
+ * Only for the unapproved cycle-1 draft of a bug whose recorded routing is `repo-single-target`
+ * (its routing line carries that mark): status draft, never approved, no task state, no Bug
+ * Fix Cycle approval. The developer's explicit, canonical choice replaces it, and the draft is
+ * scaffolded again in place — its analysis was written for the wrong platform lane, so it is
+ * cleared and the command continues the analysis with the corrected routing. The routing line
+ * then records the developer's decision ("confirmed by the developer …"), so the draft is
+ * never correctable again and the routing is carried, as confirmed, from then on.
+ *
+ * Never: an approved (or once-approved) plan, a later fix cycle, a plan with task state, a
+ * routing a developer confirmed, a routing inherited from a related feature. Identity,
+ * evidence, capability, author and date are kept; nothing else in the repository is touched.
+ */
+export function rerouteDraft(req: BugRequest): Record<string, any> {
+  const no = (code: string, reason: string) => ({ ok: false, outcome: "REROUTE_REFUSED", code, reason });
+  if ((req.platform !== undefined && !PLATFORMS.includes(req.platform)) || (req.deviceType !== undefined && !DEVICE_TYPES.includes(req.deviceType))) {
+    const hint = routingHint(req.platform, req.deviceType);
+    return no("ROUTING_INVALID", `platform must be one of ${PLATFORMS.join(", ")} and device type one of ${DEVICE_TYPES.join(", ")}${hint ? ` — ${hint}` : ""}`);
+  }
+  if (!req.platform || !req.deviceType) return no("ROUTING_REQUIRED", "the corrected platform and device type are the developer's explicit choice (--platform, --device-type)");
+  const a = assess(req);
+  const allowed = a.outcome === "BUG_PLAN_INCOMPLETE" || (a.outcome === "BUG_PLAN_AWAITING_APPROVAL" && a.plan?.approval?.status === "draft");
+  if (!allowed) return no("REROUTE_NOT_ALLOWED", `${a.outcome}: only an unapproved cycle-1 draft can have its routing corrected — ${a.reason}`);
+  const fm = a.plan.frontmatter;
+  if (fm.fix_cycle !== 1 || fm.status !== "draft" || fm.approved_by !== null || fm.approved_fingerprint !== null || fm.approved_cycle !== null) {
+    return no("REROUTE_NOT_ALLOWED", "the plan is not an unapproved cycle-1 draft — an approved plan's routing is never changed here");
+  }
+  if (a.task_state_exists) return no("REROUTE_NOT_ALLOWED", "the bug has task state — implementation started under this routing");
+  if (existsSync(join(a.root, `docs/tasks/bugs/${a.bug_key}.cycle-approval.json`))) return no("REROUTE_NOT_ALLOWED", "a Bug Fix Cycle approval exists for this bug");
+  const recorded = a.routing?.recorded;
+  if (!recorded || recorded.source !== "repo-single-target") {
+    return no("REROUTE_NOT_ALLOWED", `the recorded routing is ${recorded ? `${recorded.platform} / ${recorded.device_type} — ${recorded.how}` : "unreadable"}; only a routing selected from Project Knowledge (\`repo-single-target\`) is corrected here — a developer-confirmed or inherited routing is never overridden`);
+  }
+  if (recorded.platform !== fm.platform || recorded.device_type !== fm.device_type) return no("REROUTE_NOT_ALLOWED", "the plan's routing line and frontmatter disagree — fix the plan by hand");
+  if (req.platform === fm.platform && req.deviceType === fm.device_type) return no("REROUTE_UNCHANGED", `the routing is already ${fm.platform} / ${fm.device_type}`);
+
+  const body = readFileSync(join(a.root, a.plan_path), "utf-8");
+  const capLine = /^- \*\*Capability:\*\* (?:.+?) — (.+)$/m.exec(body);
+  const capability = { id: fm.capability ?? null, how: capLine ? capLine[1] : fm.capability ? "as recorded" : "the change surface is discovered live" };
+  const route = {
+    platform: req.platform,
+    device_type: req.deviceType,
+    how: `confirmed by the developer — correcting ${fm.platform} / ${fm.device_type}, which was resolved from Project Knowledge (\`repo-single-target\`)`,
+  };
+  const text = scaffoldText(a, route, capability, { ...req, author: fm.author ?? req.author, date: fm.date ?? req.date });
+  const abs = join(a.root, a.plan_path);
+  if (!resolve(abs).startsWith(a.root + sep)) return no("UNSAFE_PATH", `${a.plan_path} escapes the repository root`);
+  const failed = atomicWrite(abs, text);
+  if (failed !== null) return no("WRITE_FAILED", `could not write ${a.plan_path}: ${failed}`);
+  return {
+    ok: true,
+    outcome: "REROUTED",
+    plan_path: a.plan_path,
+    routing: { platform: route.platform, device_type: route.device_type, source: "developer", how: route.how },
+    previous: { platform: fm.platform, device_type: fm.device_type, source: "repo-single-target" },
+    cleared: ["Root Cause", "Blast Radius", "Fix Design", "Verification Strategy", "Tasks", "Repo Knowledge Reference", "Open Questions", "repo_knowledge_* frontmatter"],
+    next: "continue the analysis with the corrected routing (/analyze-bug step 7); the plan is approved once, as before",
+  };
+}
 
 /**
  * Append the next fix cycle to the existing Bug Work Plan — only when `start` says
@@ -862,9 +1042,10 @@ function main(): void {
   if (cmd === "scaffold") print(scaffoldPlan(req));
   if (cmd === "check") print(checkPlan(req));
   if (cmd === "append-cycle") print(appendCycle(req));
+  if (cmd === "reroute") print(rerouteDraft(req));
   if (cmd === "persist-evidence") print(persistEvidence(req));
   if (cmd === "compare-evidence") print(compareEvidence(req));
-  print({ ok: false, outcome: "UNKNOWN_COMMAND", reason: "usage: analyze-bug.ts start|scaffold|check|append-cycle|persist-evidence|compare-evidence <ref-args> --root <TARGET_ROOT> [--source-document <file>] [--source-type manual]" });
+  print({ ok: false, outcome: "UNKNOWN_COMMAND", reason: "usage: analyze-bug.ts start|scaffold|check|append-cycle|reroute|persist-evidence|compare-evidence <ref-args> --root <TARGET_ROOT> [--source-document <file>] [--source-type manual]" });
 }
 
 const invokedDirectly = typeof process !== "undefined" && process.argv[1] !== undefined && /analyze-bug\.ts$/.test(realpathSync(process.argv[1]));

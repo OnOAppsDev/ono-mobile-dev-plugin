@@ -89,6 +89,7 @@ const PHASES: Phase[] = [
       "pr-readiness",
       "bitbucket-pr",
       "pr-source",
+      "bug-routing",
     ],
   },
   {

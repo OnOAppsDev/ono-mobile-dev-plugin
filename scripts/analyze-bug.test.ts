@@ -419,7 +419,16 @@ try {
     const none = S({ root: repo(), ref: "BUG-43", qaRepo: QA });
     check("19 no Project Knowledge in the repository never blocks", none?.ok === true && none.knowledge.capability === null && none.knowledge.capability_source === null);
     const src = read("scripts/analyze-bug.ts").replace(/\/\*\*[\s\S]*?\*\//g, "").replace(/^\s*\/\/.*$/gm, "");
-    check("19 the helper never reads Project Knowledge — it can never decide whether the bug exists", !/repo-knowledge|\.ono\b|read-repo-knowledge/.test(src));
+    // 0.9.0: the single-target routing exception is the ONLY place Project Knowledge enters this
+    // helper — one import of exactly two names, used once, inside the routing section. Everything
+    // else (intake, bug existence, capability, fix, approvals) still never reads it.
+    const routingStart = src.indexOf("/* ---------------------------------------------------------------- routing */");
+    const routingEnd = src.indexOf("/* ------------------------------------------------------------------ assess */");
+    const imports = src.match(/^import [^;]*from "\.\/read-repo-knowledge\.ts";$/gm) ?? [];
+    const outside = (src.slice(0, routingStart) + src.slice(routingEnd)).replace(imports[0] ?? "", "");
+    check("19 Project Knowledge enters the helper only through one routing import", imports.length === 1 && /^import \{ readRepoKnowledge, singleRoutingTarget, MANIFEST_REL \} from "\.\/read-repo-knowledge\.ts";$/.test(imports[0]), imports.join(" | "));
+    check("19 the helper never reads Project Knowledge outside routing — it can never decide whether the bug exists", routingStart > 0 && routingEnd > routingStart && !/repo-knowledge|\.ono\b|readRepoKnowledge|singleRoutingTarget|MANIFEST_REL/.test(outside));
+    check("19 inside routing, the knowledge is read once, for the single routing target only", (src.slice(routingStart, routingEnd).match(/readRepoKnowledge\(/g) ?? []).length === 1 && /singleRoutingTarget\(readRepoKnowledge\(root\)\)/.test(src));
   }
 
   /* ── the command ──────────────────────────────────────────────────────── */
