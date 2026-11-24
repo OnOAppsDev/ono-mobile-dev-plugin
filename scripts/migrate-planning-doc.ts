@@ -57,7 +57,7 @@ import { writeStdout } from "./write-output.ts";
  * itself; `scripts/migrate-planning-doc.test.ts` asserts it matches
  * .claude-plugin/plugin.json so the two cannot drift.
  */
-export const PLUGIN_VERSION = "0.8.0";
+export const PLUGIN_VERSION = "0.9.0";
 
 export type DocKind = "feature-analysis" | "dd" | "dev-plan" | "task-breakdown" | "bug-work-plan";
 
