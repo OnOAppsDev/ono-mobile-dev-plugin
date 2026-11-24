@@ -349,8 +349,15 @@ const noSyncAdvice = (r: any) =>
   // 0.7.5: re-synced with producer 0.11.2 (the Project Root paragraph).
   const PRODUCER_CONTRACT_SHA256 = "6fb8eff730a2064259fbc56428d2303424517ff9ded6d5c3b276be649c6226d8";
   const contract = read("docs/repo-knowledge-contract.md");
-  check("8 contract copy is byte-identical to the current producer copy (Stage A)",
-    sha(contract) === PRODUCER_CONTRACT_SHA256, sha(contract));
+  // 0.9.0: this copy deliberately carries the consumer's single-target routing exception
+  // (scripts/fixtures/repo-knowledge-contract-deviation.json). Reversing exactly those edits must
+  // still give the producer copy byte for byte — any other drift fails here, as before.
+  const dev = JSON.parse(read("scripts/fixtures/repo-knowledge-contract-deviation.json"));
+  let producer = contract.endsWith(dev.appended) ? contract.slice(0, -dev.appended.length) : "<appendix missing>";
+  for (const r of dev.replacements) producer = producer.split(r.deviation).length === 2 ? producer.replace(r.deviation, r.producer) : "<deviation edit missing>";
+  check("8 contract copy is the producer copy plus exactly the documented consumer deviation",
+    sha(producer) === PRODUCER_CONTRACT_SHA256, sha(producer));
+  check("8 the deviation is announced in the copy itself", /Consumer deviation — ono-mobile-dev-plugin 0\.9\.0/.test(contract));
   check("8 contract documents Guarantee 7 (knowledgeHead)", /Knowledge-authoring HEAD is never advanced by a re-emit/.test(contract));
   check("8 contract documents producer-side source drift", /^## Producer-side source drift$/m.test(contract));
 

@@ -525,7 +525,12 @@ const api = Reader as any;
   // 0.7.5: re-synced with producer 0.11.2 (the Project Root paragraph).
   const STAGE_A_CONTRACT_SHA256 = "6fb8eff730a2064259fbc56428d2303424517ff9ded6d5c3b276be649c6226d8";
   const contract = read("docs/repo-knowledge-contract.md");
-  check("16 contract copy is byte-identical to the Stage A producer copy", sha(contract) === STAGE_A_CONTRACT_SHA256, sha(contract));
+  // 0.9.0: the copy carries the documented consumer deviation (the single-target routing exception);
+  // reversing exactly it must give the producer copy byte for byte.
+  const dev = JSON.parse(read("scripts/fixtures/repo-knowledge-contract-deviation.json"));
+  let producer = contract.endsWith(dev.appended) ? contract.slice(0, -dev.appended.length) : "<appendix missing>";
+  for (const r of dev.replacements) producer = producer.split(r.deviation).length === 2 ? producer.replace(r.deviation, r.producer) : "<deviation edit missing>";
+  check("16 contract copy is the Stage A producer copy plus exactly the documented consumer deviation", sha(producer) === STAGE_A_CONTRACT_SHA256, sha(producer));
   check("16 contract carries the Stage A obligation on surfaces and capabilities", /Surfaces and capabilities are advisory too/.test(contract));
   check("16 contract states the manifest lives at the Project Root (producer 0.11.2)", /is the inspected \*\*Project Root\*\* \(producer 0\.11\.2\+\)/.test(contract) && /every path inside the manifest is relative to it/.test(contract));
   {

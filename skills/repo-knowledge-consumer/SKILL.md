@@ -30,7 +30,7 @@ node "${CLAUDE_PLUGIN_ROOT}/scripts/resolve-target-repo-root.ts" "<candidate>" [
 - `knowledgeRoot` is `KNOWLEDGE_ROOT`, and `projectPath` is where it sits inside `TARGET_ROOT` (`""` for the Git root). The helper found it deterministically — the developer named it, or the candidate is inside the nearest directory holding `.ono/repo-knowledge.json`.
 - **`knowledgeDecision: "select-project"`** — run from the Git root of a repository whose projects carry their own knowledge. `knowledgeRoot` is `null`, and `knowledgeCandidates` lists the projects. **Ask the developer** which project this work belongs to, offering every candidate plus **"None — derive repository context live"**. Never choose one yourself, not even when there is only one candidate. Then re-run the helper with `--project "<TARGET_ROOT>/<chosen>"`, or — on "None" — skip to Step 5 with reason `absent`.
 
-Project selection is about where knowledge is read, never routing: `platform` and `device_type` are still detected and confirmed exactly as before.
+Project selection is about where knowledge is read, never routing: `platform` and `device_type` are still detected and confirmed exactly as before. (A nested project's knowledge never takes part in `/analyze-bug`'s `repo-single-target` routing (`docs/repo-knowledge-contract.md` § Consumer exception — the single-target routing exception).)
 
 ## Step 2 — Read the manifest through the helper
 
@@ -101,7 +101,8 @@ independently built targets. Surface knowledge may **corroborate** the detected 
 surface-specific code, build selectors and source roots. It **may not silently choose
 routing**: `platform` and `device_type` are still detected and confirmed by the human at
 `/analyze-feature`'s gate every time, and `formFactor` (`handheld`, `tv`, …) is never read as
-a `device_type`.
+a `device_type`. The single exception is not this skill's and is not applied here:
+`/analyze-bug`'s `repo-single-target` routing (`docs/repo-knowledge-contract.md` § Consumer exception — the single-target routing exception), decided by the deterministic helper for a bug with no related feature.
 
 After the human confirmed the context, resolve the surface the feature targets:
 
@@ -256,7 +257,7 @@ When `freshness` is `stale-artifacts` (an inspector-owned document was edited af
 - Never skip deriving a category listed in `deriveLive`.
 - Never copy repository knowledge verbatim into a generated document — cite it per Step 6.
 - **Never treat `knowledge.stack.platformHints` as the platform.** It is advisory corroboration only. The authoritative platform is whatever `repo-analyst` detects and the human confirms in `/analyze-feature`, every time, regardless of what the manifest says.
-- Never use the manifest to resolve `device_type`, and never read `surfaces[].formFactor` as one.
-- Never let a surface choose routing — it may corroborate and scope, never replace the human confirmation gate.
+- Never use the manifest to resolve `device_type`, and never read `surfaces[].formFactor` as one — the helper's `/analyze-bug`'s `repo-single-target` routing (`docs/repo-knowledge-contract.md` § Consumer exception — the single-target routing exception) is the only place that does, never this skill.
+- Never let a surface choose routing — it may corroborate and scope, never replace the human confirmation gate (outside the helper's `/analyze-bug`'s `repo-single-target` routing (`docs/repo-knowledge-contract.md` § Consumer exception — the single-target routing exception)).
 - Never match a capability by semantic similarity, never expand beyond first-degree relationships, and never treat a relationship as automatic scope — `related_to` in particular is never proof of impact.
 - When current source and Project Knowledge disagree, the current code wins — derive live and recommend `/inspect` → **Refresh Project Knowledge**.

@@ -333,16 +333,22 @@ Drift is measured on `bug_evidence_fingerprint`, `qa_bug_id`, `external_ref` and
 When intake later moves from partial to full context, QA's derived `found_in_build` becomes
 known. That changes the evidence fingerprint, and the plan is then reported as drifted.
 
-**Routing** is never chosen by the helper.
-- It is inherited only from the existing plan, or from the related feature's **one**
-  approved Task Breakdown with a valid platform and device type.
-- An unfinished cycle-1 scaffold (`BUG_PLAN_INCOMPLETE`) is an existing plan: its routing is carried, never confirmed again. `/analyze-bug` scaffolds immediately after the developer confirms, so the confirmation is recorded at once.
-- Otherwise a human confirms it once (`ROUTING_REQUIRED`), from `repo-analyst`'s detection: a
+**Routing** is decided in this precedence, never by an agent's assertion:
+1. **The existing plan** (`existing-plan`) — carried as recorded, for every later run, regeneration and fix cycle.
+2. **The related feature's one approved Task Breakdown** with a valid platform and device type — as a human confirmed it.
+3. **`repo-single-target`** (0.9.0) — only for a bug with **no related feature**: the helper itself proves, from validated Project Knowledge, that the repository supports exactly one routing pair and that the ticket's evidence does not contradict it (`docs/repo-knowledge-contract.md` § Consumer exception — the single-target routing exception: eligibility, the exact mapping table, React Native and ticket rules). Nothing is asked; the command shows one line. Anything that cannot be established falls through to 4.
+4. **The developer** — everything else, as before.
+
+- An unfinished cycle-1 scaffold (`BUG_PLAN_INCOMPLETE`) is an existing plan: its routing is carried, never confirmed or decided again. `/analyze-bug` scaffolds immediately after the routing is confirmed (or decided by rules 2–3), so it is recorded at once.
+- **Persistence.** The pair is the existing frontmatter `platform` / `device_type`. How it was decided is the plan's routing line (Affected Capability & Surfaces): `confirmed by the developer`, `inherited from …`, or `resolved from Project Knowledge (\`repo-single-target\`): … surfaces … knowledge at <commit>`. `start` reports it for an existing plan as `routing.recorded` (`source`: `developer` · `feature` · `repo-single-target`), and the one approval summary names the platform, the device type and the source. No new frontmatter field.
+- **Correction (`reroute`).** Only a routing the helper selected (`repo-single-target`), only on an unapproved cycle-1 draft — status `draft`, approval fields empty, no task state, no Bug Fix Cycle approval: the developer's explicit, canonical pair replaces it, the draft is scaffolded again in place (its analysis was written for the other platform lane), and the routing line records `confirmed by the developer — correcting …`. Refused (`REROUTE_NOT_ALLOWED`) for an approved or once-approved plan, a later cycle, a developer-confirmed or inherited routing; `ROUTING_INVALID` / `ROUTING_REQUIRED` / `REROUTE_UNCHANGED` as named.
+- Otherwise (rule 4) a human confirms it once (`ROUTING_REQUIRED`), from `repo-analyst`'s detection: a
   `resolved` detection gets a simple confirmation, an `ambiguous` or `conflicting` one a selection
   among the repository's targets (`agents/repo-analyst.md` Step 5a).
 - QA surfaces and the ticket's environment (`routing.corroborating_surfaces`,
   `routing.corroborating_environment`) are corroboration only: they may pick among the targets the
-  repository supports and never add one.
+  repository supports and never add one. Under rule 3 they can only agree or keep the
+  confirmation: a contradiction, or anything not recognised, falls through to rule 4.
 - Only canonical values are accepted (`ROUTING_INVALID`); a common name such as `tvos` or
   `android-tv` is refused with the canonical pair it means (`ios` + `tv`, `android` + `tv`), never
   applied silently.
