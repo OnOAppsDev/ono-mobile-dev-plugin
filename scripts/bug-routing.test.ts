@@ -52,6 +52,20 @@ const read = (rel: string) => readFileSync(join(REPO_ROOT, rel), "utf-8");
 const sha = (s: string) => createHash("sha256").update(s, "utf-8").digest("hex");
 const show = (r: any) => JSON.stringify(r?.routing ?? [r?.outcome, r?.code, r?.reason]).slice(0, 400);
 const TMP = realpathSync(mkdtempSync(join(tmpdir(), "bug-routing-")));
+/**
+ * Git isolation for this process (0.9.2): no global or system configuration, no global excludes
+ * file and no XDG ignore file — so a host's own ignore rules (`.claude/`, `.DS_Store`, …) can never
+ * hide a path from `git status` and change a routing result. Set on process.env before anything runs,
+ * so the test's own git, the reader's git and every child process see the same isolated Git.
+ * Nothing on the machine is changed: these are this process's variables only.
+ */
+const GIT_HOME = join(TMP, "git-home");
+mkdirSync(join(GIT_HOME, "xdg", "git"), { recursive: true });
+writeFileSync(join(GIT_HOME, "global.gitconfig"), "");
+process.env.GIT_CONFIG_GLOBAL = join(GIT_HOME, "global.gitconfig");
+process.env.GIT_CONFIG_NOSYSTEM = "1";
+process.env.XDG_CONFIG_HOME = join(GIT_HOME, "xdg");
+for (const v of ["GIT_CONFIG_PARAMETERS", "GIT_CONFIG_COUNT", "GIT_DIR", "GIT_WORK_TREE", "GIT_INDEX_FILE"]) delete process.env[v];
 const ENV = { ...process.env, GIT_AUTHOR_NAME: "t", GIT_AUTHOR_EMAIL: "t@t", GIT_COMMITTER_NAME: "t", GIT_COMMITTER_EMAIL: "t@t" };
 const git = (cwd: string, ...a: string[]) => execFileSync("git", a, { cwd, encoding: "utf-8", env: ENV, stdio: ["ignore", "pipe", "ignore"] }).trim();
 const write = (root: string, rel: string, body: string) => {
@@ -546,7 +560,7 @@ try {
     write(g, ".claude/settings.local.json", "{}\n"); // Claude Code's local settings
     const gk = K(g);
     check("12 Guy: 85+ ordinary changes — general freshness still recommends a refresh", gk.sourceDrift?.status === "REFRESH_RECOMMENDED" && (gk.sourceDrift?.changedSourceCount ?? 0) >= 85 && gk.refreshRecommendation !== null, `${gk.sourceDrift?.status} ${gk.sourceDrift?.changedSourceCount}`);
-    check("12 Guy: routing freshness is CLEAN — committed, staged, unstaged and untracked ordinary changes all counted", gk.routingFreshness?.status === "CLEAN" && (gk.routingFreshness?.ordinaryChangeCount ?? 0) >= 89, JSON.stringify(gk.routingFreshness)); // 85 committed + unstaged + staged + untracked + workflow output (.claude/ may be hidden by a machine's global ignore)
+    check("12 Guy: routing freshness is CLEAN — committed, staged, unstaged and untracked ordinary changes all counted", gk.routingFreshness?.status === "CLEAN" && gk.routingFreshness?.ordinaryChangeCount === 90, JSON.stringify(gk.routingFreshness)); // 85 committed + unstaged + staged + untracked + docs/bugs JSON + .claude/settings.local.json — exact: Git is isolated, no host ignore applies
     const gs = S(ext(g));
     check("12 Guy: automatic routing selects Android / TV from the two surfaces", auto(gs) && gs.routing.platform === "android" && gs.routing.device_type === "tv" && JSON.stringify(gs.routing.evidence?.surfaces) === JSON.stringify(["android-tv", "android-tv-stg"]), show(gs));
     const gsc = SC(ext(g));
@@ -850,6 +864,141 @@ try {
     check("14.17 bug-work-plan contract: routing freshness, word-by-word environment and scaffold-first correction are stated",
       /\*\*routing freshness\*\*, not general freshness, that decides/.test(planContract) && /The\s+environment is read word by word \(0\.9\.2\)/.test(planContract) && /\*\*Correction \(`reroute`\) — scaffold first \(0\.9\.2\)\.\*\*/.test(planContract) && /REROUTE_NO_DRAFT/.test(planContract));
     check("14.16 command: after REROUTED refill the six repo_knowledge_* fields and re-scope the surface, then step 7", /its six `repo_knowledge_\*` fields\*\* were cleared/.test(cmd) && /Refill those fields and re-scope the corrected context to one surface — the end of step 6 — then continue at step 7/.test(cmd));
+  }
+
+  /* 15. Classification precedence (0.9.2 CI correction): tooling and documentation are exempt from the
+         top-level rule only — never from stronger routing evidence. Git is isolated for this process. */
+  {
+    const commit = (root: string, msg = "change") => {
+      git(root, "add", "-A", "--", ".", ":!.ono");
+      git(root, "commit", "-qm", msg);
+    };
+    const rebaseKnowledge = (root: string) => {
+      const p = join(root, ".ono/repo-knowledge.json");
+      const m = JSON.parse(readFileSync(p, "utf-8"));
+      m.fingerprint.knowledgeHead = git(root, "rev-parse", "HEAD");
+      m.fingerprint.gitHead = m.fingerprint.knowledgeHead;
+      writeFileSync(p, JSON.stringify(m, null, 2));
+    };
+    const RF = (root: string) => Reader.readRepoKnowledge(root).routingFreshness;
+    const routes = (root: string) => auto(S(ext(root)));
+    const confirms = (root: string) => asks(S(ext(root)));
+
+    // Positive: ordinary tooling and documentation never block — untracked, staged, committed, added or removed.
+    const p1 = repoWith();
+    write(p1, ".claude/settings.local.json", "{\"permissions\":{}}\n");
+    check("15 + an untracked .claude/settings.local.json (a new top-level folder) keeps automatic routing", routes(p1) && RF(p1)?.status === "CLEAN" && RF(p1)?.ordinaryChangeCount === 1, JSON.stringify(RF(p1)));
+    const p2 = repoWith();
+    git(p2, "rm", "-rq", "docs");
+    commit(p2, "no docs at inspection");
+    rebaseKnowledge(p2);
+    write(p2, "docs/bugs/YET-2/bug-report.json", "{}\n");
+    write(p2, "docs/notes/workshop.md", "# notes\n");
+    check("15 + a newly created ordinary docs/ folder (the plugin's own output) keeps automatic routing", routes(p2) && RF(p2)?.status === "CLEAN", JSON.stringify(RF(p2)));
+    const p3 = repoWith();
+    write(p3, ".idea/workspace.xml", "<project/>\n");
+    write(p3, ".vscode/settings.json", "{}\n");
+    write(p3, ".DS_Store", "x");
+    check("15 + ordinary .idea/, .vscode/ and .DS_Store additions keep automatic routing", routes(p3) && RF(p3)?.status === "CLEAN", JSON.stringify(RF(p3)));
+    const p4 = repoWith();
+    write(p4, ".vscode/extensions.json", "{}\n");
+    git(p4, "add", ".vscode/extensions.json");
+    write(p4, ".idea/misc.xml", "<project/>\n");
+    write(p4, "docs/adr/0001.md", "# ADR\n");
+    check("15 + a staged .vscode/ addition keeps automatic routing", routes(p4) && RF(p4)?.status === "CLEAN", JSON.stringify(RF(p4)));
+    commit(p4, "tooling and docs");
+    check("15 + committed .idea/, .vscode/ and docs/ additions keep automatic routing", routes(p4) && RF(p4)?.status === "CLEAN", JSON.stringify(RF(p4)));
+    const p5 = repoWith();
+    write(p5, ".vscode/settings.json", "{}\n");
+    write(p5, ".idea/misc.xml", "<project/>\n");
+    commit(p5);
+    rebaseKnowledge(p5);
+    rmSync(join(p5, ".vscode"), { recursive: true });
+    check("15 + an ordinary tooling folder removed (not committed) keeps automatic routing", routes(p5) && RF(p5)?.status === "CLEAN", JSON.stringify(RF(p5)));
+    git(p5, "rm", "-rq", ".idea");
+    commit(p5, "remove tooling");
+    check("15 + ordinary tooling folders removed and committed keep automatic routing", routes(p5) && RF(p5)?.status === "CLEAN", JSON.stringify(RF(p5)));
+
+    // Negative: stronger evidence always wins over the location.
+    const n1 = repoWith();
+    write(n1, "ios/App/AppDelegate.swift", "class AppDelegate {}\n");
+    check("15 − an untracked new ios/ folder with only Swift sources → confirm (a new platform folder)", confirms(n1) && RF(n1)?.routingChanges.some((c) => /^ios\/App\/AppDelegate\.swift — a top-level entry was added or removed$/.test(c)), JSON.stringify(RF(n1)));
+    const n2 = repoWith();
+    write(n2, "mobile/build.gradle.kts", "plugins { id(\"com.android.application\") }\n");
+    write(n2, "TVApp/TVApp.xcodeproj/project.pbxproj", "// !$*UTF8*$!\n");
+    check("15 − a newly introduced Android and Apple build configuration → confirm", confirms(n2) && RF(n2)?.routingChanges.some((c) => c.startsWith("mobile/build.gradle.kts — build or target configuration")) && RF(n2)?.routingChanges.some((c) => c.startsWith("TVApp/TVApp.xcodeproj/project.pbxproj — build or target configuration")), JSON.stringify(RF(n2)));
+    for (const [where, path, body] of [["docs/", "docs/tv/build.gradle", "apply plugin: 'com.android.application'\n"], [".claude/", ".claude/package.json", "{}\n"], [".vscode/", ".vscode/AndroidManifest.xml", "<manifest/>\n"], [".idea/", ".idea/flavors.properties", "tv=true\n"]] as const) {
+      const r = repoWith();
+      write(r, path, body);
+      check(`15 − routing configuration inside ${where} (${path}) → confirm, the location never exempts it`, confirms(r) && RF(r)?.routingChanges.some((c) => c.startsWith(`${path} — build or target configuration`)), JSON.stringify(RF(r)));
+    }
+    for (const [where, dep, script] of [["docs/", "docs/targets.json", "def targets = new groovy.json.JsonSlurper().parse(file('../docs/targets.json'))\n"], [".claude/", ".claude/build-targets.md", "def notes = file('../.claude/build-targets.md').text\n"]] as const) {
+      const r = repoWith();
+      write(r, "app/build.gradle", script);
+      write(r, dep, "tv\n");
+      commit(r);
+      rebaseKnowledge(r);
+      check(`15 (control) a build dependency inside ${where}, unchanged → still automatic`, routes(r), JSON.stringify(RF(r)));
+      write(r, dep, "tv mobile\n");
+      check(`15 − a change to an explicitly referenced build dependency inside ${where} → confirm`, confirms(r) && RF(r)?.routingChanges.some((c) => c === `${dep} — read or applied by a build script`), JSON.stringify(RF(r)));
+      rmSync(join(r, dep));
+      check(`15 − the referenced dependency inside ${where} deleted → confirm`, confirms(r) && RF(r)?.routingChanges.some((c) => c === `${dep} — read or applied by a build script`), JSON.stringify(RF(r)));
+    }
+    const n5 = repoWith();
+    mkdirSync(join(n5, ".claude"), { recursive: true });
+    symlinkSync("../app/src/Main.kt", join(n5, ".claude/linked.kt"));
+    check("15 − a symbolic link inside .claude/ → confirm", confirms(n5) && RF(n5)?.routingChanges.some((c) => c === ".claude/linked.kt — a symbolic link"), JSON.stringify(RF(n5)));
+    const n6 = repoWith();
+    git(n6, "update-index", "--add", "--cacheinfo", `160000,${git(n6, "rev-parse", "HEAD")},docs/vendor/lib`);
+    check("15 − a submodule inside docs/ → confirm", confirms(n6) && RF(n6)?.routingChanges.some((c) => c === "docs/vendor/lib — a submodule"), JSON.stringify(RF(n6)));
+    const n7 = repoWith();
+    write(n7, "docs/build.gradle", "ext.tv = true\n");
+    commit(n7);
+    rebaseKnowledge(n7);
+    git(n7, "mv", "docs/build.gradle", "docs/build-notes.md");
+    check("15 − a rename from routing configuration to an ordinary docs/ file → confirm (the old side counts)", confirms(n7) && RF(n7)?.routingChanges.some((c) => c === "docs/build.gradle — build or target configuration"), JSON.stringify(RF(n7)));
+    const n8 = repoWith();
+    write(n8, ".vscode/notes.md", "x\n");
+    commit(n8);
+    rebaseKnowledge(n8);
+    git(n8, "mv", ".vscode/notes.md", "app/build.gradle");
+    check("15 − a rename from an ordinary .vscode/ file to a build script → confirm (the new side counts)", confirms(n8) && RF(n8)?.routingChanges.some((c) => c === "app/build.gradle — build or target configuration"), JSON.stringify(RF(n8)));
+    const n9 = repoWith();
+    write(n9, "app/build.gradle", "def targets = file(System.getenv('TARGETS_FILE'))\n");
+    commit(n9);
+    rebaseKnowledge(n9);
+    write(n9, ".claude/settings.local.json", "{}\n");
+    check("15 − an unresolvable build dependency stays UNKNOWN even when only tooling changed → confirm", confirms(n9) && RF(n9)?.status === "UNKNOWN", JSON.stringify(RF(n9)));
+    check("15 classification order: link/submodule › configuration and build inputs › tooling/docs › top-level rule › type",
+      Reader.classifyChange(".claude/x.json", { special: "a symbolic link", topLevelChanged: true }) === "a symbolic link" &&
+      Reader.classifyChange("docs/build.gradle", { special: null, topLevelChanged: true }) === "build or target configuration" &&
+      Reader.classifyChange("docs/t.json", { special: null, topLevelChanged: true, buildInputs: ["docs/t.json"] }) === "read or applied by a build script" &&
+      Reader.classifyChange("docs/t.json", { special: null, topLevelChanged: true }) === null &&
+      Reader.classifyChange(".claude/settings.local.json", { special: null, topLevelChanged: true }) === null &&
+      Reader.classifyChange("ios/App.swift", { special: null, topLevelChanged: true }) === "a top-level entry was added or removed" &&
+      Reader.classifyChange("ios/App.swift", { special: null, topLevelChanged: false }) === null &&
+      Reader.classifyChange("logic/src/X.kt", { special: null, topLevelChanged: false, includedBuilds: ["logic/"] }) === "inside an included build");
+
+    // Isolation: a host's ignore rule would hide the regression — this process's Git never reads one.
+    const hostRoot = repoWith();
+    write(hostRoot, ".claude/package.json", "{}\n");
+    const hostIgnore = join(TMP, "host-ignore");
+    writeFileSync(hostIgnore, ".claude/\n");
+    const hostConfig = join(TMP, "host.gitconfig");
+    writeFileSync(hostConfig, `[core]\n\texcludesFile = ${hostIgnore}\n`);
+    const statusWith = (env: Record<string, string>) => execFileSync("git", ["status", "--porcelain", "--untracked-files=all"], { cwd: hostRoot, encoding: "utf-8", env: { ...process.env, ...env } });
+    check("15 isolation (control): a host-style global ignore rule WOULD hide .claude/ from git status", !/\.claude\//.test(statusWith({ GIT_CONFIG_GLOBAL: hostConfig })), statusWith({ GIT_CONFIG_GLOBAL: hostConfig }));
+    check("15 isolation: this process's Git shows it — no global config, no system config, no XDG ignore", /\.claude\/package\.json/.test(statusWith({})) && process.env.GIT_CONFIG_NOSYSTEM === "1" && readFileSync(process.env.GIT_CONFIG_GLOBAL!, "utf-8") === "" && !existsSync(join(process.env.XDG_CONFIG_HOME!, "git", "ignore")));
+    const saved = process.env.GIT_CONFIG_GLOBAL;
+    process.env.GIT_CONFIG_GLOBAL = hostConfig;
+    let hidden: any;
+    try {
+      hidden = RF(hostRoot);
+    } finally {
+      process.env.GIT_CONFIG_GLOBAL = saved;
+    }
+    check("15 isolation: under the host-style ignore the reader would miss the routing-relevant .claude/package.json (why isolation matters)", hidden?.status === "CLEAN", JSON.stringify(hidden));
+    check("15 isolation: under this suite's isolated Git the same change is ROUTING_CHANGED → confirm", RF(hostRoot)?.status === "ROUTING_CHANGED" && confirms(hostRoot), JSON.stringify(RF(hostRoot)));
   }
 
   /* 11. The command, contracts and agent say the same thing. */

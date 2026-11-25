@@ -517,13 +517,46 @@ const ORDINARY_LOCATIONS: RegExp[] = [
 ];
 
 /** Why a changed path can change routing, or null when it is ordinary. Inspector-owned paths are the artifact check's, never routing's. */
-export function routingRelevance(rel: string, includedBuilds: string[] = [], buildInputs: string[] = []): string | null {
+/**
+ * Tooling state and documentation at the repository's top level: exempt from the top-level
+ * entry rule ONLY — never from stronger evidence (configuration, an included build, a file a
+ * build script names, a link, a submodule, an unreadable path), which always comes first.
+ */
+const TOOLING_AND_DOCS_TOP_LEVEL: RegExp[] = [/^docs\//, /^\.claude\//, /^\.idea\//, /^\.vscode\//, /^\.DS_Store$/];
+
+/** Stronger routing evidence than any location: configuration by name or type, an included build, a build-script input. */
+export function strongRoutingRelevance(rel: string, includedBuilds: string[] = [], buildInputs: string[] = []): string | null {
   const p = comparablePath(rel);
   const base = p.split("/").pop() ?? p;
   if (ROUTING_CONFIG_BASENAMES.has(base)) return "build or target configuration";
   if (buildInputs.some((input) => comparablePath(input) === p)) return "read or applied by a build script";
   if (ROUTING_CONFIG_PATTERNS.some((re) => re.test(p))) return "build or target configuration";
   if (includedBuilds.some((root) => isUnder(p, comparablePath(root)))) return "inside an included build";
+  return null;
+}
+
+/**
+ * The classification of one changed path, in this fixed order (0.9.2):
+ *   1. a symbolic link, a submodule, or a path that cannot be inspected  → relevant
+ *   2. configuration, an included build, a file a build script names       → relevant
+ *   3. tooling state or documentation (docs/, .claude/, .idea/, .vscode/)  → ordinary
+ *   4. a top-level entry added or removed                                  → relevant
+ *   5. ordinary by location or source type → ordinary; anything else       → relevant
+ */
+export function classifyChange(rel: string, o: { special: string | null; topLevelChanged: boolean; includedBuilds?: string[]; buildInputs?: string[] }): string | null {
+  if (o.special) return o.special;
+  const strong = strongRoutingRelevance(rel, o.includedBuilds, o.buildInputs);
+  if (strong) return strong;
+  if (TOOLING_AND_DOCS_TOP_LEVEL.some((re) => re.test(comparablePath(rel)))) return null;
+  if (o.topLevelChanged) return "a top-level entry was added or removed";
+  return routingRelevance(rel, o.includedBuilds, o.buildInputs);
+}
+
+export function routingRelevance(rel: string, includedBuilds: string[] = [], buildInputs: string[] = []): string | null {
+  const p = comparablePath(rel);
+  const base = p.split("/").pop() ?? p;
+  const strong = strongRoutingRelevance(rel, includedBuilds, buildInputs);
+  if (strong) return strong;
   if (ORDINARY_LOCATIONS.some((re) => re.test(p))) return null;
   const dot = base.lastIndexOf(".");
   if (dot > 0 && ORDINARY_EXTENSIONS.has(base.slice(dot + 1).toLowerCase())) return null;
@@ -782,10 +815,12 @@ export function computeRoutingFreshness(targetRoot: string, knowledgeHead: strin
     seen.add(c.path);
     if (isInspectorOwned(comparablePath(c.path))) continue;
     const t = c.path.split("/")[0];
-    const why =
-      c.why ??
-      (!before.has(t) || !now.has(t) || !existsSync(join(targetRoot, t)) ? "a top-level entry was added or removed" : null) ??
-      routingRelevance(c.path, includedBuilds, buildInputs);
+    const why = classifyChange(c.path, {
+      special: c.why,
+      topLevelChanged: !before.has(t) || !now.has(t) || !existsSync(join(targetRoot, t)),
+      includedBuilds,
+      buildInputs,
+    });
     if (why === null) ordinary++;
     else relevant.set(c.path, why);
   }
