@@ -25,6 +25,7 @@
 import { spawnSync } from "child_process";
 import { existsSync, readFileSync, readdirSync } from "fs";
 import { join, dirname } from "path";
+import { pathToFileURL } from "url"; // a file URL, never a raw path: `C:\…` is not an import specifier on Windows
 import { COMMAND_STEP, REQUIRED, isSupported, preflight } from "./node-preflight.mjs";
 
 const HERE = import.meta.dirname ?? __dirname;
@@ -88,7 +89,7 @@ function check(name: string, cond: boolean, detail = ""): void {
   check("3 it prints nothing on stderr", run.stderr === "", run.stderr);
   const viaPath = spawnSync("bash", ["-c", `node "${SCRIPT}"`], { encoding: "utf-8", env: { ...process.env, PATH: `${dirname(process.execPath)}:${process.env.PATH ?? ""}` } });
   check("3 run as `node <path>`, as the commands run it", viaPath.status === 0 && JSON.parse(viaPath.stdout).supported === true, viaPath.stdout + viaPath.stderr);
-  const imported = spawnSync(process.execPath, ["--input-type=module", "-e", `import(${JSON.stringify(SCRIPT)}).then((m) => { if (typeof m.preflight !== "function") process.exit(9); })`], { encoding: "utf-8" });
+  const imported = spawnSync(process.execPath, ["--input-type=module", "-e", `import(${JSON.stringify(pathToFileURL(SCRIPT).href)}).then((m) => { if (typeof m.preflight !== "function") process.exit(9); })`], { encoding: "utf-8" });
   check("3 importing it runs no check and prints nothing", imported.status === 0 && imported.stdout === "", `${imported.status} ${imported.stdout}`);
 }
 
