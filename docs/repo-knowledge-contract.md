@@ -6,6 +6,8 @@ Consumers: `ono-mobile-dev-plugin` (and future Ono plugins), via their own deter
 
 > This file is duplicated verbatim (below the title line) in every plugin that participates in the contract. Claude Code has no cross-plugin dependency mechanism, so the specification is vendored the same way `resolve-target-repo-root.ts` is. **When this file changes, change every copy in the same release.**
 
+> **Consumer deviation — ono-mobile-dev-plugin 0.9.0.** This copy deliberately differs from the producer's (the Inspector-owned contract, unchanged in ono-project-inspector 0.13.0) in exactly one respect: the **single-target routing exception** (§ at the end). Guarantee 9, obligations 8–9, the v1 exclusions and the `surfaces` category row say where it applies; every other line is the producer's, verbatim (`scripts/repo-knowledge-staleness.test.ts` § 8 proves it by reversing these edits). Until the producer adopts the exception, the Inspector's copy still says Project Knowledge never decides routing.
+
 ## The file
 
 `<repository-root>/.ono/repo-knowledge.json` — committed to Git, portable, machine-generated.
@@ -22,7 +24,7 @@ Consumers: `ono-mobile-dev-plugin` (and future Ono plugins), via their own deter
 6. **Additive versioning.** New optional fields keep `repoKnowledgeSchemaVersion: 1`. A breaking shape change bumps it.
 7. **Knowledge-authoring HEAD is never advanced by a re-emit.** `fingerprint.knowledgeHead` is the git HEAD at which the source-backed knowledge (`CLAUDE.md` stack/commands/structure, `docs/project/*.md`) was last actually generated from repository source. It advances only when a source-backed inspection stage regenerates that knowledge — never when the manifest is merely re-emitted (after an audit approval, `audit-sync`, or `/inspect-sync`). A multi-stage regeneration advances it only once every stage in it has regenerated at the same HEAD. It is never set to the current HEAD as a default.
 8. **Every persisted surface, capability and relationship is evidence-backed.** Before `record-knowledge` certifies a source-backed stage, `scripts/knowledge-evidence.ts verify` resolves every evidence ref against the repository's current source (see "Evidence refs"); a fact that cannot be proven stops the stage. Relationships are direct (first-degree) edges proven by a concrete source edge — never by naming or semantic similarity — and are never scored or expanded transitively. Volatile platform knowledge (SDK/OS release notes, OS capabilities, vendor bugs, recommended practices) is never persisted; a repository workaround for one is recorded as a repository fact with its location.
-9. **Advisory, never authoritative over code.** Project Knowledge describes the repository at `knowledgeHead`. The current repository source is authoritative whenever the two disagree. Project Knowledge never decides Dev Plugin routing: `platformHints`, `surfaces[].platform` and `surfaces[].formFactor` are descriptive, and `formFactor` (`handheld | desktop | tv | wearable | other`) is deliberately not a `device_type`.
+9. **Advisory, never authoritative over code.** Project Knowledge describes the repository at `knowledgeHead`. The current repository source is authoritative whenever the two disagree. Project Knowledge decides Dev Plugin routing only through the single-target routing exception (§ at the end): `platformHints`, `surfaces[].platform` and `surfaces[].formFactor` are descriptive, and `formFactor` (`handheld | desktop | tv | wearable | other`) is deliberately not a `device_type` — the exception's validated mapping applies to that one routing decision and nowhere else.
 
 ## Obligations the consumer accepts
 
@@ -33,8 +35,8 @@ Consumers: `ono-mobile-dev-plugin` (and future Ono plugins), via their own deter
 5. **Do not re-derive a covered, fresh category.**
 6. **Derive any `unknown` category yourself.**
 7. **Report drift, never repair it.** Recommend `/inspect` (which offers **Refresh Project Knowledge** when source changed since the knowledge was generated) or `/inspect-sync` (which re-indexes artifacts and the manifest, but never refreshes source-backed knowledge); never regenerate a producer-owned artifact.
-8. **`platformHints` is advisory only.** It must never be used as the authoritative platform for routing or for a feature decision. The consumer runs its own platform detection and its own human confirmation gate regardless.
-9. **Surfaces and capabilities are advisory too.** `surfaces[]` may prefill or scope a consumer's own confirmation (which surface a change targets, which `surfaceAnchors` apply once a surface is confirmed), but never replaces it and never resolves `device_type`. A capability relationship is a first-degree starting point: before relying on it, re-check its `evidence` refs against the current source; expanding the graph beyond first degree is the consumer's own analysis.
+8. **`platformHints` is advisory only.** It must never be used as the authoritative platform for routing or for a feature decision. The consumer runs its own platform detection and its own human confirmation gate regardless — except where the single-target routing exception (§ at the end) proves the routing from `surfaces[]`, never from `platformHints`.
+9. **Surfaces and capabilities are advisory too.** `surfaces[]` may prefill or scope a consumer's own confirmation (which surface a change targets, which `surfaceAnchors` apply once a surface is confirmed), but never replaces it and never resolves `device_type` — outside the single-target routing exception (§ at the end), which alone may. A capability relationship is a first-degree starting point: before relying on it, re-check its `evidence` refs against the current source; expanding the graph beyond first degree is the consumer's own analysis.
 
 ## Schema v1
 
@@ -59,7 +61,7 @@ See the `RepoKnowledge` interface in `scripts/repo-knowledge.ts` for the authori
 | `capabilities[]` | `{id, name, anchor, surfaceScope, surfaces, sourceRoots, entryPoints, components, services, routes, dataDependencies, stateOwnership, tests, evidence, relationships}` | *Optional (additive, v1).* The Feature & Capability Map from `docs/project/capabilities.md`. `anchor` = `docs/project/capabilities.md#capability-<id>`. `surfaceScope` `all` (then `surfaces` lists every declared surface) or `subset`. `sourceRoots` = `[{path, surface}]` (`surface` non-null for a surface-specific root of a shared capability — shared code appears once). `components` / `dataDependencies` = `[{name, anchor}]` pointers into `components.md` / `integrations.md` (`anchor: null` = unresolved); descriptions are never copied. `entryPoints`, `services`, `routes`, `stateOwnership`, `tests`, `evidence` = evidence refs. `relationships` = ids of every first-degree relationship this capability is an endpoint of. |
 | `capabilityRelationships[]` | `{id, from, type, to, evidenceKind, evidence, anchor}` | *Optional (additive, v1).* Direct, evidence-backed edges. `type` ∈ `depends_on \| used_by \| contains \| navigates_to \| shares_component_with \| shares_state_with \| reads_from \| writes_to \| covered_by \| related_to`; `evidenceKind` ∈ `import \| navigation-route \| shared-component \| shared-state \| shared-service \| shared-data-source \| test \| repository-doc`; `evidence` non-empty refs. `id` = `<from>:<type>:<to>`; for the symmetric types (`shares_component_with`, `shares_state_with`, `related_to`) `from` < `to`, so each edge exists once. `anchor` = `docs/project/capabilities.md#relationships`. |
 
-**Not in v1:** audit findings / cautions, platform capability beyond `platformHints`, `device_type` or any routing decision, impact scores or transitive capability graphs, task lifecycle state. These are deliberate exclusions, not omissions; each is a separate project.
+**Not in v1:** audit findings / cautions, platform capability beyond `platformHints`, `device_type` or any routing decision (the manifest carries none; the consumer's single-target routing exception derives one from `surfaces[]`, § at the end), impact scores or transitive capability graphs, task lifecycle state. These are deliberate exclusions, not omissions; each is a separate project.
 
 ### Evidence refs
 
@@ -80,7 +82,7 @@ Conventions are written once as the shared body of a `docs/project/patterns.md` 
 | `conventions` | `docs/project/patterns.md` | state management, API, navigation, styling, errors, i18n, naming, testing |
 | `integrations` | `docs/project/integrations.md` | services, SDKs, env-var names |
 | `auditTopics` | `AUDIT.md` | which topics exist and their approval status |
-| `surfaces` *(additive)* | `CLAUDE.md#targets-and-surfaces` | targets/surfaces, their roots, shared code — scoping only, never routing |
+| `surfaces` *(additive)* | `CLAUDE.md#targets-and-surfaces` | targets/surfaces, their roots, shared code — scoping; routing only through the single-target routing exception |
 | `capabilities` *(additive)* | `docs/project/capabilities.md` | capabilities, their references, and first-degree relationships — the starting change surface for a feature |
 
 ## Freshness verdicts
@@ -106,3 +108,36 @@ The same flow covers two more signals — no second freshness mechanism:
 - **Knowledge-model gaps.** Each source-backed stage declares a `knowledgeModel` in the producer's registry — the sections (`path#anchor`) and artifacts its output must contain (`CLAUDE.md#targets-and-surfaces`; `docs/project/capabilities.md` and the seven generic `patterns.md` sections). Output produced before a requirement existed makes the next `/inspect` recommend a refresh of that stage and every downstream source-backed stage, even with no source drift. `record-knowledge` refuses to certify output with a gap, so `knowledgeHead` advances exactly as before: only when regenerated, model-complete knowledge is recorded.
 
 Alongside drift the producer reports (never persists) which recorded capabilities, relationships and surfaces a changed file falls under — attribution for the refresh report and a hint for a consumer's verify-on-use, not a verdict. Capabilities and relationships are `docs/project`-backed, so any source drift already re-runs the stage that regenerates them, and a relationship whose source edge disappeared fails the evidence gate until the refreshed map drops it.
+
+
+## Consumer exception — the single-target routing exception (ono-mobile-dev-plugin 0.9.0)
+
+The one place Project Knowledge takes part in Dev Plugin routing. It belongs to the consumer: the manifest's schema is unchanged, and the producer is not asked to emit anything new.
+
+**Where.** `/analyze-bug` only, for a bug with **no related feature** (a standalone or external bug), as the third routing source — after the existing plan and the related feature's one approved Task Breakdown, before the developer's confirmation (`docs/bug-work-plan-contract.md` § Routing). The Feature Flow is unchanged: `/analyze-feature` always confirms.
+
+**Who decides.** The deterministic helper (`scripts/analyze-bug.ts`, through `singleRoutingTarget` in `scripts/read-repo-knowledge.ts`, the manifest's only parser) — never an agent, never a value the command passes in.
+
+**Eligibility — every condition, or the developer confirms:**
+
+1. The manifest is available and structurally valid, at the repository root (`projectPrefix` is empty): a nested project's knowledge never routes.
+2. The `surfaces` category is `trusted`, `coverage.surfaces` is `populated`, source drift is `COMPLETE` (a failed git operation is `BASELINE_UNKNOWN`, never complete), and no capability relationship failed validation.
+3. Every declared surface maps through the exact tables below, and all of them collapse to exactly one `(platform, device_type)` pair — production and staging surfaces of the same pair are one candidate. Surface ids are never read for meaning.
+4. A React Native pair is eligible only when its surfaces are proven one application: with more than one surface, every surface lists every other in `sharedWith`, and one `sharedCode` root is shared by all of them. A React Native surface beside a native one is two pairs.
+5. The ticket's evidence agrees: each affected surface and the environment is a declared surface id, or an exact canonical name of the same pair (in a React Native app, `ios` / `android` are the OS, a surface of the one platform). A contradiction — or anything not recognised — keeps the confirmation.
+
+**Mapping — exact text only** (trimmed, case-insensitive; no substring, no fuzzy match):
+
+| `surfaces[].platform` | Platform | Device implied |
+|---|---|---|
+| `android` | `android` | — (`formFactor` decides) |
+| `android tv`, `android-tv`, `androidtv`, `google tv`, `google-tv` | `android` | `tv` |
+| `ios`, `ipados`, `iphone`, `ipad` | `ios` | `mobile` |
+| `tvos`, `apple tv`, `apple-tv`, `appletv` | `ios` | `tv` |
+| `react native`, `react-native`, `expo` | `react-native` | `mobile` |
+
+`formFactor` `tv` → `tv`, `handheld` → `mobile`; `desktop`, `wearable`, `other` and `null` map to nothing. A platform text that implies a device type must agree with the `formFactor`. The pairs it can produce are `android/mobile`, `android/tv`, `ios/mobile`, `ios/tv` and `react-native/mobile` — existing canonical values only.
+
+**Persistence.** The existing plan frontmatter (`platform`, `device_type`) and the plan's routing line, which records the source, the surface ids and the knowledge commit. No new field, state, preference file or Guardian setting. The plan's one human approval shows the routing and its source, and its fingerprint covers them.
+
+**Correction.** `analyze-bug.ts reroute` — the developer's explicit, canonical choice — replaces a routing the helper selected, only on an unapproved cycle-1 draft with no task state and no cycle approval; the draft is scaffolded again with the developer recorded as the routing source. A developer-confirmed or feature-inherited routing, and an approved plan, are never changed.

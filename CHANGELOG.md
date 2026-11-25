@@ -9,6 +9,36 @@ version below is the plugin's own `version` in
 
 ## [Unreleased]
 
+## [0.9.0] - 2026-11-24
+
+Two narrowly scoped changes: Project Knowledge freshness for non-ASCII paths, and deterministic routing for standalone bugs whose repository has exactly one target. The Bug Flow, its approvals and the Feature Flow are otherwise unchanged.
+
+### Fixed
+
+- **Non-ASCII and special Git paths in Project Knowledge freshness** (`scripts/read-repo-knowledge.ts`, adapted from ono-project-inspector 0.13.0 — no runtime dependency on it). Git C-quotes non-ASCII and special names (`"docs/project/\327\241…md"`), so a Hebrew, accented, quoted, tab- or newline-named Inspector document counted as source drift with a false `top-level entry added: "docs` signal, and non-ASCII source was never attributed to its surface, capability or evidence. Path listings now use `git -c core.quotePath=false … -z` (`gitPaths`), split on NUL with nothing trimmed, so every path is Git's exact path. Recorded roots are compared Unicode-normalized (NFC) for attribution only; two Git paths that differ only in normalization stay two paths. Renames list both sides (`--no-renames`), deletions are listed, and nested projects keep `--relative`.
+- A failed `git ls-tree` is now `BASELINE_UNKNOWN` (it was read as "no top-level change"), like a failed `git diff`. Path listings read up to 64 MiB, the plugin's existing git buffer (`task-resume.ts`), instead of failing at 1 MiB on a large diff.
+
+### Added
+
+- **`repo-single-target` — automatic routing for a standalone or external bug** (`/analyze-bug`, `scripts/analyze-bug.ts`; reported on yes+ Android TV, YET-1978). Routing precedence: the existing plan → the related feature's one approved Task Breakdown → **a single repository target proven by Project Knowledge** → the developer's confirmation, as before. The helper decides it — never an agent or a value the command passes in — only when the manifest is valid and at the repository root, surfaces are trusted with coverage `populated`, source drift is `COMPLETE`, no relationship failed validation, every surface maps through an exact alias table (no fuzzy or substring matching; `formFactor` `tv` → `tv`, `handheld` → `mobile`, never `desktop`), and all surfaces collapse to one pair — production and staging surfaces are one candidate. React Native qualifies only when its shells are proven one application (mutual `sharedWith` and one shared-code root). The ticket's surfaces and environment can only agree: a contradiction, or anything unrecognised, keeps the confirmation. Pairs: `android/mobile`, `android/tv`, `ios/mobile`, `ios/tv`, `react-native/mobile` — existing canonical values only.
+  - The command shows one line (`Development context resolved from Project Knowledge: Android TV …`) and asks nothing. The approval summary now names the platform, the device type and the routing source for every plan.
+  - Persisted in the existing frontmatter pair; the plan's routing line records the source, the surface ids and the knowledge commit. No new field, state, preference file or Guardian setting.
+  - **`analyze-bug.ts reroute`** — the developer's explicit, canonical correction of a routing the helper selected, only on an unapproved cycle-1 draft with no task state and no cycle approval. The draft is scaffolded again (its analysis was for the other platform lane) and records the developer as the source. Never an approved or once-approved plan, never a developer-confirmed or feature-inherited routing.
+  - `start` reports an existing plan's recorded routing source (`routing.recorded`), and the reason the repository did not decide (`routing.repo_single_target`).
+
+### Changed
+
+- **The repository-knowledge contract copy now deliberately differs from the producer's** (`docs/repo-knowledge-contract.md`): guarantee 9, obligations 8–9, the v1 exclusions and the `surfaces` row name the single-target routing exception, and a new final section specifies it. Every other line is still the producer's, verbatim — the contract tests reverse exactly the documented deviation (`scripts/fixtures/repo-knowledge-contract-deviation.json`) and compare with the producer's pinned hash. **The Inspector-owned contract (ono-project-inspector 0.13.0) still says Project Knowledge never decides routing**; the Inspector is not changed by this release. `docs/bug-work-plan-contract.md` § Routing, `commands/analyze-bug.md`, `agents/repo-analyst.md`, the `repo-knowledge-consumer` and `mobile-repo-analysis` skills and the README (Project Knowledge and platform-detection sections) state the exception where they state the rule.
+- `analyze-bug.ts` reads Project Knowledge only in its routing section, for this one decision; Project Knowledge still never decides whether the bug exists, its capability, its fix or any approval (test 19, narrowed to that boundary).
+
+### Known limitations
+
+- **Not verified in a live Claude Code session:** that Claude shows the single line without asking, includes the routing source in the approval summary, and offers `reroute` only when the developer says the routing is wrong. The helper's decisions are covered by deterministic tests on synthetic repositories; no client repository was read.
+- **Nested projects** (a manifest below the Git root) never auto-route: the bug's plan lives at the Git root, and `start` has no project selection. The developer confirms, as before.
+- **`reroute` enforcement boundary:** the helper enforces canonical values and the draft's state (unapproved cycle-1 draft, automatic routing recorded, no task state or cycle approval, unchanged evidence). Which targets the repository supports is enforced by the command — the same `repo-analyst` selection as any developer-confirmed routing, whose helper boundary is identical — and the corrected draft is still approved only through `work-approval.ts`, with the correction shown in its routing line.
+- An unrecognised ticket **environment** (e.g. `Production 4.2`) keeps the confirmation, even when it names no platform — deliberately conservative.
+- The `surfaces[].platform` text is the Inspector's free text: a repository whose CLAUDE.md names its platform in words outside the alias table (e.g. `Android (TV + phone)`) keeps the confirmation until that text is one of the exact names.
+
 ## [0.8.0] - 2026-11-22
 
 A minor release: from development to a pull request. The internal code review becomes mandatory for feature work as well as bug work, this plugin takes over the Pre-PR regression checklist, planning and review documents travel with the pull request, the Platform Guardian gets a read-only readiness contract, and a new read-only command reviews another developer's pull request.

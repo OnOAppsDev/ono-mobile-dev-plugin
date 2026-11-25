@@ -349,8 +349,15 @@ const noSyncAdvice = (r: any) =>
   // 0.7.5: re-synced with producer 0.11.2 (the Project Root paragraph).
   const PRODUCER_CONTRACT_SHA256 = "6fb8eff730a2064259fbc56428d2303424517ff9ded6d5c3b276be649c6226d8";
   const contract = read("docs/repo-knowledge-contract.md");
-  check("8 contract copy is byte-identical to the current producer copy (Stage A)",
-    sha(contract) === PRODUCER_CONTRACT_SHA256, sha(contract));
+  // 0.9.0: this copy deliberately carries the consumer's single-target routing exception
+  // (scripts/fixtures/repo-knowledge-contract-deviation.json). Reversing exactly those edits must
+  // still give the producer copy byte for byte — any other drift fails here, as before.
+  const dev = JSON.parse(read("scripts/fixtures/repo-knowledge-contract-deviation.json"));
+  let producer = contract.endsWith(dev.appended) ? contract.slice(0, -dev.appended.length) : "<appendix missing>";
+  for (const r of dev.replacements) producer = producer.split(r.deviation).length === 2 ? producer.replace(r.deviation, r.producer) : "<deviation edit missing>";
+  check("8 contract copy is the producer copy plus exactly the documented consumer deviation",
+    sha(producer) === PRODUCER_CONTRACT_SHA256, sha(producer));
+  check("8 the deviation is announced in the copy itself", /Consumer deviation — ono-mobile-dev-plugin 0\.9\.0/.test(contract));
   check("8 contract documents Guarantee 7 (knowledgeHead)", /Knowledge-authoring HEAD is never advanced by a re-emit/.test(contract));
   check("8 contract documents producer-side source drift", /^## Producer-side source drift$/m.test(contract));
 
@@ -360,6 +367,213 @@ const noSyncAdvice = (r: any) =>
   const fromReader: string[] = (Reader as any).INSPECTOR_OWNED_PATHS ?? [];
   check("8 the reader's Inspector-owned paths match the contract", same(fromReader, fromContract) && fromContract.length === 7,
     `${JSON.stringify(fromReader)} vs ${JSON.stringify(fromContract)}`);
+}
+
+/* ── 9 (0.9.0). Non-ASCII and special Git paths — exact identities, NUL-delimited ─────────────
+ * Git C-quotes non-ASCII and special names in its default output; the reader used to split that
+ * output on newlines, so a Hebrew Inspector document counted as source drift with a false
+ * `top-level entry added: "docs` signal, and non-ASCII source was never attributed. Names that a
+ * platform cannot hold on disk (Windows: `"`, `\`, tab, newline) or would rewrite (macOS: NFD →
+ * NFC) are committed through Git objects (hash-object, mktree -z, commit-tree) — portable, and
+ * with per-command `-c` settings only (no global Git configuration). Adapted from Inspector 0.13.0.
+ */
+{
+  const NUL = "\u0000";
+  const fx = (dir: string, args: string[], input?: string): string =>
+    execFileSync("git", ["-c", "core.protectNTFS=false", "-c", "core.precomposeUnicode=false", ...args], { cwd: dir, encoding: "utf-8", input, stdio: ["pipe", "pipe", "pipe"] }).replace(/\n$/, "");
+  type Entry = { mode: string; type: string; sha: string; name: string };
+  const entriesOf = (dir: string, tree: string | null): Entry[] =>
+    tree === null ? [] : fx(dir, ["ls-tree", "-z", tree]).split(NUL).filter(Boolean).map((e) => {
+      const tab = e.indexOf("\t");
+      const [mode, type, sha] = e.slice(0, tab).split(" ");
+      return { mode, type, sha, name: e.slice(tab + 1) };
+    });
+  /** `tree` with the blob at `parts` set (or removed when blob is null); null when the tree ends up empty. */
+  const treeWith = (dir: string, tree: string | null, parts: string[], blob: string | null): string | null => {
+    const entries = entriesOf(dir, tree);
+    const [head, ...rest] = parts;
+    const i = entries.findIndex((e) => e.name === head);
+    if (rest.length === 0) {
+      if (blob === null) { if (i !== -1) entries.splice(i, 1); }
+      else { const entry = { mode: "100644", type: "blob", sha: blob, name: head }; if (i === -1) entries.push(entry); else entries[i] = entry; }
+    } else {
+      const sub = treeWith(dir, i !== -1 && entries[i].type === "tree" ? entries[i].sha : null, rest, blob);
+      if (sub === null) { if (i !== -1) entries.splice(i, 1); }
+      else { const entry = { mode: "040000", type: "tree", sha: sub, name: head }; if (i === -1) entries.push(entry); else entries[i] = entry; }
+    }
+    if (entries.length === 0) return null;
+    return fx(dir, ["mktree", "-z"], entries.map((e) => `${e.mode} ${e.type} ${e.sha}\t${e.name}${NUL}`).join(""));
+  };
+  /** One commit setting (body) or deleting (null) EXACT paths through Git objects; work tree and index untouched. */
+  const commitExact = (dir: string, changes: Record<string, string | null>): string => {
+    let tree: string | null = fx(dir, ["rev-parse", "HEAD^{tree}"]);
+    for (const [path, body] of Object.entries(changes)) tree = treeWith(dir, tree, path.split("/"), body === null ? null : fx(dir, ["hash-object", "-w", "--stdin"], body));
+    const parent = fx(dir, ["rev-parse", "HEAD"]);
+    const c = fx(dir, ["commit-tree", tree!, "-p", parent, "-m", "exact paths"]);
+    fx(dir, ["update-ref", "HEAD", c, parent]);
+    const stored = fx(dir, ["ls-tree", "-z", "-r", "--name-only", "HEAD"]).split(NUL);
+    for (const [path, body] of Object.entries(changes)) if ((body !== null) !== stored.includes(path)) throw new Error(`fixture: ${JSON.stringify(path)} was not stored exactly`);
+    return c;
+  };
+  /** The surface and capability model these cases attribute against (the Inspector's shapes). */
+  const MODEL = {
+    coverage: { stack: "populated", commands: "partial", structure: "populated", inventory: "populated", conventions: "populated", integrations: "populated", auditTopics: "populated", surfaces: "populated", capabilities: "populated" },
+    surfaces: [{ id: "android-tv", platform: "android", formFactor: "tv", buildSelector: ":app:assembleProdRelease", sourceRoots: ["app/src/tv/", "מסכים/"], sharedWith: [], packaging: null, minimumRuntime: null, evidence: ["app/src/tv/AndroidManifest.xml", "תצורה/flavors.gradle"] }],
+    sharedCode: [],
+    capabilities: [{ id: "player", name: "Player", anchor: "docs/project/capabilities.md#capability-player", surfaceScope: "all", surfaces: ["android-tv"], sourceRoots: [{ path: "src/נגן/", surface: null }], entryPoints: [], components: [], services: [], routes: [], dataDependencies: [], stateOwnership: [], tests: [], evidence: [], relationships: [] }],
+    capabilityRelationships: [],
+  };
+  const D = (dir: string, kh: string, extra: Record<string, any> = MODEL) => {
+    putManifest(dir, manifest(git(dir, "rev-parse", "HEAD"), kh, extra));
+    return R(dir);
+  };
+  const owned: Array<[string, string]> = [
+    ["Hebrew", "docs/project/סקירה.md"],
+    ["Hebrew audit", "audits/רשת/ביקורת.md"],
+    ["accented", "docs/project/résumé.md"],
+    ["double quote", 'docs/project/a"b.md'],
+    ["backslash", "docs/project/a\\b.md"],
+    ["tab", "docs/project/a\tb.md"],
+    ["newline", "docs/project/a\nb.md"],
+    ["space", "docs/project/a b.md"],
+    ["leading and trailing spaces", "docs/project/ edge .md"],
+    ["Hebrew under .ono/", ".ono/מצב.json"],
+  ];
+  for (const [what, path] of owned) {
+    const [dir, kh] = seed();
+    commitExact(dir, { [path]: "x\n" });
+    const r = D(dir, kh);
+    check(`9 an Inspector-owned path (${what}) is not source drift`, r.sourceDrift?.status === "COMPLETE" && r.sourceDrift.changedSourceCount === 0 && (r.sourceDrift.analysisSignals ?? []).length === 0, JSON.stringify(r.sourceDrift));
+  }
+  {
+    const [dir, kh] = seed();
+    commitExact(dir, { "src/מסך.kt": "x\n" });
+    const d = D(dir, kh).sourceDrift;
+    check("9 Hebrew source is drift, reported by its exact path", d?.status === "REFRESH_RECOMMENDED" && same(d.changedSourceFiles, ["src/מסך.kt"]), JSON.stringify(d));
+    check("9 …with no false top-level signal (src already existed)", (d?.analysisSignals ?? []).length === 0, JSON.stringify(d?.analysisSignals));
+  }
+  for (const [what, path] of [["quote", 'src/a"b.kt'], ["backslash", "src/a\\b.kt"], ["tab", "src/a\tb.kt"], ["newline", "src/a\nb.kt"]] as const) {
+    const [dir, kh] = seed();
+    commitExact(dir, { [path]: "x\n" });
+    const d = D(dir, kh).sourceDrift;
+    check(`9 source with a ${what} in its name is reported exactly, not quoted`, d?.status === "REFRESH_RECOMMENDED" && same(d.changedSourceFiles, [path]), JSON.stringify(d?.changedSourceFiles));
+  }
+  {
+    const [dir, kh] = seed();
+    commitExact(dir, { "מודול/קובץ.kt": "x\n" });
+    const d = D(dir, kh).sourceDrift;
+    check("9 a Hebrew top-level entry added is signalled by its exact name", (d?.analysisSignals ?? []).includes("top-level entry added: מודול"), JSON.stringify(d?.analysisSignals));
+    const [dir2] = seed();
+    commitExact(dir2, { "מודול/קובץ.kt": "x\n" });
+    const kh2 = git(dir2, "rev-parse", "HEAD");
+    commitExact(dir2, { "מודול/קובץ.kt": null });
+    const d2 = D(dir2, kh2).sourceDrift;
+    check("9 a Hebrew top-level entry removed is signalled by its exact name", (d2?.analysisSignals ?? []).includes("top-level entry removed: מודול"), JSON.stringify(d2?.analysisSignals));
+  }
+  {
+    const [dir, kh] = seed();
+    commitExact(dir, { "מסכים/בית.kt": "x\n" });
+    const d = D(dir, kh).sourceDrift;
+    check("9 surface attribution: a Hebrew file under a Hebrew source root", (d?.affectedSurfaces ?? []).includes("android-tv"), JSON.stringify(d));
+    const [dir2, kh2] = seed();
+    commitExact(dir2, { "תצורה/flavors.gradle": "x\n" });
+    const d2 = D(dir2, kh2).sourceDrift;
+    check("9 surface evidence: a Hebrew evidence path raises its signal, exactly", (d2?.analysisSignals ?? []).includes("surface evidence changed: תצורה/flavors.gradle"), JSON.stringify(d2?.analysisSignals));
+    const [dir3, kh3] = seed();
+    commitExact(dir3, { "src/נגן/Player.kt": "x\n" });
+    check("9 capability attribution: a file under a Hebrew capability root", (D(dir3, kh3).sourceDrift?.affectedCapabilities ?? []).includes("player"));
+  }
+  {
+    // NFD on disk / in Git, NFC in the manifest: compared equal, reported as Git stores it.
+    const [dir, kh] = seed();
+    const model = { ...MODEL, capabilities: [{ ...MODEL.capabilities[0], sourceRoots: [{ path: "src/résumé.kt".normalize("NFC"), surface: null }] }] };
+    commitExact(dir, { "src/re\u0301sume\u0301.kt": "x\n" });
+    const d = D(dir, kh, model).sourceDrift;
+    check("9 NFC/NFD: an NFD Git path is attributed to an NFC recorded root", (d?.affectedCapabilities ?? []).includes("player"), JSON.stringify(d));
+    check("9 NFC/NFD: the reported path is Git's exact (NFD) path", same(d?.changedSourceFiles, ["src/re\u0301sume\u0301.kt"]), JSON.stringify(d?.changedSourceFiles));
+    const [dir2, kh2] = seed();
+    commitExact(dir2, { "src/r\u00e9sum\u00e9.kt": "nfc\n", "src/re\u0301sume\u0301.kt": "nfd\n" });
+    const d2 = D(dir2, kh2).sourceDrift;
+    check("9 NFC/NFD: two Git paths that differ only in normalization stay two changes", d2?.changedSourceCount === 2, JSON.stringify(d2?.changedSourceFiles));
+  }
+  {
+    const [dir] = seed();
+    commitExact(dir, { "מסכים/ישן.kt": "x\n" });
+    const kh = git(dir, "rev-parse", "HEAD");
+    commitExact(dir, { "מסכים/ישן.kt": null, "src/חדש.kt": "x\n" });
+    const d = D(dir, kh).sourceDrift;
+    check("9 rename (no rename detection): both the old and the new exact path are listed", same(d?.changedSourceFiles, ["src/חדש.kt", "מסכים/ישן.kt"]), JSON.stringify(d?.changedSourceFiles));
+    check("9 rename out of a recorded root is attributed to it (old side)", (d?.affectedSurfaces ?? []).includes("android-tv"), JSON.stringify(d?.affectedSurfaces));
+    const [dir2] = seed();
+    commitExact(dir2, { "src/נמחק.kt": "x\n" });
+    const kh2 = git(dir2, "rev-parse", "HEAD");
+    commitExact(dir2, { "src/נמחק.kt": null });
+    check("9 a deleted Hebrew file is listed by its exact path", same(D(dir2, kh2).sourceDrift?.changedSourceFiles, ["src/נמחק.kt"]));
+  }
+  {
+    // Nested project in a Hebrew directory: --relative keeps the Git root's other files out.
+    const top = join(tmp, `nested-${++seq}`);
+    const proj = join(top, "פרויקט");
+    mkdirSync(proj, { recursive: true });
+    git(top, "init", "-q"); git(top, "config", "user.email", "t@t"); git(top, "config", "user.name", "t");
+    for (const [rel, body] of [["src/app.ts", "x\n"], ["package.json", '{ "name": "demo" }\n'], ["CLAUDE.md", CLAUDE_BODY], ["docs/project/patterns.md", PATTERNS_BODY], ["docs/project/components.md", COMPONENTS_BODY], ["docs/project/integrations.md", INTEGRATIONS_BODY]]) write(proj, rel, body);
+    write(top, "outside.txt", "x\n");
+    git(top, "add", "-A"); git(top, "commit", "-qm", "seed");
+    const kh = git(top, "rev-parse", "HEAD");
+    commitExact(top, { "פרויקט/docs/project/סקירה.md": "x\n", "אחר/קובץ.kt": "x\n" });
+    putManifest(proj, manifest(git(top, "rev-parse", "HEAD"), kh));
+    const r = R(proj);
+    check("9 nested Hebrew project: the project prefix is exact", r.projectPrefix === "פרויקט/", JSON.stringify(r.projectPrefix));
+    check("9 nested Hebrew project: its own Hebrew Inspector document is not drift; other projects' files are out of scope", r.sourceDrift?.status === "COMPLETE", JSON.stringify(r.sourceDrift));
+    commitExact(top, { "פרויקט/src/מסך.ts": "x\n" });
+    const r2 = R(proj);
+    check("9 nested Hebrew project: its own source change is reported relative to the project", same(r2.sourceDrift?.changedSourceFiles, ["src/מסך.ts"]), JSON.stringify(r2.sourceDrift?.changedSourceFiles));
+  }
+  {
+    // Large repository: > 1 MiB of names in one diff (the old 1 MiB default buffer failed here).
+    const [dir, kh] = seed();
+    const blob = fx(dir, ["hash-object", "-w", "--stdin"], "x\n");
+    const names = Array.from({ length: 20000 }, (_, i) => `file-with-a-deliberately-long-name-to-fill-the-buffer-${String(i).padStart(6, "0")}.kt`);
+    const sub = fx(dir, ["mktree", "-z"], names.map((n) => `100644 blob ${blob}\t${n}${NUL}`).join(""));
+    const root = entriesOf(dir, fx(dir, ["rev-parse", "HEAD^{tree}"]));
+    const srcI = root.findIndex((e) => e.name === "src");
+    root[srcI] = { ...root[srcI], sha: fx(dir, ["mktree", "-z"], [...entriesOf(dir, root[srcI].sha), { mode: "040000", type: "tree", sha: sub, name: "bulk" }].map((e) => `${e.mode} ${e.type} ${e.sha}\t${e.name}${NUL}`).join("")) };
+    const tree = fx(dir, ["mktree", "-z"], root.map((e) => `${e.mode} ${e.type} ${e.sha}\t${e.name}${NUL}`).join(""));
+    const c = fx(dir, ["commit-tree", tree, "-p", kh, "-m", "bulk"]);
+    fx(dir, ["update-ref", "HEAD", c, kh]);
+    const d = D(dir, kh).sourceDrift;
+    check("9 large diff (> 1 MiB of names) is read whole, not reported unknown", d?.status === "REFRESH_RECOMMENDED" && d.changedSourceCount === 20000, `${d?.status} ${d?.changedSourceCount}`);
+    check("9 the path buffer matches the plugin's other git helpers (64 MiB)", (Reader as any).GIT_PATH_MAX_BUFFER === 64 * 1024 * 1024 && /GIT_MAX_BUFFER = 64 \* 1024 \* 1024/.test(read("scripts/task-resume.ts")));
+  }
+  {
+    // Failed git operations are BASELINE_UNKNOWN, never COMPLETE or "no change".
+    const [dir, kh] = seed();
+    commitExact(dir, { "src/b.kt": "x\n" });
+    putManifest(dir, manifest(git(dir, "rev-parse", "HEAD"), kh, MODEL));
+    const realGit = execFileSync("bash", ["-c", "command -v git"], { encoding: "utf-8" }).trim();
+    const bin = join(tmp, `fake-git-${++seq}`);
+    mkdirSync(bin);
+    const failOn = (verb: string) => {
+      writeFileSync(join(bin, "git"), `#!/bin/bash\nfor a in "$@"; do [ "$a" = "${verb}" ] && { echo "fatal: injected ${verb} failure" >&2; exit 128; }; done\nexec "${realGit}" "$@"\n`);
+      execFileSync("chmod", ["+x", join(bin, "git")]);
+      const out = execFileSync(process.execPath, ["--no-warnings", join(HERE, "read-repo-knowledge.ts"), dir], { encoding: "utf-8", env: { ...process.env, PATH: `${bin}:${process.env.PATH}` } });
+      return JSON.parse(out);
+    };
+    const lsTree = failOn("ls-tree");
+    check("9 a failed ls-tree is BASELINE_UNKNOWN — never 'no top-level change'", lsTree.sourceDrift?.status === "BASELINE_UNKNOWN" && /ls-tree/.test(lsTree.sourceDrift.reason), JSON.stringify(lsTree.sourceDrift));
+    check("9 …and surfaces are then not trusted", lsTree.extendedCategories?.surfaces?.status !== "trusted", JSON.stringify(lsTree.extendedCategories?.surfaces));
+    const diff = failOn("diff");
+    check("9 a failed diff is BASELINE_UNKNOWN", diff.sourceDrift?.status === "BASELINE_UNKNOWN" && /git diff/.test(diff.sourceDrift.reason), JSON.stringify(diff.sourceDrift));
+    check("9 gitPaths returns null on failure — never an empty list", (Reader as any).gitPaths(dir, ["ls-tree", "-z", "--name-only", "no-such-revision"]) === null);
+  }
+  {
+    // Exclusion rules unchanged.
+    const [dir, kh] = seed();
+    commitExact(dir, { "CLAUDE.md.bak": "x\n", "AUDIT.md": "x\n", ".ono/state.json": "{}\n" });
+    check("9 the Inspector-owned exclusions are unchanged", D(dir, kh).sourceDrift?.status === "COMPLETE");
+    const src = read("scripts/read-repo-knowledge.ts").replace(/\/\*\*[\s\S]*?\*\//g, "").replace(/^\s*\/\/.*$/gm, "");
+    check("9 source: every path listing is NUL-delimited with quotePath off", /gitPaths\(targetRoot, \["diff", "-z"/.test(src) && /gitPaths\(targetRoot, \["ls-tree", "-z"/.test(src) && /"core\.quotePath=false"/.test(src) && !/split\("\\n"\)/.test(src));
+  }
 }
 
 rmSync(tmp, { recursive: true, force: true });

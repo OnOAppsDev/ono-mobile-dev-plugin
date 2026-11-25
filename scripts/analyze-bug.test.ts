@@ -419,7 +419,16 @@ try {
     const none = S({ root: repo(), ref: "BUG-43", qaRepo: QA });
     check("19 no Project Knowledge in the repository never blocks", none?.ok === true && none.knowledge.capability === null && none.knowledge.capability_source === null);
     const src = read("scripts/analyze-bug.ts").replace(/\/\*\*[\s\S]*?\*\//g, "").replace(/^\s*\/\/.*$/gm, "");
-    check("19 the helper never reads Project Knowledge — it can never decide whether the bug exists", !/repo-knowledge|\.ono\b|read-repo-knowledge/.test(src));
+    // 0.9.0: the single-target routing exception is the ONLY place Project Knowledge enters this
+    // helper — one import of exactly two names, used once, inside the routing section. Everything
+    // else (intake, bug existence, capability, fix, approvals) still never reads it.
+    const routingStart = src.indexOf("/* ---------------------------------------------------------------- routing */");
+    const routingEnd = src.indexOf("/* ------------------------------------------------------------------ assess */");
+    const imports = src.match(/^import [^;]*from "\.\/read-repo-knowledge\.ts";$/gm) ?? [];
+    const outside = (src.slice(0, routingStart) + src.slice(routingEnd)).replace(imports[0] ?? "", "");
+    check("19 Project Knowledge enters the helper only through one routing import", imports.length === 1 && /^import \{ readRepoKnowledge, singleRoutingTarget, MANIFEST_REL \} from "\.\/read-repo-knowledge\.ts";$/.test(imports[0]), imports.join(" | "));
+    check("19 the helper never reads Project Knowledge outside routing — it can never decide whether the bug exists", routingStart > 0 && routingEnd > routingStart && !/repo-knowledge|\.ono\b|readRepoKnowledge|singleRoutingTarget|MANIFEST_REL/.test(outside));
+    check("19 inside routing, the knowledge is read once, for the single routing target only", (src.slice(routingStart, routingEnd).match(/readRepoKnowledge\(/g) ?? []).length === 1 && /singleRoutingTarget\(readRepoKnowledge\(root\)\)/.test(src));
   }
 
   /* ── the command ──────────────────────────────────────────────────────── */
@@ -487,7 +496,8 @@ try {
       "skills/mobile-debugging/SKILL.md": "0b6bc7a1384ca2dc1f762dcd2946ccd8320dfe35fc0471f79e027d4f580c081e",
       // 0.7.5: KNOWLEDGE_ROOT for nested Inspector projects, changed on purpose; project-knowledge-consumption.test.ts pins the new rules.
       // 2026-11-22, 0.8.0 integration remediation — re-pinned on purpose. skill: A2 — an inspection without the manifest names /inspect-sync once per command run; nothing else changed.
-      "skills/repo-knowledge-consumer/SKILL.md": "9f2fde0425608b0abf8303cdc38ce8fd80539e1ea4ed92205e08577feb0c70b9",
+      // 2026-11-24, 0.9.0 — re-pinned on purpose: the skill names the helper's single-target routing exception where it says surfaces never route; nothing else changed.
+      "skills/repo-knowledge-consumer/SKILL.md": "00e53616e4482466df7a500f67be8ec429f5d5514e18e0676a618783f5917f48",
     };
     for (const [f, h] of Object.entries(PINNED)) check(`33/36 ${f} is unchanged`, sha(withoutPreflight(readFileSync(join(REPO_ROOT, f)))) === h);
     const src = read("scripts/analyze-bug.ts").replace(/\/\*\*[\s\S]*?\*\//g, "").replace(/^\s*\/\/.*$/gm, "");

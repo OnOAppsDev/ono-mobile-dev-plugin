@@ -334,6 +334,48 @@ function git(targetRoot: string, args: string[]): string | null {
   }
 }
 
+/**
+ * The output cap for git path listings — the same 64 MiB as the plugin's other git helpers
+ * (scripts/task-resume.ts GIT_MAX_BUFFER), so a large repository's diff is read whole instead
+ * of failing at the 1 MiB default.
+ */
+export const GIT_PATH_MAX_BUFFER = 64 * 1024 * 1024;
+
+/**
+ * Path-listing git commands (0.9.0, adapted from ono-project-inspector 0.13.0 — no runtime
+ * dependency on it). Git C-quotes non-ASCII and special names in its default output
+ * (`"docs/project/\327\241…md"`), and `core.quotePath=false` alone still quotes names containing
+ * `"`, `\`, tabs or newlines. NUL-delimited output (`-z`) is never quoted, so each entry is the
+ * exact path Git stores — the identity every later comparison uses. Nothing is trimmed and
+ * nothing is split on newlines. Returns null when git fails: the caller treats that as unknown,
+ * never as "no paths".
+ */
+export function gitPaths(targetRoot: string, args: string[]): string[] | null {
+  try {
+    const out = execFileSync("git", ["-c", "core.quotePath=false", ...args], {
+      cwd: targetRoot,
+      encoding: "utf-8",
+      stdio: ["ignore", "pipe", "ignore"],
+      maxBuffer: GIT_PATH_MAX_BUFFER,
+    });
+    return out.split("\0").filter((p) => p.length > 0);
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Unicode-normalized form used ONLY to compare a Git path with a path recorded in the manifest
+ * (a document may hold NFC where Git stores NFD — names created on macOS). Never an identity:
+ * two Git paths that differ only in normalization stay two paths.
+ */
+export const comparablePath = (p: string): string => p.normalize("NFC");
+
+/** `isUnder` on comparable forms — for attribution of an exact path to a recorded root. */
+function under(rel: string, root: string): boolean {
+  return isUnder(comparablePath(rel), comparablePath(root));
+}
+
 function currentHead(targetRoot: string): string | null {
   return git(targetRoot, ["rev-parse", "HEAD"]) || null;
 }
@@ -364,19 +406,26 @@ function computeSourceDrift(targetRoot: string, knowledgeHead: string | null, he
   // `--relative`: paths relative to the target root and limited to it, exactly like the
   // manifest's own paths (contract: every path is relative to the Project Root). A no-op for
   // a project at the Git root; for a nested project it keeps the Git root's other files out.
-  const diff = git(targetRoot, ["diff", "--name-only", "--no-renames", "--relative", knowledgeHead, head]);
+  // NUL-delimited and unquoted (gitPaths): Hebrew, accents, spaces, quotes, backslashes, tabs and
+  // newlines arrive as the exact stored path. `--no-renames`: a rename lists both its old and its
+  // new path, so a move out of (or into) a recorded root is attributed on both sides.
+  const diff = gitPaths(targetRoot, ["diff", "-z", "--name-only", "--no-renames", "--relative", knowledgeHead, head]);
   if (diff === null) return unknown("git diff between knowledgeHead and HEAD failed.");
-  const changed = Array.from(new Set(diff.split("\n").filter((l) => l.length > 0)))
-    .filter((rel) => !isInspectorOwned(rel))
+  const changed = Array.from(new Set(diff))
+    .filter((rel) => !isInspectorOwned(comparablePath(rel)))
     .sort();
   if (changed.length === 0) {
     return { ...base, status: "COMPLETE", reason: "Only Inspector-owned artifacts changed since knowledge was generated." };
   }
 
-  const topAt = (rev: string): Set<string> =>
-    new Set((git(targetRoot, ["ls-tree", "--name-only", rev]) ?? "").split("\n").filter(Boolean));
+  const topAt = (rev: string): Set<string> | null => {
+    const names = gitPaths(targetRoot, ["ls-tree", "-z", "--name-only", rev]);
+    return names === null ? null : new Set(names);
+  };
   const topBefore = topAt(knowledgeHead);
   const topNow = topAt(head);
+  // A listing that cannot be read is never "no top-level change".
+  if (topBefore === null || topNow === null) return unknown("git ls-tree of knowledgeHead or HEAD failed.");
   const signals = new Set<string>();
   for (const rel of changed) {
     if (isAnalysisManifest(rel)) signals.add(`build/dependency manifest changed: ${rel}`);
@@ -427,9 +476,10 @@ export function parseEvidenceRef(ref: string): { path: string; token: string | n
  * falls under — the producer's attribution, over the manifest's own data.
  */
 function attribute(changed: string[], m: KnowledgeModel) {
-  const touches = (refs: string[]) => refs.some((ref) => changed.some((rel) => isUnder(rel, parseEvidenceRef(ref).path)));
+  // Comparison only (NFC): each changed path keeps its exact Git identity in the output.
+  const touches = (refs: string[]) => refs.some((ref) => changed.some((rel) => under(rel, parseEvidenceRef(ref).path)));
   const surfaceEvidence = [...m.surfaces.flatMap((s) => s.evidence), ...m.sharedCode.flatMap((c) => c.evidence)].map((r) => parseEvidenceRef(r).path);
-  const surfaceSignals = changed.filter((rel) => surfaceEvidence.some((p) => isUnder(rel, p))).map((rel) => `surface evidence changed: ${rel}`);
+  const surfaceSignals = changed.filter((rel) => surfaceEvidence.some((p) => under(rel, p))).map((rel) => `surface evidence changed: ${rel}`);
   const affectedSurfaces = new Set<string>();
   for (const s of m.surfaces) if (touches([...s.sourceRoots, ...s.evidence])) affectedSurfaces.add(s.id);
   for (const c of m.sharedCode) if (touches([c.root])) c.sharedBy.forEach((id) => affectedSurfaces.add(id));
@@ -873,6 +923,98 @@ function baseStatus(r: KnowledgeResult, category: string): ExtendedStatus {
   return r.trustedCategories.includes(category) ? "trusted" : r.verifyOnUse.includes(category) ? "verifyOnUse" : "deriveLive";
 }
 
+/* ------------------------------------------- 0.9.0: the single-target routing exception */
+
+/** Where the manifest lives, relative to the knowledge root — named here, by its only parser. */
+export const MANIFEST_REL = ".ono/repo-knowledge.json";
+
+/**
+ * The exact surface `platform` texts that name a routing platform — compared case-insensitively
+ * after trimming surrounding whitespace, nothing else: no substring, no fuzzy match, no reading
+ * of free-form descriptions. `device` is the device type the text itself implies (null: the
+ * surface's `formFactor` decides). Any other text — "React web", "Samsung Tizen (React)",
+ * "Android (TV + phone)" — is not mappable, and the bug's routing is confirmed by the developer.
+ */
+export const SURFACE_PLATFORM_ALIASES: Readonly<Record<string, { platform: "android" | "ios" | "react-native"; device: "mobile" | "tv" | null }>> = {
+  android: { platform: "android", device: null },
+  "android tv": { platform: "android", device: "tv" },
+  "android-tv": { platform: "android", device: "tv" },
+  androidtv: { platform: "android", device: "tv" },
+  "google tv": { platform: "android", device: "tv" },
+  "google-tv": { platform: "android", device: "tv" },
+  ios: { platform: "ios", device: "mobile" },
+  ipados: { platform: "ios", device: "mobile" },
+  iphone: { platform: "ios", device: "mobile" },
+  ipad: { platform: "ios", device: "mobile" },
+  tvos: { platform: "ios", device: "tv" },
+  "apple tv": { platform: "ios", device: "tv" },
+  "apple-tv": { platform: "ios", device: "tv" },
+  appletv: { platform: "ios", device: "tv" },
+  "react native": { platform: "react-native", device: "mobile" },
+  "react-native": { platform: "react-native", device: "mobile" },
+  expo: { platform: "react-native", device: "mobile" },
+};
+
+/**
+ * `formFactor` → `device_type`, for this routing decision only. `formFactor` stays descriptive
+ * everywhere else; `desktop`, `wearable`, `other` and null map to nothing.
+ */
+export const FORM_FACTOR_DEVICE: Readonly<Record<string, "mobile" | "tv">> = { handheld: "mobile", tv: "tv" };
+
+/** The routing pairs this exception may produce — existing canonical values only. */
+export const SINGLE_TARGET_PAIRS = ["android/mobile", "android/tv", "ios/mobile", "ios/tv", "react-native/mobile"] as const;
+
+export type SingleTarget =
+  | { status: "single"; platform: string; device_type: string; surfaces: string[]; knowledgeHead: string; mapping: Array<{ surface: string; platform: string | null; formFactor: string | null }> }
+  | { status: "none"; reason: string };
+
+/**
+ * Whether validated Project Knowledge proves that the repository at this root supports exactly
+ * one routing pair — the only way Project Knowledge takes part in routing (docs/repo-knowledge-
+ * contract.md § The single-target routing exception). Deterministic: no AI, no heuristics, and
+ * anything that cannot be established is `none` — never a guess. Production and staging surfaces
+ * that map to the same pair are one candidate; surface ids are never read for meaning.
+ */
+export function singleRoutingTarget(r: KnowledgeResult): SingleTarget {
+  const none = (reason: string): SingleTarget => ({ status: "none", reason });
+  if (!r.available) return none(`Project Knowledge is unavailable (${r.reason ?? "unknown"})`);
+  if (r.projectPrefix !== "") return none(r.projectPrefix === null ? "the knowledge root is not in a git repository" : `the knowledge belongs to the nested project ${r.projectPrefix}, not to the repository root`);
+  const cat = r.extendedCategories.surfaces;
+  if (cat.status !== "trusted") return none(`the surfaces are not trusted (${cat.status}: ${cat.reason})`);
+  if (r.knowledge?.coverage?.surfaces !== "populated") return none(`coverage.surfaces is ${r.knowledge?.coverage?.surfaces ?? "absent"}, not populated — not every target is known to be declared`);
+  if (r.sourceDrift?.status !== "COMPLETE") return none(`source drift is ${r.sourceDrift?.status ?? "unknown"}, not COMPLETE`);
+  const knowledgeHead = r.sourceDrift.knowledgeHead;
+  if (!knowledgeHead) return none("no knowledge-authoring HEAD is recorded");
+  if (r.invalidRelationships.length > 0) return none(`${r.invalidRelationships.length} capability relationship(s) failed validation`);
+  const surfaces = r.surfaces ?? [];
+  if (surfaces.length === 0) return none("the repository declares no surfaces");
+
+  const mapping = surfaces.map((s) => ({ surface: s.id, platform: s.platform, formFactor: s.formFactor }));
+  const pairs = new Map<string, string[]>();
+  for (const s of surfaces) {
+    const alias = s.platform === null ? undefined : SURFACE_PLATFORM_ALIASES[s.platform.trim().toLowerCase()];
+    const device = s.formFactor === null ? undefined : FORM_FACTOR_DEVICE[s.formFactor];
+    if (alias === undefined) return none(`surface ${s.id}: platform ${JSON.stringify(s.platform)} is not a recognised routing platform`);
+    if (device === undefined) return none(`surface ${s.id}: formFactor ${JSON.stringify(s.formFactor)} maps to no device type`);
+    if (alias.device !== null && alias.device !== device) return none(`surface ${s.id}: platform ${JSON.stringify(s.platform)} contradicts formFactor ${s.formFactor}`);
+    const pair = `${alias.platform}/${device}`;
+    if (!(SINGLE_TARGET_PAIRS as readonly string[]).includes(pair)) return none(`surface ${s.id}: ${pair} is not a pair this routing exception supports`);
+    pairs.set(pair, [...(pairs.get(pair) ?? []), s.id]);
+  }
+  if (pairs.size !== 1) return none(`the surfaces map to ${pairs.size} routing pairs (${[...pairs.keys()].sort().join(", ")}) — the developer chooses`);
+  const [pair, ids] = [...pairs.entries()][0];
+  const [platform, device_type] = pair.split("/");
+
+  // React Native: its native shells must provably be the same application — every surface
+  // declares every other one as sharing its code, and one shared-code root is shared by all.
+  if (platform === "react-native" && ids.length > 1) {
+    const linked = surfaces.every((s) => ids.filter((o) => o !== s.id).every((o) => s.sharedWith.includes(o)));
+    const shared = (r.sharedCode ?? []).some((c) => ids.every((id) => c.sharedBy.includes(id)));
+    if (!linked || !shared) return none("the React Native surfaces are not proven to be one application (sharedWith and one shared-code root shared by every surface)");
+  }
+  return { status: "single", platform, device_type, surfaces: [...ids].sort(), knowledgeHead, mapping };
+}
+
 /**
  * One surface's context — to scope a feature AFTER the human confirmed its platform and
  * device type. Never an input to routing: `formFactor` is not a `device_type`.
@@ -928,8 +1070,8 @@ export function lookupCapability(r: KnowledgeResult, q: { capability?: string; p
   for (const raw of q.paths ?? []) {
     const p = normPath(raw);
     for (const c of r.capabilities) {
-      if (c.sourceRoots.some((sr) => isUnder(p, normPath(sr.path)))) add(c.id, "source-root");
-      else if (c.entryPoints.some((e) => normPath(parseEvidenceRef(e).path) === p)) add(c.id, "entry-point");
+      if (c.sourceRoots.some((sr) => under(p, normPath(sr.path)))) add(c.id, "source-root");
+      else if (c.entryPoints.some((e) => comparablePath(normPath(parseEvidenceRef(e).path)) === comparablePath(p))) add(c.id, "entry-point");
     }
   }
   const matches = [...found.entries()].map(([id, matchedBy]) => ({ id, matchedBy })).sort((a, b) => (a.id < b.id ? -1 : 1));
@@ -1009,15 +1151,15 @@ export function pathScope(r: KnowledgeResult, paths: string[]): Array<{ path: st
     const surfaces = new Set<string>();
     let sharedCode: string | null = null;
     if (surfacesOk) {
-      for (const s of r.surfaces ?? []) if (s.sourceRoots.some((root) => isUnder(p, normPath(root)))) surfaces.add(s.id);
+      for (const s of r.surfaces ?? []) if (s.sourceRoots.some((root) => under(p, normPath(root)))) surfaces.add(s.id);
       for (const sc of r.sharedCode ?? []) {
-        if (isUnder(p, normPath(sc.root))) {
+        if (under(p, normPath(sc.root))) {
           sharedCode = sc.root;
           sc.sharedBy.forEach((x) => surfaces.add(x));
         }
       }
     }
-    const capabilities = capsOk ? (r.capabilities ?? []).filter((c) => c.sourceRoots.some((sr) => isUnder(p, normPath(sr.path)))).map((c) => c.id).sort() : [];
+    const capabilities = capsOk ? (r.capabilities ?? []).filter((c) => c.sourceRoots.some((sr) => under(p, normPath(sr.path)))).map((c) => c.id).sort() : [];
     return { path: p, surfaces: [...surfaces].sort(), sharedCode, capabilities };
   });
 }
