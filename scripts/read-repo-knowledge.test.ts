@@ -15,10 +15,11 @@
  */
 
 import { execFileSync } from "child_process";
-import { mkdtempSync, mkdirSync, writeFileSync, realpathSync, rmSync, cpSync, renameSync, readFileSync, existsSync as existsSyncSafe } from "fs";
+import { mkdtempSync, mkdirSync, writeFileSync, realpathSync, rmSync, cpSync, renameSync, readFileSync, chmodSync, existsSync as existsSyncSafe } from "fs";
 import { createHash } from "crypto";
 import { tmpdir } from "os";
 import { join, dirname } from "path";
+import { pathToFileURL } from "url";
 
 const HELPER = join(import.meta.dirname ?? __dirname, "read-repo-knowledge.ts");
 const RUNTIME = process.execPath;
@@ -408,6 +409,111 @@ try {
 
     const skill = readFileSync(join(dirname(HELPER), "..", "skills", "repo-knowledge-consumer", "SKILL.md"), "utf-8");
     check("17 A2: the consumer shows it once per command run and never runs inspect-sync itself", /inspectionWithoutManifest: true/.test(skill) && /once per command run/.test(skill) && /never run `\/inspect-sync` on the developer's behalf/.test(skill));
+  }
+
+  // --- Row 18 (0.9.2): artifact hashes — docs/repo-knowledge-contract.md "Artifact hashes" (producer 0.14.0) ---
+  {
+    const R = await import(pathToFileURL(HELPER).href);
+    const text = (t: string) => ({ state: "text", text: t }) as const;
+    const ABSENT = { state: "absent" } as const;
+    const lf = (t: string) => t.replace(/\r\n/g, "\n");
+    const crlf = (t: string) => lf(t).replace(/\n/g, "\r\n");
+    const DOC = "# CLAUDE.md\n\n## Targets and Surfaces\n- android-tv\n";
+    const BOM = "﻿";
+    const M = (recorded: unknown, doc: unknown, algo: unknown) => R.artifactMatches(recorded, doc, algo);
+    const LEGACY = undefined;
+    // [case, recorded, current document, algorithm, expected]
+    const MATRIX: Array<[string, unknown, unknown, unknown, boolean]> = [
+      ["sha256-lf · LF document", sha(DOC), text(DOC), "sha256-lf", true],
+      ["sha256-lf · the same document, CRLF", sha(DOC), text(crlf(DOC)), "sha256-lf", true],
+      ["sha256-lf · mixed line endings, same content", sha(DOC), text(DOC.replace("\n\n", "\r\n\n")), "sha256-lf", true],
+      ["sha256-lf · a UTF-8 BOM added", sha(DOC), text(BOM + DOC), "sha256-lf", false],
+      ["sha256-lf · a recorded BOM is kept (BOM + CRLF matches BOM + LF)", sha(BOM + DOC), text(BOM + crlf(DOC)), "sha256-lf", true],
+      ["sha256-lf · a lone CR added (mid-line, not part of a CRLF pair)", sha(DOC), text(DOC.replace("## Targets", "## Tar\rgets")), "sha256-lf", false],
+      ["sha256-lf · a classic-Mac (CR-only) document is not its LF text", sha(DOC), text(DOC.replace(/\n/g, "\r")), "sha256-lf", false],
+      ["sha256-lf · the final newline removed", sha(DOC), text(DOC.slice(0, -1)), "sha256-lf", false],
+      ["sha256-lf · a final newline added", sha(DOC), text(DOC + "\n"), "sha256-lf", false],
+      ["sha256-lf · a real content change", sha(DOC), text(DOC.replace("android-tv", "android-tv-stg")), "sha256-lf", false],
+      ["sha256-lf · a recorded CRLF (raw) hash is not sha256-lf", sha(crlf(DOC)), text(crlf(DOC)), "sha256-lf", false],
+      ["null recorded · absent document", null, ABSENT, "sha256-lf", true],
+      ["null recorded · an EMPTY document is not absent", null, text(""), "sha256-lf", false],
+      ["empty recorded · empty document", sha(""), text(""), "sha256-lf", true],
+      ["empty recorded · absent document", sha(""), ABSENT, "sha256-lf", false],
+      ["hash recorded · absent document", sha(DOC), ABSENT, "sha256-lf", false],
+      ["unreadable document is never a match (and never 'absent')", sha(DOC), { state: "unreadable", reason: "EACCES" }, "sha256-lf", false],
+      ["unreadable document never matches a recorded null", null, { state: "unreadable", reason: "EACCES" }, LEGACY, false],
+      ["legacy · LF-recorded, LF document (raw)", sha(DOC), text(DOC), LEGACY, true],
+      ["legacy · LF-recorded, CRLF document (LF encoding)", sha(DOC), text(crlf(DOC)), LEGACY, true],
+      ["legacy · CRLF-recorded, LF document (uniform CRLF encoding)", sha(crlf(DOC)), text(DOC), LEGACY, true],
+      ["legacy · CRLF-recorded, CRLF document (raw)", sha(crlf(DOC)), text(crlf(DOC)), LEGACY, true],
+      ["legacy · mixed-recorded, same mixed bytes (raw)", sha(DOC.replace("\n\n", "\r\n\n")), text(DOC.replace("\n\n", "\r\n\n")), LEGACY, true],
+      ["legacy · mixed-recorded, an LF checkout (safe: stale)", sha(DOC.replace("\n\n", "\r\n\n")), text(DOC), LEGACY, false],
+      ["legacy · a BOM added", sha(DOC), text(BOM + DOC), LEGACY, false],
+      ["legacy · a lone CR added (mid-line)", sha(DOC), text(DOC.replace("## Targets", "## Tar\rgets")), LEGACY, false],
+      ["legacy · the final newline removed", sha(DOC), text(DOC.slice(0, -1)), LEGACY, false],
+      ["legacy · a real content change", sha(DOC), text(DOC + "x"), LEGACY, false],
+      ["legacy · null recorded, absent", null, ABSENT, LEGACY, true],
+      ["legacy · null recorded, empty", null, text(""), LEGACY, false],
+      ["unknown algorithm · the raw hash matches, still no match", sha(DOC), text(DOC), "sha512", false],
+      ["unknown algorithm · never read as legacy (CRLF encoding)", sha(crlf(DOC)), text(DOC), "sha256-raw", false],
+      ["unknown algorithm · even null/absent does not match", null, ABSENT, "md5", false],
+      ["malformed algorithm · null", sha(DOC), text(DOC), null, false],
+      ["malformed algorithm · a number", sha(DOC), text(DOC), 256, false],
+      ["malformed algorithm · different case", sha(DOC), text(DOC), "SHA256-LF", false],
+      ["malformed recorded value · a number", 42, text(DOC), "sha256-lf", false],
+    ];
+    const wrong = MATRIX.filter(([, rec, doc, algo, want]) => M(rec, doc, algo) !== want).map(([n]) => n);
+    check(`18 hash matrix: all ${MATRIX.length} cases follow the contract's four rules`, wrong.length === 0, wrong.join(" | "));
+    for (const [name, rec, doc, algo, want] of MATRIX) if (M(rec, doc, algo) !== want) check(`18 ${name}`, false, `expected ${want}`);
+
+    // readArtifact: absent, empty and unreadable are three different things.
+    const ra = join(root, "artifact-read");
+    mkdirSync(join(ra, "dir"), { recursive: true });
+    write(ra, "empty.md", "");
+    check("18 readArtifact: a missing file is absent", R.readArtifact(ra, "missing.md").state === "absent");
+    check("18 readArtifact: a file below a non-directory is absent", R.readArtifact(ra, "empty.md/x").state === "absent");
+    check("18 readArtifact: an empty file is text, not absent", R.readArtifact(ra, "empty.md").state === "text" && R.readArtifact(ra, "empty.md").text === "");
+    check("18 readArtifact: a directory where a document should be is unreadable, never absent", R.readArtifact(ra, "dir").state === "unreadable");
+    // A document that exists but cannot even be looked at (its folder has no permissions): unreadable, never "absent".
+    write(ra, "locked/doc.md", "# doc\n");
+    chmodSync(join(ra, "locked"), 0o000);
+    let locked: any;
+    try {
+      locked = R.readArtifact(ra, "locked/doc.md");
+    } finally {
+      chmodSync(join(ra, "locked"), 0o755);
+    }
+    const asRoot = typeof process.getuid === "function" && process.getuid() === 0; // root ignores permissions
+    check("18 readArtifact: a stat failure other than not-found is unreadable — a recorded null never matches it", asRoot || (locked.state === "unreadable" && R.artifactMatches(null, locked, undefined) === false), JSON.stringify(locked));
+    check("18 readArtifact: the bytes are read as UTF-8 with nothing else changed (BOM and CRLF kept)", (() => { write(ra, "bom.md", BOM + "a\r\nb\r"); const d = R.readArtifact(ra, "bom.md"); return d.state === "text" && d.text === BOM + "a\r\nb\r"; })());
+
+    // End to end through the CLI: a 0.14.0 manifest on a CRLF checkout, and an unsupported algorithm.
+    const repo = join(root, "hash-crlf");
+    const head = seedRepo(repo);
+    const m14 = manifest(head);
+    m14.fingerprint.artifactHash = "sha256-lf";
+    write(repo, ".ono/repo-knowledge.json", JSON.stringify(m14));
+    write(repo, "CLAUDE.md", crlf(CLAUDE_BODY));
+    write(repo, "docs/project/patterns.md", crlf(PATTERNS_BODY));
+    const r14 = run(repo).json;
+    check("18 CLI: a sha256-lf manifest read on a CRLF checkout is fresh (not stale-artifacts)", r14?.freshness === "fresh", `${r14?.freshness} ${r14?.staleDetail}`);
+    const legacyCrlf = manifest(head);
+    legacyCrlf.fingerprint.artifacts["CLAUDE.md"] = sha(crlf(CLAUDE_BODY));
+    write(repo, ".ono/repo-knowledge.json", JSON.stringify(legacyCrlf));
+    write(repo, "CLAUDE.md", CLAUDE_BODY);
+    write(repo, "docs/project/patterns.md", PATTERNS_BODY);
+    const rl = run(repo).json;
+    check("18 CLI: a legacy manifest emitted from a CRLF checkout, read on LF, is fresh", rl?.freshness === "fresh", `${rl?.freshness} ${rl?.staleDetail}`);
+    const unknownAlgo = manifest(head);
+    unknownAlgo.fingerprint.artifactHash = "sha3-256";
+    write(repo, ".ono/repo-knowledge.json", JSON.stringify(unknownAlgo));
+    const ru = run(repo).json;
+    check("18 CLI: an unsupported artifactHash is stale-artifacts although every raw hash matches", ru?.available === true && ru?.freshness === "stale-artifacts" && /artifactHash "sha3-256" is not an algorithm this plugin supports/.test(ru?.staleDetail ?? ""), `${ru?.freshness} ${ru?.staleDetail}`);
+    check("18 CLI: … and the categories those documents back are derived live, never reused", (ru?.deriveLive ?? []).includes("conventions") && !(ru?.usableCategories ?? []).includes("conventions"), JSON.stringify(ru?.usableCategories));
+    write(repo, ".ono/repo-knowledge.json", JSON.stringify(m14));
+    write(repo, "CLAUDE.md", crlf(CLAUDE_BODY) + "Edited.\r\n");
+    const re = run(repo).json;
+    check("18 CLI: a real content change on a CRLF checkout is still stale-artifacts", re?.freshness === "stale-artifacts" && /CLAUDE\.md/.test(re?.staleDetail ?? ""), `${re?.freshness}`);
   }
 } finally {
   rmSync(root, { recursive: true, force: true });

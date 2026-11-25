@@ -52,6 +52,46 @@ esac
 
 field '.tool_input.file_path // .tool_input.notebook_path'; target="$REPLY"
 [ -n "$target" ] || block
+# >>> Windows paths (0.9.2) — Git Bash only; on macOS and Linux this block is skipped entirely.
+# Claude Code on Windows sends native paths (C:\repo\a.ts, C:/repo/a.ts, \\server\share\a.ts):
+# they are absolute, but the checks below understand POSIX paths only and would join them onto
+# the session directory — deciding by where the session is, not by where the file is. Convert a
+# native absolute path (and a native session directory) with cygpath first. A drive-relative
+# path (C:a.ts), a UNC path (\\server\share — the same folder can have another name, so it
+# cannot be compared with the repository reliably) or one that cannot be converted is ambiguous:
+# here, on main/master, it is blocked.
+case "${OSTYPE:-}" in
+  msys*|cygwin*)
+    win_abs() { case "$1" in [A-Za-z]:[\\/]*) return 0 ;; *) return 1 ;; esac; }
+    win_unc() { case "$1" in [\\/][\\/]*) return 0 ;; *) return 1 ;; esac; }
+    win_drive_rel() { case "$1" in [A-Za-z]:*) return 0 ;; *) return 1 ;; esac; }
+    to_posix() { command -v cygpath >/dev/null 2>&1 && cygpath -u -- "$1" 2>/dev/null; }
+    if win_unc "$target"; then
+      block " (a UNC path cannot be compared with the repository reliably.)"
+    elif win_abs "$target"; then
+      target="$(to_posix "$target")" && [ -n "$target" ] || block " (the Windows path could not be resolved.)"
+    elif win_drive_rel "$target"; then
+      block " (a drive-relative Windows path is ambiguous.)"
+    else
+      target="${target//\\//}"
+      case "$target" in
+        /*) ;;
+        *)
+          field '.cwd'; base="${REPLY:-$project_dir}"
+          if win_unc "$base"; then
+            block " (the session directory is a UNC path.)"
+          elif win_abs "$base"; then
+            base="$(to_posix "$base")" && [ -n "$base" ] || block " (the session directory could not be resolved.)"
+          elif win_drive_rel "$base"; then
+            block " (the session directory is a drive-relative Windows path.)"
+          fi
+          target="${base%/}/$target"
+          ;;
+      esac
+    fi
+    ;;
+esac
+# <<< Windows paths (0.9.2)
 [ -L "$target" ] && block
 
 project_top="$(cd "$project_dir" 2>/dev/null && git rev-parse --show-toplevel 2>/dev/null)"

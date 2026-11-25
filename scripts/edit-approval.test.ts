@@ -393,7 +393,8 @@ try {
       "hooks/block-main-branch-changes.json": "5be63f8a2207df6847c54ee1422c98fbe113a26290696d927c7da4d5a67ed92f",
       // 0.7.6: the branch hook fails closed without jq, covers NotebookEdit and no longer blocks files outside the project repository — on purpose; re-pinned.
       // 2026-11-22, 0.8.0 integration remediation — re-pinned on purpose. hooks: A1 — the payload is read through hooks/lib/hook-json.sh (jq, else Node.js, else fail closed). Decisions unchanged.
-      "hooks/block-main-branch-changes.sh": "08834255cd3a3e0226380a0b336214b88dda8baf9f30232676261070dab7e90e",
+      // 2026-11-25, 0.9.2 — re-pinned on purpose: one Git-Bash-only block converts native Windows paths (C:\…, C:/…) before the path checks, and blocks drive-relative and UNC paths on main/master; without the block the hook is the 0.9.1 hook byte for byte (hook-checkout.test.ts § 4).
+      "hooks/block-main-branch-changes.sh": "f01bb2da741a569e0cd508bfca7509c0063eab5bc1923953f8b8bd5398a19191",
       // 0.7.6: protect-secrets fails closed without jq or on an unreadable call, and scans NotebookEdit — on purpose; re-pinned.
       "hooks/protect-secrets.json": "b4b4350722c03853c22a91f53d0b25d6bc0898b8d9e51ec821a73e62242d003c",
       // 0.7.6: protect-secrets fails closed without jq or on an unreadable call, and scans NotebookEdit — on purpose; re-pinned.

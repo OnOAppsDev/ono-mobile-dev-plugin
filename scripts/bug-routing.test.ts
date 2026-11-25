@@ -26,7 +26,7 @@
  */
 
 import { execFileSync } from "child_process";
-import { chmodSync, existsSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, writeFileSync } from "fs";
+import { chmodSync, existsSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, symlinkSync, writeFileSync } from "fs";
 import { createHash } from "crypto";
 import { tmpdir } from "os";
 import { join, dirname } from "path";
@@ -35,6 +35,7 @@ import * as Reader from "./read-repo-knowledge.ts";
 import { BUG_WORK_PLAN_FIELDS } from "./bug-work-plan.ts";
 import { approveWorkPackage, verifyApproval } from "./work-approval.ts";
 import { stateFilePath } from "./task-state.ts";
+import { bugGate } from "./bug-implementation.ts";
 import { readFrontmatter } from "./migrate-planning-doc.ts";
 
 const HERE = import.meta.dirname ?? __dirname;
@@ -265,7 +266,7 @@ try {
       ["the manifest of a nested project only", { manifest: "nested" }],
       ["surfaces coverage partial", { coverage: "partial" }],
       ["surfaces coverage unknown", { coverage: "unknown" }],
-      ["source drift since the knowledge was written", { drift: true }],
+      // 0.9.2 (authorized expectation change): ordinary source drift no longer blocks — § 12.
       ["CLAUDE.md edited after the manifest", { editClaude: true }],
       ["an invalid capability relationship", { invalidRelationship: true }],
     ];
@@ -273,6 +274,13 @@ try {
       const r = S(ext(repoWith(o)));
       check(`5 ${name} → confirm`, asks(r), show(r));
     }
+    // 0.9.2: was "source drift since the knowledge was written → confirm". Ordinary drift (a new .kt
+    // file) now keeps single-target routing; general freshness still recommends a refresh.
+    const driftRoot = repoWith({ drift: true });
+    const drifted = S(ext(driftRoot));
+    const driftK = Reader.readRepoKnowledge(driftRoot);
+    check("5 ordinary source drift since the knowledge was written → still automatic (0.9.2), general freshness still stale",
+      auto(drifted) && drifted.routing.device_type === "tv" && driftK.sourceDrift?.status === "REFRESH_RECOMMENDED" && driftK.refreshRecommendation !== null && driftK.routingFreshness?.status === "CLEAN", `${show(drifted)} ${driftK.sourceDrift?.status} ${driftK.routingFreshness?.status}`);
     // Failed git operations can never enable it.
     const root = repoWith();
     const realGit = execFileSync("bash", ["-c", "command -v git"], { encoding: "utf-8" }).trim();
@@ -297,10 +305,16 @@ try {
     // pinned on an otherwise-eligible result so a future reader change cannot drop it silently.
     const ok = Reader.readRepoKnowledge(repoWith());
     check("5 (control) the eligible knowledge result routes", Reader.singleRoutingTarget(ok).status === "single");
+    // 0.9.2: an unknown drift baseline is refused explicitly, even if routing freshness were (wrongly) clean.
+    const unknownBaseline = { ...ok, sourceDrift: { ...ok.sourceDrift!, status: "BASELINE_UNKNOWN" as const, reason: "forged for the test" }, routingFreshness: { status: "CLEAN" as const, reason: "forged", routingChanges: [], routingChangeCount: 0, ordinaryChangeCount: 0 } } as typeof ok;
+    const ub = Reader.singleRoutingTarget(unknownBaseline);
+    check("5 an unknown source-drift baseline never routes, even with clean routing freshness", ub.status === "none" && /baseline is unknown/.test((ub as any).reason), JSON.stringify(ub));
+    const rfMissing = Reader.singleRoutingTarget({ ...ok, routingFreshness: null } as typeof ok);
+    check("5 routing freshness that was not computed never routes", rfMissing.status === "none" && /routing freshness cannot be established/.test((rfMissing as any).reason), JSON.stringify(rfMissing));
     for (const status of ["verifyOnUse", "deriveLive"] as const) {
       const forged = { ...ok, extendedCategories: { ...ok.extendedCategories, surfaces: { status, reason: "forged for the test" } } } as typeof ok;
       const t = Reader.singleRoutingTarget(forged);
-      check(`5 surfaces that are not trusted (${status}) never route, even when every other gate passes`, t.status === "none" && /not trusted/.test((t as any).reason), JSON.stringify(t));
+      check(`5 surfaces that are not trusted (${status}) never route, even when every other gate passes`, t.status === "none" && (status === "deriveLive" ? /derived live/ : /not trusted/).test((t as any).reason), JSON.stringify(t));
     }
   }
 
@@ -317,7 +331,9 @@ try {
       ["tvOS contradicts Android TV", { surfaces: ["tvos"] }, false],
       ["an unknown surface is never agreement", { surfaces: ["android-tv", "web-portal"] }, false],
       ["a near-miss name is unknown, not agreement", { surfaces: ["android-tv-box"] }, false],
-      ["an unrecognised environment is never agreement", { surfaces: ["android-tv"], environment: "Production 4.2" }, false],
+      // 0.9.2 (authorized expectation change): "Production 4.2" is neutral now — § 13; an unknown word still is not.
+      ["a neutral environment (Production 4.2) does not block", { surfaces: ["android-tv"], environment: "Production 4.2" }, true],
+      ["an unrecognised environment is never agreement", { surfaces: ["android-tv"], environment: "Production EU" }, false],
       ["a contradicting environment", { surfaces: [], environment: "iphone" }, false],
     ];
     for (const [name, extra, ok] of cases) {
@@ -430,7 +446,8 @@ try {
     SC(ext(r6, { surfaces: [], related_feature: "epg" }));
     check("9 a routing inherited from a related feature is never corrected here", RR({ ...ext(r6, { surfaces: [], related_feature: "epg" }), platform: "android", deviceType: "mobile" }).code === "REROUTE_NOT_ALLOWED");
     // No plan.
-    check("9 no plan → nothing to correct", RR({ ...ext(repoWith()), platform: "android", deviceType: "mobile" }).code === "REROUTE_NOT_ALLOWED");
+    // 0.9.2: the refusal names the scaffold-first path (was REROUTE_NOT_ALLOWED) — still a refusal, nothing written.
+    check("9 no plan → nothing to correct (REROUTE_NO_DRAFT: scaffold first)", RR({ ...ext(repoWith()), platform: "android", deviceType: "mobile" }).code === "REROUTE_NO_DRAFT");
 
     // The enforcement boundary (0.9.0 final review). The helper enforces canonical values and the
     // draft's state; which targets the repository supports is the command's repo-analyst
@@ -482,11 +499,357 @@ try {
     // The automatic source is the helper's verdict, never an argument: when the knowledge is not
     // eligible (here, drifted), the same pair passed by the caller — even with a forged source —
     // is recorded as the developer's confirmation, never as `repo-single-target`.
-    const rs = repoWith({ drift: true });
+    const rs = repoWith({ coverage: "partial" }); // ineligible knowledge (0.9.2: ordinary drift no longer is)
     const forged = SC({ ...ext(rs), platform: "android", deviceType: "tv", source: "repo-single-target", how: Bug.SINGLE_TARGET_MARK });
     const ts = readFileSync(planPath(rs), "utf-8");
     check("10 the automatic routing source cannot be supplied by the caller", forged.ok === true && ts.includes("- **Platform / device type:** android / tv — confirmed by the developer\n") && !ts.includes(Bug.SINGLE_TARGET_MARK), JSON.stringify(forged.routing));
     check("10 the CLI has no argument that names a routing source", !/flags\.(source|how)\b|flags\["(source|how)"\]/.test(read("scripts/analyze-bug.ts")));
+  }
+
+  /* 12. Routing freshness (0.9.2, Phase A): ordinary drift keeps routing, routing-relevant drift never does. */
+  {
+    const commit = (root: string, msg = "change") => {
+      git(root, "add", "-A", "--", ".", ":!.ono");
+      git(root, "commit", "-qm", msg);
+    };
+    /** Re-point the manifest's knowledge at the current HEAD — as a refresh would — so later changes are measured from here. */
+    const rebaseKnowledge = (root: string) => {
+      const p = join(root, ".ono/repo-knowledge.json");
+      const m = JSON.parse(readFileSync(p, "utf-8"));
+      m.fingerprint.knowledgeHead = git(root, "rev-parse", "HEAD");
+      m.fingerprint.gitHead = m.fingerprint.knowledgeHead;
+      writeFileSync(p, JSON.stringify(m, null, 2));
+    };
+    const withEvidence = (root: string, evidence: string[]) => {
+      const p = join(root, ".ono/repo-knowledge.json");
+      const m = JSON.parse(readFileSync(p, "utf-8"));
+      m.surfaces[0].evidence = evidence;
+      writeFileSync(p, JSON.stringify(m, null, 2));
+    };
+    const K = (root: string) => Reader.readRepoKnowledge(root);
+    const RF = (root: string) => K(root).routingFreshness;
+
+    // Guy's case: Android TV, production and staging surfaces, 85+ ordinary source changes since the inspection.
+    const g = repoWith();
+    for (let i = 0; i < 40; i++) write(g, `app/src/main/java/tv/yes/feature${i}/Screen${i}.kt`, `class Screen${i}\n`);
+    for (let i = 0; i < 15; i++) write(g, `app/src/main/res/layout/screen_${i}.xml`, `<FrameLayout/>\n`);
+    for (let i = 0; i < 10; i++) write(g, `app/src/main/res/drawable/icon_${i}.png`, `png${i}`);
+    for (let i = 0; i < 10; i++) write(g, `app/src/test/java/tv/yes/Screen${i}Test.kt`, `class Screen${i}Test\n`);
+    for (let i = 0; i < 5; i++) write(g, `app/src/main/java/tv/yes/legacy/Util${i}.java`, `class Util${i} {}\n`);
+    for (let i = 0; i < 5; i++) write(g, `docs/notes/note-${i}.md`, `# note ${i}\n`);
+    commit(g, "85 ordinary changes");
+    write(g, "app/src/Main.kt", "fun main() = println(1)\n"); // unstaged, tracked
+    write(g, "app/src/main/java/tv/yes/Staged.kt", "class Staged\n");
+    git(g, "add", "app/src/main/java/tv/yes/Staged.kt"); // staged
+    write(g, "app/src/main/java/tv/yes/Untracked.kt", "class Untracked\n"); // untracked
+    write(g, "docs/bugs/YET-1/bug-report.json", "{}\n"); // the plugin's own workflow output
+    write(g, ".claude/settings.local.json", "{}\n"); // Claude Code's local settings
+    const gk = K(g);
+    check("12 Guy: 85+ ordinary changes — general freshness still recommends a refresh", gk.sourceDrift?.status === "REFRESH_RECOMMENDED" && (gk.sourceDrift?.changedSourceCount ?? 0) >= 85 && gk.refreshRecommendation !== null, `${gk.sourceDrift?.status} ${gk.sourceDrift?.changedSourceCount}`);
+    check("12 Guy: routing freshness is CLEAN — committed, staged, unstaged and untracked ordinary changes all counted", gk.routingFreshness?.status === "CLEAN" && (gk.routingFreshness?.ordinaryChangeCount ?? 0) >= 89, JSON.stringify(gk.routingFreshness)); // 85 committed + unstaged + staged + untracked + workflow output (.claude/ may be hidden by a machine's global ignore)
+    const gs = S(ext(g));
+    check("12 Guy: automatic routing selects Android / TV from the two surfaces", auto(gs) && gs.routing.platform === "android" && gs.routing.device_type === "tv" && JSON.stringify(gs.routing.evidence?.surfaces) === JSON.stringify(["android-tv", "android-tv-stg"]), show(gs));
+    const gsc = SC(ext(g));
+    const gPlan = readFileSync(planPath(g), "utf-8");
+    check("12 Guy: the plan is still a draft and needs the normal human approval", gsc.ok === true && /^status: draft$/m.test(gPlan) && verifyApproval(Buffer.from(gPlan)).status !== "approved" && S(ext(g)).outcome !== "BUG_PLAN_APPROVED", JSON.stringify(gsc).slice(0, 200));
+
+    // Surfaces verify-on-use because ordinary surface evidence changed: still automatic (non-routing drift only).
+    const v = repoWith();
+    withEvidence(v, ["app/src/Main.kt"]);
+    write(v, "app/src/Main.kt", "fun main() = println(2)\n");
+    commit(v);
+    const vk = K(v);
+    check("12 verifyOnUse surfaces caused only by non-routing drift (an edited Kotlin evidence file) still route", vk.extendedCategories.surfaces.status === "verifyOnUse" && auto(S(ext(v))), `${vk.extendedCategories.surfaces.status} ${show(S(ext(v)))}`);
+
+    // Routing-relevant committed changes: a new platform, target, flavor, scheme, build configuration or dependency.
+    const committed: Array<[string, Record<string, string>]> = [
+      ["a module build script (app/build.gradle)", { "app/build.gradle": "android { productFlavors { mobile {} } }\n" }],
+      ["a Kotlin DSL build script", { "tv/build.gradle.kts": "plugins { id(\"com.android.application\") }\n" }],
+      ["settings.gradle (a new module)", { "settings.gradle": "include ':app', ':mobile'\n" }],
+      ["a new flavor's AndroidManifest.xml", { "app/src/mobile/AndroidManifest.xml": "<manifest/>\n" }],
+      ["a version catalog", { "gradle/libs.versions.toml": "[versions]\nagp = \"8.5.0\"\n" }],
+      ["Gradle properties", { "gradle.properties": "flavor=mobile\n" }],
+      ["a properties file a build may read", { "app/flavors.properties": "tv=true\n" }],
+      ["build logic in buildSrc (Kotlin)", { "buildSrc/src/main/kotlin/Flavors.kt": "object Flavors\n" }],
+      ["an Xcode project", { "TV/TV.xcodeproj/project.pbxproj": "// !$*UTF8*$!\n" }],
+      ["an Xcode scheme", { "TV/TV.xcodeproj/xcshareddata/xcschemes/Mobile.xcscheme": "<Scheme/>\n" }],
+      ["an Xcode build configuration", { "Config/Mobile.xcconfig": "SDKROOT = iphoneos\n" }],
+      ["an Info.plist", { "app/src/main/Info.plist": "<plist/>\n" }],
+      ["React Native / JS package manifest", { "package.json": "{\"dependencies\":{\"react-native\":\"0.76.0\"}}\n" }],
+      ["Expo app config", { "app.config.ts": "export default {}\n" }],
+      ["a new top-level platform folder (only .swift inside)", { "ios/App/App.swift": "struct App {}\n" }],
+      ["an unrecognised file type (a YAML target list)", { "config/targets.yaml": "targets: [tv, mobile]\n" }],
+    ];
+    for (const [name, files] of committed) {
+      const r = repoWith();
+      for (const [p, body] of Object.entries(files)) write(r, p, body);
+      commit(r);
+      const rf = RF(r);
+      check(`12 committed — ${name} → confirm`, asks(S(ext(r))) && rf?.status === "ROUTING_CHANGED" && Object.keys(files).every((p) => rf.routingChanges.some((c) => c.startsWith(`${p} — `) || c.startsWith(`${p.split("/")[0]} — `) || c.startsWith(p))), JSON.stringify(rf));
+    }
+
+    // Staged, unstaged and untracked routing-relevant changes (nothing committed).
+    const st = repoWith();
+    write(st, "app/src/mobile/AndroidManifest.xml", "<manifest/>\n");
+    git(st, "add", "app/src/mobile/AndroidManifest.xml");
+    check("12 staged — a new flavor manifest, not committed → confirm", asks(S(ext(st))) && RF(st)?.status === "ROUTING_CHANGED", JSON.stringify(RF(st)));
+    const un = repoWith();
+    write(un, "gradle.properties", "flavor=tv\n");
+    commit(un);
+    rebaseKnowledge(un);
+    check("12 (control) after re-pointing the knowledge, the same repository routes", auto(S(ext(un))), show(S(ext(un))));
+    write(un, "gradle.properties", "flavor=mobile\n");
+    check("12 unstaged — an edited gradle.properties → confirm", asks(S(ext(un))) && RF(un)?.routingChanges.some((c) => c.startsWith("gradle.properties")), JSON.stringify(RF(un)));
+    const ut = repoWith();
+    write(ut, "app/src/tv2/AndroidManifest.xml", "<manifest/>\n");
+    check("12 untracked — a new AndroidManifest.xml → confirm", asks(S(ext(ut))) && RF(ut)?.status === "ROUTING_CHANGED", JSON.stringify(RF(ut)));
+
+    // Renames (both sides) and deletions, committed and not.
+    const rn = repoWith();
+    write(rn, "app/src/tv/AndroidManifest.xml", "<manifest/>\n");
+    commit(rn);
+    rebaseKnowledge(rn);
+    git(rn, "mv", "app/src/tv/AndroidManifest.xml", "app/src/tv/Notes.md");
+    check("12 staged rename — a manifest renamed to an ordinary name: the old side is routing-relevant", asks(S(ext(rn))) && RF(rn)?.routingChanges.some((c) => c.startsWith("app/src/tv/AndroidManifest.xml")), JSON.stringify(RF(rn)));
+    commit(rn, "rename");
+    check("12 committed rename — the same, after commit", asks(S(ext(rn))) && RF(rn)?.routingChanges.some((c) => c.startsWith("app/src/tv/AndroidManifest.xml")), JSON.stringify(RF(rn)));
+    const rn2 = repoWith();
+    git(rn2, "mv", "app/src/Main.kt", "app/build.gradle");
+    check("12 staged rename — an ordinary file renamed to a build script: the new side is routing-relevant", asks(S(ext(rn2))) && RF(rn2)?.routingChanges.some((c) => c.startsWith("app/build.gradle")), JSON.stringify(RF(rn2)));
+    const del = repoWith();
+    write(del, "app/src/tv/AndroidManifest.xml", "<manifest/>\n");
+    commit(del);
+    rebaseKnowledge(del);
+    rmSync(join(del, "app/src/tv/AndroidManifest.xml"));
+    check("12 unstaged deletion of a manifest → confirm", asks(S(ext(del))) && RF(del)?.status === "ROUTING_CHANGED", JSON.stringify(RF(del)));
+    git(del, "add", "-A", "--", ".", ":!.ono");
+    git(del, "commit", "-qm", "delete");
+    check("12 committed deletion of a manifest → confirm", asks(S(ext(del))) && RF(del)?.status === "ROUTING_CHANGED", JSON.stringify(RF(del)));
+
+    // Indirect build configuration: included builds.
+    const ib = repoWith();
+    write(ib, "settings.gradle.kts", "pluginManagement { includeBuild(\"platform-logic\") }\ninclude(\":app\")\n");
+    write(ib, "platform-logic/src/main/kotlin/Convention.kt", "class Convention\n");
+    commit(ib);
+    rebaseKnowledge(ib);
+    check("12 (control) a literal included build, unchanged → still automatic", auto(S(ext(ib))), JSON.stringify(RF(ib)));
+    write(ib, "platform-logic/src/main/kotlin/Convention.kt", "class Convention { val tv = false }\n");
+    check("12 a Kotlin file inside an included build is build logic → confirm", asks(S(ext(ib))) && RF(ib)?.routingChanges.some((c) => /inside an included build/.test(c)), JSON.stringify(RF(ib)));
+    const dyn = repoWith();
+    write(dyn, "settings.gradle.kts", "val logic = System.getenv(\"LOGIC\") ?: \"logic\"\nincludeBuild(logic)\n");
+    commit(dyn);
+    rebaseKnowledge(dyn);
+    check("12 an included build that is not a plain path (dynamic / external input) → confirm, never assumed", asks(S(ext(dyn))) && RF(dyn)?.status === "UNKNOWN", JSON.stringify(RF(dyn)));
+    const out = repoWith();
+    write(out, "settings.gradle", "includeBuild('../shared-build-logic')\n");
+    commit(out);
+    rebaseKnowledge(out);
+    check("12 an included build outside the repository (changes invisible here) → confirm", asks(S(ext(out))) && RF(out)?.status === "UNKNOWN", JSON.stringify(RF(out)));
+
+    // Explicit build-input references (0.9.2 final review): resolved → routing-relevant inputs;
+    // dynamic, external, URL or unreadable → UNKNOWN (the developer confirms — never left to approval).
+    const prep = (files: Record<string, string>) => {
+      const r = repoWith();
+      for (const [p, body] of Object.entries(files)) write(r, p, body);
+      commit(r);
+      rebaseKnowledge(r);
+      return r;
+    };
+    const TV_BUILD = [
+      "apply plugin: 'com.android.application'",
+      'apply from: "$rootDir/gradle/flavors.gradle"',
+      "def keystoreProperties = new Properties()",
+      "def keystorePropertiesFile = rootProject.file('keystore.properties')",
+      "def targets = new XmlSlurper().parse(file('src/main/res/xml/targets.xml'))",
+      "android {",
+      "  signingConfigs { release { storeFile file(System.getenv('KEYSTORE_PATH') ?: 'debug.keystore') ; storePassword System.getenv('KS_PASS') } }",
+      "  sourceSets { main { java.srcDirs += file('src/tv/java') } }",
+      "  react { root = file('../') }",
+      "  buildTypes { release { proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro' } }",
+      "}",
+      "def generated = file(\"$buildDir/generated/targets.json\")",
+      "",
+    ].join("\n");
+    const tv = prep({ "settings.gradle": "include ':app'\n", "app/build.gradle": TV_BUILD, "gradle/flavors.gradle": "ext.tv = true\n", "app/src/main/res/xml/targets.xml": "<targets><tv/></targets>\n", "app/src/tv/java/Tv.kt": "class Tv\n" });
+    for (let i = 0; i < 85; i++) write(tv, `app/src/main/java/tv/yes/f${i}/S${i}.kt`, `class S${i}\n`);
+    commit(tv, "85 ordinary changes");
+    const tvk = K(tv);
+    check("12 a realistic Android TV build (env-driven signing, an applied script, a read resource) + 85 ordinary changes → still automatic Android / TV",
+      tvk.routingFreshness?.status === "CLEAN" && tvk.sourceDrift?.status === "REFRESH_RECOMMENDED" && auto(S(ext(tv))) && S(ext(tv)).routing.device_type === "tv", JSON.stringify(tvk.routingFreshness));
+    write(tv, "app/src/main/res/xml/targets.xml", "<targets><tv/><mobile/></targets>\n");
+    check("12 a file the build script reads is routing-relevant even with an ordinary type and location (res/xml)", asks(S(ext(tv))) && RF(tv)?.routingChanges.some((c) => c === "app/src/main/res/xml/targets.xml — read or applied by a build script"), JSON.stringify(RF(tv)));
+    const unresolvable: Array<[string, Record<string, string>]> = [
+      ["apply from a computed (environment) path", { "app/build.gradle": "apply from: \"${System.getenv('CFG')}/flavors.gradle\"\n" }],
+      ["apply from a URL", { "app/build.gradle": "apply from: 'https://example.invalid/flavors.gradle'\n" }],
+      ["apply from outside the repository", { "app/build.gradle": "apply from: '../../shared/flavors.gradle'\n" }],
+      ["apply(from = …) in Kotlin DSL with a variable", { "app/build.gradle.kts": "val cfg = providers.gradleProperty(\"cfg\").get()\napply(from = cfg)\n" }],
+      ["a file read from outside the repository", { "app/build.gradle": "def targets = file('../../platform-config/targets.json')\n" }],
+      ["a file read from a computed path", { "app/build.gradle": "def targets = file(project.property('targetsFile'))\n" }],
+      ["an absolute file path", { "app/build.gradle": "def targets = file('/opt/build/targets.json')\n" }],
+      ["an .xcconfig including a file outside the repository", { "TV/Config/Base.xcconfig": "#include \"../../../Shared/Platform.xcconfig\"\n" }],
+      ["an .xcconfig including a computed path", { "TV/Config/Base.xcconfig": "#include \"$(SRCROOT)/Platform.xcconfig\"\n" }],
+    ];
+    for (const [name, files] of unresolvable) {
+      const r = prep(files);
+      const rf = RF(r);
+      check(`12 case B — ${name} → UNKNOWN, confirm (nothing changed since; the reference alone decides)`, asks(S(ext(r))) && rf?.status === "UNKNOWN" && /build input this assessment cannot resolve/.test(rf.reason), JSON.stringify(rf));
+    }
+    const fine = prep({ "app/build.gradle.kts": "apply(from = \"gradle/tv.gradle.kts\")\nval cfg = File(rootDir, \"config/targets.yml\")\nval out = layout.buildDirectory.file(\"gen/x.json\")\n", "gradle/tv.gradle.kts": "extra[\"tv\"] = true\n", "config/targets.yml": "tv: true\n", "TV/Config/Base.xcconfig": "#include \"Shared.xcconfig\"\n", "TV/Config/Shared.xcconfig": "SDKROOT = appletvos\n" });
+    check("12 resolvable references (Kotlin apply, File(rootDir, …), build outputs, an in-repo #include) keep routing automatic", auto(S(ext(fine))) && RF(fine)?.status === "CLEAN", JSON.stringify(RF(fine)));
+    const unreadable = prep({ "app/build.gradle": "apply plugin: 'com.android.application'\n" });
+    chmodSync(join(unreadable, "app/build.gradle"), 0o000);
+    let unreadableRf: any;
+    try {
+      unreadableRf = RF(unreadable);
+    } finally {
+      chmodSync(join(unreadable, "app/build.gradle"), 0o644);
+    }
+    const asRoot = typeof process.getuid === "function" && process.getuid() === 0;
+    check("12 a build script that cannot be read → UNKNOWN, confirm", asRoot || (unreadableRf?.status === "UNKNOWN" && /cannot be read/.test(unreadableRf.reason)), JSON.stringify(unreadableRf));
+    check("12 build references: the scan's forms and exemptions",
+      JSON.stringify(Reader.buildReferencesOf("app/build.gradle", "apply from: file('../gradle/x.gradle')\ndef p = rootProject.file('local.properties')\nimplementation files('libs/a.jar', 'libs/b.jar')", "")) === JSON.stringify({ paths: ["gradle/x.gradle", "local.properties", "app/libs/a.jar", "app/libs/b.jar"] }) &&
+      JSON.stringify(Reader.buildReferencesOf("android/app/build.gradle", 'apply from: "$rootDir/flavors.gradle"', "android")) === JSON.stringify({ paths: ["android/flavors.gradle"] }) &&
+      "unresolved" in Reader.buildReferencesOf("app/build.gradle", "def f = File(System.getenv('HOME'), 'x')", "") &&
+      JSON.stringify(Reader.buildReferencesOf("app/build.gradle", "storeFile file(System.getenv('KS'))\n// apply from: '../../x.gradle'\n/* file('/etc/x') */", "")) === JSON.stringify({ paths: [] }));
+
+    // Links, submodules, evidence and failures.
+    const ln = repoWith();
+    symlinkSync("../app/src/Main.kt", join(ln, "app/linked.kt"));
+    check("12 an untracked symbolic link → confirm (it can point at anything)", asks(S(ext(ln))) && RF(ln)?.routingChanges.some((c) => /symbolic link/.test(c)), JSON.stringify(RF(ln)));
+    const tc = repoWith();
+    rmSync(join(tc, "app/src/Main.kt"));
+    symlinkSync("../../README.md", join(tc, "app/src/Main.kt"));
+    check("12 a file-type change (a tracked source file replaced by a symbolic link) → confirm", asks(S(ext(tc))) && RF(tc)?.routingChanges.some((c) => c.startsWith("app/src/Main.kt — a symbolic link")), JSON.stringify(RF(tc)));
+    const sm = repoWith();
+    git(sm, "update-index", "--add", "--cacheinfo", `160000,${git(sm, "rev-parse", "HEAD")},vendor/lib`);
+    check("12 a staged submodule → confirm (its content is not assessed)", asks(S(ext(sm))) && RF(sm)?.routingChanges.some((c) => /submodule/.test(c)), JSON.stringify(RF(sm)));
+    const ev = repoWith();
+    withEvidence(ev, ["app/src/Main.kt"]);
+    rmSync(join(ev, "app/src/Main.kt"));
+    check("12 a surface's evidence file no longer exists → confirm", asks(S(ext(ev))) && RF(ev)?.routingChanges.some((c) => /surface evidence no longer exists/.test(c)), JSON.stringify(RF(ev)));
+    const gone = repoWith();
+    const gm = JSON.parse(readFileSync(join(gone, ".ono/repo-knowledge.json"), "utf-8"));
+    gm.fingerprint.knowledgeHead = "0".repeat(40);
+    writeFileSync(join(gone, ".ono/repo-knowledge.json"), JSON.stringify(gm));
+    check("12 an unreachable knowledgeHead (shallow or rewritten) → confirm", asks(S(ext(gone))) && RF(gone)?.status === "UNKNOWN", JSON.stringify(RF(gone)));
+    const fs = repoWith();
+    const bin = join(TMP, "status-fails-bin");
+    mkdirSync(bin, { recursive: true });
+    const realGit = execFileSync("bash", ["-c", "command -v git"], { encoding: "utf-8" }).trim();
+    writeFileSync(join(bin, "git"), `#!/bin/sh\nfor a in "$@"; do [ "$a" = status ] && exit 128; done\nexec "${realGit}" "$@"\n`);
+    chmodSync(join(bin, "git"), 0o755);
+    const savedPath = process.env.PATH;
+    process.env.PATH = `${bin}:${savedPath}`;
+    let failedStatus: any;
+    try {
+      failedStatus = K(fs).routingFreshness;
+    } finally {
+      process.env.PATH = savedPath;
+    }
+    check("12 a failed git status → UNKNOWN, never CLEAN", failedStatus?.status === "UNKNOWN" && /git status failed/.test(failedStatus?.reason ?? ""), JSON.stringify(failedStatus));
+    check("12 (control) the same repository with git working is CLEAN", RF(fs)?.status === "CLEAN", JSON.stringify(RF(fs)));
+    check("12 a nested project still never routes (unchanged)", asks(S(ext(repoWith({ manifest: "nested" })))));
+
+    // The classifier: ordinary only when positively recognised.
+    const table: Array<[string, boolean]> = [
+      ["app/src/main/java/A.kt", false], ["app/src/main/res/values/strings.xml", false], ["Sources/App/View.swift", false],
+      ["src/screens/Home.tsx", false], ["docs/bugs/X/bug-report.json", false], ["App/Assets.xcassets/Icon.imageset/Contents.json", false],
+      [".claude/settings.local.json", false], ["README.md", false],
+      ["app/build.gradle", true], ["build.gradle.kts", true], ["app/src/main/AndroidManifest.xml", true], ["gradle/wrapper/gradle-wrapper.properties", true],
+      ["buildSrc/src/main/kotlin/X.kt", true], ["App.xcodeproj/project.pbxproj", true], ["App/Info.plist", true], ["metro.config.js", true],
+      ["package.json", true], ["config/flavors.json", true], ["config/targets.yaml", true], ["scripts/release.sh", true], ["Makefile", true], [".env", true],
+    ];
+    const misread = table.filter(([p, rel]) => (Reader.routingRelevance(p) !== null) !== rel).map(([p]) => p);
+    check(`12 classifier: ${table.length} paths — config by name or location and every unrecognised type are routing-relevant`, misread.length === 0, misread.join(", "));
+    check("12 included builds: literal paths resolved against the settings file; dynamic or outside → unresolvable",
+      JSON.stringify(Reader.includedBuildsOf("settings.gradle.kts", 'includeBuild("build-logic")\n// includeBuild(x)\n')) === JSON.stringify(["build-logic/"]) &&
+      JSON.stringify(Reader.includedBuildsOf("android/settings.gradle", "includeBuild '../tools/logic'")) === JSON.stringify(["tools/logic/"]) &&
+      Reader.includedBuildsOf("settings.gradle", "includeBuild(file(\"x\"))") === null && Reader.includedBuildsOf("settings.gradle", 'includeBuild("$root/x")') === null &&
+      Reader.includedBuildsOf("settings.gradle", "includeBuild('../../x')") === null);
+  }
+
+  /* 13. The Environment field (0.9.2): neutral words never block; evidence keeps its meaning. */
+  {
+    const E = (v: string, pair: string, ids: string[]) => { const [platform, device_type] = pair.split("/"); return Bug.environmentEvidence(v, { platform, device_type }, ids); };
+    const TVIDS = ["android-tv", "android-tv-stg"];
+    // [repository pair, its surface ids, environment, expected]
+    const M: Array<[string, string[], string, string]> = [
+      // Android TV (Guy)
+      ["android/tv", TVIDS, "Production", "neutral"], ["android/tv", TVIDS, "Staging", "neutral"], ["android/tv", TVIDS, "Production 4.2", "neutral"],
+      ["android/tv", TVIDS, "prod v4.2.1-rc2 (12345)", "neutral"], ["android/tv", TVIDS, "Release #881", "neutral"], ["android/tv", TVIDS, "", "neutral"],
+      ["android/tv", TVIDS, "Android TV Production", "agrees"], ["android/tv", TVIDS, "android-tv-stg", "agrees"], ["android/tv", TVIDS, "Staging: android-tv-stg", "agrees"],
+      ["android/tv", TVIDS, "Android", "agrees"], ["android/tv", TVIDS, "Google TV 5.0", "agrees"],
+      ["android/tv", TVIDS, "iOS Staging", "contradicts"], ["android/tv", TVIDS, "tvOS", "contradicts"], ["android/tv", TVIDS, "Mobile production", "contradicts"],
+      ["android/tv", TVIDS, "Android TV, iOS", "contradicts"], ["android/tv", TVIDS, "Production android-tv iphone", "contradicts"],
+      ["android/tv", TVIDS, "Production EU", "unrecognised"], ["android/tv", TVIDS, "fire-tv-prod", "unrecognised"], ["android/tv", TVIDS, "4.2-androidtv", "unrecognised"],
+      ["android/tv", TVIDS, "v5-tvos", "unrecognised"], ["android/tv", TVIDS, "androidtvbox", "unrecognised"], ["android/tv", TVIDS, "Android TV Production EU", "unrecognised"],
+      // Android (mobile)
+      ["android/mobile", ["android"], "Production", "neutral"], ["android/mobile", ["android"], "Android Staging", "agrees"], ["android/mobile", ["android"], "Phone", "agrees"],
+      ["android/mobile", ["android"], "Android TV", "contradicts"], ["android/mobile", ["android"], "TV staging", "contradicts"],
+      // iOS (mobile)
+      ["ios/mobile", ["ios"], "Production 3.1", "neutral"], ["ios/mobile", ["ios"], "iPhone Staging", "agrees"], ["ios/mobile", ["ios"], "iPad", "agrees"],
+      ["ios/mobile", ["ios"], "tvOS", "contradicts"], ["ios/mobile", ["ios"], "Android", "contradicts"], ["ios/mobile", ["ios"], "Apple TV", "contradicts"],
+      // tvOS
+      ["ios/tv", ["tvos", "tvos-stg"], "Apple TV Staging", "agrees"], ["ios/tv", ["tvos", "tvos-stg"], "Production", "neutral"], ["ios/tv", ["tvos", "tvos-stg"], "tvos-stg", "agrees"],
+      ["ios/tv", ["tvos", "tvos-stg"], "iOS", "contradicts"], ["ios/tv", ["tvos", "tvos-stg"], "Android TV", "contradicts"],
+      // React Native (the OS is a surface of the one platform)
+      ["react-native/mobile", ["rn-ios", "rn-android"], "Production", "neutral"], ["react-native/mobile", ["rn-ios", "rn-android"], "iOS Production", "agrees"],
+      ["react-native/mobile", ["rn-ios", "rn-android"], "Android staging", "agrees"], ["react-native/mobile", ["rn-ios", "rn-android"], "React Native", "agrees"],
+      ["react-native/mobile", ["rn-ios", "rn-android"], "Android TV", "contradicts"], ["react-native/mobile", ["rn-ios", "rn-android"], "tvOS beta", "contradicts"],
+    ];
+    const wrong = M.filter(([pair, ids, v, want]) => E(v, pair, ids) !== want).map(([pair, , v, want]) => `${pair} ${JSON.stringify(v)} → ${E(v, pair, M.find((m) => m[0] === pair)![1])} (want ${want})`);
+    check(`13 environment decision matrix: all ${M.length} cases (Android, Android TV, iOS, tvOS, React Native)`, wrong.length === 0, wrong.join(" | "));
+    check("13 only the Environment field is read word by word — an affected surface still needs an exact id or name", asks(S(ext(repoWith(), { surfaces: ["Production"] }))));
+    check("13 neutral environment end to end: Guy's TV repository with \"Production\" routes automatically", auto(S(ext(repoWith(), { surfaces: ["android-tv"], environment: "Production" }))));
+    check("13 contradiction end to end: \"iOS Staging\" keeps the confirmation", asks(S(ext(repoWith(), { surfaces: [], environment: "iOS Staging" }))));
+    const multi = repoWith({ surfaces: [{ id: "android-tv", platform: "android", formFactor: "tv" }, { id: "phone", platform: "android", formFactor: "handheld" }] });
+    check("13 a multi-target repository still confirms, whatever the environment says", asks(S(ext(multi, { surfaces: [], environment: "Production" }))) && asks(S(ext(multi, { surfaces: [], environment: "Android TV" }))));
+    check("13 the Feature Flow does not read the environment rule", ["scripts/feature-flow.ts", "scripts/feature-review.ts", "scripts/feature-docs.ts"].every((f) => !/environmentEvidence|NEUTRAL_ENVIRONMENT_WORDS/.test(read(f))));
+  }
+
+  /* 14. Step 5 correction, scaffold first (0.9.2) — the complete sequence, not isolated calls. */
+  {
+    const root = repoWith();
+    const req = ext(root); // one evidence source for the whole session, as the command passes it
+    const corrected = { ...req, platform: "android", deviceType: "mobile" };
+    const s1 = S(req);
+    check("14.1 the automatic proposal: Android / TV, no plan yet", auto(s1) && s1.outcome === "BUG_PLAN_NEW", show(s1));
+    const early = RR(corrected);
+    check("14.2 reroute before the scaffold: a clear REROUTE_NO_DRAFT, nothing written", early.ok === false && early.code === "REROUTE_NO_DRAFT" && /run `scaffold` first/.test(early.reason) && !existsSync(planPath(root)), JSON.stringify(early));
+    const conflict = SC(corrected);
+    check("14.3 scaffolding with the corrected value is still ROUTING_CONFLICT (no override), and names the scaffold-first path", conflict.ok === false && conflict.code === "ROUTING_CONFLICT" && /then correct it explicitly with `reroute`/.test(conflict.reason) && !existsSync(planPath(root)), JSON.stringify(conflict));
+    const sc = SC(req);
+    const s2 = S(req);
+    check("14.4 scaffold records the automatic routing (an incomplete draft, source repo-single-target)", sc.ok === true && s2.outcome === "BUG_PLAN_INCOMPLETE" && s2.routing.recorded?.source === "repo-single-target", show(s2));
+    const rr = RR(corrected);
+    const text = readFileSync(planPath(root), "utf-8");
+    const fm = readFrontmatter(Buffer.from(text))?.values ?? {};
+    check("14.5 reroute persists the developer's routing in the existing frontmatter and routing line", rr.ok === true && rr.outcome === "REROUTED" && fm.platform === "android" && fm.device_type === "mobile" && text.includes("- **Platform / device type:** android / mobile — confirmed by the developer — correcting android / tv"), JSON.stringify(rr));
+    check("14.6 reroute says the six repo_knowledge_* fields and the surface scope must be refilled before the analysis continues", /repo_knowledge_\*/.test(rr.next) && /scope the corrected context to one surface/.test(rr.next) && rr.cleared.includes("repo_knowledge_* frontmatter"), rr.next);
+    check("14.7 … and the scaffold left them at the template's empty state (nothing stale from the automatic routing survives)", BUG_WORK_PLAN_FIELDS.filter((f) => f.startsWith("repo_knowledge_")).every((f) => !(fm[f] ?? "").toString().includes("android / tv")));
+    writeFileSync(planPath(root), fill(text, "android"));
+    const s3 = S(req);
+    check("14.8 after analysis the draft awaits approval with the corrected, developer-confirmed routing", s3.outcome === "BUG_PLAN_AWAITING_APPROVAL" && s3.routing.source === "existing-plan" && s3.routing.recorded?.source === "developer" && s3.routing.device_type === "mobile", show(s3));
+    const ap = approveWorkPackage(planPath(root), { by: "dana" });
+    const approved = readFileSync(planPath(root), "utf-8");
+    check("14.9 the plan is approved once, through the existing approval", ap.ok === true && verifyApproval(Buffer.from(approved)).status === "approved", JSON.stringify(ap).slice(0, 200));
+    check("14.10 the approval binds the corrected routing: changing the platform, the device type or the routing line makes it stale",
+      verifyApproval(Buffer.from(approved.replace(/^platform: android$/m, "platform: ios"))).status !== "approved" &&
+      verifyApproval(Buffer.from(approved.replace(/^device_type: mobile$/m, "device_type: tv"))).status !== "approved" &&
+      verifyApproval(Buffer.from(approved.replace("android / mobile — confirmed by the developer", "android / tv — confirmed by the developer"))).status !== "approved");
+    const late = RR({ ...req, platform: "android", deviceType: "tv" });
+    check("14.11 after approval the routing can never be changed through reroute", late.ok === false && late.code === "REROUTE_NOT_ALLOWED" && readFileSync(planPath(root), "utf-8") === approved, JSON.stringify(late));
+    const s4 = S(req);
+    check("14.12 a later start carries the corrected routing as approved — never re-decided from Project Knowledge", s4.outcome === "BUG_PLAN_APPROVED" && s4.plan?.frontmatter?.platform === "android" && s4.plan.frontmatter.device_type === "mobile" && (s4.routing === undefined || s4.routing.platform === "android"), JSON.stringify([s4.outcome, s4.plan?.frontmatter?.platform, s4.plan?.frontmatter?.device_type]));
+    const gate = bugGate({ root, work: "bug:YET-1978", report: req.report });
+    check("14.13 implementation (the bug gate) consumes the corrected routing", gate.ok === true && gate.outcome === "BUG_READY" && gate.platform === "android" && gate.device_type === "mobile", JSON.stringify([gate.outcome, gate.reason, gate.platform, gate.device_type]).slice(0, 300));
+    check("14.14 task resume reads the same plan: its state path is the bug's, and its context carries the corrected platform lane", typeof gate.state_path === "string" && /YET-1978\.task-state\.json$/.test(gate.state_path) && gate.delegate?.subagent_type !== undefined, JSON.stringify([gate.state_path, gate.delegate]));
+    const cmd = read("commands/analyze-bug.md");
+    check("14.15 command: scaffold first — never reroute before the scaffold, never the corrected value to scaffold", /Correcting an automatic routing — scaffold first/.test(cmd) && /without\*\* `--platform` \/ `--device-type`/.test(cmd) && /REROUTE_NO_DRAFT/.test(cmd) && /ROUTING_CONFLICT/.test(cmd));
+    const planContract = read("docs/bug-work-plan-contract.md");
+    check("14.17 bug-work-plan contract: routing freshness, word-by-word environment and scaffold-first correction are stated",
+      /\*\*routing freshness\*\*, not general freshness, that decides/.test(planContract) && /The\s+environment is read word by word \(0\.9\.2\)/.test(planContract) && /\*\*Correction \(`reroute`\) — scaffold first \(0\.9\.2\)\.\*\*/.test(planContract) && /REROUTE_NO_DRAFT/.test(planContract));
+    check("14.16 command: after REROUTED refill the six repo_knowledge_* fields and re-scope the surface, then step 7", /its six `repo_knowledge_\*` fields\*\* were cleared/.test(cmd) && /Refill those fields and re-scope the corrected context to one surface — the end of step 6 — then continue at step 7/.test(cmd));
   }
 
   /* 11. The command, contracts and agent say the same thing. */

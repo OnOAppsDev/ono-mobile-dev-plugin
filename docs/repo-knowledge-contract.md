@@ -25,6 +25,7 @@ Consumers: `ono-mobile-dev-plugin` (and future Ono plugins), via their own deter
 7. **Knowledge-authoring HEAD is never advanced by a re-emit.** `fingerprint.knowledgeHead` is the git HEAD at which the source-backed knowledge (`CLAUDE.md` stack/commands/structure, `docs/project/*.md`) was last actually generated from repository source. It advances only when a source-backed inspection stage regenerates that knowledge — never when the manifest is merely re-emitted (after an audit approval, `audit-sync`, or `/inspect-sync`). A multi-stage regeneration advances it only once every stage in it has regenerated at the same HEAD. It is never set to the current HEAD as a default.
 8. **Every persisted surface, capability and relationship is evidence-backed.** Before `record-knowledge` certifies a source-backed stage, `scripts/knowledge-evidence.ts verify` resolves every evidence ref against the repository's current source (see "Evidence refs"); a fact that cannot be proven stops the stage. Relationships are direct (first-degree) edges proven by a concrete source edge — never by naming or semantic similarity — and are never scored or expanded transitively. Volatile platform knowledge (SDK/OS release notes, OS capabilities, vendor bugs, recommended practices) is never persisted; a repository workaround for one is recorded as a repository fact with its location.
 9. **Advisory, never authoritative over code.** Project Knowledge describes the repository at `knowledgeHead`. The current repository source is authoritative whenever the two disagree. Project Knowledge decides Dev Plugin routing only through the single-target routing exception (§ at the end): `platformHints`, `surfaces[].platform` and `surfaces[].formFactor` are descriptive, and `formFactor` (`handheld | desktop | tv | wearable | other`) is deliberately not a `device_type` — the exception's validated mapping applies to that one routing decision and nowhere else.
+10. **Line endings never change the knowledge** (0.14.0). An LF and a CRLF checkout of the same commit (Git for Windows, `core.autocrlf=true`) produce the same manifest: documents are parsed from LF-normalized text, and `fingerprint.artifacts` uses the canonical `sha256-lf` hash (see "Artifact hashes").
 
 ## Obligations the consumer accepts
 
@@ -49,7 +50,8 @@ See the `RepoKnowledge` interface in `scripts/repo-knowledge.ts` for the authori
 | `generatedAt` | ISO-8601 | Emit time. The only field that varies between two emits over identical inputs. |
 | `fingerprint.gitHead` | sha \| null | HEAD at emit time. Differs from current HEAD → `stale-head`. Advances on every emit, including a metadata-only re-emit, so it does **not** establish that source-backed knowledge is current. |
 | `fingerprint.knowledgeHead` | sha \| null \| absent | *Optional (additive, v1).* HEAD at which source-backed knowledge was last generated (Guarantee 7). `null` = not recorded (an inspection completed before the producer recorded it). Absent = manifest written by a producer older than 0.10.0; treat exactly as `null`. Always an ancestor-or-equal of `gitHead` in normal history. |
-| `fingerprint.artifacts` | `{relpath: sha256 \| null}` | Per-source-document hash. `null` = the document did not exist. A mismatch → `stale-artifacts` for the categories that document backs. |
+| `fingerprint.artifactHash` | `"sha256-lf"` \| absent | *Optional (additive, 0.14.0).* The algorithm of `fingerprint.artifacts` — see "Artifact hashes". Absent = the legacy raw-text hash (producers before 0.14.0). |
+| `fingerprint.artifacts` | `{relpath: sha256 \| null}` | Per-source-document hash, computed with `fingerprint.artifactHash`. `null` = the document did not exist. A mismatch → `stale-artifacts` for the categories that document backs. |
 | `coverage.<category>` | `populated \| partial \| unknown` | Per-category trust for `stack`, `commands`, `structure`, `inventory`, `conventions`, `integrations`, `auditTopics`, and (additive) `surfaces`, `capabilities`. `partial` for the additive categories means some rows were rejected as malformed and are not indexed. |
 | `stack` | `{languages, frameworks, platformHints, runtimeTooling, packageManagers}` | Sorted string lists. `platformHints` is **advisory only**. |
 | `commands` | `{install, run, test, build}` | Strings or `null`. `null` means not known. |
@@ -70,6 +72,32 @@ Wherever the manifest carries evidence (`surfaces[].evidence`, `sharedCode[].evi
 ### Surface-scoped knowledge
 
 Conventions are written once as the shared body of a `docs/project/patterns.md` section; a surface that differs gets `### <Section> (<surface-id>)` under that section, indexed in `documents.conventions.surfaceAnchors`. To read the conventions for a confirmed surface, read the shared section, then that surface's override for the section if `surfaceAnchors` lists one. Inventory and integration rows carry a `Surface` cell (`all` or surface ids) in the documents themselves.
+
+## Artifact hashes
+
+`fingerprint.artifacts` holds one SHA-256 (hex) per source document. What is hashed depends on `fingerprint.artifactHash`:
+
+| `artifactHash` | Produced by | Hashed text |
+|---|---|---|
+| absent (legacy) | 0.9.0 – 0.13.0 | The document exactly as read from the working tree at emit time (UTF-8 text, line endings as stored on disk). An LF and a CRLF checkout of the same commit hash differently. |
+| `"sha256-lf"` | 0.14.0+ | The document's UTF-8 text with every CRLF pair replaced by LF (a lone CR is kept). Every other byte — content, a UTF-8 BOM, a final newline — counts. |
+
+For a document stored with LF line endings — every macOS and Linux checkout, and the committed Git blob — the two algorithms give **the same hash**, so every legacy manifest emitted from LF files is already a valid `sha256-lf` manifest, and re-emitting it with 0.14.0 changes only the added marker. Any change to a document's content changes its hash under both algorithms; under `sha256-lf` a change of line endings alone does not.
+
+Any other `artifactHash` value is an algorithm this contract version does not define: the producer's own `validate` rejects it, and a consumer must not read it as either algorithm above (treat every artifact as `stale-artifacts`: derive its categories live).
+
+### How a consumer compares hashes
+
+For each `relpath` in `fingerprint.artifacts`, with `recorded` its value and `text` the current file read as UTF-8 (absent file: `null`):
+
+1. `recorded === null` matches only an absent file; an absent file matches only `null`.
+2. `artifactHash === "sha256-lf"`: matches when `recorded === sha256(lf(text))`, where `lf` replaces every `\r\n` with `\n`.
+3. `artifactHash` absent (legacy): matches when `recorded === sha256(text)` **or** `recorded === sha256(lf(text))` **or** `recorded === sha256(crlf(lf(text)))`, where `crlf` turns every `\n` into `\r\n`. The three encodings of the same normalized text cover a legacy manifest emitted from an LF checkout or from a uniformly CRLF checkout, read from either.
+4. Any other `artifactHash`: no artifact matches.
+
+Every accepted encoding is a deterministic encoding of the same LF-normalized text, so a content change is never accepted. A legacy manifest emitted from a document with **mixed** line endings is recognised only on a checkout with the same bytes; elsewhere it reports `stale-artifacts`, which is the safe outcome.
+
+**Ono Mobile Dev Plugin 0.9.0** compares `sha256(text)` only (rule 3, first encoding, for every manifest). It therefore keeps working unchanged on LF checkouts, and on a CRLF checkout reports `stale-artifacts` for a 0.14.0 manifest and derives those categories live — degraded, never wrong. Full cross-platform matching arrives with a consumer that implements the rules above.
 
 ## Category → backing document
 
@@ -121,10 +149,10 @@ The one place Project Knowledge takes part in Dev Plugin routing. It belongs to 
 **Eligibility — every condition, or the developer confirms:**
 
 1. The manifest is available and structurally valid, at the repository root (`projectPrefix` is empty): a nested project's knowledge never routes.
-2. The `surfaces` category is `trusted`, `coverage.surfaces` is `populated`, source drift is `COMPLETE` (a failed git operation is `BASELINE_UNKNOWN`, never complete), and no capability relationship failed validation.
+2. The `surfaces` category is never derived live (its backing `CLAUDE.md` matches its fingerprint and the surfaces pass structural validation), `coverage.surfaces` is `populated`, and no capability relationship failed validation. **Routing freshness** (0.9.2) decides, not general source freshness: the drift baseline is established (never `BASELINE_UNKNOWN` — a missing or unreachable `knowledgeHead`, a shallow history, a failed git operation), and no routing-relevant path changed since `knowledgeHead` — committed, staged, unstaged or untracked, deletions and both sides of a rename included. Routing-relevant: build and target configuration (Gradle settings, scripts and properties, version catalogs, `buildSrc`, `build-logic` and every included build, Android manifests, Xcode projects, workspaces, schemes and configurations, `Info.plist`, Podfiles, Swift packages, project generators, React Native and Expo configuration, `package.json`, Smart TV descriptors), a top-level entry added or removed, a surface-evidence file deleted, every file a build script applies or reads by a literal path inside the repository, whatever its type, and anything the assessment cannot classify (a submodule, an unreadable status record or build script, an included build it cannot resolve, or a build input a script names explicitly — `apply from`, `file(…)` and the like, an `.xcconfig` `#include` — that is computed, external, a URL or absolute). The `surfaces` category may be `verifyOnUse` only when non-routing drift alone made it so. General freshness, its refresh recommendation and the categories it marks are unchanged.
 3. Every declared surface maps through the exact tables below, and all of them collapse to exactly one `(platform, device_type)` pair — production and staging surfaces of the same pair are one candidate. Surface ids are never read for meaning.
 4. A React Native pair is eligible only when its surfaces are proven one application: with more than one surface, every surface lists every other in `sharedWith`, and one `sharedCode` root is shared by all of them. A React Native surface beside a native one is two pairs.
-5. The ticket's evidence agrees: each affected surface and the environment is a declared surface id, or an exact canonical name of the same pair (in a React Native app, `ios` / `android` are the OS, a surface of the one platform). A contradiction — or anything not recognised — keeps the confirmation.
+5. The ticket's evidence agrees: each affected surface is a declared surface id, or an exact canonical name of the same pair (in a React Native app, `ios` / `android` are the OS, a surface of the one platform). The environment is read word by word (0.9.2): deployment-environment words (`production`, `prod`, `staging`, `stg`, `stage`, `qa`, `uat`, `dev`, `development`, `test`, `testing`, `beta`, `alpha`, `release`, `rc`, `preprod`, `sandbox`, `live`, `internal`, `debug`) and strict version or build numbers are neutral; a declared surface id or an exact canonical target name is evidence, and every one of them must agree; any other word makes the environment unrecognised. A contradiction — or anything not recognised — keeps the confirmation.
 
 **Mapping — exact text only** (trimmed, case-insensitive; no substring, no fuzzy match):
 
@@ -140,4 +168,4 @@ The one place Project Knowledge takes part in Dev Plugin routing. It belongs to 
 
 **Persistence.** The existing plan frontmatter (`platform`, `device_type`) and the plan's routing line, which records the source, the surface ids and the knowledge commit. No new field, state, preference file or Guardian setting. The plan's one human approval shows the routing and its source, and its fingerprint covers them.
 
-**Correction.** `analyze-bug.ts reroute` — the developer's explicit, canonical choice — replaces a routing the helper selected, only on an unapproved cycle-1 draft with no task state and no cycle approval; the draft is scaffolded again with the developer recorded as the routing source. A developer-confirmed or feature-inherited routing, and an approved plan, are never changed.
+**Correction.** Scaffold first (0.9.2): the draft is always created with the automatic routing, and `reroute` refuses with `REROUTE_NO_DRAFT` until it exists. `analyze-bug.ts reroute` — the developer's explicit, canonical choice — then replaces a routing the helper selected, only on an unapproved cycle-1 draft with no task state and no cycle approval; the draft is scaffolded again with the developer recorded as the routing source, its analysis and its six `repo_knowledge_*` fields cleared, and the command refills those fields and re-scopes the surface for the corrected routing before the analysis continues. A developer-confirmed or feature-inherited routing, and an approved plan, are never changed.

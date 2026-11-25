@@ -36,6 +36,7 @@
  */
 
 import { spawnSync } from "child_process";
+import { createHash } from "crypto";
 import { appendFileSync, existsSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, writeFileSync } from "fs";
 import { tmpdir } from "os";
 import { delimiter, dirname, join } from "path";
@@ -310,6 +311,103 @@ try {
     const main = viaConfig(fixed, "review-pr-guard.json", write(projectFile), path, project, env);
     check(t("review-pr-guard: a call outside the reviewer passes through (exit 0, silent)"), allowed(main), show(main));
     info(`[${reader}] review-pr-guard: a call outside the reviewer passes through (exit 0, silent) → ${outcome(main)}`);
+  }
+
+  /* ── 4. Windows paths in block-main-branch-changes (0.9.2) ────────────── */
+  // The fix is one marked block that runs only under Git Bash. Removing it must give the
+  // released 0.9.1 hook byte for byte: that copy is the negative control on Windows.
+  const HOOK_091_SHA256 = "08834255cd3a3e0226380a0b336214b88dda8baf9f30232676261070dab7e90e";
+  const BEGIN = "# >>> Windows paths (0.9.2)";
+  const END = "# <<< Windows paths (0.9.2)\n";
+  const withoutBlock = (buf: Buffer): Buffer | null => {
+    const a = buf.indexOf(BEGIN), b = buf.indexOf(END);
+    return a >= 0 && b > a ? Buffer.concat([buf.subarray(0, a), buf.subarray(b + END.length)]) : null;
+  };
+  const sha256 = (b: Buffer) => createHash("sha256").update(b).digest("hex");
+  const hookNow = readFileSync(join(REPO_ROOT, "hooks", "block-main-branch-changes.sh"));
+  const control091 = withoutBlock(hookNow);
+  check("4 the Windows path fix is one marked block; without it the hook is the released 0.9.1 hook byte for byte", control091 !== null && sha256(control091) === HOOK_091_SHA256, control091 ? sha256(control091) : "no block");
+  const blockText = hookNow.subarray(hookNow.indexOf(BEGIN), hookNow.indexOf(END)).toString("utf-8");
+  check("4 the block runs only under Git Bash (OSTYPE msys or cygwin), so macOS and Linux behaviour is unchanged", /^case "\$\{OSTYPE:-\}" in\n  msys\*\|cygwin\*\)$/m.test(blockText) && (blockText.match(/^  \S[^\n]*\)$/gm) ?? []).length === 1 && /^esac$/m.test(blockText), blockText.slice(0, 120));
+  // POSIX behaviour, executed: on this platform the hook still blocks a write on main and allows one outside the repository (scripts/hooks.test.ts § 3 pins the full POSIX matrix).
+
+  if (!WIN) {
+    info("section 4: the Windows path matrix runs on the Windows CI runner only — on this platform C:\\… is not an absolute path, so nothing here could reproduce it");
+  } else {
+    // A protected repository on main, one with a space in its path, and a folder outside both.
+    const mkRepo = (dir: string) => {
+      mkdirSync(join(dir, "src"), { recursive: true });
+      git(dir, ["init", "-q", "-b", "main"]);
+      writeFileSync(join(dir, "src", "App.ts"), "export {};\n");
+      git(dir, ["add", "-A"]);
+      git(dir, ["commit", "-qm", "init"]);
+      return dir;
+    };
+    const P = mkRepo(join(TMP, "win-protected"));
+    const SP = mkRepo(join(TMP, "with space", "protected repo"));
+    const O = join(TMP, "win-outside");
+    mkdirSync(O, { recursive: true });
+    const fwdSlash = (p: string) => p.replace(/\\/g, "/");
+    const msysPath = (p: string) => `/${p[0].toLowerCase()}${fwdSlash(p.slice(2))}`;
+    const uncPath = (p: string) => `\\\\localhost\\${p[0]}$${p.slice(2)}`;
+    const writeTo = (file_path: string, cwd?: string) => ({ tool_name: "Write", tool_input: { file_path, content: "x" }, ...(cwd === undefined ? {} : { cwd }) });
+    const hookIn = (root: string, script: string, payload: unknown, projectDir: string, path = process.env.PATH ?? ""): Run => {
+      const p = spawnSync(BASH!, ["-c", `"\${CLAUDE_PLUGIN_ROOT}/hooks/${script}"`], { cwd: projectDir, input: JSON.stringify(payload), encoding: "utf-8", env: { ...process.env, PATH: path, CLAUDE_PLUGIN_ROOT: root, CLAUDE_PROJECT_DIR: projectDir } });
+      return { code: p.status ?? -1, stdout: p.stdout ?? "", stderr: p.stderr ?? "" };
+    };
+    const HOOK = "block-main-branch-changes.sh";
+    const inside = join(P, "src", "App.ts"), outside = join(O, "notes.md");
+    type Want = "BLOCK" | "ALLOW";
+    const matrix: Array<[string, unknown, string, Want]> = [];
+    for (const [form, f] of [["C:\\ backslashes", (p: string) => p], ["C:/ forward slashes", fwdSlash], ["/c/ Git Bash", msysPath]] as const) {
+      for (const [where, cwd] of [["cwd inside", P], ["cwd OUTSIDE", O], ["no cwd", undefined]] as const) {
+        matrix.push([`${form}, target inside, ${where}`, writeTo(f(inside), cwd), P, "BLOCK"]);
+        matrix.push([`${form}, target outside, ${where}`, writeTo(f(outside), cwd), P, "ALLOW"]);
+      }
+    }
+    matrix.push(["UNC, target inside, cwd outside (fail closed)", writeTo(uncPath(inside), O), P, "BLOCK"]);
+    matrix.push(["UNC, target outside (fail closed on main)", writeTo(uncPath(outside), O), P, "BLOCK"]);
+    matrix.push(["drive-relative C:src\\App.ts, cwd outside (ambiguous → fail closed)", writeTo(`${P[0]}:src\\App.ts`, O), P, "BLOCK"]);
+    matrix.push(["relative src\\App.ts, cwd inside", writeTo("src\\App.ts", P), P, "BLOCK"]);
+    matrix.push(["relative src\\App.ts, no cwd (the project directory)", writeTo("src\\App.ts"), P, "BLOCK"]);
+    matrix.push(["relative notes.md, cwd outside (the file is outside)", writeTo("notes.md", O), P, "ALLOW"]);
+    matrix.push(["relative path, drive-relative cwd (ambiguous → fail closed)", writeTo("src\\App.ts", `${P[0]}:win-protected`), P, "BLOCK"]);
+    matrix.push(["a path with spaces, target inside, cwd outside", writeTo(join(SP, "src", "App.ts"), O), SP, "BLOCK"]);
+    matrix.push(["a path with spaces, forward slashes, target inside, cwd outside", writeTo(fwdSlash(join(SP, "src", "App.ts")), O), SP, "BLOCK"]);
+
+    /** A contract decision, or exactly why it is not one — an execution failure or malformed output is never read as an allow. */
+    const decision = (r: Run): Want | string =>
+      blocked(r) ? "BLOCK" : allowed(r) ? "ALLOW" : `NOT A DECISION (exit ${r.code}, stdout ${JSON.stringify(r.stdout.slice(0, 60))}, stderr ${JSON.stringify(r.stderr.slice(0, 100))})`;
+    // Negative control: the released 0.9.1 logic (byte-identical, checked above), on the critical
+    // cases, under both readers — recorded as observed, never assumed.
+    const controlScript = "block-main-branch-changes.control-0.9.1.sh";
+    const controlBytes = withoutBlock(readFileSync(join(fixed, "hooks", HOOK)));
+    check("4 the negative control written for this run is the released 0.9.1 hook byte for byte", controlBytes !== null && sha256(controlBytes) === HOOK_091_SHA256);
+    writeFileSync(join(fixed, "hooks", controlScript), controlBytes!);
+    for (const [reader, path] of readers) {
+      for (const [label, payload, projectDir] of matrix.filter(([l]) => /cwd OUTSIDE/.test(l) && /target inside/.test(l))) {
+        const d = decision(hookIn(fixed, controlScript, payload, projectDir, path));
+        const verdict = d === "ALLOW" ? "DEFECT REPRODUCED — 0.9.1 let a write to main through (exit 0, silent)" : d === "BLOCK" ? "not reproduced — 0.9.1 blocked it" : "inconclusive — the control did not produce a decision";
+        info(`negative control [${reader}] (0.9.1 hook) — ${label}: ${d} → ${verdict}`);
+      }
+    }
+    // The corrected hook, from the fresh checkout, under both readers.
+    for (const [reader, path] of readers) {
+      const wrong: string[] = [];
+      for (const [label, payload, projectDir, want] of matrix) {
+        const r = hookIn(fixed, HOOK, payload, projectDir, path);
+        info(`0.9.2 hook [${reader}] — ${label}: ${decision(r)} (want ${want})`);
+        if (decision(r) !== want) wrong.push(`${label}: ${decision(r)} (want ${want})`);
+      }
+      check(`4 [${reader}] Windows paths: all ${matrix.length} cases block or allow by where the file is, never by the session directory`, wrong.length === 0, wrong.join(" | "));
+      info(`[${reader}] Windows path matrix: ${matrix.length - wrong.length}/${matrix.length} as required`);
+    }
+    git(P, ["checkout", "-q", "-b", "feature/x"]);
+    for (const [reader, path] of readers) {
+      const onFeature = hookIn(fixed, HOOK, writeTo(inside, O), P, path);
+      check(`4 [${reader}] on a feature branch the same Windows-path write is allowed (the branch check is unchanged)`, allowed(onFeature), show(onFeature));
+      info(`0.9.2 hook [${reader}] — feature branch, C:\\ target inside, cwd outside: ${decision(onFeature)} (want ALLOW)`);
+    }
   }
 } finally {
   if (process.env.GITHUB_STEP_SUMMARY && evidence.length > 0) {

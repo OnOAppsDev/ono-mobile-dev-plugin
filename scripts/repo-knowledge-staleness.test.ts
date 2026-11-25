@@ -347,7 +347,8 @@ const noSyncAdvice = (r: any) =>
   // which carries Stage 4A's text unchanged and adds the surface and capability model.
   // When the producer changes the contract, update the copy AND this pin in the same release.
   // 0.7.5: re-synced with producer 0.11.2 (the Project Root paragraph).
-  const PRODUCER_CONTRACT_SHA256 = "6fb8eff730a2064259fbc56428d2303424517ff9ded6d5c3b276be649c6226d8";
+  // 0.9.2: re-synced with producer 0.14.0 (3376bab): guarantee 10, fingerprint.artifactHash, "Artifact hashes".
+  const PRODUCER_CONTRACT_SHA256 = "872593e4789d521a3077ed921ac2d4f1c57bad82b8ddf429ccca50a5c06a7e74";
   const contract = read("docs/repo-knowledge-contract.md");
   // 0.9.0: this copy deliberately carries the consumer's single-target routing exception
   // (scripts/fixtures/repo-knowledge-contract-deviation.json). Reversing exactly those edits must
@@ -358,6 +359,11 @@ const noSyncAdvice = (r: any) =>
   check("8 contract copy is the producer copy plus exactly the documented consumer deviation",
     sha(producer) === PRODUCER_CONTRACT_SHA256, sha(producer));
   check("8 the deviation is announced in the copy itself", /Consumer deviation — ono-mobile-dev-plugin 0\.9\.0/.test(contract));
+  check("8 the copy carries producer 0.14.0: guarantee 10, fingerprint.artifactHash and the consumer hash rules",
+    /Line endings never change the knowledge/.test(contract) && /\| `fingerprint\.artifactHash` \|/.test(contract) && /^### How a consumer compares hashes$/m.test(contract));
+  check("8 the producer's historical note on Dev Plugin 0.9.0 is kept verbatim (no undocumented deviation)", /\*\*Ono Mobile Dev Plugin 0\.9\.0\*\* compares `sha256\(text\)` only/.test(contract));
+  check("8 the deviation carries exactly the 0.9.2 amendments: routing freshness, neutral environment words, scaffold-first correction",
+    dev.replacements.length === 6 && /\*\*Routing freshness\*\* \(0\.9\.2\)/.test(dev.appended) && /The environment is read word by word \(0\.9\.2\)/.test(dev.appended) && /Scaffold first \(0\.9\.2\)/.test(dev.appended) && !/source drift is `COMPLETE`/.test(dev.appended));
   check("8 contract documents Guarantee 7 (knowledgeHead)", /Knowledge-authoring HEAD is never advanced by a re-emit/.test(contract));
   check("8 contract documents producer-side source drift", /^## Producer-side source drift$/m.test(contract));
 
