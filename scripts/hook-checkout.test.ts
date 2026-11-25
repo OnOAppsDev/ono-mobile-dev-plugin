@@ -36,7 +36,7 @@
  */
 
 import { spawnSync } from "child_process";
-import { existsSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, writeFileSync } from "fs";
+import { appendFileSync, existsSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, writeFileSync } from "fs";
 import { tmpdir } from "os";
 import { delimiter, dirname, join } from "path";
 
@@ -51,6 +51,17 @@ function check(name: string, cond: boolean, detail = ""): void {
     failures++;
     console.log(`FAIL  ${name}${detail ? `  — ${detail}` : ""}`);
   }
+}
+
+/**
+ * Evidence for a CI run: printed as INFO lines, and — on GitHub Actions — appended to the job's step
+ * summary, because scripts/check.ts prints only a suite's FAIL lines. Exit codes, decisions, CR
+ * counts and tool versions only: never a payload, a secret value or anything from a client.
+ */
+const evidence: string[] = [];
+function info(s: string): void {
+  console.log(`INFO  ${s}`);
+  evidence.push(s);
 }
 
 /** The hook scripts and the library they all source — what a CRLF checkout broke. */
@@ -98,6 +109,9 @@ try {
   /* ── 0. The shell is the one Claude Code uses ─────────────────────────── */
   const uname = spawnSync(BASH, ["-c", "uname -s"], { encoding: "utf-8" }).stdout.trim();
   check("0 bash is Git Bash on Windows (never WSL's bash.exe)", !WIN || /MINGW|MSYS/i.test(uname), `${BASH}: ${uname}`);
+  const machineAutocrlf = spawnSync(GIT, ["config", "--show-origin", "--get", "core.autocrlf"], { encoding: "utf-8" }).stdout.trim() || "unset";
+  info(`platform ${process.platform} · node ${process.version} · ${spawnSync(GIT, ["--version"], { encoding: "utf-8" }).stdout.trim()} · ${spawnSync(BASH, ["--version"], { encoding: "utf-8" }).stdout.split("\n")[0]} · uname ${uname}`);
+  info(`this machine's core.autocrlf (not read by the clones below): ${machineAutocrlf.replace(/\s+/, " ")}`);
 
   /* ── 1. Git produces the checkout ─────────────────────────────────────── */
   // This repository's tracked files as stored (the index: normalized blobs, exactly what a
@@ -138,6 +152,7 @@ try {
 
   const fixed = autocrlfClone(sourceRepo("src-fixed", true), "installed");
   check("1 the clone was made by Git with core.autocrlf=true (its own configuration)", gitText(fixed, ["config", "--local", "--get", "core.autocrlf"]) === "true");
+  info(`fresh checkout: made by git clone with core.autocrlf=${gitText(fixed, ["config", "--local", "--get", "core.autocrlf"])} (local), system and global configuration excluded`);
   check("1 the clone carries the plugin's .gitattributes", existsSync(join(fixed, ".gitattributes")) && readFileSync(join(fixed, ".gitattributes")).equals(attributes));
   check("1 the clone is complete (every tracked file was checked out)", entries.every((e) => existsSync(join(fixed, e.path))), String(entries.filter((e) => !existsSync(join(fixed, e.path))).length));
 
@@ -166,7 +181,11 @@ try {
   /* ── 2. The control: without .gitattributes, the defect is real ───────── */
   const broken = autocrlfClone(sourceRepo("src-unfixed", false), "installed-unfixed");
   const brokenCr = [...GUARDS.map((g) => `hooks/${g}`), LIBRARY].map((f) => [f, cr(join(broken, f))] as const);
-  console.log(`INFO  autocrlf=true checkout, carriage returns per file — with .gitattributes: ${[...GUARDS.map((g) => `hooks/${g}`), LIBRARY].map((f) => `${f}=${cr(join(fixed, f))}`).join(" ")}; control without: ${brokenCr.map(([f, n]) => `${f}=${n}`).join(" ")}`);
+  info(`carriage returns, fixed checkout (with .gitattributes): ${[...GUARDS.map((g) => `hooks/${g}`), LIBRARY].map((f) => `${f}=${cr(join(fixed, f))}`).join(" ")}`);
+  info(`carriage returns, control checkout (without .gitattributes): ${brokenCr.map(([f, n]) => `${f}=${n}`).join(" ")}`);
+  // Git produced those CRs: the control was cloned with core.autocrlf=true, and the blobs it checked out hold none.
+  const brokenBlobCr = [...GUARDS.map((g) => `hooks/${g}`), LIBRARY].map((f) => git(broken, ["cat-file", "blob", `HEAD:${f}`]).filter((b) => b === 13).length);
+  check("2 control: Git produced the CRLF — the clone has core.autocrlf=true and its stored blobs are LF-only", gitText(broken, ["config", "--local", "--get", "core.autocrlf"]) === "true" && brokenBlobCr.every((n) => n === 0), JSON.stringify(brokenBlobCr));
   check("2 control: without .gitattributes the same Git checkout gives every hook CRLF line endings", brokenCr.every(([f, n]) => n > 0 && n === readFileSync(join(broken, f)).toString("latin1").split("\n").length - 1), JSON.stringify(brokenCr));
 
   /* ── 3. Every guard starts and enforces in the fresh checkout ─────────── */
@@ -195,13 +214,23 @@ try {
   const allowed = (r: Run) => r.code === 0 && r.stdout === "" && r.stderr === "";
   const blocked = (r: Run) => r.code === 2 && r.stdout === "" && r.stderr.trim() !== "";
   const decided = (r: Run, d: string) => r.code === 0 && r.stderr === "" && decision(r) === d;
+  /** What a guard did, in the contract's words — for the evidence, never the payload. */
+  const outcome = (r: Run) =>
+    allowed(r) ? "exit 0, silent (allowed)" : blocked(r) ? "exit 2, reason on stderr (blocked)" : r.code === 0 && decision(r) ? `exit 0, ${decision(r)} decision` : `exit ${r.code} (NOT a contract result)`;
 
   // The control's secrets guard, started the same way: a startup failure, never an enforcement.
   const AWS = `AKIA${"IOSFODNN7EXAMPLE"}`; // assembled: this repository's own secrets hook scans this file
   const secretWrite = { tool_name: "Write", tool_input: { file_path: join(TMP, "work", "config.ts"), content: `const k = "${AWS}";` } };
   const startFail = viaConfig(broken, "protect-secrets.json", secretWrite, process.env.PATH ?? "", TMP);
-  console.log(`INFO  control: the CRLF secrets guard, started through its hooks.json command — ${show(startFail)}`);
-  check("2 control: the CRLF secrets guard fails to start (neither an allow nor a block) — the defect 0.9.1 fixes", startFail.code !== 0 && startFail.code !== 2 && startFail.stderr !== "", show(startFail));
+  info(`control: the CRLF secrets guard, started through its hooks.json command — exit ${startFail.code}, stderr ${JSON.stringify(startFail.stderr.split("\n")[0].slice(0, 120))}`);
+  if (WIN) {
+    // Observed, not required: some Git Bash builds (5.3 on the GitHub runner) start a `bash\r`
+    // shebang anyway, so a CRLF hook may run there; the defect was confirmed on an installed
+    // Windows copy whose hooks did not start. The CRLF bytes above are the mandatory evidence.
+    info(`control on Windows: ${startFail.code === 2 ? "this Git Bash STARTED the CRLF guard (it blocked)" : startFail.code === 127 ? "this Git Bash could NOT start the CRLF guard" : `exit ${startFail.code}`} — observational only`);
+  } else {
+    check("2 control: the CRLF secrets guard fails to start (neither an allow nor a block) — the defect 0.9.1 fixes", startFail.code !== 0 && startFail.code !== 2 && startFail.stderr !== "", show(startFail));
+  }
 
   // Readers: jq (the PATH as it is), and Node.js with no jq anywhere on PATH.
   const haveJq = findExe("jq") !== null;
@@ -248,32 +277,48 @@ try {
     git(project, ["checkout", "-q", "main"]);
     const onMain = viaConfig(fixed, "block-main-branch-changes.json", write(projectFile), path, project, env);
     check(t("block-main-branch-changes: a write on main is blocked (exit 2, the reason on stderr)"), blocked(onMain) && /feature branch/i.test(onMain.stderr), show(onMain));
+    info(`[${reader}] block-main-branch-changes: a write on main is blocked (exit 2, the reason on stderr) → ${outcome(onMain)}`);
     git(project, ["checkout", "-q", "-B", "feature/x"]);
     const onBranch = viaConfig(fixed, "block-main-branch-changes.json", write(projectFile), path, project, env);
     check(t("block-main-branch-changes: the same write on a feature branch is allowed (exit 0, silent)"), allowed(onBranch), show(onBranch));
+    info(`[${reader}] block-main-branch-changes: the same write on a feature branch is allowed (exit 0, silent) → ${outcome(onBranch)}`);
 
     // scan-for-secrets — exit 2 + stderr naming the pattern, never the value; a clean write passes.
     const secret = viaConfig(fixed, "protect-secrets.json", secretWrite, path, project, env);
     check(t("scan-for-secrets: a hardcoded AWS key is blocked (exit 2, the pattern on stderr, never the value)"), blocked(secret) && !secret.stderr.includes(AWS), show(secret));
+    info(`[${reader}] scan-for-secrets: a hardcoded AWS key is blocked (exit 2, the pattern on stderr, never the value) → ${outcome(secret)}`);
     const clean = viaConfig(fixed, "protect-secrets.json", write(projectFile), path, project, env);
     check(t("scan-for-secrets: a clean write is allowed (exit 0, silent)"), allowed(clean), show(clean));
+    info(`[${reader}] scan-for-secrets: a clean write is allowed (exit 0, silent) → ${outcome(clean)}`);
 
     // require-approval-before-code — a code write asks (exit 0 + decision JSON); a doc write passes through.
     const code = viaConfig(fixed, "require-approval-before-code.json", write(projectFile), path, project, env);
     check(t("require-approval-before-code: a code write asks for approval (exit 0, an ask decision naming the file)"), decided(code, "ask") && code.stdout.includes("App.ts"), show(code));
+    info(`[${reader}] require-approval-before-code: a code write asks for approval (exit 0, an ask decision naming the file) → ${outcome(code)}`);
     const doc = viaConfig(fixed, "require-approval-before-code.json", write(join(project, "docs", "notes.md"), "notes\n"), path, project, env);
     check(t("require-approval-before-code: a doc write passes through (exit 0, silent)"), allowed(doc), show(doc));
+    info(`[${reader}] require-approval-before-code: a doc write passes through (exit 0, silent) → ${outcome(doc)}`);
 
     // review-pr-guard — inside pr-reviewer a write is denied (exit 0 + deny JSON); a read is allowed; other agents pass.
     const reviewer = "ono-mobile-dev-plugin:pr-reviewer";
     const denied = viaConfig(fixed, "review-pr-guard.json", { ...write(projectFile), agent_type: reviewer }, path, project, env);
     check(t("review-pr-guard: a write inside the reviewer is denied (exit 0, a deny decision)"), decided(denied, "deny"), show(denied));
+    info(`[${reader}] review-pr-guard: a write inside the reviewer is denied (exit 0, a deny decision) → ${outcome(denied)}`);
     const read = viaConfig(fixed, "review-pr-guard.json", { tool_name: "Read", tool_input: { file_path: projectFile }, agent_type: reviewer }, path, project, env);
     check(t("review-pr-guard: a read inside the reviewer is allowed (exit 0, silent)"), allowed(read), show(read));
+    info(`[${reader}] review-pr-guard: a read inside the reviewer is allowed (exit 0, silent) → ${outcome(read)}`);
     const main = viaConfig(fixed, "review-pr-guard.json", write(projectFile), path, project, env);
     check(t("review-pr-guard: a call outside the reviewer passes through (exit 0, silent)"), allowed(main), show(main));
+    info(`[${reader}] review-pr-guard: a call outside the reviewer passes through (exit 0, silent) → ${outcome(main)}`);
   }
 } finally {
+  if (process.env.GITHUB_STEP_SUMMARY && evidence.length > 0) {
+    try {
+      appendFileSync(process.env.GITHUB_STEP_SUMMARY, `### hook-checkout evidence (${process.platform}, node ${process.version})\n\n${evidence.map((e) => `- ${e.replace(/\|/g, "\\|")}`).join("\n")}\n\n`);
+    } catch {
+      /* evidence is a convenience; the assertions decide */
+    }
+  }
   rmSync(TMP, { recursive: true, force: true });
 }
 
