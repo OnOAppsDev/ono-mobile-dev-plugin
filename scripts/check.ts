@@ -95,7 +95,7 @@ const PHASES: Phase[] = [
   {
     name: "Hooks",
     why: "the safety layer that gates every write",
-    suites: ["hooks", "hook-json"],
+    suites: ["hooks", "hook-json", "hook-checkout"],
   },
   {
     name: "Repository",

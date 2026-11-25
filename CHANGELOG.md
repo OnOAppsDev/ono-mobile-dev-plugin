@@ -9,6 +9,28 @@ version below is the plugin's own `version` in
 
 ## [Unreleased]
 
+## [0.9.1] - 2026-11-25
+
+A focused Windows patch: the safety hooks did not start on a Windows install. **Install 0.9.1 to receive the corrected files** — an existing install keeps its CRLF copies until the plugin is updated; changing the remote repository alone does not repair it. No global Git setting needs to change.
+
+### Fixed
+
+- **The hooks did not start on Windows, so the guards were not enforced (critical).** Git for Windows checks files out with `core.autocrlf=true` by default, and Claude Code installs plugins with Git, so an installed 0.9.0 had CRLF line endings in every hook script — confirmed on an installed copy: 83, 98, 98 and 106 carriage returns in `block-main-branch-changes.sh`, `require-approval-before-code.sh`, `review-pr-guard.sh` and `scan-for-secrets.sh` (one per line), and 125 in the shared `hooks/lib/hook-json.sh`. Started as `hooks/*.json` configures them, the shebang read `bash\r` and the hook exited 127 before running (`env: bash\r: No such file or directory`); started through `bash`, `set -o pipefail` failed on the carriage return. Claude Code treats a hook that cannot start as a non-blocking error, so **main-branch protection, approval before code, secrets scanning and the read-only `/review-pr` guard could all be silently skipped**. The guards' policies were correct; their files never ran.
+- **Fix: `.gitattributes`** — every text file is checked out with LF on every platform (`* text=auto eol=lf`, and `text eol=lf` for `*.sh`, `*.ts`, `*.mjs` and `*.json`), the approach ono-project-inspector and the Platform Guardian (0.7.4) use. The two migration fixtures that must stay CRLF (`fa-hazards.md`, `fa-hazards.expected.md`) are `-text`, so their bytes never change. Nothing stored in the repository changed: every tracked file was already LF except those two. The hook scripts themselves are unchanged.
+
+### Added
+
+- **`hook-checkout` suite** (`scripts/hook-checkout.test.ts`, in the Hooks phase): Git itself clones the plugin with `core.autocrlf=true` (on the clone only — no global or system configuration is read or changed), and the suite checks that every tracked file is byte-identical to its stored blob (zero carriage returns; the two CRLF fixtures byte-exact). It then starts each of the four guards through its `hooks/*.json` command, as Claude Code does, under both readers of `hook-json.sh` (jq, and Node.js with no jq on PATH), and requires the exact contract: a write on `main` blocked (exit 2) and allowed on a feature branch; a hardcoded secret blocked and a clean write allowed; a code write asked and a doc write passed through; a write inside `pr-reviewer` denied and a read allowed. An allow must be exit 0 with no output at all, so a hook that failed to start can never pass for one. A control clone without `.gitattributes` must reproduce the CRLF scripts and the startup failure.
+- **Windows CI**: a `Hook enforcement on Windows` job (Node 22.18.0 and 24, `windows-latest`, Git for Windows and Git Bash) runs that suite under `--strict`. The existing Linux strict suite on Node 22.18.0 and 24 is unchanged and now includes it too.
+
+### Changed
+
+- `scripts/node-preflight.test.ts` imports the preflight through a file URL, not a raw path (a `C:\…` path is not an import specifier on Windows). Test-only.
+
+### Known limitations
+
+- The Windows job runs the new `hook-checkout` suite, not the whole strict suite: several existing suites build their fixtures with POSIX-only techniques (MSYS paths from `command -v` handed to Node, symlinked tool directories, `/bin/bash`, `:`-joined PATHs). Making them Windows-portable is test work for a later release; the guards' Windows behaviour is covered by `hook-checkout`.
+
 ## [0.9.0] - 2026-11-24
 
 Two narrowly scoped changes: Project Knowledge freshness for non-ASCII paths, and deterministic routing for standalone bugs whose repository has exactly one target. The Bug Flow, its approvals and the Feature Flow are otherwise unchanged.

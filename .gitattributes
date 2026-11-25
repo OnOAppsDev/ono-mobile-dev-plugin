@@ -1,5 +1,22 @@
+# Every text file of the plugin is checked out with LF line endings on every
+# platform. Git for Windows defaults to core.autocrlf=true, which would otherwise
+# give the hook scripts CRLF endings: the shebang becomes `bash\r` and the hook
+# never starts, and `set -o pipefail` fails under an explicit bash — so the
+# guards would not run. Claude Code installs plugins with Git, so this also
+# applies to developers' installed copies (0.9.1).
+* text=auto eol=lf
+
+# Shell scripts run under bash on every platform, including Windows Git Bash.
+*.sh text eol=lf
+# Node helpers, the hook library's Node fallback, the preflight and the hook registration.
+*.ts text eol=lf
+*.mjs text eol=lf
+*.json text eol=lf
+
+# Exceptions — below the general rules, so they win.
+#
 # Deliberate hazards: these migration fixtures must keep CRLF line endings and trailing
-# whitespace byte-for-byte (see scripts/fixtures/planning-docs/README.md), so git's
-# whitespace checks do not apply to them.
-scripts/fixtures/planning-docs/fa-hazards.md -whitespace
-scripts/fixtures/planning-docs/fa-hazards.expected.md -whitespace
+# whitespace byte-for-byte (see scripts/fixtures/planning-docs/README.md), so they are
+# never converted, and git's whitespace checks do not apply to them.
+scripts/fixtures/planning-docs/fa-hazards.md -text -whitespace
+scripts/fixtures/planning-docs/fa-hazards.expected.md -text -whitespace
