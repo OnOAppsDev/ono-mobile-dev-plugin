@@ -394,12 +394,14 @@ try {
       // 0.7.6: the branch hook fails closed without jq, covers NotebookEdit and no longer blocks files outside the project repository — on purpose; re-pinned.
       // 2026-11-22, 0.8.0 integration remediation — re-pinned on purpose. hooks: A1 — the payload is read through hooks/lib/hook-json.sh (jq, else Node.js, else fail closed). Decisions unchanged.
       // 2026-11-25, 0.9.2 — re-pinned on purpose: one Git-Bash-only block converts native Windows paths (C:\…, C:/…) before the path checks, and blocks drive-relative and UNC paths on main/master; without the block the hook is the 0.9.1 hook byte for byte (hook-checkout.test.ts § 4).
-      "hooks/block-main-branch-changes.sh": "f01bb2da741a569e0cd508bfca7509c0063eab5bc1923953f8b8bd5398a19191",
+      // 2026-11-26, 0.9.3 — re-pinned on purpose (DEV-08): one marked block compares folders by identity (-ef, physical and as-written resolution), so a case alias, an 8.3 name or <link>/.. of the repository is blocked on main; without the block the hook is the 0.9.2 hook byte for byte (hook-checkout.test.ts § 4).
+      "hooks/block-main-branch-changes.sh": "d23d898dc6b304093202712f4893b817a32b686a10a4abf32fb5ace7de8d7d01",
       // 0.7.6: protect-secrets fails closed without jq or on an unreadable call, and scans NotebookEdit — on purpose; re-pinned.
       "hooks/protect-secrets.json": "b4b4350722c03853c22a91f53d0b25d6bc0898b8d9e51ec821a73e62242d003c",
       // 0.7.6: protect-secrets fails closed without jq or on an unreadable call, and scans NotebookEdit — on purpose; re-pinned.
       // 2026-11-22, 0.8.0 integration remediation — re-pinned on purpose. hooks: A1 — the payload is read through hooks/lib/hook-json.sh (jq, else Node.js, else fail closed); grep failure blocks. Decisions unchanged.
-      "hooks/scan-for-secrets.sh": "df0e036f1a42358babdca69540f5dbe282c0740d6ec0c6ba3930ade5052e00fd",
+      // 2026-11-26, 0.9.3 — re-pinned on purpose (DEV-12): the env-file check compares the file name and the credential key without regard to case and accepts `export` and spaces around `=`; every pattern and exemption is unchanged (hooks.test.ts § 6).
+      "hooks/scan-for-secrets.sh": "4c2f6b1851e40493d373aa5539f548a4cfbe7f9b509d9f4b8abd82151da3506b",
       "agents/feature-implementer.md": "052fec8ac10f83b1b78a94eca52a0260be977fcd4c92c629db91fd66d7b49991",
     };
     for (const [f, h] of Object.entries(PINS)) check(`20/21 ${f} is byte-identical`, sha(readFileSync(join(REPO_ROOT, f))) === h);
@@ -422,6 +424,22 @@ try {
     const hookExts = m ? m[1].split("|").map((x) => x.replace(/^\*/, "")) : [];
     check("sync: the hook's code-file pattern equals CODE_EXTENSIONS, in order", JSON.stringify(hookExts) === JSON.stringify(EA.CODE_EXTENSIONS), JSON.stringify(hookExts));
     check("sync: no extension is listed twice", new Set(EA.CODE_EXTENSIONS).size === EA.CODE_EXTENSIONS.length);
+    // 0.9.3 (DEV-09): the hook and the helper classify every spelling the same way — executed, not compared as text.
+    check("sync: nameForms gives the name, the part before a colon, and both without trailing dots and spaces",
+      JSON.stringify(EA.nameForms("C:\\repo\\src\\a.ts. ::$DATA")) === JSON.stringify(["a.ts. ::$DATA", "a.ts. ", "a.ts. ::$DATA", "a.ts"]) &&
+      JSON.stringify(EA.nameForms("/r/src/X.TS")) === JSON.stringify(["X.TS", "X.TS", "X.TS", "X.TS"]));
+    const corpus = [
+      ...EA.CODE_EXTENSIONS.flatMap((e) => [`src/f${e}`, `src/F${e.toUpperCase()}`, `src/f${e}.`, `src/f${e} `, `src/f${e}::$DATA`, `src/f${e.toUpperCase()}:s`]),
+      "README.md", "README.MD", ".env", ".ENV", "config.json", "a.tsx.bak", "a.ts.orig", "Podfile", "notes.md:x.ts", "x:y.ts", "a.TS.md", "docs/a.MDX",
+    ];
+    const differ = corpus.filter((f) => {
+      const h = hook(HOOK, { tool_name: "Write", tool_input: { file_path: `/nowhere-093/${f}`, content: "x" } });
+      const hookCode = h.code === 0 && h.decision === "ask";
+      return hookCode !== EA.isCode(f);
+    });
+    check(`sync: the hook and isCode agree on all ${corpus.length} names (case, trailing dots/spaces, stream syntax, non-code)`, differ.length === 0, differ.join(", "));
+    check("DEV-09: an upper-case code file outside any repository reaches the helper as code (not NOT_CODE) and still asks",
+      EA.checkEdit({ file: "/nowhere-093/src/X.TS" }).outcome !== "NOT_CODE" && EA.checkEdit({ file: "/nowhere-093/src/X.TS" }).decision === "ask");
     const TIER_A = [".c", ".cc", ".cxx", ".hpp", ".hh", ".mjs", ".cjs", ".mts", ".cts", ".gradle", ".groovy", ".css", ".scss", ".sass", ".less"];
     check("Tier A: every Tier A extension is a code extension", TIER_A.every((e) => EA.CODE_EXTENSIONS.includes(e)));
     const plain = join(TMP, "tier-a");

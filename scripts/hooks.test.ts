@@ -35,7 +35,7 @@
  */
 
 import { spawnSync } from "child_process";
-import { mkdtempSync, writeFileSync, readFileSync, rmSync, existsSync, symlinkSync, realpathSync } from "fs";
+import { mkdtempSync, mkdirSync, writeFileSync, readFileSync, rmSync, existsSync, symlinkSync, realpathSync } from "fs";
 import { join, dirname } from "path";
 import { tmpdir } from "os";
 
@@ -379,6 +379,123 @@ const allows = (r: HookRun): boolean => r.code === 0;
   check("5 secrets with jq: a secret in a Write is still blocked", blocks(raw(SECRETS, json({ tool_name: "Write", tool_input: { file_path: "/repo/src/config.ts", content: `k = "${AWS}"` } }))));
   check("5 secrets: a non-write tool still passes", allows(raw(SECRETS, json({ tool_name: "Read", tool_input: { file_path: "/repo/a.ts" } }))));
   rmSync(noJq, { recursive: true, force: true });
+}
+
+/* ── 6. 0.9.3: filesystem identity, name aliases, env-file names ──────── */
+// DEV-08: the branch hook compares folders by identity, so a different spelling of the repository
+// (…/REPO on a case-insensitive filesystem) is still the repository — and on a case-sensitive one it
+// is a different folder and stays one. DEV-09: a code file is a code file in any case, and under the
+// Windows spellings of its name. DEV-12: the env-file check reads .ENV like .env.
+{
+  if (!haveGit) {
+    console.log("SKIP  6 0.9.3 (git not installed)");
+  } else {
+    const base = realpathSync(mkdtempSync(join(tmpdir(), "hooks-ident-")));
+    const repo = join(base, "Proj093");
+    mkdirSync(join(repo, "src"), { recursive: true });
+    const git = (...args: string[]) => spawnSync("git", ["-C", repo, ...args], { encoding: "utf-8" });
+    git("init", "-q", "-b", "main");
+    writeFileSync(join(repo, "src", "a.ts"), "x");
+    git("add", ".");
+    git("-c", "user.email=t@t", "-c", "user.name=t", "commit", "-qm", "init");
+    const env = { CLAUDE_PROJECT_DIR: repo };
+    const W = (file_path: string, cwd?: string) => ({ tool_name: "Write", tool_input: { file_path, content: "x" }, ...(cwd ? { cwd } : {}) });
+    const alias = join(base, "PROJ093");
+    const caseInsensitive = existsSync(join(alias, "src", "a.ts"));
+    console.log(`INFO  6 the temporary filesystem is case-${caseInsensitive ? "INSENSITIVE" : "SENSITIVE"} (${base})`);
+
+    // The released 0.9.2 hook (this hook without its 0.9.3 block) — the negative control.
+    const BEGIN = "# >>> Filesystem identity (0.9.3)\n", END = "# <<< Filesystem identity (0.9.3)\n";
+    const now = readFileSync(MAIN_BRANCH, "utf-8");
+    check("6 DEV-08 the identity check is one marked block", now.includes(BEGIN) && now.includes(END) && now.indexOf(BEGIN) < now.indexOf(END));
+    const ctrlDir = join(base, "control-hooks");
+    mkdirSync(join(ctrlDir, "lib"), { recursive: true });
+    writeFileSync(join(ctrlDir, "lib", "hook-json.sh"), readFileSync(join(HOOKS, "lib", "hook-json.sh")));
+    const CONTROL = join(ctrlDir, "block-main-branch-changes.sh");
+    writeFileSync(CONTROL, now.slice(0, now.indexOf(BEGIN)) + now.slice(now.indexOf(END) + END.length));
+
+    if (caseInsensitive) {
+      const cases: Array<[string, unknown]> = [
+        ["an existing file through a case alias of the repository", W(join(alias, "src", "a.ts"))],
+        ["a new file through a case alias", W(join(alias, "src", "new.ts"))],
+        ["new directories under a case alias (no existing parent)", W(join(alias, "NEW", "deep", "x.ts"))],
+        ["a relative path from a case-alias session directory", W("src/x.ts", alias)],
+        ["an alias spelled in mixed case", W(join(base, "pRoJ093", "src", "a.ts"))],
+      ];
+      for (const [label, payload] of cases) {
+        check(`6 DEV-08 on main (case-insensitive): ${label} is blocked`, blocks(runHook(MAIN_BRANCH, payload, env)));
+      }
+      const ctrl = runHook(CONTROL, W(join(alias, "src", "a.ts")), env);
+      check("6 DEV-08 negative control: the 0.9.2 hook lets the case alias through (the defect, reproduced here)", ctrl.code === 0, `${ctrl.code} ${ctrl.stderr}`);
+    } else {
+      check("6 DEV-08 on main (case-sensitive): a different-case folder is a different, new folder outside the repository — allowed", allows(runHook(MAIN_BRANCH, W(join(alias, "src", "a.ts")), env)) && !existsSync(alias));
+      // A real, separate folder whose name differs from the repository's only in case: never the repository here.
+      mkdirSync(join(alias, "src"), { recursive: true });
+      writeFileSync(join(alias, "src", "a.ts"), "other");
+      check("6 DEV-08 on main (case-sensitive): an existing separate folder PROJ093 next to Proj093 is allowed (nothing is lowercased)", allows(runHook(MAIN_BRANCH, W(join(alias, "src", "a.ts")), env)) && allows(runHook(MAIN_BRANCH, W(join(alias, "src", "b.ts")), env)));
+      console.log("INFO  6 DEV-08 case aliases do not exist on a case-sensitive filesystem; the alias cases run where the filesystem is case-insensitive (macOS CI, local APFS)");
+    }
+    check("6 DEV-08 on main: the correctly spelled path is still blocked", blocks(runHook(MAIN_BRANCH, W(join(repo, "src", "a.ts")), env)));
+    check("6 DEV-08 the 0.9.2 control blocks the correctly spelled path (so the control is a working hook)", blocks(runHook(CONTROL, W(join(repo, "src", "a.ts")), env)));
+
+    // A symlink, then `..`: the filesystem applies `..` after the link; the hook now does both.
+    const out = join(base, "outside");
+    mkdirSync(join(out, "elsewhere", "sub"), { recursive: true });
+    symlinkSync(join(repo, "src"), join(out, "into-src"));
+    check("6 DEV-08 on main: <link into the repository>/../b.ts (physically inside) is blocked", blocks(runHook(MAIN_BRANCH, W(join(out, "into-src") + "/../b.ts"), env)));
+    const c2 = runHook(CONTROL, W(join(out, "into-src") + "/../b.ts"), env);
+    check("6 DEV-08 negative control: the 0.9.2 hook allowed <link>/../b.ts", c2.code === 0, `${c2.code}`);
+    symlinkSync(join(out, "elsewhere", "sub"), join(out, "away"));
+    check("6 DEV-08 on main: <link outside>/../x.ts (outside both ways) is allowed", allows(runHook(MAIN_BRANCH, W(join(out, "away") + "/../x.ts"), env)));
+
+    // Legitimate writes outside the repository stay allowed.
+    mkdirSync(join(base, "Proj093-sibling"), { recursive: true });
+    check("6 DEV-08 on main: a sibling folder whose name starts with the repository's is allowed", allows(runHook(MAIN_BRANCH, W(join(base, "Proj093-sibling", "x.ts")), env)));
+    check("6 DEV-08 on main: the folder holding the repository is allowed", allows(runHook(MAIN_BRANCH, W(join(base, "notes.md")), env)));
+    check("6 DEV-08 on main: a new folder next to the repository is allowed", allows(runHook(MAIN_BRANCH, W(join(base, "new", "deep", "x.md")), env)));
+    check("6 DEV-08 on main: the system temp folder is allowed", allows(runHook(MAIN_BRANCH, W(join(tmpdir(), "hooks-093-free.md")), env)));
+    git("checkout", "-qb", "feat/x");
+    check("6 DEV-08 on a feature branch: the case alias and the correct path are allowed",
+      allows(runHook(MAIN_BRANCH, W(join(alias, "src", "a.ts")), env)) && allows(runHook(MAIN_BRANCH, W(join(repo, "src", "a.ts")), env)));
+    git("checkout", "-q", "main");
+
+    // DEV-09 — every code extension, in upper and mixed case, and the Windows spellings.
+    const EXTS = ["ts", "tsx", "js", "jsx", "swift", "kt", "kts", "java", "m", "mm", "cpp", "h", "c", "cc", "cxx", "hpp", "hh", "mjs", "cjs", "mts", "cts", "gradle", "groovy", "css", "scss", "sass", "less"];
+    const mixed = (s: string) => s.split("").map((ch, i) => (i % 2 ? ch.toUpperCase() : ch)).join("");
+    const notAsked = EXTS.flatMap((e) => [`/repo/src/File.${e.toUpperCase()}`, `/repo/src/File.${mixed(e)}`]).filter((f) => !asks(runHook(APPROVAL, W(f))));
+    check(`6 DEV-09 all ${EXTS.length} code extensions ask in upper and mixed case (${EXTS.length * 2} names)`, notAsked.length === 0, notAsked.join(", "));
+    const aliases = ["/repo/src/a.ts.", "/repo/src/a.ts ", "/repo/src/a.ts. .", "/repo/src/a.ts::$DATA", "/repo/src/a.TS::$DATA", "/repo/src/a.ts:$DATA", "/repo/src/a.ts:zone.identifier", "C:\\repo\\src\\A.TS", "C:\\repo\\src\\a.ts::$DATA"];
+    for (const f of aliases) check(`6 DEV-09 ${JSON.stringify(f)} asks (the same file on Windows)`, asks(runHook(APPROVAL, W(f))));
+    check("6 DEV-09 the approval record asks under an alias too (X.CYCLE-APPROVAL.JSON, ::$DATA)",
+      ["/repo/docs/tasks/bugs/K.CYCLE-APPROVAL.JSON", "/repo/docs/tasks/bugs/k.cycle-approval.json::$DATA"].every((f) => /approval record/.test(runHook(APPROVAL, W(f)).stdout)));
+    for (const f of ["/repo/README.MD", "/repo/docs/notes.md", "/repo/.ENV", "/repo/config.JSON", "/repo/src/a.tsx.bak", "/repo/src/a.ts.orig", "/repo/Podfile"]) {
+      check(`6 DEV-09 positive: ${f} still passes through`, passesThrough(runHook(APPROVAL, W(f))));
+    }
+
+    // DEV-12 — the env-file check ignores the case of the file name and of the key.
+    const V = `Zq8pR2vL9x${"T4mW7kN3bY"}`;
+    const S = (file_path: string, content: string) => runHook(SECRETS, { tool_name: "Write", tool_input: { file_path, content } });
+    for (const [f, c] of [["/r/.ENV", `DB_PASSWORD=${V}`], ["/r/.Env", `DB_PASSWORD=${V}`], ["/r/.ENV.LOCAL", `API_KEY=${V}`], ["/r/config/PROD.ENV", `API_KEY=${V}`],
+      ["/r/.env", `db_password=${V}`], ["/r/.env", `export DB_PASSWORD=${V}`], ["/r/.env", `DB_PASSWORD = ${V}`], ["/r/.env", `  Api_Key=${V}`]] as const) {
+      check(`6 DEV-12 ${f} «${c.replace(V, "<20 chars>")}» is blocked`, blocks(S(f, c)));
+    }
+    const pre = (() => {
+      const r = spawnSync("bash", ["-c", `git -C "${REPO_ROOT}" show 7a49433f345ef92bd19c1ad6bc435c10777091f8:hooks/scan-for-secrets.sh`], { encoding: "utf-8" });
+      return r.status === 0 ? r.stdout : null;
+    })();
+    if (pre !== null) {
+      const ctl = join(ctrlDir, "scan-for-secrets.sh");
+      writeFileSync(ctl, pre);
+      check("6 DEV-12 negative control: the 0.9.2 hook let «DB_PASSWORD=<20 chars>» in .ENV through", runHook(ctl, { tool_name: "Write", tool_input: { file_path: "/r/.ENV", content: `DB_PASSWORD=${V}` } }).code === 0);
+    } else console.log("INFO  6 DEV-12 negative control not run: the 0.9.2 commit is not in this clone's history");
+    for (const [f, c, why] of [["/r/.env.example", "DB_PASSWORD=changeme", "a placeholder"], ["/r/.ENV.EXAMPLE", "API_KEY=your-key-here", "a placeholder in an upper-case example file"],
+      ["/r/.env", "API_URL=https://api.example.com/v1/x", "a non-credential key"], ["/r/.env", "FOO_TOKEN=none", "a short value"], ["/r/.ENV", `# DB_PASSWORD=${V}`, "a comment"],
+      ["/r/.env", "export PATH=/usr/local/bin:/usr/bin", "an exported non-credential"]] as const) {
+      check(`6 DEV-12 positive: ${f} with ${why} is allowed`, allows(S(f, c)));
+    }
+    check("6 DEV-12 the placeholder policy is unchanged: a case-varied long placeholder (Your-Key-Here-Long) is still blocked", blocks(S("/r/.env", "API_KEY=Your-Key-Here-Long")));
+    rmSync(base, { recursive: true, force: true });
+  }
 }
 
 console.log(failures === 0 ? "\nALL TESTS PASSED" : `\n${failures} TEST(S) FAILED`);

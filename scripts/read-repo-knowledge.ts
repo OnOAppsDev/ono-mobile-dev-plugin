@@ -511,10 +511,13 @@ const ORDINARY_EXTENSIONS = new Set([
   "md", "mdx", "png", "jpg", "jpeg", "gif", "webp", "svg", "ico", "bmp", "ttf", "otf", "woff", "woff2",
   "mp3", "mp4", "m4a", "wav", "ogg", "mov", "webm", "xib", "storyboard", "strings", "stringsdict", "snap",
 ]);
-/** Positively ordinary by location: documentation and workflow output, Android resources, asset catalogs, tooling state. */
+/** Positively ordinary by location: documentation and workflow output, asset catalogs, tooling state. */
 const ORDINARY_LOCATIONS: RegExp[] = [
-  /^docs\//, /(^|\/)res\//, /\.xcassets\//, /\.lproj\//, /(^|\/)__snapshots__\//, /^\.claude\//, /^\.idea\//, /^\.vscode\//, /(^|\/)\.DS_Store$/,
+  /^docs\//, /\.xcassets\//, /\.lproj\//, /(^|\/)__snapshots__\//, /^\.claude\//, /^\.idea\//, /^\.vscode\//, /(^|\/)\.DS_Store$/,
 ];
+
+/** A res/ folder — Android resources (0.9.3: ordinary only for XML and the ordinary types; see routingRelevance). */
+const ANDROID_RESOURCES = /(^|\/)res\//;
 
 /** Why a changed path can change routing, or null when it is ordinary. Inspector-owned paths are the artifact check's, never routing's. */
 /**
@@ -559,7 +562,12 @@ export function routingRelevance(rel: string, includedBuilds: string[] = [], bui
   if (strong) return strong;
   if (ORDINARY_LOCATIONS.some((re) => re.test(p))) return null;
   const dot = base.lastIndexOf(".");
-  if (dot > 0 && ORDINARY_EXTENSIONS.has(base.slice(dot + 1).toLowerCase())) return null;
+  const ext = dot > 0 ? base.slice(dot + 1).toLowerCase() : "";
+  // Android resources (0.9.3, DEV-11): a res/ folder makes only Android's resource types ordinary —
+  // XML (values, layouts, drawables) and the ordinary media and source types below. Any other file in
+  // a res/ folder (ios/res/Targets.plist, an unknown type) is judged by its type, like anywhere else.
+  if (ANDROID_RESOURCES.test(p) && ext === "xml") return null;
+  if (ORDINARY_EXTENSIONS.has(ext)) return null;
   return "not a recognised source, resource or documentation file";
 }
 
@@ -602,7 +610,7 @@ export function includedBuildsOf(settingsRel: string, text: string): string[] | 
  * Two narrow exemptions, both pure data, never build structure: a signing keystore
  * (`storeFile …`) and a path under the build output directory (`$buildDir`, `layout.buildDirectory`).
  */
-export function buildReferencesOf(scriptRel: string, text: string, gradleRootDir: string): { paths: string[] } | { unresolved: string } {
+export function buildReferencesOf(scriptRel: string, text: string, gradleRootDir: string, config?: string[]): { paths: string[] } | { unresolved: string } {
   const scriptDir = scriptRel.includes("/") ? scriptRel.slice(0, scriptRel.lastIndexOf("/")) : "";
   const code = text.replace(/\/\*[\s\S]*?\*\//g, "").replace(/(^|[^:])\/\/.*$/gm, "$1");
   const paths: string[] = [];
@@ -631,15 +639,18 @@ export function buildReferencesOf(scriptRel: string, text: string, gradleRootDir
     }
     return parts.join("/");
   };
-  const add = (r: string | null | "skip", what: string): string | null => {
+  // isConfig (0.9.3): build configuration the script includes or applies (an `#include`d .xcconfig,
+  // an `apply from` script) — collected into `config` when given. A file the script only reads is data.
+  const add = (r: string | null | "skip", what: string, isConfig = false): string | null => {
     if (r === "skip" || r === "") return null; // "" is the repository root: a location, not an input
     if (r === null) return `${scriptRel}: ${what} that cannot be resolved to a path inside the repository`;
     paths.push(r);
+    if (isConfig) config?.push(r);
     return null;
   };
   if (/\.xcconfig$/.test(scriptRel)) {
     for (const m of text.matchAll(/^\s*#include\??\s+(.+?)\s*$/gm)) {
-      const bad = add(resolveArg(m[1], scriptDir), `#include ${m[1]}`);
+      const bad = add(resolveArg(m[1], scriptDir), `#include ${m[1]}`, true);
       if (bad) return { unresolved: bad };
     }
     return { paths };
@@ -650,7 +661,7 @@ export function buildReferencesOf(scriptRel: string, text: string, gradleRootDir
     const fileCall = /^(?:rootProject\.|project\.)?file\s*\(\s*(.+?)\s*\)?$/.exec(arg);
     const base = /^rootProject\./.test(arg) ? gradleRootDir : scriptDir;
     if (fileCall) arg = fileCall[1];
-    const bad = add(resolveArg(arg, base), `apply from ${m[1].trim()}`);
+    const bad = add(resolveArg(arg, base), `apply from ${m[1].trim()}`, true);
     if (bad) return { unresolved: bad };
   }
   // Files the script reads.
@@ -658,6 +669,13 @@ export function buildReferencesOf(scriptRel: string, text: string, gradleRootDir
     if (/\bstoreFile\b/.test(line)) continue; // a signing keystore: data, never build structure
     for (const m of line.matchAll(/\b(rootProject\.file|project\.file|files?|File)\s*\(([^()]*(?:\([^()]*\)[^()]*)*)\)/g)) {
       const fn = m[1], argsText = m[2].trim();
+      // The bundle's output name (0.9.3, DEV-15): AGP's FinalizeBundleTask declares `finalBundleFile`
+      // as its @OutputFile — the signed .aab it writes — and `intermediaryBundleFile` as its input.
+      // A file reference that IS the whole argument of `finalBundleFile.set(…)` and calls nothing
+      // inside (so it reads nothing) names where the bundle is written: never an input. That one
+      // AGP output property only; any other `.set(…)`, a nested call or anything after the
+      // reference keeps today's rules.
+      if (/(?<![\w$])finalBundleFile\s*\.\s*set\s*\(\s*(?:new\s+)?$/.test(line.slice(0, m.index)) && /^\s*\)/.test(line.slice((m.index ?? 0) + m[0].length)) && !argsText.includes("(")) continue;
       if (argsText === "") continue;
       const args = argsText.split(",").map((s) => s.trim());
       let r: string | null | "skip";
@@ -675,6 +693,90 @@ export function buildReferencesOf(scriptRel: string, text: string, gradleRootDir
       } else r = null;
       const bad = add(r, `${fn}(${argsText})`);
       if (bad) return { unresolved: bad };
+    }
+  }
+  return { paths: [...new Set(paths)] };
+}
+
+/** Expo app configuration (0.9.3): its local config plugins run at prebuild and can rewrite the native projects. */
+export const EXPO_CONFIG = /(^|\/)app\.(json|config\.(json|[cm]?[jt]s))$/;
+const MODULE_SUFFIXES = [".js", ".ts", ".cjs", ".mjs", ".cts", ".mts", ".jsx", ".tsx", ".json"];
+
+/**
+ * The local files an Expo configuration names explicitly (0.9.3) — its config plugins, which run at
+ * prebuild and can rewrite the Android and iOS projects. Literal text only, never an evaluation:
+ *
+ *   app.json, app.config.json   each `expo.plugins` / `plugins` entry that is a relative path
+ *                               ("./plugins/withTv", or the first element of ["./x", {…}])
+ *   app.config.[cm][jt]s        the string literals of a `plugins: [ … ]` array (an entry, or the first
+ *                               element of a nested [path, options] array) that are relative paths, and
+ *                               every relative module the file imports or requires
+ *
+ * A plugin given as an identifier (`plugins: [withTv]`) is not resolved — the module it is imported
+ * from is, through the import. Package plugins are covered by package.json. A path without an
+ * extension stands for each file Node.js could load for it. A relative path outside the repository,
+ * or a JSON configuration that cannot be parsed, returns `{ unresolved }` (UNKNOWN — the developer confirms).
+ */
+export function expoReferencesOf(configRel: string, text: string): { paths: string[] } | { unresolved: string } {
+  const dir = configRel.includes("/") ? configRel.slice(0, configRel.lastIndexOf("/")) : "";
+  const specs: string[] = [];
+  const relative = (s: unknown): s is string => typeof s === "string" && /^\.\.?\//.test(s);
+  if (/\.json$/.test(configRel)) {
+    let j: any;
+    try {
+      j = JSON.parse(text);
+    } catch {
+      return { unresolved: `${configRel} is not valid JSON, so its config plugins cannot be read` };
+    }
+    for (const list of [j?.expo?.plugins, j?.plugins]) {
+      if (!Array.isArray(list)) continue;
+      for (const e of list) {
+        const s = Array.isArray(e) ? e[0] : e;
+        if (relative(s)) specs.push(s);
+      }
+    }
+  } else {
+    const code = text.replace(/\/\*[\s\S]*?\*\//g, "").replace(/(^|[^:])\/\/.*$/gm, "$1");
+    // The literal entries of each `plugins: [ … ]` array: depth 1, or the first element at depth 2.
+    for (const m of code.matchAll(/\bplugins\s*:\s*\[/g)) {
+      const stack: Array<{ kind: string; first: boolean }> = [{ kind: "[", first: true }];
+      for (let i = (m.index ?? 0) + m[0].length; i < code.length && stack.length > 0; i++) {
+        const c = code[i], top = stack[stack.length - 1];
+        if (c === '"' || c === "'" || c === "`") {
+          let j = i + 1;
+          while (j < code.length && code[j] !== c) j += code[j] === "\\" ? 2 : 1;
+          const lit = code.slice(i + 1, j);
+          const takes = top.kind === "[" && (stack.length === 1 || (stack.length === 2 && top.first));
+          if (takes && relative(lit) && !lit.includes("${")) specs.push(lit);
+          if (top.kind === "[") top.first = false;
+          i = j;
+        } else if (c === "[" || c === "{" || c === "(") {
+          if (top.kind === "[") top.first = false;
+          stack.push({ kind: c, first: true });
+        } else if (c === "]" || c === "}" || c === ")") stack.pop();
+        else if (c === "," && top.kind === "[") top.first = false;
+        else if (!/\s/.test(c) && top.kind === "[") top.first = false;
+      }
+    }
+    for (const m of code.matchAll(/(?:\bfrom\s*|\brequire\s*\(\s*|\bimport\s*\(\s*|^\s*import\s+)(["'])(\.\.?\/[^"'$]+)\1/gm)) specs.push(m[2]);
+  }
+  const paths: string[] = [];
+  for (const spec of specs) {
+    const parts: string[] = [];
+    for (const seg of `${dir}/${spec}`.split("/")) {
+      if (seg === "" || seg === ".") continue;
+      if (seg === "..") {
+        if (parts.length === 0) return { unresolved: `${configRel}: ${spec} is outside the repository` };
+        parts.pop();
+      } else parts.push(seg);
+    }
+    if (parts.length === 0) continue; // the repository root: a location, not an input
+    const p = parts.join("/");
+    paths.push(p);
+    if (!MODULE_SUFFIXES.some((x) => p.endsWith(x))) {
+      for (const x of MODULE_SUFFIXES) paths.push(`${p}${x}`);
+      for (const x of MODULE_SUFFIXES) paths.push(`${p}/index${x}`);
+      paths.push(`${p}/app.plugin.js`);
     }
   }
   return { paths: [...new Set(paths)] };
@@ -741,12 +843,12 @@ export function computeRoutingFreshness(targetRoot: string, knowledgeHead: strin
     if (files === null) return unknown("git ls-tree failed");
     for (const f of files) {
       if (/(^|\/)settings\.gradle(\.kts)?$/.test(f)) settings.add(`${rev}:${f}`);
-      if (BUILD_SCRIPT.test(f)) scripts.add(f);
+      if (BUILD_SCRIPT.test(f) || EXPO_CONFIG.test(f)) scripts.add(f);
     }
   }
   for (const c of changes) {
     if (/(^|\/)settings\.gradle(\.kts)?$/.test(c.path)) settings.add(`WORKTREE:${c.path}`);
-    if (BUILD_SCRIPT.test(c.path)) scripts.add(c.path);
+    if (BUILD_SCRIPT.test(c.path) || EXPO_CONFIG.test(c.path)) scripts.add(c.path);
   }
   const includedBuilds: string[] = [];
   for (const key of settings) {
@@ -775,6 +877,7 @@ export function computeRoutingFreshness(targetRoot: string, knowledgeHead: strin
     return settingsDirs.filter((d) => d === "" || dir === d || dir.startsWith(`${d}/`)).sort((a, b) => b.length - a.length)[0] ?? "";
   };
   const buildInputs: string[] = [];
+  const configInputs: string[] = []; // 0.9.3: included / applied build configuration and Expo config plugins
   for (const rel of scripts) {
     if (isInspectorOwned(comparablePath(rel))) continue;
     const texts: string[] = [];
@@ -787,8 +890,10 @@ export function computeRoutingFreshness(targetRoot: string, knowledgeHead: strin
       texts.push(before);
     }
     for (const text of texts) {
-      const refs = buildReferencesOf(rel, text, gradleRootOf(rel));
+      const expo = EXPO_CONFIG.test(rel);
+      const refs = expo ? expoReferencesOf(rel, text) : buildReferencesOf(rel, text, gradleRootOf(rel), configInputs);
       if ("unresolved" in refs) return unknown(`a build input this assessment cannot resolve — ${refs.unresolved}`);
+      if (expo) configInputs.push(...refs.paths);
       for (const p of refs.paths) {
         let isDir = false;
         try {
@@ -799,6 +904,21 @@ export function computeRoutingFreshness(targetRoot: string, knowledgeHead: strin
         if (!isDir) buildInputs.push(p); // a directory is a location, not an input: its files are judged one by one
       }
     }
+  }
+
+  // Build configuration that Git does not show (0.9.3, DEV-10). An included .xcconfig, an applied
+  // Gradle script or an Expo config plugin that exists but is ignored never appears in git status,
+  // and the knowledge records no copy of it — so whether it changed cannot be known. Never assumed
+  // unchanged: UNKNOWN, naming the file, and the developer confirms. Limited to those explicit
+  // configuration references; a file a build script only reads (local.properties) is data, and an
+  // ignored reference that does not exist now cannot be told from one that never existed
+  // (docs/bug-work-plan-contract.md, Routing freshness — 0.9.3 additions, Limitations).
+  const configSet = [...new Set(configInputs)].filter((p) => !isInspectorOwned(comparablePath(p)));
+  if (configSet.length > 0) {
+    const ignored = gitPaths(targetRoot, ["ls-files", "-z", "--others", "--ignored", "--exclude-standard", "--", ...configSet.map((p) => `:(literal)${p}`)]);
+    if (ignored === null) return unknown("git ls-files failed while looking for ignored build configuration");
+    const found = ignored.filter((p) => configSet.includes(p)).sort();
+    if (found.length > 0) return unknown(`build configuration that Git ignores cannot be compared with the knowledge: ${found.slice(0, 5).join(", ")}${found.length > 5 ? ` (+${found.length - 5} more)` : ""}`);
   }
 
   // Top-level entries added or removed, committed or not.

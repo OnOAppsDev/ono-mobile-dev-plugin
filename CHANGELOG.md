@@ -9,6 +9,61 @@ version below is the plugin's own `version` in
 
 ## [Unreleased]
 
+## [0.9.3] - 2026-11-26
+
+Security and routing hardening from the independent review of 0.9.2 (DEV-08 … DEV-12) and a routing correction from production feedback (DEV-15). The guards now judge the file a path reaches, not its spelling; routing freshness sees Expo config plugins and ignored build configuration, and no longer reads the AGP bundle output name as a build input. Bug Flow, Feature Flow, Pre-PR, approvals and the QA artifacts are unchanged.
+
+### Security
+
+- **DEV-08 — main-branch protection: filesystem aliases** (`hooks/block-main-branch-changes.sh`). On a case-insensitive filesystem (macOS by default, Windows) a write to `…/REPO/src/a.ts` when the repository is `…/repo` was allowed on `main`: the hook compared path strings, and bash's `pwd -P` keeps the spelling it is given. A path with a symlink and then `..` (`<link into the repository>/../b.ts`) was also allowed, because `cd` applies `..` before resolving the link. The hook now walks up from the nearest existing directory — resolved as written and physically (`cd -P`) — and blocks when a folder on the way **is** the repository's top level (`-ef`: same device and inode). Nothing is lowercased: on a case-sensitive filesystem a different-case folder is a different folder and stays allowed. This covers case aliases and Windows 8.3 short names alike, with shell builtins only. It is one marked block: without it the hook is the 0.9.2 hook byte for byte. Writes outside the repository (siblings, its parent folder, temp folders) and every feature-branch write are unchanged.
+- **DEV-09 — approval before code: name aliases** (`hooks/require-approval-before-code.sh`, `scripts/edit-approval.ts`). `scripts/X.TS` (and every code extension in upper or mixed case) passed without approval; on APFS it overwrote `scripts/x.ts`. A file is now classified by every spelling the filesystem may resolve to the same file, and is code when **any** of them is:
+  - the name as written;
+  - before its first colon (NTFS `x.ts::$DATA`);
+  - without trailing dots and spaces (Windows `x.ts.`, `x.ts `).
+
+  All forms compare without regard to case. The Bug Fix Cycle approval record (`*.cycle-approval.json`) gets the same treatment. The hook and the helper share the rule (`name_forms` / `nameForms`, `isCode`), and a test runs both on 174 names. More spellings can only add asks. An approved cycle still allows only an exact in-scope path, so an alias asks.
+- **DEV-12 — secrets: env-file names** (`hooks/scan-for-secrets.sh`). The env-file check matched `.env` case-sensitively, so a credential in `.ENV`, `.Env` or `PROD.ENV` skipped it. The vendor patterns (AWS, GitHub, Stripe, Slack, private keys, quoted generic assignments) were never bypassed. The file name and the credential key name now compare without regard to case, and a line may start with `export ` or put spaces around `=`. The placeholder exemptions, the 12-character minimum and every other pattern are unchanged.
+
+### Fixed
+
+- **DEV-11 — routing: Android resources only** (`routingRelevance`). A `res/` folder made every file ordinary, including `ios/res/Targets.plist`. It now makes only XML and the ordinary media and source types ordinary; anything else in a `res/` folder is judged by its type. Ordinary Android resource changes (values, layouts, drawables, fonts, sounds) still keep automatic routing.
+- **DEV-11 — routing: Expo config plugins** (`expoReferencesOf`). Local config plugins named by `app.json` / `app.config.json`, literal plugin entries of `app.config.[cm][jt]s`, and the relative modules it imports are build inputs: changing, adding or deleting one is routing-relevant. This reads literal text only; nothing is evaluated.
+- **DEV-15 — routing: the AAB output name** (`buildReferencesOf`, reported on yes+ Android TV after the AGP 9 upgrade, `tv/build.gradle:153`). `finalBundleFile.set(new File(current.parentFile, aabName))` was read as a build input that cannot be resolved. Because the scan also reads the script as it was at inspection, every bug asked for the platform again, even with nothing changed. `finalBundleFile` is AGP `FinalizeBundleTask`'s `@OutputFile`, so a file reference that is the whole argument of `finalBundleFile.set(…)` and calls nothing inside is now an output, not an input. Nothing else is exempted:
+  - AGP's input property `intermediaryBundleFile`, any other `.set(…)`, a nested call, anything after the reference, and a two-line form stay unresolved (UNKNOWN);
+  - a real input on the same line is still seen;
+  - editing the script is still routing-relevant.
+- **DEV-10 — routing: build configuration that Git ignores** (`computeRoutingFreshness`). An `#include`d `.xcconfig`, an applied Gradle script or a named Expo config plugin that exists but is ignored was invisible, and routing stayed CLEAN even when it changed `SDKROOT`. Such a file now makes routing freshness UNKNOWN, naming the file, and the developer confirms. Only explicit configuration references count; a file a script only reads (`local.properties`) does not.
+
+### Changed
+
+- CI: the full strict suite runs on **macOS** as well as Linux, on Node 22.18.0 and 24. The Windows job's focused suite (`hook-checkout`) adds § 5: case variants, 8.3 short names where the runner's volume has them, junctions, and the DEV-09 / DEV-12 spellings, under both readers, with the 0.9.2 hook as the negative control. A capability the runner lacks is printed as NOT VALIDATED, never counted as passed.
+
+### Tests
+
+- `hooks` § 6:
+  - DEV-08 on the filesystem at hand (case-insensitive: the alias cases and the 0.9.2 negative control; case-sensitive: the different-case folder stays allowed), the symlink-then-`..` case and its control, and the outside-repository positives;
+  - DEV-09: all 27 extensions in upper and mixed case, the Windows spellings, the record alias, and positives;
+  - DEV-12: case and `export` variants, the 0.9.2 negative control (when the history holds it), and positives.
+- `bug-routing` § 16: DEV-10, DEV-11 and DEV-15, with controls. The exact reported expression is tested in an AGP 9 Android TV module plus 85 ordinary changes (CLEAN, exactly 85 ordinary, automatic Android / TV), with AGP's input property as the negative control. Guy's case (exactly 90 ordinary changes, automatic Android / TV) is unchanged.
+- `edit-approval`: hook ↔ helper parity on 174 names, and `nameForms`.
+- **Expectations changed on purpose:**
+  - the byte pins of `block-main-branch-changes.sh`, `scan-for-secrets.sh`, `require-approval-before-code.sh` and `edit-approval.ts` (behaviour changed as described above);
+  - `hook-checkout` § 4 now removes the 0.9.3 block, then the 0.9.2 block, and checks both released hooks byte for byte;
+  - the planning-fixture digest follows the version stamp.
+
+### Known limitations
+
+- See `docs/bug-work-plan-contract.md` (Routing freshness — 0.9.3 additions, Limitations):
+  - an ignored file a build script only *reads* is not seen;
+  - an ignored configuration reference that does not exist now cannot be told from one that never existed;
+  - a config plugin given only as an identifier is seen through its import, and a computed one not at all;
+  - nothing is fingerprinted.
+- **Deferred:**
+  - **hard links** — a hard link outside the repository to a repository file is allowed on `main`. Creating one needs a shell command, which this hook does not cover.
+  - **NotebookEdit** — it isn't gated by the approval hook (notebooks are not code files here).
+  - **configuration file-name case** — `INFO.PLIST`-style variants are not matched by name.
+- **Windows:** 8.3 short names are exercised only where the runner's volume creates them; this release does not change filesystem settings to force them.
+
 ## [0.9.2] - 2026-11-25
 
 Automatic single-target routing that survives ordinary work, Inspector 0.14.0 compatibility, and a Windows path fix in the main-branch guard. Bug Flow approvals, the Feature Flow and every other guard are unchanged.

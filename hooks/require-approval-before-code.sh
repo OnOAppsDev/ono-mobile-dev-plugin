@@ -62,11 +62,50 @@ ask() {
   exit 0
 }
 
-case "$file_path" in
-  *.cycle-approval.json)
+# Which file a name reaches (0.9.3). A file is classified by every spelling the filesystem may
+# resolve to the same file, and matches when ANY of them does: the name as written; without
+# trailing dots and spaces (Windows drops them — x.ts. is x.ts); and before its first colon
+# (NTFS stream syntax — x.ts::$DATA is x.ts). Names compare without regard to case (X.TS is
+# x.ts on macOS and Windows). More spellings can only add asks, never remove one. The same
+# rule is nameForms/isCode in scripts/edit-approval.ts (pinned equal by edit-approval.test.ts).
+name_forms() {
+  local name="${1##*/}" cut t
+  name="${name##*\\}"
+  cut="${name%%:*}"
+  FORMS=("$name" "$cut")
+  for t in "$name" "$cut"; do
+    while :; do case "$t" in *.|*" ") t="${t%?}" ;; *) break ;; esac; done
+    FORMS+=("$t")
+  done
+}
+code_name() {
+  case "$1" in
+  *.ts|*.tsx|*.js|*.jsx|*.swift|*.kt|*.kts|*.java|*.m|*.mm|*.cpp|*.h|*.c|*.cc|*.cxx|*.hpp|*.hh|*.mjs|*.cjs|*.mts|*.cts|*.gradle|*.groovy|*.css|*.scss|*.sass|*.less)
+    return 0 ;;
+  esac
+  return 1
+}
+approval_record_name() {
+  case "$1" in *.cycle-approval.json) return 0 ;; esac
+  return 1
+}
+# any_form <test>: does any spelling of the file pass <test>, compared without regard to case?
+any_form() {
+  local f rc=1
+  shopt -s nocasematch
+  for f in "${FORMS[@]}"; do "$1" "$f" && { rc=0; break; }; done
+  shopt -u nocasematch
+  return "$rc"
+}
+name_forms "$file_path"
+kind=other
+if any_form approval_record_name; then kind=record; elif any_form code_name; then kind=code; fi
+
+case "$kind" in
+  record)
     ask "${file_path} is a Bug Fix Cycle approval record; it is written only by scripts/edit-approval.ts after a developer approves (org policy: require-approval-before-code)."
     ;;
-  *.ts|*.tsx|*.js|*.jsx|*.swift|*.kt|*.kts|*.java|*.m|*.mm|*.cpp|*.h|*.c|*.cc|*.cxx|*.hpp|*.hh|*.mjs|*.cjs|*.mts|*.cts|*.gradle|*.groovy|*.css|*.scss|*.sass|*.less)
+  code)
     reason="Code file change to ${file_path} requires explicit approval before writing (org policy: require-approval-before-code)."
     plugin_root="${CLAUDE_PLUGIN_ROOT:-$(cd "$(dirname "$0")/.." && pwd)}"
     field "$payload" '.cwd'; cwd="$REPLY"

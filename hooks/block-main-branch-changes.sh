@@ -117,6 +117,28 @@ while [ ! -d "$dir" ]; do
 done
 real_dir="$(cd "$dir" 2>/dev/null && pwd -P)" || block
 
+# >>> Filesystem identity (0.9.3)
+# The spelling of a path is not the folder it reaches. On a case-insensitive filesystem (macOS
+# by default, Windows) …/REPO is …/repo; on Windows an 8.3 short name (PROGRA~1) is the long
+# one. bash's `pwd -P` keeps the spelling it is given, so the string comparison below cannot
+# see such an alias; and `cd` without -P applies `..` before symlinks, while the filesystem
+# applies it after. So compare folders by identity: from the nearest existing directory —
+# resolved as written and physically (cd -P) — walk up, and block when any folder on the way
+# IS the repository's top level (`-ef`: the same device and inode, never the same spelling).
+# Nothing is lowercased: on a case-sensitive filesystem …/REPO and …/repo are two folders, and
+# stay two here. Shell builtins only. The string comparison after this block is kept unchanged.
+inside_project() {
+  local d="$1"
+  while [ -n "$d" ]; do
+    [ "$d" -ef "$project_top" ] && return 0
+    case "$d" in */*) d="${d%/*}" ;; *) return 1 ;; esac
+  done
+  [ / -ef "$project_top" ]
+}
+inside_project "$real_dir" && block
+physical_dir="$(cd -P "$dir" 2>/dev/null && pwd -P)" || block
+inside_project "$physical_dir" && block
+# <<< Filesystem identity (0.9.3)
 case "$real_dir/" in
   "$project_top"/*) block ;;
   *) exit 0 ;;

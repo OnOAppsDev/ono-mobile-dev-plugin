@@ -75,18 +75,30 @@ for entry in "${patterns[@]}"; do
 done
 
 # .env* files: flag any KEY=value line with a non-placeholder-looking value.
-if [[ "$file_path" == *".env"* ]]; then
+# 0.9.3: the file name and the key name are compared without regard to case (.ENV is .env on
+# macOS and Windows, and dotenv reads db_password as well as DB_PASSWORD), and a line may start
+# with `export ` or put spaces around `=`. Only those two comparisons ignore case — the
+# placeholder exemptions below are unchanged.
+env_file=no
+shopt -s nocasematch
+[[ "$file_path" == *".env"* ]] && env_file=yes
+shopt -u nocasematch
+if [ "$env_file" = yes ]; then
   while IFS= read -r line; do
     [[ "$line" =~ ^[[:space:]]*# ]] && continue
-    [[ "$line" =~ ^([A-Za-z_][A-Za-z0-9_]*)=(.+)$ ]] || continue
-    key="${BASH_REMATCH[1]}"
-    value="${BASH_REMATCH[2]}"
+    [[ "$line" =~ ^[[:space:]]*(export[[:space:]]+)?([A-Za-z_][A-Za-z0-9_]*)[[:space:]]*=[[:space:]]*(.+)$ ]] || continue
+    key="${BASH_REMATCH[2]}"
+    value="${BASH_REMATCH[3]}"
     value="${value%\"}"; value="${value#\"}"
 
     # Only scrutinize keys whose name suggests they hold a credential — an
     # env file has plenty of legitimate non-secret config (URLs, flags,
     # ports) that shouldn't trip this check.
-    [[ "$key" =~ (SECRET|TOKEN|PASSWORD|PRIVATE_KEY|CREDENTIAL|API_KEY|ACCESS_KEY) ]] || continue
+    credential_key=no
+    shopt -s nocasematch
+    [[ "$key" =~ (SECRET|TOKEN|PASSWORD|PRIVATE_KEY|CREDENTIAL|API_KEY|ACCESS_KEY) ]] && credential_key=yes
+    shopt -u nocasematch
+    [ "$credential_key" = yes ] || continue
 
     case "$value" in
       ""|changeme|CHANGEME|example|EXAMPLE|your-*|YOUR-*|xxx*|XXX*|placeholder*|PLACEHOLDER*)

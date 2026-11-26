@@ -1001,6 +1001,157 @@ try {
     check("15 isolation: under this suite's isolated Git the same change is ROUTING_CHANGED → confirm", RF(hostRoot)?.status === "ROUTING_CHANGED" && confirms(hostRoot), JSON.stringify(RF(hostRoot)));
   }
 
+  /* 16. 0.9.3 — Android resources only (DEV-11), Expo config plugins (DEV-11), and build configuration
+         that Git ignores (DEV-10). Git is isolated for this process (§ 15). */
+  {
+    const commit = (root: string, msg = "change") => {
+      git(root, "add", "-A", "--", ".", ":!.ono");
+      git(root, "commit", "-qm", msg);
+    };
+    const rebaseKnowledge = (root: string) => {
+      const p = join(root, ".ono/repo-knowledge.json");
+      const m = JSON.parse(readFileSync(p, "utf-8"));
+      m.fingerprint.knowledgeHead = git(root, "rev-parse", "HEAD");
+      m.fingerprint.gitHead = m.fingerprint.knowledgeHead;
+      writeFileSync(p, JSON.stringify(m, null, 2));
+    };
+    const prep = (files: Record<string, string>) => {
+      const r = repoWith();
+      for (const [p, body] of Object.entries(files)) write(r, p, body);
+      commit(r, "baseline");
+      rebaseKnowledge(r);
+      return r;
+    };
+    const RF = (root: string) => Reader.readRepoKnowledge(root).routingFreshness;
+    const routes = (root: string) => auto(S(ext(root)));
+    const confirms = (root: string) => asks(S(ext(root)));
+    const has = (root: string, line: string) => RF(root)?.routingChanges.some((c) => c === line) === true;
+    const OTHER = "not a recognised source, resource or documentation file";
+    const INPUT = "read or applied by a build script";
+
+    // DEV-11 — a res/ folder makes only Android's resource types ordinary.
+    const cls = (p: string) => Reader.classifyChange(p, { special: null, topLevelChanged: false });
+    check("16 DEV-11 classifier: ios/res/Targets.plist and res/Targets.plist are no longer ordinary; Android res/ XML and media still are",
+      cls("ios/res/Targets.plist") === OTHER && cls("res/Targets.plist") === OTHER && cls("app/src/main/res/raw/targets.plist") === OTHER &&
+      ["app/src/main/res/values/strings.xml", "app/src/main/res/layout/screen.xml", "app/src/main/res/xml/tv_config.xml", "app/src/main/res/drawable/icon.png",
+        "app/src/main/res/drawable/badge.9.png", "app/src/main/res/font/inter.ttf", "app/src/main/res/raw/click.mp3", "res/values/colors.xml"].every((p) => cls(p) === null));
+    check("16 DEV-11 classifier: the other ordinary locations are unchanged (asset catalogs, .lproj, snapshots, docs)",
+      ["ios/App/Assets.xcassets/AppIcon.appiconset/Contents.json", "ios/App/en.lproj/Localizable.strings", "src/__snapshots__/a.snap.json", "docs/x.plist"].every((p) => cls(p) === null));
+    const r1 = prep({ "ios/res/Targets.plist": "<plist><dict/></plist>\n", "app/src/main/res/values/strings.xml": "<resources/>\n" });
+    check("16 DEV-11 (control) an unchanged ios/res/Targets.plist keeps automatic routing", routes(r1) && RF(r1)?.status === "CLEAN", JSON.stringify(RF(r1)));
+    write(r1, "ios/res/Targets.plist", "<plist><dict><key>tv</key></dict></plist>\n");
+    check("16 DEV-11 − a changed ios/res/Targets.plist → confirm (no longer ordinary by location)", confirms(r1) && has(r1, `ios/res/Targets.plist — ${OTHER}`), JSON.stringify(RF(r1)));
+    const r2 = prep({ "app/src/main/res/values/strings.xml": "<resources/>\n", "app/src/main/res/drawable/icon.png": "png" });
+    write(r2, "app/src/main/res/values/strings.xml", "<resources><string name=\"a\">b</string></resources>\n");
+    write(r2, "app/src/main/res/drawable/icon.png", "png2");
+    write(r2, "app/src/main/res/layout/new_screen.xml", "<FrameLayout/>\n");
+    check("16 DEV-11 + ordinary Android resource changes (values, drawables, a new layout) keep automatic routing", routes(r2) && RF(r2)?.status === "CLEAN" && RF(r2)?.ordinaryChangeCount === 3, JSON.stringify(RF(r2)));
+
+    // DEV-11 — Expo config plugins named by the app configuration are build inputs.
+    check("16 DEV-11 expoReferencesOf (app.json): relative plugin entries and the first element of [path, options] only",
+      JSON.stringify(Reader.expoReferencesOf("app.json", JSON.stringify({ expo: { plugins: ["expo-camera", "./plugins/withTv.js", ["./plugins/withOpt.js", { icon: "./assets/icon.png" }]] } }))) ===
+      JSON.stringify({ paths: ["plugins/withTv.js", "plugins/withOpt.js"] }));
+    const tsRefs = Reader.expoReferencesOf("app.config.ts", 'import withTv from "./plugins/withTv";\nexport default ({ config }) => ({ ...config, plugins: [withTv, "./plugins/withLit.js", ["./plugins/withOpt.js", { asset: "./assets/a.png" }], "expo-router"] });\n');
+    check("16 DEV-11 expoReferencesOf (app.config.ts): imported modules and literal plugin entries; option strings, identifiers and packages are not inputs",
+      "paths" in tsRefs && ["plugins/withLit.js", "plugins/withOpt.js", "plugins/withTv", "plugins/withTv.ts", "plugins/withTv/index.js", "plugins/withTv/app.plugin.js"].every((p) => tsRefs.paths.includes(p)) &&
+      !tsRefs.paths.some((p) => /assets|expo-router/.test(p)), JSON.stringify(tsRefs));
+    check("16 DEV-11 expoReferencesOf: a plugin outside the repository, or an app.json that does not parse, is unresolved (UNKNOWN)",
+      "unresolved" in Reader.expoReferencesOf("app.json", '{"plugins":["../../shared/withTv"]}') && "unresolved" in Reader.expoReferencesOf("app.json", "{ not json"));
+    const e1 = prep({
+      "app.json": JSON.stringify({ expo: { name: "a", plugins: ["expo-camera", ["./plugins/withTv", { icon: "./assets/icon.png" }]] } }) + "\n",
+      "plugins/withTv.js": "module.exports = (c) => c;\n",
+      "plugins/unused.js": "module.exports = 1;\n",
+      "assets/icon.png": "png",
+      "src/App.tsx": "export {};\n",
+    });
+    check("16 DEV-11 (control) an Expo app with a local config plugin, unchanged → automatic", routes(e1) && RF(e1)?.status === "CLEAN", JSON.stringify(RF(e1)));
+    write(e1, "plugins/unused.js", "module.exports = 2;\n");
+    write(e1, "src/App.tsx", "export const a = 1;\n");
+    write(e1, "assets/icon.png", "png2");
+    check("16 DEV-11 + an unreferenced plugin file, app source and a plugin's option asset changed → still automatic", routes(e1) && RF(e1)?.status === "CLEAN" && RF(e1)?.ordinaryChangeCount === 3, JSON.stringify(RF(e1)));
+    write(e1, "plugins/withTv.js", "module.exports = (c) => ({ ...c, tv: true });\n");
+    check("16 DEV-11 − the config plugin app.json names changed → confirm", confirms(e1) && has(e1, `plugins/withTv.js — ${INPUT}`), JSON.stringify(RF(e1)));
+    rmSync(join(e1, "plugins/withTv.js"));
+    check("16 DEV-11 − the config plugin app.json names deleted → confirm", confirms(e1) && has(e1, `plugins/withTv.js — ${INPUT}`), JSON.stringify(RF(e1)));
+    const e2 = prep({
+      "app.config.ts": 'import withTv from "./plugins/withTv";\nexport default ({ config }) => ({ ...config, plugins: [withTv, "./plugins/withLit"] });\n',
+      "plugins/withTv.ts": "export default (c: unknown) => c;\n",
+      "plugins/withLit.js": "module.exports = (c) => c;\n",
+    });
+    write(e2, "plugins/withTv.ts", "export default (c: any) => ({ ...c, tv: true });\n");
+    check("16 DEV-11 − a plugin module app.config.ts imports changed → confirm", confirms(e2) && has(e2, `plugins/withTv.ts — ${INPUT}`), JSON.stringify(RF(e2)));
+    git(e2, "checkout", "-q", "--", "plugins/withTv.ts");
+    write(e2, "plugins/withLit.js", "module.exports = (c) => ({ ...c });\n");
+    check("16 DEV-11 − a literal plugin entry of app.config.ts changed → confirm", confirms(e2) && has(e2, `plugins/withLit.js — ${INPUT}`), JSON.stringify(RF(e2)));
+    const e3 = prep({ "app.json": JSON.stringify({ expo: { plugins: ["./plugins/withTv"] } }) + "\n", "plugins/withTv.js": "module.exports = (c) => c;\n" });
+    write(e3, "app.json", "{ broken");
+    check("16 DEV-11 − an app.json whose plugins cannot be read → UNKNOWN, confirm", confirms(e3) && RF(e3)?.status === "UNKNOWN", JSON.stringify(RF(e3)));
+
+    // DEV-10 — explicit build configuration that Git ignores.
+    const i1 = prep({ "ios/Config/Base.xcconfig": '#include? "Local.xcconfig"\nSDKROOT = iphoneos\n', ".gitignore": "ios/Config/Local.xcconfig\nlocal.properties\nsigning.gradle\n" });
+    check("16 DEV-10 (control) an optional ignored include that does not exist → still automatic (it cannot have changed the build; see Limitations)", routes(i1) && RF(i1)?.status === "CLEAN", JSON.stringify(RF(i1)));
+    write(i1, "ios/Config/Local.xcconfig", "SDKROOT = appletvos\n");
+    check("16 DEV-10 − an ignored .xcconfig that an .xcconfig includes exists → UNKNOWN, naming the file, confirm",
+      confirms(i1) && RF(i1)?.status === "UNKNOWN" && /ios\/Config\/Local\.xcconfig/.test(RF(i1)?.reason ?? ""), JSON.stringify(RF(i1)));
+    check("16 DEV-10 the ignored file is not in git status (why the reader must look for it)", !/Local\.xcconfig/.test(git(i1, "status", "--porcelain", "--untracked-files=all")));
+    const i2 = prep({ "app/build.gradle": "apply from: '../signing.gradle'\ndef p = rootProject.file('local.properties')\n", ".gitignore": "local.properties\nsigning.gradle\n" });
+    write(i2, "local.properties", "sdk.dir=/opt/android\n");
+    check("16 DEV-10 + an ignored file a build script only reads (local.properties) → still automatic (data, not configuration; documented)", routes(i2) && RF(i2)?.status === "CLEAN", JSON.stringify(RF(i2)));
+    write(i2, "signing.gradle", "ext.tv = true\n");
+    check("16 DEV-10 − an ignored Gradle script that a build script applies exists → UNKNOWN, confirm", confirms(i2) && RF(i2)?.status === "UNKNOWN" && /signing\.gradle/.test(RF(i2)?.reason ?? ""), JSON.stringify(RF(i2)));
+    const i3 = prep({ "app.json": JSON.stringify({ expo: { plugins: ["./plugins/withSecret.js"] } }) + "\n", ".gitignore": "plugins/withSecret.js\n" });
+    write(i3, "plugins/withSecret.js", "module.exports = (c) => c;\n");
+    check("16 DEV-10 − an ignored Expo config plugin that app.json names exists → UNKNOWN, confirm", confirms(i3) && RF(i3)?.status === "UNKNOWN", JSON.stringify(RF(i3)));
+    const i4 = prep({ "ios/Config/Base.xcconfig": '#include "Shared.xcconfig"\n', "ios/Config/Shared.xcconfig": "SDKROOT = iphoneos\n" });
+    write(i4, "ios/Config/Shared.xcconfig", "SDKROOT = appletvos\n");
+    check("16 DEV-10 (unchanged behaviour) a tracked included .xcconfig that changed → ROUTING_CHANGED, confirm", confirms(i4) && RF(i4)?.status === "ROUTING_CHANGED", JSON.stringify(RF(i4)));
+
+    // DEV-15 — the AAB output name (Guy, YesTv tv/build.gradle:153, AGP 9): exactly
+    //   finalBundleFile.set(new File(current.parentFile, aabName))
+    // finalBundleFile is AGP FinalizeBundleTask's @OutputFile, so this names where the bundle is written.
+    const AGP9 = (line: string) => [
+      "plugins { id 'com.android.application' }",
+      "android { namespace 'tv.yes' }",
+      "androidComponents {",
+      "  onVariants(selector().all()) { variant ->",
+      "    tasks.named(\"sign${variant.name.capitalize()}Bundle\") { task ->",
+      "      def current = task.finalBundleFile.get().asFile",
+      "      def aabName = \"YesTv-${variant.name}-${android.defaultConfig.versionName}.aab\"",
+      `      ${line}`,
+      "    }",
+      "  }",
+      "}",
+      "",
+    ].join("\n");
+    const EXACT = "finalBundleFile.set(new File(current.parentFile, aabName))";
+    const refs = (line: string) => Reader.buildReferencesOf("tv/build.gradle", AGP9(line), "");
+    check("16 DEV-15 the exact reported expression names the bundle's output — not an input, not unresolved", JSON.stringify(refs(EXACT)) === JSON.stringify({ paths: [] }), JSON.stringify(refs(EXACT)));
+    check("16 DEV-15 + the same through the task (task.finalBundleFile.set(…)) and with a literal output path", JSON.stringify(refs(`task.${EXACT}`)) === JSON.stringify({ paths: [] }) && JSON.stringify(refs("finalBundleFile.set(file('dist/YesTv.aab'))")) === JSON.stringify({ paths: [] }));
+    const stillUnresolved: Array<[string, string]> = [
+      ["AGP's input property (intermediaryBundleFile)", "intermediaryBundleFile.set(new File(current.parentFile, aabName))"],
+      ["any other property's .set(…)", "targetsFile.set(new File(current.parentFile, 'targets.json'))"],
+      ["a nested call inside the output reference (it may read a file)", "finalBundleFile.set(new File(file('cfg.json').text, aabName))"],
+      ["more after the reference (.absoluteFile)", "finalBundleFile.set(new File(current.parentFile, aabName).absoluteFile)"],
+      ["a real computed input on its own line", "def t = new File(project.buildFile.parentFile, 'flavors.json')"],
+      ["a real computed input after the output on the same line", `${EXACT}; def t = new File(project.buildFile.parentFile, 'flavors.json')`],
+      ["the output split over two lines (the scan is line by line)", "finalBundleFile.set(\n        new File(current.parentFile, aabName))"],
+    ];
+    for (const [why, line] of stillUnresolved) check(`16 DEV-15 − still unresolved (UNKNOWN): ${why}`, "unresolved" in refs(line), JSON.stringify(refs(line)));
+    check("16 DEV-15 a literal input next to the output is still an input", JSON.stringify(refs(`${EXACT}\n      def t = file('tv-targets.json')`)) === JSON.stringify({ paths: ["tv/tv-targets.json"] }));
+
+    const g15 = prep({ "settings.gradle": "include ':app', ':tv'\n", "tv/build.gradle": AGP9(EXACT), "tv/src/main/java/tv/yes/Main.kt": "class Main\n" });
+    check("16 DEV-15 (Guy, synthetic) the AGP 9 TV module with the exact expression, unchanged → automatic Android / TV", routes(g15) && RF(g15)?.status === "CLEAN" && S(ext(g15)).routing.device_type === "tv", JSON.stringify(RF(g15)));
+    for (let i = 0; i < 80; i++) write(g15, `tv/src/main/java/tv/yes/f${i}/S${i}.kt`, `class S${i}\n`);
+    commit(g15, "80 ordinary changes");
+    for (let i = 80; i < 85; i++) write(g15, `tv/src/main/java/tv/yes/f${i}/S${i}.kt`, `class S${i}\n`);
+    check("16 DEV-15 (Guy, synthetic) + 85 ordinary source changes (committed and untracked) → CLEAN, exactly 85 ordinary, automatic Android / TV",
+      RF(g15)?.status === "CLEAN" && RF(g15)?.ordinaryChangeCount === 85 && routes(g15) && S(ext(g15)).routing.platform === "android" && S(ext(g15)).routing.device_type === "tv", JSON.stringify(RF(g15)));
+    write(g15, "tv/build.gradle", AGP9(EXACT).replace("YesTv-", "YesTV-"));
+    check("16 DEV-15 − editing that build script is still a routing-relevant change → confirm", confirms(g15) && has(g15, "tv/build.gradle — build or target configuration"), JSON.stringify(RF(g15)));
+    const n15 = prep({ "settings.gradle": "include ':app', ':tv'\n", "tv/build.gradle": AGP9("intermediaryBundleFile.set(new File(current.parentFile, aabName))") });
+    check("16 DEV-15 (negative control) the same module setting AGP's INPUT property → UNKNOWN, confirm", confirms(n15) && RF(n15)?.status === "UNKNOWN", JSON.stringify(RF(n15)));
+  }
+
   /* 11. The command, contracts and agent say the same thing. */
   {
     const cmd = read("commands/analyze-bug.md");
