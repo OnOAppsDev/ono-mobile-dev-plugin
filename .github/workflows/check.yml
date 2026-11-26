@@ -91,5 +91,10 @@ jobs:
           jq --version
           bash --version | head -1
           uname -s
+      # 0.9.2: the suite's own output — every INFO evidence line (CR counts, the 0.9.1
+      # negative control on Windows paths, each guard's decision) in the job log, since
+      # check.ts prints only a suite's FAIL lines. The strict step below decides the job.
+      - name: Hook enforcement evidence
+        run: node --no-warnings scripts/hook-checkout.test.ts
       - name: Hook enforcement (strict)
         run: node --no-warnings scripts/check.ts --strict --only hook-checkout

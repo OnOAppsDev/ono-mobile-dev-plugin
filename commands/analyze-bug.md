@@ -177,7 +177,7 @@ Read `routing` from `start`:
     Development context resolved from Project Knowledge: <platform in words> (<platform> / <device_type>; surfaces <routing.evidence.surfaces>).
     ```
 
-    The developer can still correct it before approving the plan (§ Correcting an automatic routing, below). Never treat this line as a question, and never present it for any other source.
+    The developer can still correct it before approving the plan (§ Correcting an automatic routing, below) — always after the scaffold records this routing, never instead of it. Never treat this line as a question, and never present it for any other source.
 - **`requires_confirmation: true`.** Ask once, with the same gate as `/analyze-feature` step 2. (`routing.repo_single_target.reason`, when present, says why the repository did not decide it — show it only if the developer asks.) Invoke `repo-analyst` with the `mobile-repo-analysis` methodology to detect the context — platform and device type together — and pass it the tracker evidence as corroboration: `routing.corroborating_surfaces`, `routing.corroborating_environment`, and the ticket's project key and name, components and labels from step 1. It returns one routing candidate with a resolution (`agents/repo-analyst.md` Step 5a). When it is `resolved`, present it:
 
   ```
@@ -196,14 +196,20 @@ Read `routing` from `start`:
   - **React Native stays `react-native`.** A bug that affects only iOS or only Android in a React Native app routes `react-native`; the affected OS is in `surfaces`, never the platform. Its linked iOS and Android shells are not separate platforms to choose between.
   - **The repository decides what is possible.** Ticket evidence may pick one of the targets the repository supports (the tvOS target of a project with iOS and tvOS targets) and may confirm a resolved one; it never adds a platform or device type the repository does not support.
 
-QA's affected surfaces (`routing.corroborating_surfaces`) and the ticket's environment (`routing.corroborating_environment`) are corroborating evidence only. Show them beside the detected context. They never choose the platform or device type on their own — `repo-analyst` may use them only to pick among the targets the repository supports — and neither does Project Knowledge in that detection. Under `repo-single-target` the helper decides from validated Project Knowledge, and the ticket's evidence can only agree with it or, by contradicting it or not being recognised, keep the developer's confirmation.
-**Correcting an automatic routing.** Only when the developer explicitly says the automatically resolved context is wrong — at step 5, at the step 9 summary, or on a later run of the unapproved draft — run step 5's detection and selection as for `requires_confirmation: true` (the repository-supported options from `repo-analyst`, never a value they did not choose), and then, only on an explicit answer:
+QA's affected surfaces (`routing.corroborating_surfaces`) and the ticket's environment (`routing.corroborating_environment`) are corroborating evidence only. Show them beside the detected context. They never choose the platform or device type on their own — `repo-analyst` may use them only to pick among the targets the repository supports — and neither does Project Knowledge in that detection. Under `repo-single-target` the helper decides from validated Project Knowledge, and the ticket's evidence can only agree with it or, by contradicting it or not being recognised, keep the developer's confirmation. (Since 0.9.2 the environment is read word by word: `Production`, `Staging 4.2` and similar say nothing about the platform and never block; ordinary source changes since the inspection never block either — only routing-relevant ones do.)
+**Correcting an automatic routing — scaffold first.** Only when the developer explicitly says the automatically resolved context is wrong — right after the step 5 line, at the step 9 summary, or on a later run of the unapproved draft:
 
-```
-node --no-warnings "${CLAUDE_PLUGIN_ROOT}/scripts/analyze-bug.ts" reroute <ref-args> --root "<TARGET_ROOT>" --platform <chosen> --device-type <chosen>
-```
+1. **The draft must exist first.** If step 6 has not run yet, run it now exactly as for `repo-single-target` — **without** `--platform` / `--device-type`: it records the automatic routing. Never pass the corrected value to `scaffold` (it refuses with `ROUTING_CONFLICT`), and never call `reroute` before the scaffold (it refuses with `REROUTE_NO_DRAFT`).
+2. **Select.** Run step 5's detection and selection as for `requires_confirmation: true` — the repository-supported options from `repo-analyst`, never a value the developer did not choose.
+3. **Correct**, only on an explicit answer:
 
-On `REROUTED` the draft was scaffolded again with the developer recorded as the routing source, and its analysis cleared (it was written for the other platform lane): continue at step 7. It refuses (`REROUTE_REFUSED`, with `code`) anything but an unapproved cycle-1 draft whose routing it selected itself — never an approved plan, never a developer-confirmed or feature-inherited routing; report the refusal and stop. Never offer this unprompted, and never edit the plan's routing yourself.
+   ```
+   node --no-warnings "${CLAUDE_PLUGIN_ROOT}/scripts/analyze-bug.ts" reroute <ref-args> --root "<TARGET_ROOT>" --platform <chosen> --device-type <chosen>
+   ```
+
+4. **On `REROUTED`** the draft was scaffolded again with the developer recorded as the routing source; its analysis **and its six `repo_knowledge_*` fields** were cleared (they were written for the other platform lane). Refill those fields and re-scope the corrected context to one surface — the end of step 6 — then continue at step 7. The step 9 summary shows the corrected routing and its source, and the plan is approved once, as for any plan.
+
+`reroute` refuses (`REROUTE_REFUSED`, with `code`) anything but an unapproved cycle-1 draft whose routing it selected itself — never an approved plan, never a developer-confirmed or feature-inherited routing; report the refusal and stop. Never offer this unprompted, and never edit the plan's routing yourself.
 
 **Scaffold at once.** As soon as the developer confirms (or the routing is decided by its source), run step 6. Nothing runs between the answer and the scaffold: the scaffold is what records the confirmed platform and device type, in the plan's frontmatter, so a session that ends after it loses nothing — the next `start` returns `BUG_PLAN_INCOMPLETE` and resumes with that routing.
 

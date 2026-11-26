@@ -523,7 +523,8 @@ const api = Reader as any;
   // sha256 of ono-project-inspector 6fa811d:docs/repo-knowledge-contract.md (Stage A, 0.11.0).
   // When the producer changes the contract, update the copy AND this pin in the same release.
   // 0.7.5: re-synced with producer 0.11.2 (the Project Root paragraph).
-  const STAGE_A_CONTRACT_SHA256 = "6fb8eff730a2064259fbc56428d2303424517ff9ded6d5c3b276be649c6226d8";
+  // 0.9.2: re-synced with producer 0.14.0 (3376bab): guarantee 10, fingerprint.artifactHash, "Artifact hashes".
+  const STAGE_A_CONTRACT_SHA256 = "872593e4789d521a3077ed921ac2d4f1c57bad82b8ddf429ccca50a5c06a7e74";
   const contract = read("docs/repo-knowledge-contract.md");
   // 0.9.0: the copy carries the documented consumer deviation (the single-target routing exception);
   // reversing exactly it must give the producer copy byte for byte.

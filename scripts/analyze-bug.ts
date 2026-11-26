@@ -234,6 +234,50 @@ export function ticketEvidence(value: string, pair: { platform: string; device_t
   return "contradicts";
 }
 
+/**
+ * 0.9.2 — the deployment-environment words that are neutral in a ticket's Environment field:
+ * they say where or when, never which platform. A closed list: any other word is unrecognised.
+ */
+export const NEUTRAL_ENVIRONMENT_WORDS: ReadonlySet<string> = new Set([
+  "production", "prod", "staging", "stg", "stage", "qa", "uat", "dev", "development", "test", "testing",
+  "beta", "alpha", "release", "rc", "preprod", "sandbox", "live", "internal", "debug",
+]);
+/**
+ * A version or build number, strictly bounded: digits with up to three dot-separated parts, an
+ * optional leading `v`, an optional `-rc` / `-beta` / `-alpha` suffix with digits, or `#<digits>`.
+ * Nothing else — so `4.2-androidtv` or `v5-tvos` is never absorbed as a version.
+ */
+const VERSION_TOKEN = /^(v?\d{1,9}(\.\d{1,9}){0,3}(-(rc|beta|alpha)\d{0,3})?|#\d{1,9})$/;
+/** The multi-word target names, matched as whole words, longest first (never as substrings). */
+const TARGET_PHRASES = Object.keys(TICKET_TARGETS).filter((k) => k.includes(" ")).map((k) => k.split(" ")).sort((a, b) => b.length - a.length);
+
+/**
+ * The Environment field read word by word (0.9.2). Neutral words and strict version numbers say
+ * nothing about routing; a declared surface id or an exact canonical target name is evidence and
+ * is judged like any ticket evidence; any other word makes the whole value unrecognised. Every
+ * evidence word counts: one contradiction is a contradiction, whatever else agrees.
+ */
+export function environmentEvidence(value: string, pair: { platform: string; device_type: string }, surfaceIds: string[]): "neutral" | "agrees" | "contradicts" | "unrecognised" {
+  const words = value.trim().toLowerCase().split(/[\s,;:|/()\[\]]+/).filter((w) => w !== "");
+  if (words.length === 0) return "neutral";
+  const ids = new Set(surfaceIds.map((id) => id.trim().toLowerCase()));
+  const verdicts: Array<"agrees" | "contradicts" | "unrecognised"> = [];
+  for (let i = 0; i < words.length; ) {
+    const phrase = TARGET_PHRASES.find((p) => p.every((w, k) => words[i + k] === w));
+    if (phrase) {
+      verdicts.push(ticketEvidence(phrase.join(" "), pair, surfaceIds));
+      i += phrase.length;
+      continue;
+    }
+    const w = words[i++];
+    if (ids.has(w) || TICKET_TARGETS[w] !== undefined) verdicts.push(ticketEvidence(w, pair, surfaceIds));
+    else if (!NEUTRAL_ENVIRONMENT_WORDS.has(w) && !VERSION_TOKEN.test(w)) verdicts.push("unrecognised");
+  }
+  if (verdicts.includes("contradicts")) return "contradicts";
+  if (verdicts.includes("unrecognised")) return "unrecognised";
+  return verdicts.length > 0 ? "agrees" : "neutral";
+}
+
 /** Rule 3: the proven single target, unless any ticket evidence contradicts it or is unrecognised. */
 function repoSingleTarget(root: string, surfaces: string[], environment: string | null): { ok: true; platform: string; device_type: string; surfaces: string[]; knowledge_head: string; mapping: unknown } | { ok: false; reason: string } {
   let target;
@@ -244,10 +288,14 @@ function repoSingleTarget(root: string, surfaces: string[], environment: string 
   }
   if (target.status !== "single") return { ok: false, reason: target.reason };
   const pair = { platform: target.platform, device_type: target.device_type };
-  const evidence = [...surfaces.map((s) => ["surface", s] as const), ...(environment && environment.trim() !== "" ? [["environment", environment] as const] : [])];
-  for (const [kind, value] of evidence) {
-    const verdict = ticketEvidence(String(value), pair, target.surfaces);
-    if (verdict !== "agrees") return { ok: false, reason: `the ticket's ${kind} ${JSON.stringify(value)} ${verdict === "contradicts" ? "contradicts" : "is not recognised against"} the repository's single target ${target.platform} / ${target.device_type}` };
+  // Affected surfaces: exact, as before. The environment: word by word (0.9.2) — neutral words never block.
+  const judged = [
+    ...surfaces.map((s) => ["surface", s, ticketEvidence(String(s), pair, target.surfaces)] as const),
+    ...(environment !== null ? [["environment", environment, environmentEvidence(environment, pair, target.surfaces)] as const] : []),
+  ];
+  for (const [kind, value, verdict] of judged) {
+    if (verdict === "agrees" || verdict === "neutral") continue;
+    return { ok: false, reason: `the ticket's ${kind} ${JSON.stringify(value)} ${verdict === "contradicts" ? "contradicts" : "is not recognised against"} the repository's single target ${target.platform} / ${target.device_type}` };
   }
   return { ok: true, platform: target.platform, device_type: target.device_type, surfaces: target.surfaces, knowledge_head: target.knowledgeHead, mapping: target.mapping };
 }
@@ -718,7 +766,7 @@ export function scaffoldPlan(req: BugRequest): Record<string, any> {
     route = { platform: req.platform, device_type: req.deviceType, how: "confirmed by the developer" };
   } else {
     if ((req.platform && req.platform !== r.platform) || (req.deviceType && req.deviceType !== r.device_type)) {
-      return refuse("ROUTING_CONFLICT", `the routing is ${r.platform} / ${r.device_type} (${r.reason}); a different value is not applied silently`);
+      return refuse("ROUTING_CONFLICT", `the routing is ${r.platform} / ${r.device_type} (${r.reason}); a different value is not applied silently${r.source === "repo-single-target" ? " — scaffold with the automatic routing first (no --platform / --device-type), then correct it explicitly with `reroute`" : ""}`);
     }
     route = {
       platform: r.platform,
@@ -779,9 +827,13 @@ const CYCLE_JUDGEMENT = ["Why the previous fix was insufficient", "Fix-design de
  * (its routing line carries that mark): status draft, never approved, no task state, no Bug
  * Fix Cycle approval. The developer's explicit, canonical choice replaces it, and the draft is
  * scaffolded again in place — its analysis was written for the wrong platform lane, so it is
- * cleared and the command continues the analysis with the corrected routing. The routing line
- * then records the developer's decision ("confirmed by the developer …"), so the draft is
- * never correctable again and the routing is carried, as confirmed, from then on.
+ * cleared, with its six `repo_knowledge_*` fields; the command refills those and re-scopes the
+ * surface for the corrected routing (the end of step 6) before the analysis continues. The
+ * routing line then records the developer's decision ("confirmed by the developer …"), so the
+ * draft is never correctable again and the routing is carried, as confirmed, from then on.
+ *
+ * Scaffold first (0.9.2): before a draft exists there is nothing to correct — `REROUTE_NO_DRAFT`.
+ * The automatic routing is always recorded by `scaffold` first, then corrected here.
  *
  * Never: an approved (or once-approved) plan, a later fix cycle, a plan with task state, a
  * routing a developer confirmed, a routing inherited from a related feature. Identity,
@@ -795,6 +847,10 @@ export function rerouteDraft(req: BugRequest): Record<string, any> {
   }
   if (!req.platform || !req.deviceType) return no("ROUTING_REQUIRED", "the corrected platform and device type are the developer's explicit choice (--platform, --device-type)");
   const a = assess(req);
+  // 0.9.2: the correction is applied to a draft — never before the automatic routing is recorded.
+  if (a.outcome === "BUG_PLAN_NEW") {
+    return no("REROUTE_NO_DRAFT", "there is no draft to correct yet — run `scaffold` first (without --platform / --device-type: it records the automatic routing), then `reroute` with the developer's choice");
+  }
   const allowed = a.outcome === "BUG_PLAN_INCOMPLETE" || (a.outcome === "BUG_PLAN_AWAITING_APPROVAL" && a.plan?.approval?.status === "draft");
   if (!allowed) return no("REROUTE_NOT_ALLOWED", `${a.outcome}: only an unapproved cycle-1 draft can have its routing corrected — ${a.reason}`);
   const fm = a.plan.frontmatter;
@@ -830,7 +886,7 @@ export function rerouteDraft(req: BugRequest): Record<string, any> {
     routing: { platform: route.platform, device_type: route.device_type, source: "developer", how: route.how },
     previous: { platform: fm.platform, device_type: fm.device_type, source: "repo-single-target" },
     cleared: ["Root Cause", "Blast Radius", "Fix Design", "Verification Strategy", "Tasks", "Repo Knowledge Reference", "Open Questions", "repo_knowledge_* frontmatter"],
-    next: "continue the analysis with the corrected routing (/analyze-bug step 7); the plan is approved once, as before",
+    next: "refill the six repo_knowledge_* fields and scope the corrected context to one surface (/analyze-bug step 6, after the scaffold), then continue the analysis at step 7; the plan is approved once, as before",
   };
 }
 
