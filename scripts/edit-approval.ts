@@ -71,7 +71,19 @@ export type Expansion = { path: string; task: string; reason: string; approved_b
 
 const sha = (s: string) => `sha256:${createHash("sha256").update(s).digest("hex")}`;
 export const recordPath = (key: string) => `docs/tasks/bugs/${key}.cycle-approval.json`;
-const isCode = (p: string) => CODE_EXTENSIONS.includes(extname(p).toLowerCase());
+/**
+ * Every spelling the filesystem may resolve to the same file (0.9.3) — the hook's `name_forms`:
+ * the name as written; before its first colon (NTFS stream syntax: x.ts::$DATA is x.ts); and each
+ * of those without trailing dots and spaces (Windows drops them: x.ts. is x.ts).
+ */
+export function nameForms(p: string): string[] {
+  const name = p.split(/[\\/]/).pop() ?? p;
+  const cut = name.split(":")[0];
+  const trim = (s: string) => s.replace(/[. ]+$/, "");
+  return [name, cut, trim(name), trim(cut)];
+}
+/** A code file when ANY spelling ends with a code extension, without regard to case — the hook's glob, exactly. */
+export const isCode = (p: string) => nameForms(p).some((f) => CODE_EXTENSIONS.some((e) => f.toLowerCase().endsWith(e)));
 
 /* ------------------------------------------------------------------- plan */
 

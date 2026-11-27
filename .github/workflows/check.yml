@@ -5,7 +5,9 @@
 # --strict makes a skipped suite a failure (the hooks suite skips itself without jq),
 # so a green run means every suite ran and passed. No dependencies are installed —
 # the suite needs only Node.js, git, jq and bash, all present on GitHub-hosted Ubuntu
-# runners. Nothing is built, published or deployed, and no secret is used.
+# and macOS runners. Nothing is built, published or deployed, and no secret is used.
+# 0.9.3: the full suite runs on Linux (a case-sensitive filesystem) and on macOS (APFS,
+# case-insensitive by default), so the hooks' filesystem-identity checks run on both kinds.
 name: Check
 
 on:
@@ -21,12 +23,13 @@ concurrency:
 
 jobs:
   strict:
-    name: Strict suite (Node ${{ matrix.node }})
-    runs-on: ubuntu-latest
+    name: Strict suite (${{ matrix.os == 'macos-latest' && 'macOS' || 'Linux' }}, Node ${{ matrix.node }})
+    runs-on: ${{ matrix.os }}
     timeout-minutes: 20
     strategy:
       fail-fast: false
       matrix:
+        os: [ubuntu-latest, macos-latest]
         # The supported Node.js versions (README § Requirements): the minimum on the
         # Node 22 line, and the current Node 24 LTS.
         node: ["22.18.0", "24"]
@@ -50,6 +53,7 @@ jobs:
           git --version
           jq --version
           bash --version | head -1
+          uname -sr
       - name: Strict check suite
         run: node --no-warnings scripts/check.ts --strict
 

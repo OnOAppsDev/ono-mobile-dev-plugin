@@ -314,19 +314,28 @@ try {
   }
 
   /* ── 4. Windows paths in block-main-branch-changes (0.9.2) ────────────── */
-  // The fix is one marked block that runs only under Git Bash. Removing it must give the
-  // released 0.9.1 hook byte for byte: that copy is the negative control on Windows.
+  // The fix is one marked block that runs only under Git Bash. 0.9.3 adds a second marked block
+  // (filesystem identity, § 5). Removing the 0.9.3 block gives the released 0.9.2 hook byte for
+  // byte, and removing both gives the released 0.9.1 hook: those copies are the negative controls.
   const HOOK_091_SHA256 = "08834255cd3a3e0226380a0b336214b88dda8baf9f30232676261070dab7e90e";
+  const HOOK_092_SHA256 = "f01bb2da741a569e0cd508bfca7509c0063eab5bc1923953f8b8bd5398a19191";
   const BEGIN = "# >>> Windows paths (0.9.2)";
   const END = "# <<< Windows paths (0.9.2)\n";
-  const withoutBlock = (buf: Buffer): Buffer | null => {
-    const a = buf.indexOf(BEGIN), b = buf.indexOf(END);
-    return a >= 0 && b > a ? Buffer.concat([buf.subarray(0, a), buf.subarray(b + END.length)]) : null;
+  const BEGIN_093 = "# >>> Filesystem identity (0.9.3)";
+  const END_093 = "# <<< Filesystem identity (0.9.3)\n";
+  const cut = (buf: Buffer | null, begin: string, end: string): Buffer | null => {
+    if (buf === null) return null;
+    const a = buf.indexOf(begin), b = buf.indexOf(end);
+    return a >= 0 && b > a ? Buffer.concat([buf.subarray(0, a), buf.subarray(b + end.length)]) : null;
   };
+  const without093 = (buf: Buffer) => cut(buf, BEGIN_093, END_093);
+  const withoutBlock = (buf: Buffer) => cut(without093(buf), BEGIN, END);
   const sha256 = (b: Buffer) => createHash("sha256").update(b).digest("hex");
   const hookNow = readFileSync(join(REPO_ROOT, "hooks", "block-main-branch-changes.sh"));
+  const control092 = without093(hookNow);
+  check("4 the 0.9.3 identity fix is one marked block; without it the hook is the released 0.9.2 hook byte for byte", control092 !== null && sha256(control092) === HOOK_092_SHA256, control092 ? sha256(control092) : "no block");
   const control091 = withoutBlock(hookNow);
-  check("4 the Windows path fix is one marked block; without it the hook is the released 0.9.1 hook byte for byte", control091 !== null && sha256(control091) === HOOK_091_SHA256, control091 ? sha256(control091) : "no block");
+  check("4 the Windows path fix is one marked block; without it (and the 0.9.3 block) the hook is the released 0.9.1 hook byte for byte", control091 !== null && sha256(control091) === HOOK_091_SHA256, control091 ? sha256(control091) : "no block");
   const blockText = hookNow.subarray(hookNow.indexOf(BEGIN), hookNow.indexOf(END)).toString("utf-8");
   check("4 the block runs only under Git Bash (OSTYPE msys or cygwin), so macOS and Linux behaviour is unchanged", /^case "\$\{OSTYPE:-\}" in\n  msys\*\|cygwin\*\)$/m.test(blockText) && (blockText.match(/^  \S[^\n]*\)$/gm) ?? []).length === 1 && /^esac$/m.test(blockText), blockText.slice(0, 120));
   // POSIX behaviour, executed: on this platform the hook still blocks a write on main and allows one outside the repository (scripts/hooks.test.ts § 3 pins the full POSIX matrix).
@@ -407,6 +416,69 @@ try {
       const onFeature = hookIn(fixed, HOOK, writeTo(inside, O), P, path);
       check(`4 [${reader}] on a feature branch the same Windows-path write is allowed (the branch check is unchanged)`, allowed(onFeature), show(onFeature));
       info(`0.9.2 hook [${reader}] — feature branch, C:\\ target inside, cwd outside: ${decision(onFeature)} (want ALLOW)`);
+    }
+
+    /* ── 5. Filesystem identity and name aliases on Windows (0.9.3) ─────── */
+    // NTFS is case-insensitive, has 8.3 short names (where the volume creates them) and junctions;
+    // a file name keeps working with trailing dots/spaces and the ::$DATA stream suffix. Every case
+    // below is executed here, from the fresh checkout, under both readers. A capability this runner
+    // does not have is reported as NOT VALIDATED — never counted as a pass.
+    const I = mkRepo(join(TMP, "win-ident"));
+    const IO = join(TMP, "win-ident-outside");
+    mkdirSync(IO, { recursive: true });
+    mkdirSync(join(TMP, "win-ident-sibling"), { recursive: true });
+    const cmd = (line: string) => spawnSync(process.env.ComSpec ?? "cmd.exe", ["/d", "/s", "/c", `"${line}"`], { windowsVerbatimArguments: true, encoding: "utf-8" });
+    const short = cmd(`for %I in ("${I}") do @echo %~sI`).stdout.trim();
+    const fsutil = cmd(`fsutil 8dot3name query ${I.slice(0, 2)}`).stdout.replace(/\s+/g, " ").trim();
+    info(`8.3 names on ${I.slice(0, 2)}: fsutil says «${fsutil.slice(0, 160)}»; the repository's short form is «${short}»`);
+    const junctionIn = join(IO, "jn-into-repo");
+    const jIn = cmd(`mklink /J "${junctionIn}" "${join(I, "src")}"`);
+    const junctionOut = join(I, "jn-out");
+    const jOut = cmd(`mklink /J "${junctionOut}" "${IO}"`);
+    info(`junctions: into the repository ${jIn.status === 0 ? "created" : `NOT created (${jIn.stderr.trim()})`}; out of it ${jOut.status === 0 ? "created" : `NOT created (${jOut.stderr.trim()})`}`);
+
+    const idCases: Array<[string, unknown, Want]> = [
+      ["upper-case C:\\ path to an existing file", writeTo(I.toUpperCase() + "\\SRC\\APP.TS", IO), "BLOCK"],
+      ["lower-case c:/ path", writeTo(fwdSlash(I).toLowerCase() + "/src/app.ts", IO), "BLOCK"],
+      ["mixed-case /c/ Git Bash path, new file in new folders", writeTo(msysPath(I).replace(/win-ident/, "Win-Ident") + "/NEW/deep/x.ts", IO), "BLOCK"],
+      ["relative path, upper-case session directory", writeTo("src\\App.ts", I.toUpperCase()), "BLOCK"],
+      ["a sibling whose name starts with the repository's (positive)", writeTo(join(TMP, "win-ident-sibling", "x.ts"), IO), "ALLOW"],
+      ["upper-case path outside the repository (positive)", writeTo(IO.toUpperCase() + "\\NOTES.MD", I), "ALLOW"],
+      ["the folder holding the repository (positive)", writeTo(join(TMP, "notes.md"), IO), "ALLOW"],
+    ];
+    if (short && short.toLowerCase() !== I.toLowerCase()) idCases.push(["8.3 short name of the repository", writeTo(`${short}\\src\\App.ts`, IO), "BLOCK"]);
+    else info("8.3 short names: NOT VALIDATED — this runner's volume gives the repository no short name distinct from its long name (8.3 creation off, or names already short); no 8.3 case was executed");
+    if (jIn.status === 0) idCases.push(["a junction outside that points into the repository", writeTo(join(junctionIn, "new.ts"), IO), "BLOCK"]);
+    else info("junction into the repository: NOT VALIDATED — the junction could not be created");
+    if (jOut.status === 0) idCases.push(["a junction inside the repository that points outside (the file is outside — positive)", writeTo(join(junctionOut, "notes.md"), I), "ALLOW"]);
+    else info("junction out of the repository: NOT VALIDATED — the junction could not be created");
+
+    const control092Script = "block-main-branch-changes.control-0.9.2.sh";
+    const c092 = without093(readFileSync(join(fixed, "hooks", HOOK)));
+    check("5 the 0.9.2 negative control written for this run is the released 0.9.2 hook byte for byte", c092 !== null && sha256(c092) === HOOK_092_SHA256);
+    writeFileSync(join(fixed, "hooks", control092Script), c092!);
+    for (const [reader, path] of readers) {
+      for (const [label, payload, want] of idCases.filter(([, , w]) => w === "BLOCK")) {
+        const d = decision(hookIn(fixed, control092Script, payload, I, path));
+        info(`negative control [${reader}] (0.9.2 hook) — ${label}: ${d} → ${d === "ALLOW" ? "DEFECT REPRODUCED" : d === "BLOCK" ? "not reproduced — 0.9.2 blocked it" : "inconclusive"} (0.9.3 wants ${want})`);
+      }
+      const wrong: string[] = [];
+      for (const [label, payload, want] of idCases) {
+        const d = decision(hookIn(fixed, HOOK, payload, I, path));
+        info(`0.9.3 hook [${reader}] — ${label}: ${d} (want ${want})`);
+        if (d !== want) wrong.push(`${label}: ${d} (want ${want})`);
+      }
+      check(`5 [${reader}] filesystem identity on Windows: all ${idCases.length} executed cases as required`, wrong.length === 0, wrong.join(" | "));
+
+      // DEV-09 and DEV-12 on Windows, through the hooks as installed.
+      const approval = (f: string) => hookIn(fixed, "require-approval-before-code.sh", { tool_name: "Write", tool_input: { file_path: f, content: "x" }, cwd: I }, I, path);
+      const notAsked = [`${I}\\src\\APP.TS`, `${I}\\src\\App.ts.`, `${I}\\src\\App.ts `, `${I}\\src\\App.ts::$DATA`, `${fwdSlash(I)}/src/App.Ts:zone`].filter((f) => !decided(approval(f), "ask"));
+      check(`5 [${reader}] DEV-09 upper case, trailing dot/space and ::$DATA spellings of a code file all ask`, notAsked.length === 0, notAsked.join(", "));
+      check(`5 [${reader}] DEV-09 a doc file still passes through (positive)`, allowed(approval(`${I}\\docs\\NOTES.MD`)));
+      const secretsIn = (f: string, content: string) => hookIn(fixed, "scan-for-secrets.sh", { tool_name: "Write", tool_input: { file_path: f, content } }, I, path);
+      const V = `Zq8pR2vL9x${"T4mW7kN3bY"}`;
+      check(`5 [${reader}] DEV-12 a credential in .ENV is blocked`, blocked(secretsIn(`${I}\\.ENV`, `DB_PASSWORD=${V}\n`)));
+      check(`5 [${reader}] DEV-12 a placeholder in .ENV.EXAMPLE is allowed (positive)`, allowed(secretsIn(`${I}\\.ENV.EXAMPLE`, "API_KEY=your-key-here\n")));
     }
   }
 } finally {

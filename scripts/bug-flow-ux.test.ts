@@ -265,12 +265,14 @@ try {
       // 0.7.6: the branch hook fails closed without jq, covers NotebookEdit and no longer blocks files outside the project repository — on purpose; re-pinned.
       // 2026-11-22, 0.8.0 integration remediation — re-pinned on purpose. hooks: A1 — the payload is read through hooks/lib/hook-json.sh (jq, else Node.js, else fail closed). Decisions unchanged.
       // 2026-11-25, 0.9.2 — re-pinned on purpose: one Git-Bash-only block converts native Windows paths (C:\…, C:/…) before the path checks, and blocks drive-relative and UNC paths on main/master; without the block the hook is the 0.9.1 hook byte for byte (hook-checkout.test.ts § 4).
-      "hooks/block-main-branch-changes.sh": "f01bb2da741a569e0cd508bfca7509c0063eab5bc1923953f8b8bd5398a19191",
+      // 2026-11-26, 0.9.3 — re-pinned on purpose (DEV-08): one marked block compares folders by identity (-ef, physical and as-written resolution), so a case alias, an 8.3 name or <link>/.. of the repository is blocked on main; without the block the hook is the 0.9.2 hook byte for byte (hook-checkout.test.ts § 4).
+      "hooks/block-main-branch-changes.sh": "d23d898dc6b304093202712f4893b817a32b686a10a4abf32fb5ace7de8d7d01",
       // 0.7.6: protect-secrets fails closed without jq or on an unreadable call, and scans NotebookEdit — on purpose; re-pinned.
       "hooks/protect-secrets.json": "b4b4350722c03853c22a91f53d0b25d6bc0898b8d9e51ec821a73e62242d003c",
       // 0.7.6: protect-secrets fails closed without jq or on an unreadable call, and scans NotebookEdit — on purpose; re-pinned.
       // 2026-11-22, 0.8.0 integration remediation — re-pinned on purpose. hooks: A1 — the payload is read through hooks/lib/hook-json.sh (jq, else Node.js, else fail closed); grep failure blocks. Decisions unchanged.
-      "hooks/scan-for-secrets.sh": "df0e036f1a42358babdca69540f5dbe282c0740d6ec0c6ba3930ade5052e00fd",
+      // 2026-11-26, 0.9.3 — re-pinned on purpose (DEV-12): the env-file check compares the file name and the credential key without regard to case and accepts `export` and spaces around `=`; every pattern and exemption is unchanged (hooks.test.ts § 6).
+      "hooks/scan-for-secrets.sh": "4c2f6b1851e40493d373aa5539f548a4cfbe7f9b509d9f4b8abd82151da3506b",
     };
     for (const [f, h] of Object.entries(HOOKS)) check(`14 ${f} is byte-identical`, sha(readFileSync(join(REPO_ROOT, f))) === h);
     const FEATURE: Record<string, string> = {

@@ -103,7 +103,7 @@ a random component. A `resume` is the same run and never increments it.
 {
   "taskStateSchemaVersion": 1,
   "feature": "biometric-login",
-  "producedBy": { "plugin": "ono-mobile-dev-plugin", "version": "0.9.2" },
+  "producedBy": { "plugin": "ono-mobile-dev-plugin", "version": "0.9.3" },
   "tasks": {
     "T1": {
       "state": "complete",

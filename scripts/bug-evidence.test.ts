@@ -291,10 +291,12 @@ try {
       // Node.js preflight: on an unsupported Node.js the ask names the version required — the decision is unchanged; re-pinned.
       // 0.8.0: Tier A code extensions; the no-approval ask carries the helper's workflow guidance — the decision is unchanged; re-pinned.
       // 2026-11-22, 0.8.0 integration remediation — re-pinned on purpose. hooks: A1 — the payload is read and the decision written through hooks/lib/hook-json.sh (jq, else Node.js, else ask). Decisions unchanged.
-      "hooks/require-approval-before-code.sh": "9f765d3d26c3d51006f4174664fa7683bc5f7624679ec816661f90f710421cd9",
+      // 2026-11-26, 0.9.3 — re-pinned on purpose (DEV-09): code files and the approval record are classified by every spelling of the name (any case, trailing dots/spaces, ::$DATA) — more asks only; the helper's verdict handling is unchanged (edit-approval.test.ts parity).
+      "hooks/require-approval-before-code.sh": "d456b8e32ed2518614668dfffa7c26f7e68e401bdb9d3df19dd4d23af368bf47",
       // 0.7.6: writeRecord creates docs/tasks/bugs/ for a repository's first cycle — on purpose; re-pinned.
       // 0.8.0: Tier A CODE_EXTENSIONS and workflowGuidance() for the no-approval ask — on purpose; re-pinned.
-      "scripts/edit-approval.ts": "0531cdefd7297524aa469fcd19b0db494e65122cfe41f85c7a7392fc9c3eeabf",
+      // 2026-11-26, 0.9.3 — re-pinned on purpose (DEV-09): isCode uses the hook's name forms and glob (nameForms); approvals, scope and records are unchanged (edit-approval.test.ts parity).
+      "scripts/edit-approval.ts": "919ff83d15b5b63215d7d0eb99a51761032954d390de8e7d01660719e94daf2a",
       "agents/feature-implementer.md": "052fec8ac10f83b1b78a94eca52a0260be977fcd4c92c629db91fd66d7b49991",
     };
     for (const [f, h] of Object.entries(PINS)) check(`37 ${f} is unchanged`, sha(readFileSync(join(REPO_ROOT, f))) === h);
